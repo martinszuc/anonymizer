@@ -1,7 +1,11 @@
 """Blackbox redaction of a born-digital PDF.
 
-Page-text entities are removed with PyMuPDF redaction annotations, which delete
-the characters under each box instead of drawing over them. Everything drawn
+Page-text entities and drawn regions are removed with PyMuPDF redaction
+annotations, which delete what lies under each box instead of drawing over it.
+A region also removes every vector drawing it touches: with PyMuPDF's normal
+setting a drawing fully under the box, such as a signature, stays in the file.
+Text boxes keep the normal setting, because the strict one would delete
+backgrounds and table lines behind the words. Everything drawn
 outside a page's visible area is removed next (see `redact.canvas`), then every
 non-text surface is cleared (see `redact.surfaces`). The file is written in
 full: an incremental save would keep every earlier revision of each object.
@@ -17,15 +21,17 @@ from anonymizer.core.ingest.normalize import bbox_to_unrotated_rect
 from anonymizer.core.redact.canvas import remove_off_page_content
 from anonymizer.core.redact.surfaces import clear_surfaces
 from anonymizer.core.types import BBox, Document
+from pymupdf import mupdf
 
 _BLACK = (0.0, 0.0, 0.0)
+_REMOVE_TOUCHED_DRAWINGS = mupdf.PDF_REDACT_LINE_ART_REMOVE_IF_TOUCHED
 
 
 def redact_pdf(source: Path | str, document: Document, destination: Path | str) -> None:
     """Write a redacted copy of a PDF.
 
-    Every page-text entity review did not reject is blacked out and its text
-    removed from the file. Content outside each page's visible area and every
+    Every page-text entity and region review did not reject is blacked out
+    and what lies under it removed from the file. Content outside each page's visible area and every
     non-text surface are removed regardless of detection. The source file is
     not modified.
 
@@ -42,14 +48,16 @@ def redact_pdf(source: Path | str, document: Document, destination: Path | str) 
     if source.resolve() == destination.resolve():
         msg = "the redacted copy must not overwrite its source"
         raise ValueError(msg)
-    boxes_by_page = _page_text_boxes(document)
+    text_boxes = _page_text_boxes(document)
+    region_boxes = _region_boxes(document)
     with pymupdf.open(source) as pdf:
         if pdf.page_count != len(document.pages):
             msg = f"document has {len(document.pages)} pages, the file {pdf.page_count}"
             raise ValueError(msg)
         for index in range(pdf.page_count):
             page = pdf.load_page(index)
-            _black_out(page, boxes_by_page.get(index, []))
+            _black_out(page, text_boxes.get(index, []))
+            _black_out_regions(page, region_boxes.get(index, []))
             remove_off_page_content(page)
         clear_surfaces(pdf)
         pdf.save(destination, garbage=4, deflate=True)
@@ -66,12 +74,30 @@ def _page_text_boxes(document: Document) -> dict[int, list[list[BBox]]]:
         if not entity.is_redactable or not entity.in_page_text or entity.page_index is None:
             continue
         page = document.page(entity.page_index)
-        entity_boxes = entity.bboxes or page.bboxes_for_span(entity.start, entity.end)
+        entity_boxes = entity.bboxes or page.bboxes_for_span(*entity.span)
         if not entity_boxes:
             msg = f"entity {entity.entity_id} has no geometry to redact"
             raise ValueError(msg)
         boxes[entity.page_index].append(entity_boxes)
     return boxes
+
+
+def _region_boxes(document: Document) -> dict[int, list[BBox]]:
+    """Collect each redactable region's box, grouped by page."""
+    boxes: dict[int, list[BBox]] = defaultdict(list)
+    for entity in document.entities:
+        if entity.is_region and entity.is_redactable and entity.page_index is not None:
+            boxes[entity.page_index].extend(entity.bboxes)
+    return boxes
+
+
+def _black_out_regions(page: pymupdf.Page, boxes: list[BBox]) -> None:
+    """Remove everything under each region and every drawing it touches."""
+    if not boxes:
+        return
+    for box in boxes:
+        page.add_redact_annot(bbox_to_unrotated_rect(box, page), fill=_BLACK)
+    page.apply_redactions(graphics=_REMOVE_TOUCHED_DRAWINGS)
 
 
 def _black_out(page: pymupdf.Page, boxes_per_entity: list[list[BBox]]) -> None:

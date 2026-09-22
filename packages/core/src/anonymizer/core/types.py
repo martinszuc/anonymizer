@@ -80,6 +80,7 @@ class DetectionSource(StrEnum):
     RULE = "rule"
     MODEL = "model"
     MANUAL = "manual"
+    PROPAGATED = "propagated"
 
 
 class ReviewState(StrEnum):

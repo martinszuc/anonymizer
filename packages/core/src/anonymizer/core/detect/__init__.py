@@ -25,6 +25,7 @@ from anonymizer.core.detect.contact import (
 )
 from anonymizer.core.detect.document import detect_document, detect_surface
 from anonymizer.core.detect.iban import find_ibans, is_valid_iban, normalize_iban
+from anonymizer.core.detect.propagate import propagate_occurrences
 from anonymizer.core.detect.url import find_urls
 
 LANGUAGE_INDEPENDENT_FINDERS: tuple[Finder, ...] = (
@@ -132,6 +133,7 @@ __all__ = [
     "is_valid_iban",
     "normalize_iban",
     "passes_luhn",
+    "propagate_occurrences",
     "resolve_overlaps",
     "structured_detector",
 ]

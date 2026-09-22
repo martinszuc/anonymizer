@@ -10,6 +10,9 @@ Links that stay within the document carry no string and are kept; every other
 annotation is removed, since its text, author and appearance can all carry
 personal data.
 
+Page thumbnails, small preview images some producers embed for a viewer's
+sidebar, are removed too: they are a picture of the unredacted page.
+
 The structure tree of a tagged PDF is removed whole, which costs the output its
 accessibility tags. Pruning it instead is not enough: its replacement text can
 repeat redacted words, and its references to removed annotations keep those
@@ -40,6 +43,7 @@ def clear_surfaces(pdf: pymupdf.Document) -> None:
         _clear_links(page)
         _clear_annotations(page)
         _clear_form_fields(page)
+        _clear_thumbnail(pdf, page)
 
 
 def _clear_metadata(pdf: pymupdf.Document) -> None:
@@ -85,6 +89,11 @@ def _clear_annotations(page: pymupdf.Page) -> None:
     """Remove every annotation, attachment annotations included."""
     for annot in list(page.annots()):
         page.delete_annot(annot)
+
+
+def _clear_thumbnail(pdf: pymupdf.Document, page: pymupdf.Page) -> None:
+    """Remove the page's thumbnail image."""
+    pdf.xref_set_key(page.xref, "Thumb", "null")
 
 
 def _clear_form_fields(page: pymupdf.Page) -> None:

@@ -36,7 +36,16 @@ def test_document_level_surface_yields_entities_without_page_or_box():
 
 
 def test_surface_without_personal_data_yields_nothing():
-    assert detect_surface(structured_detector(), link_surface("https://example.com/")) == []
+    surface = Surface(SurfaceKind.METADATA, "Curriculum vitae", "Title")
+    assert detect_surface(structured_detector(), surface) == []
+
+
+def test_link_target_is_reported_as_a_url():
+    surface = link_surface("https://www.linkedin.com/in/jan-novak")
+    (entity,) = detect_surface(structured_detector(), surface)
+    assert entity.type is EntityType.URL
+    assert entity.text == surface.value
+    assert entity.bboxes == [LINK_BOX]
 
 
 def test_every_match_on_one_surface_is_reported():

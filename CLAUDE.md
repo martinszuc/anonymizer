@@ -21,11 +21,13 @@ Part of a diploma thesis at FEKT VUT Brno. Roadmap and open decisions: `PLAN.md`
 
 ```
 packages/core/   library, no UI or CLI dependencies
-  types.py       shared data contract
+  types.py       shared data contract (the data format every component exchanges)
+  session.py     slim session files: a saved review
   ingest/        pdf.py (text layer), surfaces.py (non-text surfaces),
                  normalize.py (NFC, rotation), OCR engine adapters
   detect/        base.py (protocol, Match, RuleDetector, overlap resolution),
-                 document.py (pages + surfaces), rule modules, NER backends
+                 document.py (pages + surfaces), propagate.py (other occurrences),
+                 rule modules, NER backends
   redact/        pdf.py (blackbox), surfaces.py (clearing), canvas.py (content
                  outside the visible area), leakage.py (six-layer leak check)
 packages/cli/    thin command-line client
@@ -36,8 +38,9 @@ data/            local corpora, git-ignored, never committed
 ```
 
 Implemented so far: the data contract, the rule-based detectors, born-digital
-PDF ingest, the non-text surface scan, and blackbox redaction with its leak
-check. The OCR adapter, CLI and UI are empty.
+PDF ingest, the non-text surface scan, blackbox redaction with its leak check,
+and the review data format (regions, fingerprint, session files, span
+adjustment, occurrence propagation). The OCR adapter, CLI and UI are empty.
 
 - All components exchange data through `core/types.py`: `Document → Page → Word(bbox)` and `Document → Surface`, with `Entity` pointing at a page and optionally a surface. Change the contract deliberately; it is consumed by CLI, UI and serialized review files.
 - OCR engines, detectors and redaction strategies sit behind interfaces. Add implementations, do not special-case callers.
@@ -47,7 +50,8 @@ check. The OCR adapter, CLI and UI are empty.
 - A checksum is the strongest evidence available, but most non-Czech identifiers have none (US SSNs and phone numbers do not). Where a checksum is weak or absent, require a label from the document (as IČO does) instead of lowering the bar on digits alone.
 - Coordinates are **PDF points, per page, origin top-left, y downward** (PyMuPDF's convention, so extraction needs no conversion). A rasterized page records `Page.raster_dpi`; pixels convert with `points = pixels * 72 / dpi` before entering a `BBox`.
 - **The text layer is not the only place personal data hides.** Link annotations, document metadata and XMP, form field values, bookmarks, embedded files and a tagged PDF's structure tree all carry identifying data that never appears in `Page.text`, and clearing the visible words leaves them intact. Ingest lists them as `Document.surfaces`; an entity on one sets `surface_id` and its offsets refer to `Surface.value`. Redaction must clear surfaces whether or not an entity was found in them.
-- Text offsets are **page-local into `Page.text`**. An entity carries its character span *and* one bbox per covered word, so a span crossing a line break yields several boxes instead of one covering the gap.
+- Text offsets are **page-local into `Page.text`**. An entity carries its character span *and* one bbox per covered word, so a span crossing a line break yields several boxes instead of one covering the gap. A **region** entity (a box a reviewer drew over a photo, signature or stamp) has no span and exactly one box; use `Entity.span`, which refuses a region, rather than reading `start`/`end` directly.
+- A document is tied to its source by **fingerprint** (SHA-256), never by file name, which can itself be personal data. Redaction and session loading refuse a different file. Surface ids are derived from kind, page and reference, so they are stable across loads.
 - Overlapping detections are resolved by `resolve_overlaps`: entity-type priority first (checksum-backed identifiers beat free-form patterns; URLs beat everything, since anything overlapping a URL lies inside it), then longest span. Add a type to `OVERLAP_PRIORITY` rather than special-casing a caller.
 - Detection is **recall-first**: a missed entity leaks, a false positive is removed during review. Prefer a rule that over-matches to one that depends on a register that can go stale (this is why bank codes are not validated against the ČNB list).
 - Czech and Slovak are the primary target for name detection (NER); English is covered by the rules and serves as a secondary check. Keep language a configuration value, never hardcoded.

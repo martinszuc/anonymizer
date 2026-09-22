@@ -1,8 +1,9 @@
 """Blackbox redaction of a born-digital PDF.
 
 Page-text entities are removed with PyMuPDF redaction annotations, which delete
-the characters under each box instead of drawing over them. Every non-text
-surface is then cleared (see `redact.surfaces`), and the file is written in
+the characters under each box instead of drawing over them. Everything drawn
+outside a page's visible area is removed next (see `redact.canvas`), then every
+non-text surface is cleared (see `redact.surfaces`). The file is written in
 full: an incremental save would keep every earlier revision of each object.
 """
 
@@ -13,6 +14,7 @@ from pathlib import Path
 
 import pymupdf
 from anonymizer.core.ingest.normalize import bbox_to_unrotated_rect
+from anonymizer.core.redact.canvas import remove_off_page_content
 from anonymizer.core.redact.surfaces import clear_surfaces
 from anonymizer.core.types import BBox, Document
 
@@ -23,8 +25,9 @@ def redact_pdf(source: Path | str, document: Document, destination: Path | str) 
     """Write a redacted copy of a PDF.
 
     Every page-text entity review did not reject is blacked out and its text
-    removed from the file. Every non-text surface is cleared regardless of
-    detection. The source file is not modified.
+    removed from the file. Content outside each page's visible area and every
+    non-text surface are removed regardless of detection. The source file is
+    not modified.
 
     Args:
         source: PDF the document was loaded from.
@@ -45,7 +48,9 @@ def redact_pdf(source: Path | str, document: Document, destination: Path | str) 
             msg = f"document has {len(document.pages)} pages, the file {pdf.page_count}"
             raise ValueError(msg)
         for index in range(pdf.page_count):
-            _black_out(pdf.load_page(index), boxes_by_page.get(index, []))
+            page = pdf.load_page(index)
+            _black_out(page, boxes_by_page.get(index, []))
+            remove_off_page_content(page)
         clear_surfaces(pdf)
         pdf.save(destination, garbage=4, deflate=True)
 

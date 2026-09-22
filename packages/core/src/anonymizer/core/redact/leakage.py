@@ -1,20 +1,23 @@
 """Checking a redacted PDF for personal data that survived.
 
-Four layers, because each misses something the others catch:
+Six layers, because each misses something the others catch:
 
 1. **Page text.** The output is extracted the way ingest extracts the input,
    and no redacted entity's text may remain on any page.
-2. **Surfaces.** The surface scan is re-run; redaction clears every surface, so
+2. **Off-page text.** Any word drawn outside a page's visible area is a leak:
+   redaction removes that area whole, and ingest never extracted it.
+3. **Surfaces.** The surface scan is re-run; redaction clears every surface, so
    any surface left is a leak, whether or not an entity was found in it.
-3. **Objects.** Every object and decompressed stream in the file is searched
+4. **Thumbnails.** A page thumbnail is a picture of the page before redaction.
+5. **Objects.** Every object and decompressed stream in the file is searched
    for each entity's text. This catches carriers the surface scan does not list
    (JavaScript, named destinations, an overlooked dictionary). It only sees
    strings stored literally; hex or UTF-16 encoded strings and font-encoded page
-   text are the first two layers' job.
-4. **File bytes.** An incremental save appends new object revisions and leaves
+   text are the first layers' job.
+6. **File bytes.** An incremental save appends new object revisions and leaves
    the old ones in the file, where the object table no longer points but any
    text editor still shows them. The raw bytes are searched as well, with the
-   same literal-string limit as layer 3.
+   same literal-string limit as layer 5.
 
 Whitespace is ignored when comparing text: a span that crossed a line break
 may be extracted with different spacing.
@@ -28,6 +31,7 @@ from pathlib import Path
 
 import pymupdf
 from anonymizer.core.ingest import extract_page, extract_surfaces
+from anonymizer.core.redact.canvas import off_page_words
 from anonymizer.core.types import Document, Entity
 
 
@@ -35,7 +39,9 @@ class LeakLayer(StrEnum):
     """Where in the redacted file a leak was found."""
 
     PAGE_TEXT = "page_text"
+    OFF_PAGE_TEXT = "off_page_text"
     SURFACE = "surface"
+    THUMBNAIL = "thumbnail"
     OBJECT = "object"
     FILE_BYTES = "file_bytes"
 
@@ -48,8 +54,10 @@ class Leak:
         layer: Which check found it.
         where: Location within the layer: a page number, a surface kind and
             reference, or an object number.
-        text: The leaked string; for an uncleared surface, its value.
-        entity_id: Entity whose text leaked, or `None` for an uncleared surface.
+        text: The leaked string; for an uncleared surface its value, for a
+            thumbnail a description.
+        entity_id: Entity whose text leaked, or `None` when the leak is not tied
+            to an entity (an uncleared surface, off-page text, a thumbnail).
     """
 
     layer: LeakLayer
@@ -73,7 +81,9 @@ def find_leaks(redacted: Path | str, document: Document) -> list[Leak]:
     with pymupdf.open(redacted) as pdf:
         leaks = [
             *_page_text_leaks(pdf, targets),
+            *_off_page_leaks(pdf),
             *_surface_leaks(pdf),
+            *_thumbnail_leaks(pdf),
             *_object_leaks(pdf, targets),
         ]
     return leaks + _file_byte_leaks(Path(redacted), targets)
@@ -95,6 +105,24 @@ def _page_text_leaks(pdf: pymupdf.Document, targets: list[Entity]) -> list[Leak]
             if _compact(entity.text) in page_text
         )
     return leaks
+
+
+def _off_page_leaks(pdf: pymupdf.Document) -> list[Leak]:
+    """Report every word drawn outside a page's visible area."""
+    return [
+        Leak(LeakLayer.OFF_PAGE_TEXT, f"page {index}", word)
+        for index in range(pdf.page_count)
+        for word in off_page_words(pdf.load_page(index))
+    ]
+
+
+def _thumbnail_leaks(pdf: pymupdf.Document) -> list[Leak]:
+    """Report every page that still carries a thumbnail."""
+    return [
+        Leak(LeakLayer.THUMBNAIL, f"page {index}", "page thumbnail")
+        for index in range(pdf.page_count)
+        if pdf.xref_get_key(pdf.load_page(index).xref, "Thumb")[0] != "null"
+    ]
 
 
 def _surface_leaks(pdf: pymupdf.Document) -> list[Leak]:

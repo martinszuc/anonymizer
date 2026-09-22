@@ -26,8 +26,8 @@ packages/core/   library, no UI or CLI dependencies
                  normalize.py (NFC, rotation), OCR engine adapters
   detect/        base.py (protocol, Match, RuleDetector, overlap resolution),
                  document.py (pages + surfaces), rule modules, NER backends
-  redact/        pdf.py (blackbox), surfaces.py (clearing),
-                 leakage.py (four-layer leak check)
+  redact/        pdf.py (blackbox), surfaces.py (clearing), canvas.py (content
+                 outside the visible area), leakage.py (six-layer leak check)
 packages/cli/    thin command-line client
 ui/              review UI (framework not decided)
 experiments/     evaluation scripts

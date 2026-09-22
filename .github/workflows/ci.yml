@@ -3,7 +3,11 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore: &docs_only
+      - "**/*.md"
+      - "LICENSE"
   pull_request:
+    paths-ignore: *docs_only
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

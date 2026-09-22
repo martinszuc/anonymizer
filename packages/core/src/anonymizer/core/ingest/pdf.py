@@ -5,7 +5,8 @@ PyMuPDF reports word boxes in the page's **unrotated** coordinate system while
 `page.rotation_matrix` before they enter the data contract (see `normalize`).
 
 Pages whose text layer yields no words are marked `has_text_layer=False`. They
-need OCR; this module does not attempt it.
+need OCR; this module does not attempt it. Strings outside the text layer are
+listed by `surfaces`.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from pathlib import Path
 
 import pymupdf
 from anonymizer.core.ingest.normalize import normalize_text, unrotated_rect_to_bbox
+from anonymizer.core.ingest.surfaces import extract_surfaces
 from anonymizer.core.types import Document, Page, Word
 
 # Reading order is reconstructed from PyMuPDF's block, line and word numbering.
@@ -101,8 +103,9 @@ def load_document(path: Path | str, *, language: str | None = None) -> Document:
             the document.
 
     Returns:
-        A document with one page per PDF page. Only the file's name is recorded,
-        never its path, which can itself be personal data.
+        A document with one page per PDF page and every string found outside
+        the text layer as a surface. Only the file's name is recorded, never its
+        path, which can itself be personal data.
 
     Raises:
         FileNotFoundError: If `path` does not exist.
@@ -114,7 +117,8 @@ def load_document(path: Path | str, *, language: str | None = None) -> Document:
         raise FileNotFoundError(msg)
     with pymupdf.open(source) as pdf:
         pages = [extract_page(pdf.load_page(index), index) for index in range(pdf.page_count)]
-    return Document(pages=pages, source_name=source.name, language=language)
+        surfaces = extract_surfaces(pdf)
+    return Document(pages=pages, surfaces=surfaces, source_name=source.name, language=language)
 
 
 def pages_needing_ocr(document: Document) -> list[int]:

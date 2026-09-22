@@ -20,7 +20,9 @@ from anonymizer.core.types import DetectionSource, Entity, EntityType, Page
 OVERLAP_PRIORITY: tuple[EntityType, ...] = (
     EntityType.BIRTH_NUMBER,
     EntityType.IBAN,
+    EntityType.CREDIT_CARD,
     EntityType.BANK_ACCOUNT,
+    EntityType.COMPANY_ID,
     EntityType.EMAIL,
     EntityType.PHONE,
     EntityType.ID_NUMBER,

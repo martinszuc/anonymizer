@@ -27,7 +27,7 @@ from enum import StrEnum
 from typing import Any, Self
 from uuid import uuid4
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 """Version of the serialized review format. Bump on any incompatible change."""
 
 
@@ -38,6 +38,8 @@ class EntityType(StrEnum):
     BIRTH_NUMBER = "birth_number"
     BANK_ACCOUNT = "bank_account"
     IBAN = "iban"
+    CREDIT_CARD = "credit_card"
+    COMPANY_ID = "company_id"
     EMAIL = "email"
     PHONE = "phone"
     ADDRESS = "address"

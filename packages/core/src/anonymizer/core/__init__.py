@@ -13,6 +13,8 @@ from anonymizer.core.types import (
     EntityType,
     Page,
     ReviewState,
+    Surface,
+    SurfaceKind,
     Word,
 )
 
@@ -27,6 +29,8 @@ __all__ = [
     "EntityType",
     "Page",
     "ReviewState",
+    "Surface",
+    "SurfaceKind",
     "Word",
     "__version__",
 ]

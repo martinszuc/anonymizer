@@ -12,6 +12,8 @@ from anonymizer.core.types import (
     EntityType,
     Page,
     ReviewState,
+    Surface,
+    SurfaceKind,
     Word,
 )
 
@@ -35,7 +37,30 @@ def sample_page() -> Page:
     return Page(index=0, width=595.0, height=842.0, text=PAGE_TEXT, words=words)
 
 
+LINK_BOX = BBox(10, 50, 120, 62)
+
+
+def sample_surfaces() -> list[Surface]:
+    return [
+        Surface(SurfaceKind.LINK, "mailto:jan.novak@example.com", "12/uri", 0, LINK_BOX),
+        Surface(SurfaceKind.METADATA, "CV - jan.novak@example.com", "Title"),
+    ]
+
+
+def surface_entity(surface: Surface, text: str) -> Entity:
+    start = surface.value.index(text)
+    return Entity(
+        type=EntityType.EMAIL,
+        page_index=surface.page_index,
+        start=start,
+        end=start + len(text),
+        text=text,
+        surface_id=surface.surface_id,
+    )
+
+
 def sample_document() -> Document:
+    surfaces = sample_surfaces()
     entities = [
         Entity(
             type=EntityType.PERSON,
@@ -54,8 +79,15 @@ def sample_document() -> Document:
             text="900101/0009",
             review=ReviewState.CONFIRMED,
         ),
+        *(surface_entity(surface, "jan.novak@example.com") for surface in surfaces),
     ]
-    return Document(pages=[sample_page()], entities=entities, source_name="form.pdf", language="cs")
+    return Document(
+        pages=[sample_page()],
+        surfaces=surfaces,
+        entities=entities,
+        source_name="form.pdf",
+        language="cs",
+    )
 
 
 class TestBBox:
@@ -95,6 +127,16 @@ class TestSpans:
         with pytest.raises(ValueError, match="negative page index"):
             Entity(type=EntityType.EMAIL, page_index=-1, start=0, end=3, text="a@b")
 
+    def test_page_text_entity_requires_a_page_index(self):
+        with pytest.raises(ValueError, match="needs a page index"):
+            Entity(type=EntityType.EMAIL, page_index=None, start=0, end=3, text="a@b")
+
+    def test_surface_entity_may_have_no_page(self):
+        entity = Entity(
+            type=EntityType.EMAIL, page_index=None, start=0, end=3, text="a@b", surface_id="s"
+        )
+        assert not entity.in_page_text
+
     def test_entity_rejects_out_of_range_score(self):
         with pytest.raises(ValueError, match="score out of range"):
             Entity(type=EntityType.EMAIL, page_index=0, start=0, end=3, text="a@b", score=1.5)
@@ -108,6 +150,24 @@ class TestSpans:
         page = sample_page()
         matched = [word.text for word in page.words_in_span(0, 6)]
         assert matched == ["Jméno:"]
+
+
+class TestSurface:
+    def test_rejects_empty_value(self):
+        with pytest.raises(ValueError, match="empty surface value"):
+            Surface(SurfaceKind.METADATA, "", "Title")
+
+    def test_rejects_negative_page_index(self):
+        with pytest.raises(ValueError, match="negative page index"):
+            Surface(SurfaceKind.LINK, "tel:+420", "3/uri", -1)
+
+    def test_rejects_bbox_without_page(self):
+        with pytest.raises(ValueError, match="bbox but no page"):
+            Surface(SurfaceKind.METADATA, "Jan", "Author", None, LINK_BOX)
+
+    @pytest.mark.parametrize("surface", sample_surfaces(), ids=lambda surface: surface.kind)
+    def test_dict_round_trip(self, surface: Surface):
+        assert Surface.from_dict(surface.to_dict()) == surface
 
 
 class TestDocument:
@@ -124,6 +184,40 @@ class TestDocument:
         document.entities[0].bboxes = [manual]
         document.resolve_bboxes()
         assert document.entities[0].bboxes == [manual]
+
+    def test_resolve_bboxes_gives_surface_entities_the_surface_box(self):
+        document = sample_document()
+        document.resolve_bboxes()
+        link, metadata = document.surfaces
+        assert document.entities_in_surface(link.surface_id)[0].bboxes == [LINK_BOX]
+        assert document.entities_in_surface(metadata.surface_id)[0].bboxes == []
+
+    def test_entities_on_page_excludes_surface_entities(self):
+        document = sample_document()
+        assert all(entity.in_page_text for entity in document.entities_on_page(0))
+        assert len(document.entities_on_page(0)) == 2
+
+    def test_entities_in_surface_offsets_refer_to_the_surface_value(self):
+        document = sample_document()
+        for surface in document.surfaces:
+            for entity in document.entities_in_surface(surface.surface_id):
+                assert surface.value[entity.start : entity.end] == entity.text
+
+    def test_surface_lookup_rejects_unknown_id(self):
+        with pytest.raises(KeyError, match="no surface with id nope"):
+            sample_document().surface("nope")
+
+    def test_from_dict_rejects_unknown_surface_reference(self):
+        payload = sample_document().to_dict()
+        payload["entities"][-1]["surface_id"] = "missing"
+        with pytest.raises(ValueError, match="unknown surface missing"):
+            Document.from_dict(payload)
+
+    def test_from_dict_rejects_page_that_disagrees_with_the_surface(self):
+        payload = sample_document().to_dict()
+        payload["entities"][-1]["page_index"] = 0
+        with pytest.raises(ValueError, match="its surface on page None"):
+            Document.from_dict(payload)
 
     def test_entities_on_page_is_sorted_by_offset(self):
         document = sample_document()
@@ -160,6 +254,11 @@ class TestDocument:
         payload["schema_version"] = SCHEMA_VERSION + 1
         with pytest.raises(ValueError, match="unsupported schema version"):
             Document.from_dict(payload)
+
+    def test_surface_ids_are_stable_across_round_trip(self):
+        document = sample_document()
+        restored = Document.from_json(document.to_json())
+        assert restored.surfaces == document.surfaces
 
     def test_entity_ids_are_unique_and_stable_across_round_trip(self):
         document = sample_document()

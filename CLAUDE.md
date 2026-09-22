@@ -36,7 +36,9 @@ born-digital PDF ingest. The OCR adapter, redaction, CLI and UI are empty.
 
 - All components exchange data through `core/types.py`: `Document → Page → Word(bbox) → Entity`. Change the contract deliberately; it is consumed by CLI, UI and serialized review files.
 - OCR engines, detectors and redaction strategies sit behind interfaces. Add implementations, do not special-case callers.
-- Structured identifiers (rodné číslo, bank accounts, IBAN) are detected by format + checksum rules, not by ML.
+- Structured identifiers (rodné číslo, bank accounts, IBAN, payment cards, IČO) are detected by format + checksum rules, not by ML.
+- Rules are **locale-scoped**: `detect.finders_for(language)` picks the set, locale-independent finders (email, IBAN, Luhn) always run, and an unknown language falls back to every rule. Register a new rule there rather than calling it directly.
+- A checksum is the strongest evidence available, but most non-Czech identifiers have none (US SSNs and phone numbers do not). Where a checksum is weak or absent, require a label from the document (as IČO does) instead of lowering the bar on digits alone.
 - Coordinates are **PDF points, per page, origin top-left, y downward** (PyMuPDF's convention, so extraction needs no conversion). A rasterized page records `Page.raster_dpi`; pixels convert with `points = pixels * 72 / dpi` before entering a `BBox`.
 - Text offsets are **page-local into `Page.text`**. An entity carries its character span *and* one bbox per covered word, so a span crossing a line break yields several boxes instead of one covering the gap.
 - Overlapping detections are resolved by `resolve_overlaps`: entity-type priority first (checksum-backed identifiers beat free-form patterns), then longest span. Add a type to `OVERLAP_PRIORITY` rather than special-casing a caller.

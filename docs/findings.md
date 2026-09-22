@@ -51,7 +51,10 @@ only — never as fixtures or training data. Nothing identifying is quoted here.
   them. Only the object-level leak check noticed; the surface scan saw nothing.
   Redaction now removes the structure tree, and ingest lists its text.
 - The Slovak phone matched only because `+` was present. A bare `421918446150`
-  (the form OCR produces when it drops the plus) is missed. Open in M3.
+  (the form OCR produces when it drops the plus) was missed, and `421 918 446 150`
+  matched only its first nine digits — a partial match that would have left the
+  rest unredacted. The Slovak domestic form with a trunk zero (`0918 446 150`) was
+  missed as well. Fixed.
 - **The file name was `<name>-<id>-Zivotopisy.cz.pdf`** — full name plus
   account ID. The contract stores `source_name` in every exported review JSON, so
   the file name is itself a PII surface. Open decision below.
@@ -92,6 +95,30 @@ text, surface scan, objects, raw bytes). Names remain: nothing detects them yet.
   value was only drawn in the field's appearance.
 - One box per word leaves gaps that show how a value was grouped (a phone number
   as four blocks); an entity's boxes on one line are merged before redacting.
+
+### Toolchain findings: what a redaction box really removes
+
+Verified on saved files, one probe per kind of content under a box:
+
+| Under the box | Result |
+|---|---|
+| Text, also inside a form XObject | removed |
+| Raster image | pixels inside the box overwritten in the image data; rest intact |
+| Image shared by two pages | redacted copy made for the redacted page; the other page untouched |
+| Image with transparency | mask made uniform inside the box (no shape left); unchanged outside |
+| Vector drawing fully under the box | **kept** with PyMuPDF's normal setting; removed with the strict setting (`graphics=2`), which also deletes any line merely touching the box |
+| Page thumbnail (`/Thumb`) | **kept**: a small picture of the unredacted page |
+
+- **Content outside the visible area is invisible to PyMuPDF's extraction**, even
+  unclipped: text outside the crop box or beyond the media box is simply not
+  returned, yet it is in the file. Enlarging the media box exposes it.
+- PyMuPDF reports the crop box measured from the top of the media box, while the
+  PDF stores it from the bottom; converting between the two is needed before any
+  geometry changes.
+- A test image built without real transparency made the first transparency probe
+  meaningless. Probes check the fixture's starting state first.
+- None of the real samples has content outside the visible area or a thumbnail;
+  those fixes are exercised by synthetic files only.
 
 - `Page.apply_redactions()` removes a link only if a redaction box overlaps its
   rectangle; links elsewhere on the page survive. A URL entity whose box is the

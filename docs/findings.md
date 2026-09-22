@@ -27,12 +27,23 @@ only — never as fixtures or training data. Nothing identifying is quoted here.
   `linkedin.com/in/<name>`. Detection over `Page.text` cannot see them and
   redacting page content leaves them clickable in the "anonymized" output.
 - Metadata title carried the job description.
+- **Every information dictionary value is a separate string object** (react-pdf).
+  A reader that takes only inline strings sees no metadata at all, so the first
+  surface scan missed the title on exactly the file that motivated it.
+- After the surface scan: the `mailto:` target is detected. The two profile links
+  and all four metadata values produce no entity — no rule describes a profile
+  URL or a free-text title.
 
 ### 2026-09-22 · `resume-real-cs-borndigital.pdf` — real CS CV (Skia / headless Chrome)
 
 - **Same leak, different producer** → this is how PDFs work, not one library's
   quirk: `tel:+…`, `mailto:…`, site links, plus a metadata title containing the
   the submitter's account ID.
+- Metadata values are inline strings here, unlike react-pdf. `ModDate` equals
+  `CreationDate`: a scan that de-duplicates equal values drops one of two carriers.
+- After the surface scan: `tel:` and `mailto:` targets are detected. Two site
+  links and all five metadata values, including the title with the account ID,
+  produce no entity.
 - The Slovak phone matched only because `+` was present. A bare `421918446150`
   (the form OCR produces when it drops the plus) is missed. Open in M3.
 - **The file name was `<name>-<id>-Zivotopisy.cz.pdf`** — full name plus
@@ -42,12 +53,38 @@ only — never as fixtures or training data. Nothing identifying is quoted here.
   A good stress case for OCR and NER: do not assume a fixed Czech character set,
   and do not treat an unexpected letter as evidence against a name.
 
+### 2026-09-22 · Surface coverage of the samples
+
+Of the seven surface kinds ingest lists, the real samples exercise two: link
+annotations and the information dictionary. None carries XMP, form fields,
+bookmarks, annotations or attachments. Those five kinds are covered only by
+synthetic fixtures, so a real document of each kind is still worth finding.
+
+Detection over surfaces catches what the finders already know (`mailto:`,
+`tel:`); it misses profile URLs and free-text metadata entirely. Clearing a
+surface therefore cannot depend on an entity having been found in it.
+
 ### Toolchain findings
 
 - **PyMuPDF geometry:** word boxes come back in the *unrotated* coordinate system
   while `page.rect` reflects rotation. Without mapping through
   `page.rotation_matrix`, every box on a rotated page is silently misplaced.
   Verified empirically, handled in ingest.
+- **PyMuPDF rectangle conventions differ by object.** Words, annotation and
+  widget rectangles come back unrotated; link rectangles (`get_links()`) come back
+  already rotated. One conversion for all of them misplaces either the links or
+  everything else on a rotated page.
+- **PyMuPDF's `doc.metadata` is not the information dictionary.** It resolves
+  references, but reports only the standard keys and adds a `format` entry that is
+  not in the file. Custom keys (`Company`) need the raw dictionary, and values
+  stored as references need MuPDF's metadata lookup to decode.
+- **Form field values leak twice.** The value is also drawn into the widget's
+  appearance stream, so it shows up in `Page.text` as well as in the field.
+- PyMuPDF percent-encodes launch-link file paths (`C%3A/...`), and a `mailto:`
+  target may be percent-encoded by its producer. Targets are decoded before
+  detection.
+- `Document.new_page()` detaches `Page` objects fetched before it; fixture
+  builders must create pages first and fetch them afterwards.
 - **Base-14 fonts cannot encode Czech.** Helvetica has no `č`, `ř`, `ž`, so PDF
   test fixtures are limited to Latin-1 text and NFC handling is covered by a
   separate unit test. The MG generator must embed a font with full Czech coverage

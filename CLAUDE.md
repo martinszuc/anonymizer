@@ -19,19 +19,28 @@ Part of a diploma thesis at FEKT VUT Brno. Roadmap and open decisions: `PLAN.md`
 
 ```
 packages/core/   library, no UI or CLI dependencies
-  ingest/        PDF text layer (PyMuPDF), OCR engine adapters
-  detect/        rule-based detectors, NER backends
-  redact/        redaction strategies
   types.py       shared data contract
+  ingest/        PDF text layer (PyMuPDF), OCR engine adapters
+  detect/        base.py (protocol, Match, RuleDetector, overlap resolution),
+                 birth_number.py, bank_account.py, iban.py, contact.py, NER backends
+  redact/        redaction strategies
 packages/cli/    thin command-line client
 ui/              review UI (framework not decided)
 experiments/     evaluation scripts
 scripts/         model and dataset download
+data/            local corpora, git-ignored, never committed
 ```
+
+Implemented so far: the data contract and the rule-based detectors. Ingest,
+redaction, CLI and UI are empty.
 
 - All components exchange data through `core/types.py`: `Document → Page → Word(bbox) → Entity`. Change the contract deliberately; it is consumed by CLI, UI and serialized review files.
 - OCR engines, detectors and redaction strategies sit behind interfaces. Add implementations, do not special-case callers.
 - Structured identifiers (rodné číslo, bank accounts, IBAN) are detected by format + checksum rules, not by ML.
+- Coordinates are **PDF points, per page, origin top-left, y downward** (PyMuPDF's convention, so extraction needs no conversion). A rasterized page records `Page.raster_dpi`; pixels convert with `points = pixels * 72 / dpi` before entering a `BBox`.
+- Text offsets are **page-local into `Page.text`**. An entity carries its character span *and* one bbox per covered word, so a span crossing a line break yields several boxes instead of one covering the gap.
+- Overlapping detections are resolved by `resolve_overlaps`: entity-type priority first (checksum-backed identifiers beat free-form patterns), then longest span. Add a type to `OVERLAP_PRIORITY` rather than special-casing a caller.
+- Detection is **recall-first**: a missed entity leaks, a false positive is removed during review. Prefer a rule that over-matches to one that depends on a register that can go stale (this is why bank codes are not validated against the ČNB list).
 - English is the first target language; Czech/Slovak follow. Keep language a configuration value, never hardcoded.
 
 ## Stack
@@ -61,8 +70,10 @@ All four must pass before committing.
 ## Testing
 
 - Every detector gets valid **and** invalid cases, including separator and whitespace variants.
-- Fixtures are generated or hand-written synthetic data in `tests/fixtures/`.
+- Fixtures are generated or hand-written synthetic data in `tests/fixtures/`. Checksum-bearing test values (rodná čísla, account numbers, IBANs) are computed independently, never by asking the validator under test whether it likes its own output.
 - Tests needing a downloaded model are marked `@pytest.mark.model` and skipped when the model is absent.
+- Tests needing a downloaded corpus are marked `@pytest.mark.dataset` and skipped when the corpus is absent. The unmarked suite must pass with no network and no `data/` directory, because that is all CI has.
+- Datasets are never test fixtures, and a dataset containing real personal data is never used in tests at all. Measurement lives in `experiments/`, not in `pytest`.
 
 ## Dependencies and data
 

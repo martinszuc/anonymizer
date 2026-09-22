@@ -75,4 +75,5 @@ testpaths = ["tests", "packages"]
 addopts = "--disable-socket --allow-unix-socket --strict-markers -q"
 markers = [
     "model: requires a locally downloaded model; skipped when the model is absent",
+    "dataset: requires a locally downloaded corpus; skipped when the corpus is absent",
 ]

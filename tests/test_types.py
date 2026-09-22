@@ -210,6 +210,41 @@ class TestRegion:
         assert document.regions_on_page(0)[0].bboxes == [PHOTO_BOX]
 
 
+class TestAdjustSpan:
+    def test_widening_a_span_recomputes_text_and_boxes(self):
+        document = sample_document()
+        document.resolve_bboxes()
+        name = document.entities_on_page(0)[0]
+        document.adjust_span(name.entity_id, 0, NAME_END)
+        assert name.text == "Jméno: Jan\nNovák"
+        assert len(name.bboxes) == 3
+
+    def test_narrowing_a_surface_span_keeps_the_surface_box(self):
+        document = sample_document()
+        link = document.surfaces[0]
+        (entity,) = document.entities_in_surface(link.surface_id)
+        document.adjust_span(entity.entity_id, 7, 10)
+        assert entity.text == "jan"
+        assert entity.bboxes == [LINK_BOX]
+
+    @pytest.mark.parametrize(("start", "end"), [(5, 5), (-1, 3), (0, len(PAGE_TEXT) + 1)])
+    def test_empty_or_outside_spans_are_rejected(self, start, end):
+        document = sample_document()
+        name = document.entities_on_page(0)[0]
+        with pytest.raises(ValueError, match="empty or outside"):
+            document.adjust_span(name.entity_id, start, end)
+
+    def test_region_has_no_span_to_adjust(self):
+        document = sample_document()
+        document.entities.append(region := photo_region())
+        with pytest.raises(ValueError, match="no span to adjust"):
+            document.adjust_span(region.entity_id, 0, 3)
+
+    def test_unknown_entity_is_rejected(self):
+        with pytest.raises(KeyError, match="no entity with id nope"):
+            sample_document().adjust_span("nope", 0, 3)
+
+
 class TestSurface:
     def test_rejects_empty_value(self):
         with pytest.raises(ValueError, match="empty surface value"):

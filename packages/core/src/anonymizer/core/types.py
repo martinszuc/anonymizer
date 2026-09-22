@@ -633,6 +633,65 @@ class Document:
         msg = f"no surface with id {surface_id}"
         raise KeyError(msg)
 
+    def entity(self, entity_id: str) -> Entity:
+        """Return the entity with the given id.
+
+        Args:
+            entity_id: Identifier of the entity.
+
+        Returns:
+            The entity.
+
+        Raises:
+            KeyError: If no entity carries that id.
+        """
+        for entity in self.entities:
+            if entity.entity_id == entity_id:
+                return entity
+        msg = f"no entity with id {entity_id}"
+        raise KeyError(msg)
+
+    def adjust_span(self, entity_id: str, start: int, end: int) -> Entity:
+        """Move an entity's span, e.g. after a reviewer resized its box.
+
+        The entity's text and boxes are recomputed from the new span, so they
+        never describe the old one.
+
+        Args:
+            entity_id: Identifier of the entity to adjust.
+            start: New first offset, in the same text as the old span.
+            end: New offset one past the span.
+
+        Returns:
+            The adjusted entity.
+
+        Raises:
+            KeyError: If no entity carries that id.
+            ValueError: If the entity is a region, or the new span is empty or
+                reaches outside its text.
+        """
+        entity = self.entity(entity_id)
+        if entity.is_region:
+            msg = f"entity {entity_id} is a region and has no span to adjust"
+            raise ValueError(msg)
+        if entity.surface_id is not None:
+            surface = self.surface(entity.surface_id)
+            source_text = surface.value
+            bboxes = [surface.bbox] if surface.bbox is not None else []
+        elif entity.page_index is not None:
+            page = self.page(entity.page_index)
+            source_text = page.text
+            bboxes = page.bboxes_for_span(start, end)
+        else:
+            msg = f"entity {entity_id} has neither a page nor a surface"
+            raise ValueError(msg)
+        if not 0 <= start < end <= len(source_text):
+            msg = f"span [{start}, {end}) is empty or outside the text of entity {entity_id}"
+            raise ValueError(msg)
+        entity.start, entity.end, entity.text = start, end, source_text[start:end]
+        entity.bboxes = bboxes
+        return entity
+
     def entities_on_page(self, index: int) -> list[Entity]:
         """Return the entities in one page's text, in reading order.
 

@@ -6,7 +6,9 @@ Context for AI coding sessions in this repository. Read before making changes.
 
 Local-only tool that detects and redacts personal data in scanned and electronic documents.
 Pipeline: ingest (PDF text layer or OCR) → entity detection (rules + NER) → human review → redaction.
-Part of a diploma thesis at FEKT VUT Brno. Roadmap and open decisions: `PLAN.md`.
+Part of a diploma thesis at FEKT VUT Brno. Roadmap and open decisions: `PLAN.md`
+(untracked, local). Empirical findings from running the pipeline on real documents:
+`docs/findings.md` — read it before assuming how PDFs behave.
 
 ## Hard constraints
 
@@ -40,6 +42,7 @@ born-digital PDF ingest. The OCR adapter, redaction, CLI and UI are empty.
 - Rules are **locale-scoped**: `detect.finders_for(language)` picks the set, locale-independent finders (email, IBAN, Luhn) always run, and an unknown language falls back to every rule. Register a new rule there rather than calling it directly.
 - A checksum is the strongest evidence available, but most non-Czech identifiers have none (US SSNs and phone numbers do not). Where a checksum is weak or absent, require a label from the document (as IČO does) instead of lowering the bar on digits alone.
 - Coordinates are **PDF points, per page, origin top-left, y downward** (PyMuPDF's convention, so extraction needs no conversion). A rasterized page records `Page.raster_dpi`; pixels convert with `points = pixels * 72 / dpi` before entering a `BBox`.
+- **The text layer is not the only place personal data hides.** Link annotations, document metadata and XMP, form field values, bookmarks and embedded files all carry identifying data that never appears in `Page.text`, and clearing the visible words leaves them intact. Treat them as surfaces to enumerate and clear, not as an edge case.
 - Text offsets are **page-local into `Page.text`**. An entity carries its character span *and* one bbox per covered word, so a span crossing a line break yields several boxes instead of one covering the gap.
 - Overlapping detections are resolved by `resolve_overlaps`: entity-type priority first (checksum-backed identifiers beat free-form patterns), then longest span. Add a type to `OVERLAP_PRIORITY` rather than special-casing a caller.
 - Detection is **recall-first**: a missed entity leaks, a false positive is removed during review. Prefer a rule that over-matches to one that depends on a register that can go stale (this is why bank codes are not validated against the ČNB list).

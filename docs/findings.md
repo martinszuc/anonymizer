@@ -1,0 +1,61 @@
+# Findings
+
+Empirical notes from running the pipeline against real files. Each entry is
+evidence for the thesis rather than only a work item: the analysis chapter can
+cite these instead of asserting them. Corresponding work items live in `PLAN.md`.
+
+Sample documents are never committed. They sit in `data/samples/` (git-ignored);
+files named `*-real-*` contain genuine personal data and are used for manual runs
+only — never as fixtures or training data. Nothing identifying is quoted here.
+
+### 2026-09-22 · `resume-en-borndigital.pdf` — synthetic EN CV
+
+- Ingest worked first try on a real-world PDF: 1 page, 225 words, correct reading
+  order across blocks, bullet glyphs preserved.
+- Rules found the email only. The US phone `(123) 456-7890` was missed — the
+  pattern was CZ/SK-only. **Fixed:** locale-scoped finders, NANP added.
+- Strict NANP validation would *still* have missed it: the fake area code starts
+  with `1`, which the numbering plan forbids. Hence the rule that formatted
+  numbers are accepted on layout and only bare digit runs must satisfy structure.
+- Street address missed. No checksum for addresses exists in any locale → NER or
+  gazetteer territory, not the rule layer.
+
+### 2026-09-22 · `resume-real-en-borndigital.pdf` — real EN CV (react-pdf)
+
+- **Link annotations carry identity the text layer does not.** Visible words:
+  "Github, LinkedIn". Annotation URIs: `mailto:…`, `github.com/<handle>`,
+  `linkedin.com/in/<name>`. Detection over `Page.text` cannot see them and
+  redacting page content leaves them clickable in the "anonymized" output.
+- Metadata title carried the job description.
+
+### 2026-09-22 · `resume-real-cs-borndigital.pdf` — real CS CV (Skia / headless Chrome)
+
+- **Same leak, different producer** → this is how PDFs work, not one library's
+  quirk: `tel:+…`, `mailto:…`, site links, plus a metadata title containing the
+  the submitter's account ID.
+- The Slovak phone matched only because `+` was present. A bare `421918446150`
+  (the form OCR produces when it drops the plus) is missed. Open in M3.
+- **The file name was `<name>-<id>-Zivotopisy.cz.pdf`** — full name plus
+  account ID. The contract stores `source_name` in every exported review JSON, so
+  the file name is itself a PII surface. Open decision below.
+- The person's name mixed `ü` with `č`, which is not standard Czech orthography.
+  A good stress case for OCR and NER: do not assume a fixed Czech character set,
+  and do not treat an unexpected letter as evidence against a name.
+
+### Toolchain findings
+
+- **PyMuPDF geometry:** word boxes come back in the *unrotated* coordinate system
+  while `page.rect` reflects rotation. Without mapping through
+  `page.rotation_matrix`, every box on a rotated page is silently misplaced.
+  Verified empirically, handled in ingest.
+- **Base-14 fonts cannot encode Czech.** Helvetica has no `č`, `ř`, `ž`, so PDF
+  test fixtures are limited to Latin-1 text and NFC handling is covered by a
+  separate unit test. The MG generator must embed a font with full Czech coverage
+  (DejaVu, Noto) — otherwise a "Czech" corpus silently isn't one.
+- **Checksum strength varies enormously.** Mod-11 on a rodné číslo rejects ~10 of
+  11 wrong strings; Luhn alone accepts 1 in 10; IČO mod-11 accepts 1 in 11, which
+  on an invoice full of variable symbols is worthless without a label. US SSNs have
+  no checksum at all. Detector precision is therefore not uniform across entity
+  types, and the evaluation must report per-type, not aggregate.
+
+---

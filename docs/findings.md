@@ -44,6 +44,12 @@ only — never as fixtures or training data. Nothing identifying is quoted here.
 - After the surface scan: `tel:` and `mailto:` targets are detected. Two site
   links and all five metadata values, including the title with the account ID,
   produce no entity.
+- **Tagged PDF.** The file carries a structure tree for accessibility, with one
+  `Alt` description. The first redaction removed the `tel:` and `mailto:` links
+  from the page, yet both link annotations, targets included, survived in the
+  output: the structure tree still referenced them, so garbage collection kept
+  them. Only the object-level leak check noticed; the surface scan saw nothing.
+  Redaction now removes the structure tree, and ingest lists its text.
 - The Slovak phone matched only because `+` was present. A bare `421918446150`
   (the form OCR produces when it drops the plus) is missed. Open in M3.
 - **The file name was `<name>-<id>-Zivotopisy.cz.pdf`** — full name plus
@@ -55,10 +61,11 @@ only — never as fixtures or training data. Nothing identifying is quoted here.
 
 ### 2026-09-22 · Surface coverage of the samples
 
-Of the seven surface kinds ingest lists, the real samples exercise two: link
-annotations and the information dictionary. None carries XMP, form fields,
-bookmarks, annotations or attachments. Those five kinds are covered only by
-synthetic fixtures, so a real document of each kind is still worth finding.
+Of the eight surface kinds ingest lists, the real samples exercise three: link
+annotations, the information dictionary and (CS CV only) the structure tree.
+None carries XMP, form fields, bookmarks, annotations or attachments. Those five
+kinds are covered only by synthetic fixtures, so a real document of each kind is
+still worth finding.
 
 Detection over surfaces catches what the finders already know (`mailto:`,
 `tel:`); it misses profile URLs and free-text metadata entirely. Clearing a
@@ -68,7 +75,23 @@ With the site-independent URL rule every link on both real CVs yields an entity,
 and no page-text URL is flagged by mistake. Metadata is the one surface kind no
 rule reaches: the title carrying a job description or an account ID is free text.
 
+### 2026-09-22 · Redaction of the real samples
+
+Both real CVs redact with no leak in any of the four leak-check layers (page
+text, surface scan, objects, raw bytes). Names remain: nothing detects them yet.
+
 ### Toolchain findings: redaction
+
+- **Redaction annotations take unrotated coordinates.** Giving them the rotated
+  box on a rotated page removes nothing and raises no error: a silent leak.
+- **An incremental save keeps old revisions.** After an incremental update the
+  old value is gone from every object the file's table points to, but still in
+  the raw bytes. Unlinking the information dictionary and saving incrementally
+  does not even take effect: the trailer keeps pointing to it.
+- Deleting a form field also removes its value from the page text, since the
+  value was only drawn in the field's appearance.
+- One box per word leaves gaps that show how a value was grouped (a phone number
+  as four blocks); an entity's boxes on one line are merged before redacting.
 
 - `Page.apply_redactions()` removes a link only if a redaction box overlaps its
   rectangle; links elsewhere on the page survive. A URL entity whose box is the

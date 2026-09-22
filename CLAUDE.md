@@ -39,8 +39,9 @@ data/            local corpora, git-ignored, never committed
 
 Implemented so far: the data contract, the rule-based detectors, born-digital
 PDF ingest, the non-text surface scan, blackbox redaction with its leak check,
-and the review data format (regions, fingerprint, session files, span
-adjustment, occurrence propagation). The OCR adapter, CLI and UI are empty.
+the review data format (regions, fingerprint, session files, span adjustment,
+occurrence propagation), and the `detect` / `redact` / `check` CLI. The OCR
+adapter, NER and the UI are empty.
 
 - All components exchange data through `core/types.py`: `Document → Page → Word(bbox)` and `Document → Surface`, with `Entity` pointing at a page and optionally a surface. Change the contract deliberately; it is consumed by CLI, UI and serialized review files.
 - OCR engines, detectors and redaction strategies sit behind interfaces. Add implementations, do not special-case callers.

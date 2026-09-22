@@ -13,6 +13,9 @@ from tests.pdf_builders import (
     LAUNCH_PATH,
     METADATA_DATE,
     ROTATED_WORD,
+    STRUCTURE_ACTUAL_TEXT,
+    STRUCTURE_ALT,
+    write_pdf,
     write_surfaces_pdf,
 )
 
@@ -69,6 +72,20 @@ class TestDocumentLevelSurfaces:
     def test_every_attachment_label_is_a_surface(self, document: Document):
         refs = {surface.ref for surface in of_kind(document, SurfaceKind.EMBEDDED_FILE)}
         assert refs == {"0/name", "0/filename", "0/ufilename", "0/description"}
+
+
+class TestStructureTree:
+    def test_alternate_and_replacement_text_are_listed(self, document: Document):
+        structure = values(of_kind(document, SurfaceKind.STRUCTURE))
+        assert structure == {STRUCTURE_ALT, STRUCTURE_ACTUAL_TEXT}
+
+    def test_structure_surfaces_name_the_element_and_key(self, document: Document):
+        refs = {surface.ref.split("/")[1] for surface in of_kind(document, SurfaceKind.STRUCTURE)}
+        assert refs == {"Alt", "ActualText"}
+
+    def test_untagged_pdf_has_no_structure_surfaces(self, tmp_path: Path):
+        plain = load_document(write_pdf(tmp_path / "plain.pdf", [["text"]]))
+        assert of_kind(plain, SurfaceKind.STRUCTURE) == []
 
 
 class TestPageSurfaces:

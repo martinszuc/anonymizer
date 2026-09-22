@@ -32,6 +32,8 @@ BOOKMARK_URI = "https://example.com/jnovak"
 INDIRECT_KEYWORDS = "Nová účetní"
 METADATA_DATE = "D:20260101120000"
 ROTATED_WORD = "HERE"
+STRUCTURE_ALT = "Photo of Jan Novak"
+STRUCTURE_ACTUAL_TEXT = f"write to {CONTACT_EMAIL}"
 # PyMuPDF creates its widget type constants at runtime.
 TEXT_FIELD = pymupdf.PDF_WIDGET_TYPE_TEXT  # pyright: ignore[reportAttributeAccessIssue]
 # Encloses ROTATED_WORD as inserted at (500, 800), in unrotated coordinates.
@@ -70,6 +72,7 @@ def write_surfaces_pdf(path: Path) -> Path:
             "uri": "mailto:jan.novak%40example.com",
         }
     )
+    mailto_xref = first.annot_xrefs()[-1][0]
     first.insert_link(
         {"kind": pymupdf.LINK_LAUNCH, "from": pymupdf.Rect(72, 170, 200, 185), "file": LAUNCH_PATH}
     )
@@ -109,7 +112,36 @@ def write_surfaces_pdf(path: Path) -> Path:
     profile = {"kind": pymupdf.LINK_URI, "uri": BOOKMARK_URI}
     document.set_toc([[1, "Jan Novak", 1, profile], [1, "Contact", 2]])
     document.embfile_add("cv.docx", b"attached", filename="cv.docx", desc="original CV")
+    add_structure_tree(document, first.xref, mailto_xref)
 
     document.save(path)
     document.close()
     return path
+
+
+def add_structure_tree(document: pymupdf.Document, page_xref: int, link_xref: int) -> None:
+    """Tag the document: a figure with alternate text and a link element.
+
+    The link element refers to the link annotation, as tagged PDFs from Word or
+    Chrome do; that reference keeps the annotation alive after it is removed
+    from its page.
+    """
+    root = document.get_new_xref()
+    document.update_object(root, "<< /Type /StructTreeRoot >>")
+    figure = document.get_new_xref()
+    document.update_object(
+        figure,
+        f"<< /Type /StructElem /S /Figure /P {root} 0 R /Pg {page_xref} 0 R"
+        f" /Alt {pymupdf.get_pdf_str(STRUCTURE_ALT)} >>",
+    )
+    link = document.get_new_xref()
+    document.update_object(
+        link,
+        f"<< /Type /StructElem /S /Link /P {root} 0 R"
+        f" /ActualText {pymupdf.get_pdf_str(STRUCTURE_ACTUAL_TEXT)}"
+        f" /K << /Type /OBJR /Obj {link_xref} 0 R /Pg {page_xref} 0 R >> >>",
+    )
+    document.xref_set_key(root, "K", f"[{figure} 0 R {link} 0 R]")
+    catalog = document.pdf_catalog()
+    document.xref_set_key(catalog, "StructTreeRoot", f"{root} 0 R")
+    document.xref_set_key(catalog, "MarkInfo", "<< /Marked true >>")

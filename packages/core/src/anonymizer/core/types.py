@@ -19,8 +19,9 @@ Text offsets:
     words and lines, which is why it carries a list of boxes.
 
 Surfaces:
-    Link targets, metadata, form field values, bookmarks, annotations and
-    attachments hold strings that never appear in `Page.text`, so redacting the
+    Link targets, metadata, form field values, bookmarks, annotations,
+    attachments and a tagged PDF's structure tree hold strings that never appear
+    in `Page.text`, so redacting the
     page content leaves them intact. Ingest lists each such string as a
     `Surface`. An entity found in one sets `Entity.surface_id`, and its offsets
     then refer to `Surface.value` instead of `Page.text`.
@@ -35,7 +36,7 @@ from enum import StrEnum
 from typing import Any, Self
 from uuid import uuid4
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 """Version of the serialized review format. Bump on any incompatible change."""
 
 
@@ -68,6 +69,7 @@ class SurfaceKind(StrEnum):
     FORM_FIELD = "form_field"
     BOOKMARK = "bookmark"
     EMBEDDED_FILE = "embedded_file"
+    STRUCTURE = "structure"
 
 
 class DetectionSource(StrEnum):

@@ -14,6 +14,8 @@ FORM_FIELD     `<object number>/value` of the widget
 BOOKMARK       `<position in the outline>/title`, `/uri` or `/file`
 EMBEDDED_FILE  `<position in the attachment list>/<field>` for the document,
                `<object number>/<field>` for an attachment annotation on a page
+STRUCTURE      `<object number>/Alt`, `/ActualText`, `/T` or `/E` of a
+               structure element
 =============  ==============================================================
 
 Attachment *contents* are never read, only their names and descriptions. An
@@ -41,6 +43,10 @@ _STRUCTURED_TYPES = frozenset({"name", "array", "dict"})
 
 _TRAILER = -1
 
+# Keys of a structure element that hold text for assistive technology: an
+# alternate description, replacement text, a title and an expansion.
+_STRUCTURE_TEXT_KEYS = ("Alt", "ActualText", "T", "E")
+
 # PDF annotation subtype of an attached file. PyMuPDF's numeric constant for it
 # is created at runtime and invisible to the type checker.
 _FILE_ATTACHMENT_SUBTYPE = "FileAttachment"
@@ -60,6 +66,7 @@ def extract_surfaces(pdf: pymupdf.Document) -> list[Surface]:
         *_xmp_surfaces(pdf),
         *_bookmark_surfaces(pdf),
         *_embedded_file_surfaces(pdf),
+        *_structure_surfaces(pdf),
     ]
     for page in pdf:
         surfaces.extend(_page_surfaces(page))
@@ -170,6 +177,38 @@ def _embedded_file_surfaces(pdf: pymupdf.Document) -> Iterator[Surface]:
                 f"{position}/description": info.get("description"),
             },
         )
+
+
+def _structure_surfaces(pdf: pymupdf.Document) -> Iterator[Surface]:
+    """Yield the text a tagged PDF keeps in its structure tree.
+
+    This text is written for screen readers and never drawn. `ActualText` can
+    hold the very words redaction removes from the page, and `Alt` often names
+    the person in a photo. A structure element is recognised by its structure
+    type `S` and its parent `P`, since its `Type` entry is optional.
+    """
+    if pdf.xref_get_key(pdf.pdf_catalog(), "StructTreeRoot")[0] == "null":
+        return
+    for xref in range(1, pdf.xref_length()):
+        if not _is_structure_element(pdf, xref):
+            continue
+        values = {f"{xref}/{key}": _inline_string(pdf, xref, key) for key in _STRUCTURE_TEXT_KEYS}
+        yield from _text_surfaces(SurfaceKind.STRUCTURE, values)
+
+
+def _is_structure_element(pdf: pymupdf.Document, xref: int) -> bool:
+    """Whether an object is a structure element."""
+    return pdf.xref_get_key(xref, "S")[0] == "name" and pdf.xref_get_key(xref, "P")[0] == "xref"
+
+
+def _inline_string(pdf: pymupdf.Document, xref: int, key: str) -> str | None:
+    """Return a dictionary's string value, or `None` if the key holds none.
+
+    Structure elements store their text inline in practice; a value stored as a
+    separate object is left to the leakage check's object scan.
+    """
+    value_type, value = pdf.xref_get_key(xref, key)
+    return value if value_type == "string" else None
 
 
 def _link_surfaces(page: pymupdf.Page) -> Iterator[Surface]:

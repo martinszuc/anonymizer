@@ -64,6 +64,23 @@ Detection over surfaces catches what the finders already know (`mailto:`,
 `tel:`); it misses profile URLs and free-text metadata entirely. Clearing a
 surface therefore cannot depend on an entity having been found in it.
 
+With the site-independent URL rule every link on both real CVs yields an entity,
+and no page-text URL is flagged by mistake. Metadata is the one surface kind no
+rule reaches: the title carrying a job description or an account ID is free text.
+
+### Toolchain findings: redaction
+
+- `Page.apply_redactions()` removes a link only if a redaction box overlaps its
+  rectangle; links elsewhere on the page survive. A URL entity whose box is the
+  link's own rectangle therefore removes the link through the ordinary redaction
+  path.
+- `Document.scrub()` removes all links, metadata, XMP, attachments, JavaScript
+  and form values, but has no option for bookmarks or annotation text. Re-running
+  the surface scan on the output is what shows a gap like this.
+- Links inserted in memory are not returned by `get_links()` until the document is
+  saved and reopened. A test that skips the round trip reports "no links" and
+  proves nothing.
+
 ### Toolchain findings
 
 - **PyMuPDF geometry:** word boxes come back in the *unrotated* coordinate system

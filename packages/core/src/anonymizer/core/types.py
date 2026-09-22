@@ -694,14 +694,18 @@ class Document:
                 entity.bboxes = page.bboxes_for_span(*entity.span)
 
     def check_references(self) -> None:
-        """Verify that every surface entity points at a surface it matches.
+        """Verify that every entity points at a page and surface that exist.
 
         Raises:
-            ValueError: If an entity names an unknown surface or a page other
-                than its surface's.
+            ValueError: If an entity names a page the document does not have,
+                an unknown surface, or a page other than its surface's.
         """
+        pages = {page.index for page in self.pages}
         surfaces = {surface.surface_id: surface for surface in self.surfaces}
         for entity in self.entities:
+            if entity.page_index is not None and entity.page_index not in pages:
+                msg = f"entity {entity.entity_id} refers to missing page {entity.page_index}"
+                raise ValueError(msg)
             if entity.surface_id is None:
                 continue
             surface = surfaces.get(entity.surface_id)

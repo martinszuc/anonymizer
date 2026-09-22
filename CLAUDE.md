@@ -31,8 +31,8 @@ scripts/         model and dataset download
 data/            local corpora, git-ignored, never committed
 ```
 
-Implemented so far: the data contract and the rule-based detectors. Ingest,
-redaction, CLI and UI are empty.
+Implemented so far: the data contract, the rule-based detectors, and
+born-digital PDF ingest. The OCR adapter, redaction, CLI and UI are empty.
 
 - All components exchange data through `core/types.py`: `Document → Page → Word(bbox) → Entity`. Change the contract deliberately; it is consumed by CLI, UI and serialized review files.
 - OCR engines, detectors and redaction strategies sit behind interfaces. Add implementations, do not special-case callers.

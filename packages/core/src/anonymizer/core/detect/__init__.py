@@ -3,7 +3,7 @@
 Which rules apply depends on the configured language: a rodné číslo is a Czech
 and Slovak concept, a NANP telephone number a North American one. Finders that
 validate something locale-independent (email syntax, IBAN mod-97, the Luhn
-checksum) always run.
+checksum, URLs) always run.
 """
 
 from anonymizer.core.detect.bank_account import find_account_numbers, is_valid_account_number
@@ -25,11 +25,13 @@ from anonymizer.core.detect.contact import (
 )
 from anonymizer.core.detect.document import detect_document, detect_surface
 from anonymizer.core.detect.iban import find_ibans, is_valid_iban, normalize_iban
+from anonymizer.core.detect.url import find_urls
 
 LANGUAGE_INDEPENDENT_FINDERS: tuple[Finder, ...] = (
     find_emails,
     find_ibans,
     find_card_numbers,
+    find_urls,
 )
 """Finders whose evidence does not depend on the document's language."""
 
@@ -121,6 +123,7 @@ __all__ = [
     "find_emails",
     "find_ibans",
     "find_nanp_phone_numbers",
+    "find_urls",
     "finders_for",
     "is_valid_account_number",
     "is_valid_birth_number",

@@ -17,7 +17,11 @@ from anonymizer.core.types import DetectionSource, Entity, EntityType, Page
 # Applied when two matches overlap: the type listed first wins. Structured
 # identifiers beat free-form ones, because a valid checksum is stronger evidence
 # than a digit pattern (a birth number also looks like `account/bank code`).
+# URLs come first as the exception: a URL is a single token, so whatever overlaps
+# it lies inside it, and keeping only the inner match would leave the rest of
+# the URL (a profile path, say) unredacted.
 OVERLAP_PRIORITY: tuple[EntityType, ...] = (
+    EntityType.URL,
     EntityType.BIRTH_NUMBER,
     EntityType.IBAN,
     EntityType.CREDIT_CARD,

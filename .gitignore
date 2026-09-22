@@ -1,0 +1,36 @@
+# Local planning document, intentionally untracked
+PLAN.md
+
+# Data, models and generated documents must never be committed
+data/
+models/
+datasets/
+outputs/
+*.pdf
+!tests/fixtures/**/*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Model / dataset caches
+.cache/
+hf_cache/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store

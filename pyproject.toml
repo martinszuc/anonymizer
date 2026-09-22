@@ -1,0 +1,78 @@
+[project]
+name = "anonymizer-workspace"
+version = "0.0.0"
+description = "Development workspace for the document anonymization tool"
+requires-python = ">=3.12"
+dependencies = [
+    "anonymizer-core",
+    "anonymizer-cli",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-socket>=0.7",
+    "pyright>=1.1.390",
+    "ruff>=0.8",
+    "pre-commit>=4.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+anonymizer-core = { workspace = true }
+anonymizer-cli = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["experiments"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # isort
+    "N",         # pep8-naming
+    "UP",        # pyupgrade
+    "B",         # bugbear
+    "C4",        # comprehensions
+    "SIM",       # simplify
+    "PTH",       # use pathlib
+    "RET",       # return style
+    "ARG",       # unused arguments
+    "TID",       # tidy imports
+    "ANN",       # annotations
+    "D",         # pydocstyle
+    "RUF",
+]
+ignore = [
+    "D100",  # module docstring not required
+    "D104",  # package docstring not required
+    "D107",  # __init__ docstring not required (documented on the class)
+    "ANN401",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D", "ANN", "ARG"]
+
+[tool.pyright]
+include = ["packages", "tests"]
+exclude = ["**/.venv", "experiments"]
+typeCheckingMode = "standard"
+pythonVersion = "3.12"
+reportMissingTypeStubs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "packages"]
+addopts = "--disable-socket --allow-unix-socket --strict-markers -q"
+markers = [
+    "model: requires a locally downloaded model; skipped when the model is absent",
+]

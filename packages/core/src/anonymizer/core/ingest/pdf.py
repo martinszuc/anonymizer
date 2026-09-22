@@ -2,9 +2,7 @@
 
 PyMuPDF reports word boxes in the page's **unrotated** coordinate system while
 `page.rect` reflects the rotation, so boxes on a rotated page are mapped through
-`page.rotation_matrix` before they enter the data contract. Everything that
-leaves this module is therefore in the convention `types` documents: PDF points,
-per page, origin top-left.
+`page.rotation_matrix` before they enter the data contract (see `normalize`).
 
 Pages whose text layer yields no words are marked `has_text_layer=False`. They
 need OCR; this module does not attempt it.
@@ -12,11 +10,11 @@ need OCR; this module does not attempt it.
 
 from __future__ import annotations
 
-import unicodedata
 from pathlib import Path
 
 import pymupdf
-from anonymizer.core.types import BBox, Document, Page, Word
+from anonymizer.core.ingest.normalize import normalize_text, unrotated_rect_to_bbox
+from anonymizer.core.types import Document, Page, Word
 
 # Reading order is reconstructed from PyMuPDF's block, line and word numbering.
 _WORD_SEPARATOR = " "
@@ -27,31 +25,6 @@ _BLOCK_SEPARATOR = "\n\n"
 _BLOCK_INDEX = 5
 _LINE_INDEX = 6
 _WORD_INDEX = 7
-
-
-def normalize_text(text: str) -> str:
-    """Normalize text to NFC.
-
-    Decomposed sequences (`n` + combining caron) and precomposed characters (`ň`)
-    compare unequal and have different lengths, which would make offsets and
-    redaction targets depend on how the producer wrote the file.
-
-    Args:
-        text: Text in any Unicode normalization form.
-
-    Returns:
-        The NFC-normalized text.
-    """
-    return unicodedata.normalize("NFC", text)
-
-
-def _word_bbox(raw: tuple[float, float, float, float], matrix: pymupdf.Matrix | None) -> BBox:
-    """Convert a PyMuPDF word rectangle into a `BBox`, applying page rotation."""
-    rect = pymupdf.Rect(*raw)
-    if matrix is not None:
-        rect = rect * matrix
-    rect.normalize()
-    return BBox(rect.x0, rect.y0, rect.x1, rect.y1)
 
 
 def extract_page(pdf_page: pymupdf.Page, index: int) -> Page:
@@ -65,7 +38,6 @@ def extract_page(pdf_page: pymupdf.Page, index: int) -> Page:
         A page whose `text` is the reading-order reconstruction and whose words
         carry offsets into that text.
     """
-    matrix = pdf_page.rotation_matrix if pdf_page.rotation else None
     raw_words = sorted(
         pdf_page.get_text("words"),
         key=lambda word: (word[_BLOCK_INDEX], word[_LINE_INDEX], word[_WORD_INDEX]),
@@ -89,7 +61,7 @@ def extract_page(pdf_page: pymupdf.Page, index: int) -> Page:
         start = cursor
         parts.append(text)
         cursor += len(text)
-        bbox = _word_bbox((float(x0), float(y0), float(x1), float(y1)), matrix)
+        bbox = unrotated_rect_to_bbox(pymupdf.Rect(x0, y0, x1, y1), pdf_page)
         words.append(Word(text=text, bbox=bbox, start=start, end=cursor))
         previous_block = int(block_no)
         previous_line = int(line_no)

@@ -28,10 +28,14 @@ _EMAIL_PATTERN = re.compile(
 )
 
 # Czech and Slovak subscriber numbers are nine digits, conventionally written in
-# groups of three, with an optional +420 / +421 or 00420 / 00421 country prefix.
+# groups of three. The country code 420 / 421 may be written with `+`, with `00`,
+# or bare, as OCR produces when it drops the plus. Slovak numbers written for
+# domestic use start with a trunk `0` instead (`0918 446 150`). Without these
+# prefixes a 12-digit number matched only its first nine digits, leaving the rest
+# unredacted.
 _PHONE_PATTERN = re.compile(
     r"(?<![\d+])"
-    r"(?:(?:\+|00)\s?42[01]\s?)?"
+    r"(?:(?:(?:\+|00)\s?)?42[01]\s?|0)?"
     r"\d{3}\s?\d{3}\s?\d{3}"
     r"(?!\d)"
 )

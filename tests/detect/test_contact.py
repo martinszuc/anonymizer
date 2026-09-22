@@ -39,6 +39,11 @@ def test_finds_address_in_running_text():
         "+420777123456",
         "00420 777 123 456",
         "+421 911 123 456",
+        "421918446150",  # country code without "+", as OCR produces
+        "421 918 446 150",
+        "420777123456",
+        "0918 446 150",  # Slovak domestic form with trunk zero
+        "0918446150",
     ],
 )
 def test_finds_phone_variants(variant):
@@ -51,6 +56,8 @@ def test_finds_phone_variants(variant):
         "77712345",  # eight digits
         "7771234567",  # ten digits
         "900101/0007",  # birth number, not a phone number
+        "1421918446150",  # thirteen digits
+        "4219184461500",
     ],
 )
 def test_ignores_non_phone_digit_runs(value):
@@ -92,3 +99,8 @@ def test_ignores_bare_digit_runs_that_break_nanp_structure(value):
 def test_finds_nanp_number_in_running_text():
     text = "Casey Smith, Washington, D.C. 20001, (123) 456-7890"
     assert [match.text for match in find_nanp_phone_numbers(text)] == ["(123) 456-7890"]
+
+
+def test_country_code_without_plus_is_matched_whole_in_running_text():
+    text = "tel. 421 918 446 150, e-mail"
+    assert [match.text for match in find_czech_phone_numbers(text)] == ["421 918 446 150"]

@@ -31,9 +31,21 @@ uv run pyright             # type check
 
 All four must pass before committing. Optionally `uv run pre-commit install`.
 
+## Usage
+
+```sh
+uv run anonymize detect cv.pdf -o review.json --lang cs --show
+uv run anonymize redact cv.pdf -o cv-redacted.pdf --session review.json
+```
+
+See [`packages/cli/README.md`](packages/cli/README.md) for reviewing without a UI.
+
 ## Status
 
-Early scaffolding: no pipeline stage is implemented yet.
+Working for PDFs with a text layer: text and hidden-data extraction, rule-based
+detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL), review
+through session files, blackbox redaction and a leak check on the output.
+Not yet: names (NER), scanned documents (OCR), the review UI.
 
 ## License
 

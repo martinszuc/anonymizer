@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pymupdf
 from anonymizer.core.ingest.normalize import bbox_to_unrotated_rect
+from anonymizer.core.ingest.pdf import file_fingerprint
 from anonymizer.core.redact.canvas import remove_off_page_content
 from anonymizer.core.redact.surfaces import clear_surfaces
 from anonymizer.core.types import BBox, Document
@@ -41,13 +42,15 @@ def redact_pdf(source: Path | str, document: Document, destination: Path | str) 
         destination: Path of the redacted copy; must differ from `source`.
 
     Raises:
-        ValueError: If `destination` is `source`, the document's page count does
-            not match the file, or a redactable entity has no geometry.
+        ValueError: If `destination` is `source`, the document carries no
+            fingerprint or one of a different file, its page count does not
+            match the file, or a redactable entity has no geometry.
     """
     source, destination = Path(source), Path(destination)
     if source.resolve() == destination.resolve():
         msg = "the redacted copy must not overwrite its source"
         raise ValueError(msg)
+    _check_fingerprint(source, document)
     text_boxes = _page_text_boxes(document)
     region_boxes = _region_boxes(document)
     with pymupdf.open(source) as pdf:
@@ -61,6 +64,20 @@ def redact_pdf(source: Path | str, document: Document, destination: Path | str) 
             remove_off_page_content(page)
         clear_surfaces(pdf)
         pdf.save(destination, garbage=4, deflate=True)
+
+
+def _check_fingerprint(source: Path, document: Document) -> None:
+    """Refuse a document that was not loaded from this exact file.
+
+    Boxes computed for one file land on unrelated content in another, even one
+    with the same number of pages, and nothing would report it.
+    """
+    if document.fingerprint is None:
+        msg = "document carries no fingerprint; load it from the file with load_document"
+        raise ValueError(msg)
+    if file_fingerprint(source) != document.fingerprint:
+        msg = "document was loaded from a different file than the one given"
+        raise ValueError(msg)
 
 
 def _page_text_boxes(document: Document) -> dict[int, list[list[BBox]]]:

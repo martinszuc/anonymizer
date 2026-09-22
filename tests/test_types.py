@@ -85,7 +85,7 @@ def sample_document() -> Document:
         pages=[sample_page()],
         surfaces=surfaces,
         entities=entities,
-        source_name="form.pdf",
+        fingerprint="0" * 64,
         language="cs",
     )
 

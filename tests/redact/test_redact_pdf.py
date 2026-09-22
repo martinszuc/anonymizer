@@ -197,11 +197,18 @@ class TestPreconditions:
         with pytest.raises(ValueError, match="must not overwrite"):
             redact_pdf(source, load_document(source), source)
 
-    def test_rejects_a_document_from_another_file(self, tmp_path: Path):
+    def test_rejects_a_document_from_another_file_with_the_same_page_count(self, tmp_path: Path):
         source = write_pdf(tmp_path / "contact.pdf", [LINES])
-        two_pages = write_pdf(tmp_path / "two.pdf", [LINES, LINES])
-        with pytest.raises(ValueError, match="pages"):
-            redact_pdf(two_pages, load_document(source), tmp_path / "out.pdf")
+        other = write_pdf(tmp_path / "other.pdf", [["different", "content"]])
+        with pytest.raises(ValueError, match="different file"):
+            redact_pdf(other, load_document(source), tmp_path / "out.pdf")
+
+    def test_rejects_a_document_without_a_fingerprint(self, tmp_path: Path):
+        source = write_pdf(tmp_path / "contact.pdf", [LINES])
+        document = load_document(source)
+        document.fingerprint = None
+        with pytest.raises(ValueError, match="no fingerprint"):
+            redact_pdf(source, document, tmp_path / "out.pdf")
 
     def test_redactable_entity_without_geometry_fails_loudly(self, tmp_path: Path):
         source = write_pdf(tmp_path / "blank.pdf", [[]])

@@ -573,8 +573,10 @@ class Document:
         surfaces: Strings carried outside the page text.
         entities: Detected entities, each pointing at a page by index and, when
             found outside the page text, at a surface by id.
-        source_name: Name of the input file, without a path, for display and
-            logging. Never a full path, which may itself be personal data.
+        fingerprint: SHA-256 of the source file, so a document, and a review
+            saved from it, can only be applied to the file it was made from.
+            The file's name is not kept: names such as
+            `<first>-<last>-<id>.pdf` are personal data themselves.
         language: BCP 47 tag the detectors are configured for, e.g. `"en"`.
         schema_version: Version of the serialized format.
     """
@@ -582,7 +584,7 @@ class Document:
     pages: list[Page] = field(default_factory=list)
     surfaces: list[Surface] = field(default_factory=list)
     entities: list[Entity] = field(default_factory=list)
-    source_name: str | None = None
+    fingerprint: str | None = None
     language: str | None = None
     schema_version: int = SCHEMA_VERSION
 
@@ -708,7 +710,7 @@ class Document:
         """Return a JSON-compatible mapping."""
         return {
             "schema_version": self.schema_version,
-            "source_name": self.source_name,
+            "fingerprint": self.fingerprint,
             "language": self.language,
             "pages": [page.to_dict() for page in self.pages],
             "surfaces": [surface.to_dict() for surface in self.surfaces],
@@ -737,7 +739,7 @@ class Document:
             pages=[Page.from_dict(page) for page in data.get("pages", [])],
             surfaces=[Surface.from_dict(surface) for surface in data.get("surfaces", [])],
             entities=[Entity.from_dict(entity) for entity in data.get("entities", [])],
-            source_name=data.get("source_name"),
+            fingerprint=data.get("fingerprint"),
             language=data.get("language"),
             schema_version=version,
         )

@@ -85,7 +85,7 @@ def sample_document() -> Document:
         pages=[sample_page()],
         surfaces=surfaces,
         entities=entities,
-        source_name="form.pdf",
+        fingerprint="0" * 64,
         language="cs",
     )
 
@@ -150,6 +150,99 @@ class TestSpans:
         page = sample_page()
         matched = [word.text for word in page.words_in_span(0, 6)]
         assert matched == ["Jméno:"]
+
+
+PHOTO_BOX = BBox(300, 80, 400, 180)
+
+
+def photo_region(**overrides) -> Entity:
+    fields = {"type": EntityType.REGION, "page_index": 0, "bboxes": [PHOTO_BOX]}
+    fields.update(overrides)
+    return Entity(**fields)
+
+
+class TestRegion:
+    def test_region_is_a_box_without_a_span(self):
+        entity = photo_region()
+        assert entity.is_region
+        assert not entity.in_page_text
+        assert (entity.start, entity.end, entity.text) == (None, None, None)
+
+    def test_region_has_no_span_to_read(self):
+        with pytest.raises(ValueError, match="is a region and has no span"):
+            _ = photo_region().span
+
+    @pytest.mark.parametrize(
+        ("overrides", "message"),
+        [
+            ({"start": 0, "end": 3, "text": "Jan"}, "has no text span"),
+            ({"bboxes": []}, "exactly one box"),
+            ({"bboxes": [PHOTO_BOX, PHOTO_BOX]}, "exactly one box"),
+            ({"bboxes": [BBox(10, 10, 10, 50)]}, "exactly one box with an area"),
+            ({"surface_id": "link:0:7/uri"}, "cannot lie on a surface"),
+            ({"page_index": None}, "needs a page index"),
+        ],
+    )
+    def test_invalid_regions_are_rejected(self, overrides, message):
+        with pytest.raises(ValueError, match=message):
+            photo_region(**overrides)
+
+    def test_text_entity_needs_a_span(self):
+        with pytest.raises(ValueError, match="needs a text span"):
+            Entity(type=EntityType.PERSON, page_index=0, bboxes=[PHOTO_BOX])
+
+    def test_region_survives_a_json_round_trip(self):
+        document = sample_document()
+        document.entities.append(photo_region())
+        restored = Document.from_json(document.to_json())
+        assert restored.regions_on_page(0) == document.regions_on_page(0)
+
+    def test_page_lookups_keep_regions_apart_from_text(self):
+        document = sample_document()
+        document.entities.append(photo_region())
+        assert all(not entity.is_region for entity in document.entities_on_page(0))
+        assert [entity.bboxes for entity in document.regions_on_page(0)] == [[PHOTO_BOX]]
+
+    def test_resolving_geometry_leaves_a_region_box_alone(self):
+        document = sample_document()
+        document.entities.append(photo_region())
+        document.resolve_bboxes()
+        assert document.regions_on_page(0)[0].bboxes == [PHOTO_BOX]
+
+
+class TestAdjustSpan:
+    def test_widening_a_span_recomputes_text_and_boxes(self):
+        document = sample_document()
+        document.resolve_bboxes()
+        name = document.entities_on_page(0)[0]
+        document.adjust_span(name.entity_id, 0, NAME_END)
+        assert name.text == "Jméno: Jan\nNovák"
+        assert len(name.bboxes) == 3
+
+    def test_narrowing_a_surface_span_keeps_the_surface_box(self):
+        document = sample_document()
+        link = document.surfaces[0]
+        (entity,) = document.entities_in_surface(link.surface_id)
+        document.adjust_span(entity.entity_id, 7, 10)
+        assert entity.text == "jan"
+        assert entity.bboxes == [LINK_BOX]
+
+    @pytest.mark.parametrize(("start", "end"), [(5, 5), (-1, 3), (0, len(PAGE_TEXT) + 1)])
+    def test_empty_or_outside_spans_are_rejected(self, start, end):
+        document = sample_document()
+        name = document.entities_on_page(0)[0]
+        with pytest.raises(ValueError, match="empty or outside"):
+            document.adjust_span(name.entity_id, start, end)
+
+    def test_region_has_no_span_to_adjust(self):
+        document = sample_document()
+        document.entities.append(region := photo_region())
+        with pytest.raises(ValueError, match="no span to adjust"):
+            document.adjust_span(region.entity_id, 0, 3)
+
+    def test_unknown_entity_is_rejected(self):
+        with pytest.raises(KeyError, match="no entity with id nope"):
+            sample_document().adjust_span("nope", 0, 3)
 
 
 class TestSurface:
@@ -221,8 +314,8 @@ class TestDocument:
 
     def test_entities_on_page_is_sorted_by_offset(self):
         document = sample_document()
-        starts = [entity.start for entity in document.entities_on_page(0)]
-        assert starts == sorted(starts)
+        spans = [entity.span for entity in document.entities_on_page(0)]
+        assert spans == sorted(spans)
 
     def test_page_lookup_rejects_unknown_index(self):
         with pytest.raises(KeyError, match="no page with index 7"):

@@ -50,7 +50,7 @@ def test_detects_every_structured_entity_on_a_page():
 
 def test_entities_are_ordered_and_attributed_to_the_page():
     entities = structured_detector().detect(Page(index=3, width=595, height=842, text=TEXT))
-    assert [entity.start for entity in entities] == sorted(entity.start for entity in entities)
+    assert [entity.span for entity in entities] == sorted(entity.span for entity in entities)
     assert {entity.page_index for entity in entities} == {3}
     assert {entity.source for entity in entities} == {DetectionSource.RULE}
 

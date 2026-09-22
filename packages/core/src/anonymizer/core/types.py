@@ -16,7 +16,8 @@ Text offsets:
     `Word.start`/`Word.end` and `Entity.start`/`Entity.end` are character offsets
     into `Page.text`, which is the page's reading-order reconstruction. Offsets
     are page-local: an entity never spans two pages, but it may span several
-    words and lines, which is why it carries a list of boxes.
+    words and lines, which is why it carries a list of boxes. A region entity,
+    drawn by a reviewer over something without text, has no offsets and one box.
 
 Surfaces:
     Link targets, metadata, form field values, bookmarks, annotations,
@@ -36,7 +37,7 @@ from enum import StrEnum
 from typing import Any, Self
 from uuid import uuid4
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 """Version of the serialized review format. Bump on any incompatible change."""
 
 
@@ -56,6 +57,7 @@ class EntityType(StrEnum):
     DATE = "date"
     ID_NUMBER = "id_number"
     ORGANIZATION = "organization"
+    REGION = "region"
     OTHER = "other"
 
 
@@ -78,6 +80,7 @@ class DetectionSource(StrEnum):
     RULE = "rule"
     MODEL = "model"
     MANUAL = "manual"
+    PROPAGATED = "propagated"
 
 
 class ReviewState(StrEnum):
@@ -343,7 +346,6 @@ class Surface:
             carrier such as metadata.
         bbox: The carrier's own rectangle on the page, e.g. a link's clickable
             area, or `None` if it has none. Not derived from words.
-        surface_id: Stable identifier entities use to refer to the surface.
     """
 
     kind: SurfaceKind
@@ -351,7 +353,6 @@ class Surface:
     ref: str
     page_index: int | None = None
     bbox: BBox | None = None
-    surface_id: str = field(default_factory=lambda: uuid4().hex)
 
     def __post_init__(self) -> None:
         """Reject empty values, negative page indices and unplaced boxes.
@@ -369,6 +370,18 @@ class Surface:
         if self.bbox is not None and self.page_index is None:
             msg = f"surface has a bbox but no page: {self.kind} {self.ref}"
             raise ValueError(msg)
+
+    @property
+    def surface_id(self) -> str:
+        """Identifier entities use to refer to the surface.
+
+        Derived from what the surface is, not generated, so loading the same
+        file twice yields the same ids and a saved review still points at the
+        right carrier. The page is part of it because a reference is unique
+        only within its page or the document level.
+        """
+        page = "doc" if self.page_index is None else str(self.page_index)
+        return f"{self.kind.value}:{page}:{self.ref}"
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-compatible mapping."""
@@ -398,25 +411,31 @@ class Surface:
             ref=data["ref"],
             page_index=data.get("page_index"),
             bbox=BBox.from_list(bbox) if bbox is not None else None,
-            surface_id=data.get("surface_id") or uuid4().hex,
         )
 
 
 @dataclass(slots=True)
 class Entity:
-    """A span of personal data detected in page text or on a surface.
+    """Personal data to redact: a span of text, or a region drawn on a page.
+
+    A text entity covers a span of `Page.text`, or of `Surface.value` when
+    `surface_id` is set. A region entity (type `REGION`) is a rectangle a
+    reviewer drew over something that has no text, such as a photo, a signature
+    or a stamp: it has no span and exactly one box.
 
     Attributes:
         type: Category of personal data.
-        page_index: Page the span belongs to. `None` only for an entity on a
+        page_index: Page the entity belongs to. `None` only for an entity on a
             document-level surface.
         start: First offset of the span in `Page.text`, or in `Surface.value`
-            when `surface_id` is set.
-        end: Offset one past the span, in the same text as `start`.
-        text: The matched text, kept for review and leakage checks.
+            when `surface_id` is set; `None` for a region.
+        end: Offset one past the span, in the same text as `start`; `None` for
+            a region.
+        text: The covered text, kept for review and leakage checks; `None` for
+            a region.
         surface_id: Surface the span lies in, or `None` for page text.
-        bboxes: One box per covered word, or the surface's own box; empty until
-            geometry is resolved.
+        bboxes: One box per covered word, the surface's own box, or a region's
+            single box; empty until geometry is resolved.
         source: Component that produced the entity.
         score: Detector confidence in `[0, 1]`, or `None` for rule matches.
         review: Human review outcome.
@@ -427,9 +446,9 @@ class Entity:
 
     type: EntityType
     page_index: int | None
-    start: int
-    end: int
-    text: str
+    start: int | None = None
+    end: int | None = None
+    text: str | None = None
     surface_id: str | None = None
     bboxes: list[BBox] = field(default_factory=list)
     source: DetectionSource = DetectionSource.RULE
@@ -439,30 +458,73 @@ class Entity:
     entity_id: str = field(default_factory=lambda: uuid4().hex)
 
     def __post_init__(self) -> None:
-        """Reject impossible spans, page indices and scores.
+        """Reject impossible spans, regions, page indices and scores.
 
         Raises:
-            ValueError: If the span is empty, the page index is negative or
-                missing for page text, or the score lies outside `[0, 1]`.
+            ValueError: If a text entity lacks a valid span or a page index
+                where it needs one, a region carries a span or not exactly one
+                box, the page index is negative, or the score lies outside
+                `[0, 1]`.
         """
-        if self.start < 0 or self.end <= self.start:
-            msg = f"invalid entity span [{self.start}, {self.end})"
-            raise ValueError(msg)
-        if self.page_index is None:
-            if self.surface_id is None:
-                msg = "an entity in page text needs a page index"
-                raise ValueError(msg)
-        elif self.page_index < 0:
+        if self.is_region:
+            self._check_region()
+        else:
+            self._check_span()
+        if self.page_index is not None and self.page_index < 0:
             msg = f"negative page index: {self.page_index}"
             raise ValueError(msg)
         if self.score is not None and not 0.0 <= self.score <= 1.0:
             msg = f"score out of range: {self.score}"
             raise ValueError(msg)
 
+    def _check_span(self) -> None:
+        """Validate a text entity's span and page."""
+        if self.start is None or self.end is None or self.text is None:
+            msg = f"a {self.type} entity needs a text span"
+            raise ValueError(msg)
+        if self.start < 0 or self.end <= self.start:
+            msg = f"invalid entity span [{self.start}, {self.end})"
+            raise ValueError(msg)
+        if self.page_index is None and self.surface_id is None:
+            msg = "an entity in page text needs a page index"
+            raise ValueError(msg)
+
+    def _check_region(self) -> None:
+        """Validate a region: a page, one box with an area, and nothing else."""
+        if self.start is not None or self.end is not None or self.text is not None:
+            msg = "a region has no text span"
+            raise ValueError(msg)
+        if self.surface_id is not None:
+            msg = "a region cannot lie on a surface"
+            raise ValueError(msg)
+        if self.page_index is None:
+            msg = "a region needs a page index"
+            raise ValueError(msg)
+        if len(self.bboxes) != 1 or self.bboxes[0].width <= 0 or self.bboxes[0].height <= 0:
+            msg = "a region needs exactly one box with an area"
+            raise ValueError(msg)
+
+    @property
+    def is_region(self) -> bool:
+        """Whether the entity is a drawn region rather than a span of text."""
+        return self.type is EntityType.REGION
+
     @property
     def in_page_text(self) -> bool:
-        """Whether the span lies in `Page.text` rather than on a surface."""
-        return self.surface_id is None
+        """Whether the entity is a span of `Page.text`."""
+        return self.surface_id is None and not self.is_region
+
+    @property
+    def span(self) -> tuple[int, int]:
+        """The span's start and end offsets.
+
+        Raises:
+            ValueError: If the entity is a region, which has no span.
+        """
+        if self.start is None or self.end is None:
+            msg = f"entity {self.entity_id} is a region and has no span"
+            raise ValueError(msg)
+        return self.start, self.end
 
     @property
     def is_redactable(self) -> bool:
@@ -499,9 +561,9 @@ class Entity:
         return cls(
             type=EntityType(data["type"]),
             page_index=data["page_index"],
-            start=data["start"],
-            end=data["end"],
-            text=data["text"],
+            start=data.get("start"),
+            end=data.get("end"),
+            text=data.get("text"),
             surface_id=data.get("surface_id"),
             bboxes=[BBox.from_list(box) for box in data.get("bboxes", [])],
             source=DetectionSource(data.get("source", DetectionSource.RULE)),
@@ -521,8 +583,10 @@ class Document:
         surfaces: Strings carried outside the page text.
         entities: Detected entities, each pointing at a page by index and, when
             found outside the page text, at a surface by id.
-        source_name: Name of the input file, without a path, for display and
-            logging. Never a full path, which may itself be personal data.
+        fingerprint: SHA-256 of the source file, so a document, and a review
+            saved from it, can only be applied to the file it was made from.
+            The file's name is not kept: names such as
+            `<first>-<last>-<id>.pdf` are personal data themselves.
         language: BCP 47 tag the detectors are configured for, e.g. `"en"`.
         schema_version: Version of the serialized format.
     """
@@ -530,7 +594,7 @@ class Document:
     pages: list[Page] = field(default_factory=list)
     surfaces: list[Surface] = field(default_factory=list)
     entities: list[Entity] = field(default_factory=list)
-    source_name: str | None = None
+    fingerprint: str | None = None
     language: str | None = None
     schema_version: int = SCHEMA_VERSION
 
@@ -570,6 +634,65 @@ class Document:
         msg = f"no surface with id {surface_id}"
         raise KeyError(msg)
 
+    def entity(self, entity_id: str) -> Entity:
+        """Return the entity with the given id.
+
+        Args:
+            entity_id: Identifier of the entity.
+
+        Returns:
+            The entity.
+
+        Raises:
+            KeyError: If no entity carries that id.
+        """
+        for entity in self.entities:
+            if entity.entity_id == entity_id:
+                return entity
+        msg = f"no entity with id {entity_id}"
+        raise KeyError(msg)
+
+    def adjust_span(self, entity_id: str, start: int, end: int) -> Entity:
+        """Move an entity's span, e.g. after a reviewer resized its box.
+
+        The entity's text and boxes are recomputed from the new span, so they
+        never describe the old one.
+
+        Args:
+            entity_id: Identifier of the entity to adjust.
+            start: New first offset, in the same text as the old span.
+            end: New offset one past the span.
+
+        Returns:
+            The adjusted entity.
+
+        Raises:
+            KeyError: If no entity carries that id.
+            ValueError: If the entity is a region, or the new span is empty or
+                reaches outside its text.
+        """
+        entity = self.entity(entity_id)
+        if entity.is_region:
+            msg = f"entity {entity_id} is a region and has no span to adjust"
+            raise ValueError(msg)
+        if entity.surface_id is not None:
+            surface = self.surface(entity.surface_id)
+            source_text = surface.value
+            bboxes = [surface.bbox] if surface.bbox is not None else []
+        elif entity.page_index is not None:
+            page = self.page(entity.page_index)
+            source_text = page.text
+            bboxes = page.bboxes_for_span(start, end)
+        else:
+            msg = f"entity {entity_id} has neither a page nor a surface"
+            raise ValueError(msg)
+        if not 0 <= start < end <= len(source_text):
+            msg = f"span [{start}, {end}) is empty or outside the text of entity {entity_id}"
+            raise ValueError(msg)
+        entity.start, entity.end, entity.text = start, end, source_text[start:end]
+        entity.bboxes = bboxes
+        return entity
+
     def entities_on_page(self, index: int) -> list[Entity]:
         """Return the entities in one page's text, in reading order.
 
@@ -586,7 +709,20 @@ class Document:
         found = [
             entity for entity in self.entities if entity.in_page_text and entity.page_index == index
         ]
-        return sorted(found, key=lambda entity: entity.start)
+        return sorted(found, key=lambda entity: entity.span)
+
+    def regions_on_page(self, index: int) -> list[Entity]:
+        """Return the regions drawn on one page.
+
+        Args:
+            index: Zero-based page number.
+
+        Returns:
+            Region entities in the order they were added.
+        """
+        return [
+            entity for entity in self.entities if entity.is_region and entity.page_index == index
+        ]
 
     def entities_in_surface(self, surface_id: str) -> list[Entity]:
         """Return the entities found on one surface, in offset order.
@@ -598,33 +734,38 @@ class Document:
             Entities sorted by their start offset in `Surface.value`.
         """
         found = [entity for entity in self.entities if entity.surface_id == surface_id]
-        return sorted(found, key=lambda entity: entity.start)
+        return sorted(found, key=lambda entity: entity.span)
 
     def resolve_bboxes(self) -> None:
         """Fill in `Entity.bboxes` for entities lacking them.
 
         Page-text entities get one box per covered word. Surface entities get
-        the surface's own box, or none for a surface that is not drawn.
+        the surface's own box, or none for a surface that is not drawn. Regions
+        always carry their box already.
         """
         for entity in self.entities:
-            if entity.bboxes:
+            if entity.bboxes or entity.is_region:
                 continue
             if entity.surface_id is not None:
                 bbox = self.surface(entity.surface_id).bbox
                 entity.bboxes = [bbox] if bbox is not None else []
             elif entity.page_index is not None:
                 page = self.page(entity.page_index)
-                entity.bboxes = page.bboxes_for_span(entity.start, entity.end)
+                entity.bboxes = page.bboxes_for_span(*entity.span)
 
     def check_references(self) -> None:
-        """Verify that every surface entity points at a surface it matches.
+        """Verify that every entity points at a page and surface that exist.
 
         Raises:
-            ValueError: If an entity names an unknown surface or a page other
-                than its surface's.
+            ValueError: If an entity names a page the document does not have,
+                an unknown surface, or a page other than its surface's.
         """
+        pages = {page.index for page in self.pages}
         surfaces = {surface.surface_id: surface for surface in self.surfaces}
         for entity in self.entities:
+            if entity.page_index is not None and entity.page_index not in pages:
+                msg = f"entity {entity.entity_id} refers to missing page {entity.page_index}"
+                raise ValueError(msg)
             if entity.surface_id is None:
                 continue
             surface = surfaces.get(entity.surface_id)
@@ -642,7 +783,7 @@ class Document:
         """Return a JSON-compatible mapping."""
         return {
             "schema_version": self.schema_version,
-            "source_name": self.source_name,
+            "fingerprint": self.fingerprint,
             "language": self.language,
             "pages": [page.to_dict() for page in self.pages],
             "surfaces": [surface.to_dict() for surface in self.surfaces],
@@ -671,7 +812,7 @@ class Document:
             pages=[Page.from_dict(page) for page in data.get("pages", [])],
             surfaces=[Surface.from_dict(surface) for surface in data.get("surfaces", [])],
             entities=[Entity.from_dict(entity) for entity in data.get("entities", [])],
-            source_name=data.get("source_name"),
+            fingerprint=data.get("fingerprint"),
             language=data.get("language"),
             schema_version=version,
         )

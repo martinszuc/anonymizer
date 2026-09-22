@@ -11,6 +11,7 @@ listed by `surfaces`.
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import pymupdf
@@ -103,9 +104,9 @@ def load_document(path: Path | str, *, language: str | None = None) -> Document:
             the document.
 
     Returns:
-        A document with one page per PDF page and every string found outside
-        the text layer as a surface. Only the file's name is recorded, never its
-        path, which can itself be personal data.
+        A document with one page per PDF page, every string found outside the
+        text layer as a surface, and the file's fingerprint. Neither the path
+        nor the file name is recorded: both can be personal data.
 
     Raises:
         FileNotFoundError: If `path` does not exist.
@@ -118,7 +119,28 @@ def load_document(path: Path | str, *, language: str | None = None) -> Document:
     with pymupdf.open(source) as pdf:
         pages = [extract_page(pdf.load_page(index), index) for index in range(pdf.page_count)]
         surfaces = extract_surfaces(pdf)
-    return Document(pages=pages, surfaces=surfaces, source_name=source.name, language=language)
+    return Document(
+        pages=pages,
+        surfaces=surfaces,
+        fingerprint=file_fingerprint(source),
+        language=language,
+    )
+
+
+def file_fingerprint(path: Path | str) -> str:
+    """Return the SHA-256 of a file's bytes, as lowercase hex.
+
+    Args:
+        path: File to hash.
+
+    Returns:
+        The hex digest.
+    """
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for block in iter(lambda: stream.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def pages_needing_ocr(document: Document) -> list[int]:

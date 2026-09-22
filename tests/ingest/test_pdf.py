@@ -1,5 +1,6 @@
 """Tests for PDF text-layer extraction."""
 
+import hashlib
 from pathlib import Path
 
 import pymupdf
@@ -29,10 +30,14 @@ class TestLoadDocument:
         assert page.words
         assert "Jan Novák" in page.text
 
-    def test_records_only_the_file_name(self, single_page_pdf: Path):
-        document = load_document(single_page_pdf)
-        assert document.source_name == "single.pdf"
-        assert str(single_page_pdf.parent) not in str(document.to_dict())
+    def test_records_the_file_fingerprint_computed_independently(self, single_page_pdf: Path):
+        expected = hashlib.sha256(single_page_pdf.read_bytes()).hexdigest()
+        assert load_document(single_page_pdf).fingerprint == expected
+
+    def test_records_neither_the_path_nor_the_file_name(self, single_page_pdf: Path):
+        serialized = load_document(single_page_pdf).to_json()
+        assert str(single_page_pdf.parent) not in serialized
+        assert single_page_pdf.name not in serialized
 
     def test_records_language_when_given(self, single_page_pdf: Path):
         assert load_document(single_page_pdf, language="cs").language == "cs"

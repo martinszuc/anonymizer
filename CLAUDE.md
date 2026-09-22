@@ -12,7 +12,7 @@ Part of a diploma thesis at FEKT VUT Brno. Roadmap and open decisions: `PLAN.md`
 
 ## Hard constraints
 
-- **Offline only.** No code path may send document content or call a remote service for OCR or inference. Models load from local cache (`HF_HUB_OFFLINE=1`). Tests run with network access blocked.
+- **Offline only.** No code path may send document content or call a remote service for OCR or inference. Models load from local cache (`HF_HUB_OFFLINE=1`). Tests run with network access blocked. The only network access ever allowed is a model download the user starts explicitly, from the model's official source, verified against a stored checksum.
 - **No real personal data.** Test fixtures, examples and training data are synthetic or from public benchmarks. Never commit datasets, model weights or generated documents.
 - **True redaction.** Redacted content must be removed from the output file, not covered. Every redaction path needs a leakage test (re-extract the output, assert target strings are absent).
 - **Unicode.** UTF-8 everywhere; normalize text to NFC at ingest. Czech/Slovak diacritics must survive round-trips.
@@ -50,7 +50,7 @@ check. The OCR adapter, CLI and UI are empty.
 - Text offsets are **page-local into `Page.text`**. An entity carries its character span *and* one bbox per covered word, so a span crossing a line break yields several boxes instead of one covering the gap.
 - Overlapping detections are resolved by `resolve_overlaps`: entity-type priority first (checksum-backed identifiers beat free-form patterns; URLs beat everything, since anything overlapping a URL lies inside it), then longest span. Add a type to `OVERLAP_PRIORITY` rather than special-casing a caller.
 - Detection is **recall-first**: a missed entity leaks, a false positive is removed during review. Prefer a rule that over-matches to one that depends on a register that can go stale (this is why bank codes are not validated against the ČNB list).
-- English is the first target language; Czech/Slovak follow. Keep language a configuration value, never hardcoded.
+- Czech and Slovak are the primary target for name detection (NER); English is covered by the rules and serves as a secondary check. Keep language a configuration value, never hardcoded.
 
 ## Stack
 

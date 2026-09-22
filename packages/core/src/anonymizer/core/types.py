@@ -1,7 +1,8 @@
 """Shared data contract exchanged by ingest, detection, review and redaction.
 
-Object graph: `Document -> Page -> Word` with `Entity` objects attached to the
-document and referring back to a page by index.
+Object graph: `Document -> Page -> Word` for the page content and
+`Document -> Surface` for strings carried outside it, with `Entity` objects
+attached to the document and referring back to a page or a surface.
 
 Coordinate system:
     All boxes are in PDF user-space points (1/72 inch), relative to the page,
@@ -16,6 +17,13 @@ Text offsets:
     into `Page.text`, which is the page's reading-order reconstruction. Offsets
     are page-local: an entity never spans two pages, but it may span several
     words and lines, which is why it carries a list of boxes.
+
+Surfaces:
+    Link targets, metadata, form field values, bookmarks, annotations and
+    attachments hold strings that never appear in `Page.text`, so redacting the
+    page content leaves them intact. Ingest lists each such string as a
+    `Surface`. An entity found in one sets `Entity.surface_id`, and its offsets
+    then refer to `Surface.value` instead of `Page.text`.
 """
 
 from __future__ import annotations
@@ -27,7 +35,7 @@ from enum import StrEnum
 from typing import Any, Self
 from uuid import uuid4
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 """Version of the serialized review format. Bump on any incompatible change."""
 
 
@@ -47,6 +55,18 @@ class EntityType(StrEnum):
     ID_NUMBER = "id_number"
     ORGANIZATION = "organization"
     OTHER = "other"
+
+
+class SurfaceKind(StrEnum):
+    """Carrier of a string that lies outside the page text."""
+
+    METADATA = "metadata"
+    XMP = "xmp"
+    LINK = "link"
+    ANNOTATION = "annotation"
+    FORM_FIELD = "form_field"
+    BOOKMARK = "bookmark"
+    EMBEDDED_FILE = "embedded_file"
 
 
 class DetectionSource(StrEnum):
@@ -301,17 +321,99 @@ class Page:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class Surface:
+    """A string the document carries outside its page text.
+
+    Redaction and the leakage check walk every surface, not only those in which
+    an entity was detected: a surface is a place where personal data can hide
+    whether or not a detector recognises it.
+
+    Attributes:
+        kind: Carrier the string comes from.
+        value: The string, NFC-normalized. Offsets of entities on this surface
+            refer to it.
+        ref: Locator of the carrier within the source file. Its format belongs
+            to the ingest module that produced the surface; redaction of the
+            same file uses it to find the object again.
+        page_index: Page the carrier sits on, or `None` for a document-level
+            carrier such as metadata.
+        bbox: The carrier's own rectangle on the page, e.g. a link's clickable
+            area, or `None` if it has none. Not derived from words.
+        surface_id: Stable identifier entities use to refer to the surface.
+    """
+
+    kind: SurfaceKind
+    value: str
+    ref: str
+    page_index: int | None = None
+    bbox: BBox | None = None
+    surface_id: str = field(default_factory=lambda: uuid4().hex)
+
+    def __post_init__(self) -> None:
+        """Reject empty values, negative page indices and unplaced boxes.
+
+        Raises:
+            ValueError: If the value is empty, the page index is negative or a
+                box is given without a page.
+        """
+        if not self.value:
+            msg = f"empty surface value: {self.kind} {self.ref}"
+            raise ValueError(msg)
+        if self.page_index is not None and self.page_index < 0:
+            msg = f"negative page index: {self.page_index}"
+            raise ValueError(msg)
+        if self.bbox is not None and self.page_index is None:
+            msg = f"surface has a bbox but no page: {self.kind} {self.ref}"
+            raise ValueError(msg)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-compatible mapping."""
+        return {
+            "surface_id": self.surface_id,
+            "kind": self.kind.value,
+            "value": self.value,
+            "ref": self.ref,
+            "page_index": self.page_index,
+            "bbox": self.bbox.to_list() if self.bbox is not None else None,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        """Rebuild a surface from `to_dict` output.
+
+        Args:
+            data: Serialized surface.
+
+        Returns:
+            The surface.
+        """
+        bbox = data.get("bbox")
+        return cls(
+            kind=SurfaceKind(data["kind"]),
+            value=data["value"],
+            ref=data["ref"],
+            page_index=data.get("page_index"),
+            bbox=BBox.from_list(bbox) if bbox is not None else None,
+            surface_id=data.get("surface_id") or uuid4().hex,
+        )
+
+
 @dataclass(slots=True)
 class Entity:
-    """A span of personal data detected on one page.
+    """A span of personal data detected in page text or on a surface.
 
     Attributes:
         type: Category of personal data.
-        page_index: Page the span belongs to.
-        start: First offset of the span in `Page.text`.
-        end: Offset one past the span in `Page.text`.
+        page_index: Page the span belongs to. `None` only for an entity on a
+            document-level surface.
+        start: First offset of the span in `Page.text`, or in `Surface.value`
+            when `surface_id` is set.
+        end: Offset one past the span, in the same text as `start`.
         text: The matched text, kept for review and leakage checks.
-        bboxes: One box per covered word; empty until geometry is resolved.
+        surface_id: Surface the span lies in, or `None` for page text.
+        bboxes: One box per covered word, or the surface's own box; empty until
+            geometry is resolved.
         source: Component that produced the entity.
         score: Detector confidence in `[0, 1]`, or `None` for rule matches.
         review: Human review outcome.
@@ -321,10 +423,11 @@ class Entity:
     """
 
     type: EntityType
-    page_index: int
+    page_index: int | None
     start: int
     end: int
     text: str
+    surface_id: str | None = None
     bboxes: list[BBox] = field(default_factory=list)
     source: DetectionSource = DetectionSource.RULE
     score: float | None = None
@@ -336,18 +439,27 @@ class Entity:
         """Reject impossible spans, page indices and scores.
 
         Raises:
-            ValueError: If the span is empty, the page index is negative or the
-                score lies outside `[0, 1]`.
+            ValueError: If the span is empty, the page index is negative or
+                missing for page text, or the score lies outside `[0, 1]`.
         """
         if self.start < 0 or self.end <= self.start:
             msg = f"invalid entity span [{self.start}, {self.end})"
             raise ValueError(msg)
-        if self.page_index < 0:
+        if self.page_index is None:
+            if self.surface_id is None:
+                msg = "an entity in page text needs a page index"
+                raise ValueError(msg)
+        elif self.page_index < 0:
             msg = f"negative page index: {self.page_index}"
             raise ValueError(msg)
         if self.score is not None and not 0.0 <= self.score <= 1.0:
             msg = f"score out of range: {self.score}"
             raise ValueError(msg)
+
+    @property
+    def in_page_text(self) -> bool:
+        """Whether the span lies in `Page.text` rather than on a surface."""
+        return self.surface_id is None
 
     @property
     def is_redactable(self) -> bool:
@@ -363,6 +475,7 @@ class Entity:
             "start": self.start,
             "end": self.end,
             "text": self.text,
+            "surface_id": self.surface_id,
             "bboxes": [box.to_list() for box in self.bboxes],
             "source": self.source.value,
             "score": self.score,
@@ -386,6 +499,7 @@ class Entity:
             start=data["start"],
             end=data["end"],
             text=data["text"],
+            surface_id=data.get("surface_id"),
             bboxes=[BBox.from_list(box) for box in data.get("bboxes", [])],
             source=DetectionSource(data.get("source", DetectionSource.RULE)),
             score=data.get("score"),
@@ -397,11 +511,13 @@ class Entity:
 
 @dataclass(slots=True)
 class Document:
-    """A whole document with its pages and detected entities.
+    """A whole document with its pages, surfaces and detected entities.
 
     Attributes:
         pages: Pages in document order.
-        entities: Detected entities, each pointing at a page by index.
+        surfaces: Strings carried outside the page text.
+        entities: Detected entities, each pointing at a page by index and, when
+            found outside the page text, at a surface by id.
         source_name: Name of the input file, without a path, for display and
             logging. Never a full path, which may itself be personal data.
         language: BCP 47 tag the detectors are configured for, e.g. `"en"`.
@@ -409,6 +525,7 @@ class Document:
     """
 
     pages: list[Page] = field(default_factory=list)
+    surfaces: list[Surface] = field(default_factory=list)
     entities: list[Entity] = field(default_factory=list)
     source_name: str | None = None
     language: str | None = None
@@ -432,24 +549,91 @@ class Document:
         msg = f"no page with index {index}"
         raise KeyError(msg)
 
+    def surface(self, surface_id: str) -> Surface:
+        """Return the surface with the given id.
+
+        Args:
+            surface_id: Identifier of the surface.
+
+        Returns:
+            The surface.
+
+        Raises:
+            KeyError: If no surface carries that id.
+        """
+        for surface in self.surfaces:
+            if surface.surface_id == surface_id:
+                return surface
+        msg = f"no surface with id {surface_id}"
+        raise KeyError(msg)
+
     def entities_on_page(self, index: int) -> list[Entity]:
-        """Return the entities detected on one page, in reading order.
+        """Return the entities in one page's text, in reading order.
+
+        Entities on surfaces are excluded even when the surface sits on the
+        page, because their offsets refer to the surface value; see
+        `entities_in_surface`.
 
         Args:
             index: Zero-based page number.
 
         Returns:
-            Entities sorted by their start offset.
+            Entities sorted by their start offset in `Page.text`.
         """
-        found = [entity for entity in self.entities if entity.page_index == index]
+        found = [
+            entity for entity in self.entities if entity.in_page_text and entity.page_index == index
+        ]
+        return sorted(found, key=lambda entity: entity.start)
+
+    def entities_in_surface(self, surface_id: str) -> list[Entity]:
+        """Return the entities found on one surface, in offset order.
+
+        Args:
+            surface_id: Identifier of the surface.
+
+        Returns:
+            Entities sorted by their start offset in `Surface.value`.
+        """
+        found = [entity for entity in self.entities if entity.surface_id == surface_id]
         return sorted(found, key=lambda entity: entity.start)
 
     def resolve_bboxes(self) -> None:
-        """Fill in `Entity.bboxes` from page words for entities lacking them."""
+        """Fill in `Entity.bboxes` for entities lacking them.
+
+        Page-text entities get one box per covered word. Surface entities get
+        the surface's own box, or none for a surface that is not drawn.
+        """
         for entity in self.entities:
             if entity.bboxes:
                 continue
-            entity.bboxes = self.page(entity.page_index).bboxes_for_span(entity.start, entity.end)
+            if entity.surface_id is not None:
+                bbox = self.surface(entity.surface_id).bbox
+                entity.bboxes = [bbox] if bbox is not None else []
+            elif entity.page_index is not None:
+                page = self.page(entity.page_index)
+                entity.bboxes = page.bboxes_for_span(entity.start, entity.end)
+
+    def check_references(self) -> None:
+        """Verify that every surface entity points at a surface it matches.
+
+        Raises:
+            ValueError: If an entity names an unknown surface or a page other
+                than its surface's.
+        """
+        surfaces = {surface.surface_id: surface for surface in self.surfaces}
+        for entity in self.entities:
+            if entity.surface_id is None:
+                continue
+            surface = surfaces.get(entity.surface_id)
+            if surface is None:
+                msg = f"entity {entity.entity_id} refers to unknown surface {entity.surface_id}"
+                raise ValueError(msg)
+            if entity.page_index != surface.page_index:
+                msg = (
+                    f"entity {entity.entity_id} is on page {entity.page_index}, "
+                    f"its surface on page {surface.page_index}"
+                )
+                raise ValueError(msg)
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-compatible mapping."""
@@ -458,6 +642,7 @@ class Document:
             "source_name": self.source_name,
             "language": self.language,
             "pages": [page.to_dict() for page in self.pages],
+            "surfaces": [surface.to_dict() for surface in self.surfaces],
             "entities": [entity.to_dict() for entity in self.entities],
         }
 
@@ -472,19 +657,23 @@ class Document:
             The document.
 
         Raises:
-            ValueError: If the payload was written by an incompatible version.
+            ValueError: If the payload was written by an incompatible version or
+                an entity refers to a surface inconsistently.
         """
         version = data.get("schema_version", SCHEMA_VERSION)
         if version != SCHEMA_VERSION:
             msg = f"unsupported schema version {version}, expected {SCHEMA_VERSION}"
             raise ValueError(msg)
-        return cls(
+        document = cls(
             pages=[Page.from_dict(page) for page in data.get("pages", [])],
+            surfaces=[Surface.from_dict(surface) for surface in data.get("surfaces", [])],
             entities=[Entity.from_dict(entity) for entity in data.get("entities", [])],
             source_name=data.get("source_name"),
             language=data.get("language"),
             schema_version=version,
         )
+        document.check_references()
+        return document
 
     def to_json(self, *, indent: int | None = 2) -> str:
         """Serialize the document to JSON.

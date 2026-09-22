@@ -23,6 +23,7 @@ from anonymizer.core.detect.contact import (
     find_emails,
     find_nanp_phone_numbers,
 )
+from anonymizer.core.detect.document import detect_document, detect_surface
 from anonymizer.core.detect.iban import find_ibans, is_valid_iban, normalize_iban
 
 LANGUAGE_INDEPENDENT_FINDERS: tuple[Finder, ...] = (
@@ -109,6 +110,8 @@ __all__ = [
     "Finder",
     "Match",
     "RuleDetector",
+    "detect_document",
+    "detect_surface",
     "detector_for",
     "find_account_numbers",
     "find_birth_numbers",

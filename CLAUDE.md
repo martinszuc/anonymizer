@@ -22,9 +22,10 @@ Part of a diploma thesis at FEKT VUT Brno. Roadmap and open decisions: `PLAN.md`
 ```
 packages/core/   library, no UI or CLI dependencies
   types.py       shared data contract
-  ingest/        PDF text layer (PyMuPDF), OCR engine adapters
+  ingest/        pdf.py (text layer), surfaces.py (non-text surfaces),
+                 normalize.py (NFC, rotation), OCR engine adapters
   detect/        base.py (protocol, Match, RuleDetector, overlap resolution),
-                 birth_number.py, bank_account.py, iban.py, contact.py, NER backends
+                 document.py (pages + surfaces), rule modules, NER backends
   redact/        redaction strategies
 packages/cli/    thin command-line client
 ui/              review UI (framework not decided)
@@ -33,16 +34,17 @@ scripts/         model and dataset download
 data/            local corpora, git-ignored, never committed
 ```
 
-Implemented so far: the data contract, the rule-based detectors, and
-born-digital PDF ingest. The OCR adapter, redaction, CLI and UI are empty.
+Implemented so far: the data contract, the rule-based detectors, born-digital
+PDF ingest and the non-text surface scan. The OCR adapter, redaction, CLI and UI
+are empty.
 
-- All components exchange data through `core/types.py`: `Document → Page → Word(bbox) → Entity`. Change the contract deliberately; it is consumed by CLI, UI and serialized review files.
+- All components exchange data through `core/types.py`: `Document → Page → Word(bbox)` and `Document → Surface`, with `Entity` pointing at a page and optionally a surface. Change the contract deliberately; it is consumed by CLI, UI and serialized review files.
 - OCR engines, detectors and redaction strategies sit behind interfaces. Add implementations, do not special-case callers.
 - Structured identifiers (rodné číslo, bank accounts, IBAN, payment cards, IČO) are detected by format + checksum rules, not by ML.
 - Rules are **locale-scoped**: `detect.finders_for(language)` picks the set, locale-independent finders (email, IBAN, Luhn) always run, and an unknown language falls back to every rule. Register a new rule there rather than calling it directly.
 - A checksum is the strongest evidence available, but most non-Czech identifiers have none (US SSNs and phone numbers do not). Where a checksum is weak or absent, require a label from the document (as IČO does) instead of lowering the bar on digits alone.
 - Coordinates are **PDF points, per page, origin top-left, y downward** (PyMuPDF's convention, so extraction needs no conversion). A rasterized page records `Page.raster_dpi`; pixels convert with `points = pixels * 72 / dpi` before entering a `BBox`.
-- **The text layer is not the only place personal data hides.** Link annotations, document metadata and XMP, form field values, bookmarks and embedded files all carry identifying data that never appears in `Page.text`, and clearing the visible words leaves them intact. Treat them as surfaces to enumerate and clear, not as an edge case.
+- **The text layer is not the only place personal data hides.** Link annotations, document metadata and XMP, form field values, bookmarks and embedded files all carry identifying data that never appears in `Page.text`, and clearing the visible words leaves them intact. Ingest lists them as `Document.surfaces`; an entity on one sets `surface_id` and its offsets refer to `Surface.value`. Redaction must clear surfaces whether or not an entity was found in them.
 - Text offsets are **page-local into `Page.text`**. An entity carries its character span *and* one bbox per covered word, so a span crossing a line break yields several boxes instead of one covering the gap.
 - Overlapping detections are resolved by `resolve_overlaps`: entity-type priority first (checksum-backed identifiers beat free-form patterns), then longest span. Add a type to `OVERLAP_PRIORITY` rather than special-casing a caller.
 - Detection is **recall-first**: a missed entity leaks, a false positive is removed during review. Prefer a rule that over-matches to one that depends on a register that can go stale (this is why bank codes are not validated against the ČNB list).

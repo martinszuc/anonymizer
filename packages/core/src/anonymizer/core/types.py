@@ -345,7 +345,6 @@ class Surface:
             carrier such as metadata.
         bbox: The carrier's own rectangle on the page, e.g. a link's clickable
             area, or `None` if it has none. Not derived from words.
-        surface_id: Stable identifier entities use to refer to the surface.
     """
 
     kind: SurfaceKind
@@ -353,7 +352,6 @@ class Surface:
     ref: str
     page_index: int | None = None
     bbox: BBox | None = None
-    surface_id: str = field(default_factory=lambda: uuid4().hex)
 
     def __post_init__(self) -> None:
         """Reject empty values, negative page indices and unplaced boxes.
@@ -371,6 +369,18 @@ class Surface:
         if self.bbox is not None and self.page_index is None:
             msg = f"surface has a bbox but no page: {self.kind} {self.ref}"
             raise ValueError(msg)
+
+    @property
+    def surface_id(self) -> str:
+        """Identifier entities use to refer to the surface.
+
+        Derived from what the surface is, not generated, so loading the same
+        file twice yields the same ids and a saved review still points at the
+        right carrier. The page is part of it because a reference is unique
+        only within its page or the document level.
+        """
+        page = "doc" if self.page_index is None else str(self.page_index)
+        return f"{self.kind.value}:{page}:{self.ref}"
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-compatible mapping."""
@@ -400,7 +410,6 @@ class Surface:
             ref=data["ref"],
             page_index=data.get("page_index"),
             bbox=BBox.from_list(bbox) if bbox is not None else None,
-            surface_id=data.get("surface_id") or uuid4().hex,
         )
 
 

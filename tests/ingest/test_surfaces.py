@@ -132,6 +132,24 @@ class TestRotatedPage:
         assert overlaps(surface.bbox, word.bbox)
 
 
+class TestSurfaceIds:
+    def test_loading_the_same_file_twice_gives_the_same_ids(self, tmp_path: Path):
+        path = write_surfaces_pdf(tmp_path / "surfaces.pdf")
+        first = [surface.surface_id for surface in load_document(path).surfaces]
+        second = [surface.surface_id for surface in load_document(path).surfaces]
+        assert first == second
+
+    def test_ids_are_unique_within_a_document(self, document: Document):
+        ids = [surface.surface_id for surface in document.surfaces]
+        assert len(set(ids)) == len(ids)
+
+    def test_id_names_kind_page_and_reference(self, document: Document):
+        title = next(s for s in of_kind(document, SurfaceKind.METADATA) if s.ref == "Title")
+        link = of_kind(document, SurfaceKind.LINK, page_index=1)[0]
+        assert title.surface_id == "metadata:doc:Title"
+        assert link.surface_id == f"link:1:{link.ref}"
+
+
 class TestLoadDocument:
     def test_plain_pdf_has_no_surfaces(self, single_page_pdf: Path):
         assert load_document(single_page_pdf).surfaces == []

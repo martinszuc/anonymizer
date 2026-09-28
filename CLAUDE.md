@@ -28,6 +28,8 @@ packages/core/   library, no UI or CLI dependencies
   detect/        base.py (protocol, Match, RuleDetector, overlap resolution),
                  document.py (pages + surfaces), propagate.py (other occurrences),
                  rule modules, NER backends
+  resources/     catalog.toml (every model and dataset, pinned and
+                 checksummed), catalog.py, fetch.py (verified download)
   redact/        pdf.py (blackbox), surfaces.py (clearing), canvas.py (content
                  outside the visible area), leakage.py (six-layer leak check)
 packages/cli/    thin command-line client
@@ -40,8 +42,14 @@ data/            local corpora, git-ignored, never committed
 Implemented so far: the data contract, the rule-based detectors, born-digital
 PDF ingest, the non-text surface scan, blackbox redaction with its leak check,
 the review data format (regions, fingerprint, session files, span adjustment,
-occurrence propagation), and the `detect` / `redact` / `check` CLI. The OCR
-adapter, NER and the UI are empty.
+occurrence propagation), the `detect` / `redact` / `check` CLI, and the resource
+catalog with its download script. The OCR adapter, NER and the UI are empty.
+
+- Every model and dataset is an entry in `core/resources/catalog.toml`: official
+  source, immutable version, licence, languages, and per file a URL, size and
+  SHA-256. Add an entry there rather than downloading from code; a library that
+  fetches its own weights (GLiNER's encoder tokenizer, OCR engines) must be given
+  local paths instead.
 
 - All components exchange data through `core/types.py`: `Document → Page → Word(bbox)` and `Document → Surface`, with `Entity` pointing at a page and optionally a surface. Change the contract deliberately; it is consumed by CLI, UI and serialized review files.
 - OCR engines, detectors and redaction strategies sit behind interfaces. Add implementations, do not special-case callers.

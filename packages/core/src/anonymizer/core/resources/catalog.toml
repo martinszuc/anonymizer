@@ -1,0 +1,191 @@
+# Every model and dataset the project uses, pinned and checksummed.
+#
+# Read by the download script, the evaluation and the app's model setup page.
+# Nothing here is fetched automatically: a download happens only when a user
+# asks for one entry by id, and a file whose checksum differs is refused.
+#
+# Resource fields:
+#   id          stable name; the files land in models/<id>/ or data/<id>/
+#   kind        "model" or "dataset"
+#   uses        what it serves: ner, tokenizer, ocr-detection, ocr-recognition,
+#               ocr-layout, benchmark
+#   engine      the package that consumes a model (gliner, easyocr, ...)
+#   version     the source's own immutable pin: a commit, or a repository handle
+#   licence     SPDX identifier where one exists
+#   languages   ISO 639-1 codes; "mul" for a multilingual resource
+#   requires    ids that must be present for this one to work
+#   real_personal_data  true when the content names real people: local
+#               evaluation only, never a test fixture
+#
+# File fields:
+#   path        location inside the resource directory
+#   url         HTTPS, pinned to the version above
+#   size        bytes
+#   sha256      the check every download must pass
+#   source_digest  "md5:<hex>" or "git-sha1:<hex>" as published by the source,
+#               for files whose SHA-256 the source does not publish. Such a
+#               file is fetched only with --pin, verified against this digest,
+#               and its SHA-256 is then recorded here.
+#   unpack      "zip": extract next to the archive after verification
+
+schema = 1
+
+[[resource]]
+id = "gliner-multi-v2.1"
+name = "GLiNER multilingual v2.1"
+kind = "model"
+uses = ["ner"]
+engine = "gliner"
+source = "https://huggingface.co/urchade/gliner_multi-v2.1"
+version = "443d26d654e0324125a96bebd8e796c14ff2efe6"
+licence = "Apache-2.0"
+languages = ["mul"]
+requires = ["mdeberta-v3-base-tokenizer"]
+notes = """
+Zero-shot NER baseline (RQ1). gliner_config.json names microsoft/mdeberta-v3-base \
+as its encoder; the gliner package fetches that encoder's config and tokenizer at \
+load time unless they are supplied locally, hence the requirement. Only the \
+safetensors weights are listed; pytorch_model.bin holds the same model."""
+
+[[resource.files]]
+path = "gliner_config.json"
+url = "https://huggingface.co/urchade/gliner_multi-v2.1/resolve/443d26d654e0324125a96bebd8e796c14ff2efe6/gliner_config.json"
+size = 477
+sha256 = "e25f61d91620df84aae8076811ee592e926e94d341b82e7bc1be359718f83017"
+
+[[resource.files]]
+path = "model.safetensors"
+url = "https://huggingface.co/urchade/gliner_multi-v2.1/resolve/443d26d654e0324125a96bebd8e796c14ff2efe6/model.safetensors"
+size = 1155830112
+sha256 = "2100142f31627531497850659dcb3821c99d5e71c08a8e01a98e4b11ef32a199"
+
+[[resource]]
+id = "mdeberta-v3-base-tokenizer"
+name = "mDeBERTa-v3 base: config and tokenizer"
+kind = "model"
+uses = ["tokenizer"]
+engine = "transformers"
+source = "https://huggingface.co/microsoft/mdeberta-v3-base"
+version = "a0484667b22365f84929a935b5e50a51f71f159d"
+licence = "MIT"
+languages = ["mul"]
+notes = "Encoder config and SentencePiece tokenizer for GLiNER; the encoder weights are not needed."
+
+[[resource.files]]
+path = "config.json"
+url = "https://huggingface.co/microsoft/mdeberta-v3-base/resolve/a0484667b22365f84929a935b5e50a51f71f159d/config.json"
+size = 579
+sha256 = "bcffcd343dc5efa5ef2d5a58d2b405eed108f01cc45b48d0a907b333ec41801f"
+
+[[resource.files]]
+path = "tokenizer_config.json"
+url = "https://huggingface.co/microsoft/mdeberta-v3-base/resolve/a0484667b22365f84929a935b5e50a51f71f159d/tokenizer_config.json"
+size = 52
+sha256 = "3f3978e0c036f2c2588cac34a6047cbb0af0b0dc1814254e291028529805496d"
+
+[[resource.files]]
+path = "spm.model"
+url = "https://huggingface.co/microsoft/mdeberta-v3-base/resolve/a0484667b22365f84929a935b5e50a51f71f159d/spm.model"
+size = 4305025
+sha256 = "13c8d666d62a7bc4ac8f040aab68e942c861f93303156cc28f5c7e885d86d6e3"
+
+[[resource]]
+id = "redact"
+name = "REDACT PII benchmark"
+kind = "dataset"
+uses = ["benchmark"]
+source = "https://github.com/guneeshvats/REDACT-PII-Benchmark"
+version = "252232ac29669beeb99cb6474eeb2736761be508"
+licence = "LicenseRef-REDACT-Dataset-Terms-1.0"
+languages = ["mul", "cs"]
+notes = """
+13,427 synthetic records, 51 PII types, 25 languages (about 500 Czech, no Slovak). \
+Code MIT; data under the REDACT Dataset Terms v1.0, which permit research and \
+benchmarking (read 2026-09-29). Cite the EMNLP 2026 Industry paper. The full file \
+is listed because only it is certain to hold every Czech record; the language mix \
+of the 1,000-record sample is unchecked. Checksums are the Git LFS object ids."""
+
+[[resource.files]]
+path = "DATASET_TERMS.md"
+url = "https://raw.githubusercontent.com/guneeshvats/REDACT-PII-Benchmark/252232ac29669beeb99cb6474eeb2736761be508/DATASET_TERMS.md"
+size = 3591
+sha256 = "f362916fc663abf829c2a7a28bdf86dd1ef071ea8365aad4f68b2cd30b9375cd"
+
+[[resource.files]]
+path = "LICENSE"
+url = "https://raw.githubusercontent.com/guneeshvats/REDACT-PII-Benchmark/252232ac29669beeb99cb6474eeb2736761be508/LICENSE"
+size = 1507
+sha256 = "f5a489e218c06fb679bf05fc5b5ac1c0b0309ba51f265a4c6ef1a8a278eded6e"
+
+[[resource.files]]
+path = "pii_benchmark_full.json"
+url = "https://media.githubusercontent.com/media/guneeshvats/REDACT-PII-Benchmark/252232ac29669beeb99cb6474eeb2736761be508/data/pii_benchmark_full.json"
+size = 213278031
+sha256 = "f8cb68bf5e54791decd9190792766b37e623bdb346b1641c1d1fd146ddec6d1c"
+
+[[resource]]
+id = "cnec-2.0"
+name = "Czech Named Entity Corpus 2.0"
+kind = "dataset"
+uses = ["benchmark"]
+source = "https://hdl.handle.net/11858/00-097C-0000-0023-1B22-8"
+version = "hdl:11858/00-097C-0000-0023-1B22-8"
+licence = "CC-BY-NC-SA-3.0"
+languages = ["cs"]
+real_personal_data = true
+notes = """
+8,993 sentences, 35,220 entities in a two-level hierarchy of 46 types (nested). \
+Names real public figures. LINDAT publishes MD5 only; SHA-256 is recorded on the \
+first verified download."""
+
+[[resource.files]]
+path = "license.txt"
+url = "https://lindat.mff.cuni.cz/repository/server/api/core/bitstreams/5182b5dc-6847-4d7b-8ed0-8528ed061713/content"
+size = 1665
+sha256 = "903f626d73a6b06cf7b1bb80dc5065d03e5f591f68610187f7cc4a0795addde4"
+
+[[resource.files]]
+path = "Czech_Named_Entity_Corpus_2.0.zip"
+url = "https://lindat.mff.cuni.cz/repository/server/api/core/bitstreams/c0448097-50c3-47e1-8c31-d93afdfc2f30/content"
+size = 13931704
+source_digest = "md5:e4962225af8aea82bdcb8ac9bdad6c3b"
+unpack = "zip"
+
+[[resource]]
+id = "uner-sk-snk"
+name = "Universal NER: Slovak SNK"
+kind = "dataset"
+uses = ["benchmark"]
+source = "https://huggingface.co/datasets/universalner/UNER_Slovak-SNK"
+version = "1dc4d129e4279e4d2e69cd868432a9c396511bf8"
+licence = "CC-BY-SA-4.0"
+languages = ["sk"]
+real_personal_data = true
+notes = """
+Slovak National Corpus UD treebank with PER / ORG / LOC labels in IOB2. Names \
+real people. The files are not in Git LFS, so Hugging Face publishes only their \
+git blob SHA-1; SHA-256 is recorded on the first verified download."""
+
+[[resource.files]]
+path = "LICENSE.txt"
+url = "https://huggingface.co/datasets/universalner/UNER_Slovak-SNK/resolve/1dc4d129e4279e4d2e69cd868432a9c396511bf8/LICENSE.txt"
+size = 221
+sha256 = "76cbab13f5ddb068524dafb0600017c796311cd459def36d3d9d8cd0b8fb49be"
+
+[[resource.files]]
+path = "sk_snk-ud-train.iob2"
+url = "https://huggingface.co/datasets/universalner/UNER_Slovak-SNK/resolve/1dc4d129e4279e4d2e69cd868432a9c396511bf8/sk_snk-ud-train.iob2"
+size = 1951901
+source_digest = "git-sha1:9e2726c88c238f94597dfe8b781062aca15bec1c"
+
+[[resource.files]]
+path = "sk_snk-ud-dev.iob2"
+url = "https://huggingface.co/datasets/universalner/UNER_Slovak-SNK/resolve/1dc4d129e4279e4d2e69cd868432a9c396511bf8/sk_snk-ud-dev.iob2"
+size = 320690
+source_digest = "git-sha1:428c097477b06cf73c9d8456818c61f5f8386bc1"
+
+[[resource.files]]
+path = "sk_snk-ud-test.iob2"
+url = "https://huggingface.co/datasets/universalner/UNER_Slovak-SNK/resolve/1dc4d129e4279e4d2e69cd868432a9c396511bf8/sk_snk-ud-test.iob2"
+size = 325286
+source_digest = "git-sha1:4548a51e0659806dc3a7842a7e98d1c332f0d77d"

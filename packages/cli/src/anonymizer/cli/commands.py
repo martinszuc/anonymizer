@@ -1,4 +1,4 @@
-"""The `detect`, `redact` and `check` commands.
+"""The `detect`, `redact`, `check` and `inspect` commands.
 
 Each command returns an exit code and prints to the given streams; argument
 parsing and error reporting live in `main`.
@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
 
-from anonymizer.cli import report
+from anonymizer.cli import html_report, report
 from anonymizer.core.detect import (
     CombinedDetector,
     Detector,
@@ -107,10 +107,9 @@ def run_redact(
         msg = "the output must not overwrite the input"
         raise CommandError(msg)
     _refuse_existing(destination, force=force)
-    if session is not None:
-        document = load_session(session, source)
-    else:
-        document = detected(source, language, propagate=propagate, ner_root=ner_root)
+    document = _reviewed_or_detected(
+        source, session, language, propagate=propagate, ner_root=ner_root
+    )
     _refuse_unreadable_pages(document, allow=allow_pages_without_text, output=output)
 
     partial = destination.with_name(f".{destination.name}.partial")
@@ -142,6 +141,43 @@ def run_check(redacted: Path, source: Path, session: Path, *, output: Output) ->
         return EXIT_LEAKS
     print("leak check passed", file=output.out)
     return EXIT_OK
+
+
+def run_inspect(
+    source: Path,
+    destination: Path,
+    *,
+    session: Path | None,
+    language: str | None,
+    propagate: bool,
+    ner_root: Path | None,
+    dpi: int,
+    force: bool,
+    output: Output,
+) -> int:
+    """Write an HTML view of the pages with what detection or a review marked."""
+    _refuse_existing(destination, force=force)
+    document = _reviewed_or_detected(
+        source, session, language, propagate=propagate, ner_root=ner_root
+    )
+    destination.write_text(html_report.render_report(source, document, dpi=dpi), encoding="utf-8")
+    print(f"{source.name}: {report.document_summary(document)}", file=output.out)
+    print(f"wrote {destination} (contains the document's content)", file=output.out)
+    return EXIT_OK
+
+
+def _reviewed_or_detected(
+    source: Path,
+    session: Path | None,
+    language: str | None,
+    *,
+    propagate: bool,
+    ner_root: Path | None,
+) -> Document:
+    """Load a reviewed session for the source, or detect afresh without one."""
+    if session is not None:
+        return load_session(session, source)
+    return detected(source, language, propagate=propagate, ner_root=ner_root)
 
 
 def _refuse_existing(path: Path, *, force: bool) -> None:

@@ -33,12 +33,12 @@ def entity_table(document: Document) -> str:
         page = "-" if entity.page_index is None else str(entity.page_index + 1)
         rows.append(
             f"{page:<5} {entity.type.value:<13} {entity.source.value:<11} "
-            f"{entity.review.value:<10} {_covers(document, entity)}"
+            f"{entity.review.value:<10} {covers(document, entity)}"
         )
     return "\n".join(rows)
 
 
-def _covers(document: Document, entity: Entity) -> str:
+def covers(document: Document, entity: Entity) -> str:
     """Describe an entity's content in one line."""
     if entity.is_region:
         (box,) = entity.bboxes

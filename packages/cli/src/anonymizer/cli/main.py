@@ -10,6 +10,10 @@ or in one step, redacting everything the rules find:
 
     anonymize redact cv.pdf -o cv-redacted.pdf --lang cs
 
+To see what was found drawn on the pages:
+
+    anonymize inspect cv.pdf -o cv.html [--session review.json]
+
 Exit codes: 0 success, 1 error, 2 invalid arguments, 3 leak check failed.
 """
 
@@ -26,6 +30,7 @@ from anonymizer.cli.commands import (
     Output,
     run_check,
     run_detect,
+    run_inspect,
     run_redact,
 )
 from anonymizer.core import __version__
@@ -67,6 +72,29 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("redacted", type=Path, help="redacted PDF to check")
     check.add_argument("--source", type=Path, required=True, help="the original PDF")
     check.add_argument("--session", type=Path, required=True, help="the review it came from")
+
+    inspect = commands.add_parser(
+        "inspect",
+        help="write an HTML view of the pages with what was found drawn on them",
+    )
+    inspect.add_argument("input", type=Path, help="PDF to show")
+    inspect.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        required=True,
+        help="HTML file to write; it contains the document's content",
+    )
+    inspect.add_argument(
+        "--session",
+        type=Path,
+        help="show a reviewed session file instead of detecting again",
+    )
+    _add_detection_options(inspect)
+    inspect.add_argument(
+        "--dpi", type=int, default=110, help="resolution of the page images (default 110)"
+    )
+    inspect.add_argument("--force", action="store_true", help="replace an existing output file")
     return parser
 
 
@@ -146,6 +174,18 @@ def _dispatch(args: argparse.Namespace, output: Output) -> int:
             propagate=args.propagate,
             ner_root=args.resource_root if args.ner else None,
             allow_pages_without_text=args.allow_pages_without_text,
+            force=args.force,
+            output=output,
+        )
+    if args.command == "inspect":
+        return run_inspect(
+            args.input,
+            args.output,
+            session=args.session,
+            language=args.lang,
+            propagate=args.propagate,
+            ner_root=args.resource_root if args.ner else None,
+            dpi=args.dpi,
             force=args.force,
             output=output,
         )

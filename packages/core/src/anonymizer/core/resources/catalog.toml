@@ -101,9 +101,11 @@ languages = ["mul", "cs"]
 notes = """
 13,427 synthetic records, 51 PII types, 25 languages (about 500 Czech, no Slovak). \
 Code MIT; data under the REDACT Dataset Terms v1.0, which permit research and \
-benchmarking (read 2026-09-29). Cite the EMNLP 2026 Industry paper. The full file \
-is listed because only it is certain to hold every Czech record; the language mix \
-of the 1,000-record sample is unchecked. Checksums are the Git LFS object ids."""
+benchmarking (read 2026-09-29). Cite the EMNLP 2026 Industry paper. The \
+1,000-record sample for now: 40 records per language, so 40 Czech, enough for \
+development but not for results. The full file (213 MB, LFS sha256 \
+f8cb68bf5e54791decd9190792766b37e623bdb346b1641c1d1fd146ddec6d1c) holds every \
+Czech record. Checksums are the Git LFS object ids."""
 
 [[resource.files]]
 path = "DATASET_TERMS.md"
@@ -118,10 +120,10 @@ size = 1507
 sha256 = "f5a489e218c06fb679bf05fc5b5ac1c0b0309ba51f265a4c6ef1a8a278eded6e"
 
 [[resource.files]]
-path = "pii_benchmark_full.json"
-url = "https://media.githubusercontent.com/media/guneeshvats/REDACT-PII-Benchmark/252232ac29669beeb99cb6474eeb2736761be508/data/pii_benchmark_full.json"
-size = 213278031
-sha256 = "f8cb68bf5e54791decd9190792766b37e623bdb346b1641c1d1fd146ddec6d1c"
+path = "pii_benchmark_sample1000.json"
+url = "https://media.githubusercontent.com/media/guneeshvats/REDACT-PII-Benchmark/252232ac29669beeb99cb6474eeb2736761be508/data/pii_benchmark_sample1000.json"
+size = 15931515
+sha256 = "754f562ce9c3c5b7b663f1ba6127c38a31d93f5631d38364341cb727936234c6"
 
 [[resource]]
 id = "cnec-2.0"
@@ -135,8 +137,8 @@ languages = ["cs"]
 real_personal_data = true
 notes = """
 8,993 sentences, 35,220 entities in a two-level hierarchy of 46 types (nested). \
-Names real public figures. LINDAT publishes MD5 only; SHA-256 is recorded on the \
-first verified download."""
+Names real public figures. LINDAT publishes MD5 only; the SHA-256 was recorded \
+after a download verified against it."""
 
 [[resource.files]]
 path = "license.txt"
@@ -148,6 +150,7 @@ sha256 = "903f626d73a6b06cf7b1bb80dc5065d03e5f591f68610187f7cc4a0795addde4"
 path = "Czech_Named_Entity_Corpus_2.0.zip"
 url = "https://lindat.mff.cuni.cz/repository/server/api/core/bitstreams/c0448097-50c3-47e1-8c31-d93afdfc2f30/content"
 size = 13931704
+sha256 = "f8df3c32fc6b0858b087f772f467d64a48d6fd623c1dbd0f0bb42145da5f8d3a"
 source_digest = "md5:e4962225af8aea82bdcb8ac9bdad6c3b"
 unpack = "zip"
 
@@ -164,7 +167,7 @@ real_personal_data = true
 notes = """
 Slovak National Corpus UD treebank with PER / ORG / LOC labels in IOB2. Names \
 real people. The files are not in Git LFS, so Hugging Face publishes only their \
-git blob SHA-1; SHA-256 is recorded on the first verified download."""
+git blob SHA-1; the SHA-256 was recorded after a download verified against it."""
 
 [[resource.files]]
 path = "LICENSE.txt"
@@ -176,16 +179,19 @@ sha256 = "76cbab13f5ddb068524dafb0600017c796311cd459def36d3d9d8cd0b8fb49be"
 path = "sk_snk-ud-train.iob2"
 url = "https://huggingface.co/datasets/universalner/UNER_Slovak-SNK/resolve/1dc4d129e4279e4d2e69cd868432a9c396511bf8/sk_snk-ud-train.iob2"
 size = 1951901
+sha256 = "2c1aaf803cb940212b56591b450edef4518038d336f52496ecbc0924f7d7d77f"
 source_digest = "git-sha1:9e2726c88c238f94597dfe8b781062aca15bec1c"
 
 [[resource.files]]
 path = "sk_snk-ud-dev.iob2"
 url = "https://huggingface.co/datasets/universalner/UNER_Slovak-SNK/resolve/1dc4d129e4279e4d2e69cd868432a9c396511bf8/sk_snk-ud-dev.iob2"
 size = 320690
+sha256 = "2391d6efb9bcaddc712470c7edc9d4665deffd4b8cc2669da34b91d15da01678"
 source_digest = "git-sha1:428c097477b06cf73c9d8456818c61f5f8386bc1"
 
 [[resource.files]]
 path = "sk_snk-ud-test.iob2"
 url = "https://huggingface.co/datasets/universalner/UNER_Slovak-SNK/resolve/1dc4d129e4279e4d2e69cd868432a9c396511bf8/sk_snk-ud-test.iob2"
 size = 325286
+sha256 = "b2f48b43e60bf5a18f8075805592273cb91a1cd3f37dd11d6f11e81d10de3c04"
 source_digest = "git-sha1:4548a51e0659806dc3a7842a7e98d1c332f0d77d"

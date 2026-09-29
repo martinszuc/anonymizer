@@ -23,17 +23,17 @@ Requires [uv](https://docs.astral.sh/uv/). Python 3.12 is pinned via `.python-ve
 
 ```sh
 uv sync                    # create the environment
-uv run pytest              # tests (network blocked)
-uv run pytest --cov        # tests with branch coverage and its floor, as in CI
-uv run ruff check --fix .  # lint
-uv run ruff format .       # format
-uv run pyright             # type check
+uv run poe check           # everything CI checks: lint, format, types, tests with coverage
+uv run poe fix             # fix lint findings and format
+uv run poe test            # tests only (network blocked)
+uv run poe                 # list every task
 uv run pre-commit install  # run the hooks on every commit
 ```
 
-All four checks must pass before committing. CI also requires coverage of at least 93 %
-overall and 95 % for `redact/`, and runs the pre-commit hooks, which reject documents and
-images outside `tests/fixtures/`.
+Tasks are defined in `[tool.poe.tasks]` in `pyproject.toml`, and CI runs the same ones.
+`poe check` must pass before committing. Coverage must stay at 93 % or more overall and
+95 % or more for `redact/`. The pre-commit hooks reject documents and images outside
+`tests/fixtures/`.
 
 ## Usage
 

@@ -1,0 +1,99 @@
+name: Benchmark
+
+# Scores rules-only and rules + GLiNER on the synthetic documents in
+# benchmark/documents and publishes results, pictures and charts.
+#
+# - Run by hand from the Actions tab: results are a workflow artifact.
+# - Called by the release workflow with the new tag: results are attached to
+#   the release, and the charts include every earlier release's results.
+#
+# Besides installing packages, the only network access is the model download:
+# started by this run, from the model's official source, and refused unless it
+# matches the checksum in the resource catalog.
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release to benchmark and attach the results to
+        type: string
+        required: true
+
+permissions: {}
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag }}
+      OUT: benchmark-results
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies, with the name model and charts
+        run: uv sync --locked --all-packages --group ner --group benchmark
+
+      - name: Cache the model
+        uses: actions/cache@v4
+        with:
+          path: models
+          key: models-${{ hashFiles('packages/core/src/anonymizer/core/resources/catalog.toml') }}
+
+      - name: Fetch the model (checksum verified)
+        run: uv run python scripts/download.py fetch gliner-multi-v2.1 --yes
+
+      - name: Run the benchmark
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+        run: uv run python -m benchmark run --out "$OUT"
+
+      # Earlier releases' results, so the charts show the change over versions.
+      - name: Collect earlier results
+        if: inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p history
+          for tag in $(gh release list --limit 100 --json tagName --jq '.[].tagName'); do
+            [ "$tag" = "$TAG" ] && continue
+            gh release download "$tag" --pattern benchmark-results.json --dir "history/$tag" \
+              2>/dev/null || true
+          done
+
+      - name: Draw charts
+        run: |
+          uv run python -m benchmark history \
+            $(find history -name benchmark-results.json 2>/dev/null) "$OUT/results.json" \
+            --out "$OUT/charts"
+
+      - name: Summary
+        run: cat "$OUT/results.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark-results
+          retention-days: 90
+
+      - name: Attach to the release
+        if: inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp "$OUT/results.json" benchmark-results.json
+          cp "$OUT/results.md" benchmark-results.md
+          (cd "$OUT" && zip -qr ../benchmark-pictures.zip images charts)
+          gh release upload "$TAG" benchmark-results.json benchmark-results.md \
+            benchmark-pictures.zip "$OUT"/charts/*.png --clobber

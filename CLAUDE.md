@@ -64,12 +64,15 @@ Python ≥ 3.12 (CI: 3.12, 3.13 on macOS, Linux, Windows) · uv workspace · ruf
 ```sh
 uv sync                    # install
 uv run pytest              # tests
+uv run pytest --cov        # tests with branch coverage (CI runs this)
 uv run ruff check --fix .  # lint
 uv run ruff format .       # format
 uv run pyright             # type check
 ```
 
-All four must pass before committing.
+All four must pass before committing. CI additionally enforces coverage floors (93 % overall
+in `[tool.coverage.report]`, 95 % for `redact/` in `ci.yml`) and runs the pre-commit hooks.
+Ruff runs from `uv.lock` in both; pre-commit does not pin its own ruff version.
 
 ## Code style
 

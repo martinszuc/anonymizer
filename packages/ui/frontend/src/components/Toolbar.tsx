@@ -1,4 +1,4 @@
-import { FileText, FolderOpen, Maximize2, Minus, Plus } from "lucide-react";
+import { Eye, EyeOff, FileText, FolderOpen, Maximize2, Minus, Plus } from "lucide-react";
 
 import { shortcut } from "../platform";
 import { Button } from "./Button";
@@ -11,14 +11,16 @@ interface ToolbarProps {
   scale: number;
   fitting: boolean;
   dirty: boolean;
+  previewing: boolean;
   onOpen: () => void;
   onZoom: (direction: 1 | -1) => void;
   onFit: () => void;
   onSave: () => void;
+  onPreview: () => void;
 }
 
 export function Toolbar(props: ToolbarProps) {
-  const { name, language, pageCount, currentPage, scale, fitting, dirty } = props;
+  const { name, language, pageCount, currentPage, scale, fitting, dirty, previewing } = props;
   return (
     <header className="toolbar">
       <div className="toolbar-title">
@@ -60,6 +62,15 @@ export function Toolbar(props: ToolbarProps) {
             onClick={() => props.onZoom(1)}
           />
         </div>
+        <Button
+          variant="plain"
+          className="toggle"
+          aria-pressed={previewing}
+          icon={previewing ? <EyeOff size={16} /> : <Eye size={16} />}
+          aria-label="Preview the redacted output"
+          title={`${previewing ? "Back to review" : "Preview the redacted output"} (${shortcut("Y")})`}
+          onClick={props.onPreview}
+        />
         <Button
           variant="plain"
           icon={<FolderOpen size={16} />}

@@ -8,8 +8,10 @@ at home on Windows and Linux. Every value below is a CSS custom property in
 
 1. **The page is the subject.** Chrome recedes: translucent sidebar, quiet toolbar,
    neutral canvas. Colour is reserved for entity types and the one primary action.
-2. **What you see is what export does.** A redacted item is a black box, as in the
-   output. Hovering peeks underneath; nothing is destroyed until export.
+2. **Read while reviewing, preview before exporting.** Review mode keeps the text
+   under every box readable, because deciding means reading. Preview mode (⌘Y, the
+   eye button) draws exactly what export produces: opaque black boxes, kept items
+   untouched. Nothing is destroyed until export.
 3. **Every decision is one click and reversible.** Clicking a box or a row switch
    toggles redact / keep. Motion confirms the change without delaying it.
 4. **Nothing leaves the machine.** No web fonts, no remote assets, a strict CSP.
@@ -39,7 +41,8 @@ brown, dates mint, other grey. Only a hue: text on a type colour is never used.
 ## Components
 
 **Toolbar** (52 px). Document name and language; page position; zoom group (−, fit,
-+); primary *Save Review*. Controls are 28 px high.
++); preview toggle (eye, pressed = accent fill); primary *Save Review*. Controls are
+28 px high.
 
 **Sidebar** (300 px, translucent). Summary pill on top, segmented control
 *Findings / Hidden*, then a grouped list. Section header: type dot, label, count.
@@ -51,14 +54,14 @@ Keyboard: ↑/↓ moves the selection, Space toggles, Return scrolls to it.
 
 **Redaction box** on the page, one per word box of an entity:
 
-| State | Fill | Outline | Meaning |
+| State | Review mode | Preview mode | Meaning |
 |---|---|---|---|
-| Proposed (pending) | `--ink`, opaque | 1.5 px `--type` ring | will be redacted; not yet looked at |
-| Redact (confirmed) | `--ink` | none | will be redacted |
-| Keep (rejected) | `--type` at 12 % | 1 px dashed `--type` | stays in the output |
-| Propagated | as its state | dotted ring | found as a repeat of other marked text |
-| Hover | `--ink` at 25 % (peek) | 2 px `--type` | popover with type, text, next action |
-| Selected | as its state | 2 px `--accent` focus ring, one pulse | chosen in the list |
+| Proposed (pending) | `--type` at 24 %, 1.5 px solid `--type` | opaque `--ink` | will be redacted; not yet looked at |
+| Redact (confirmed) | `--type` at 34 %, 1.5 px solid `--type` | opaque `--ink` | will be redacted |
+| Keep (rejected) | no fill, 1 px dashed `--type` | nothing drawn | stays in the output |
+| Propagated | as its state, dotted outline | as its state | a repeat of other marked text |
+| Hover | fill 40 %, 2 px outline, popover | `--ink` at 25 % (peek) | what a click will do |
+| Selected | 2.5 px `--accent`, one pulse | same | chosen in the list |
 
 **Summary pill.** "12 redacted · 2 kept · 6 hidden removed"; counts animate.
 

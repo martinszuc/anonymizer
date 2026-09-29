@@ -14,6 +14,7 @@ interface PageViewProps {
   scale: number;
   selectedId: string | null;
   showHidden: boolean;
+  previewing: boolean;
   onSelect: (entity: EntityInfo) => void;
   onToggle: (entity: EntityInfo) => void;
   onError: (message: string) => void;
@@ -22,7 +23,7 @@ interface PageViewProps {
 
 /** Every page of the document, stacked, with its proposed redactions drawn over it. */
 export const PageView = forwardRef<HTMLDivElement, PageViewProps>(function PageView(props, ref) {
-  const { document, onCurrentPage } = props;
+  const { document, previewing, onCurrentPage } = props;
 
   const onScroll = (event: UIEvent<HTMLDivElement>) => {
     const scroller = event.currentTarget;
@@ -37,7 +38,7 @@ export const PageView = forwardRef<HTMLDivElement, PageViewProps>(function PageV
   };
 
   return (
-    <main ref={ref} className="canvas" onScroll={onScroll} aria-label="Pages">
+    <main ref={ref} className="canvas" data-previewing={previewing} onScroll={onScroll} aria-label="Pages">
       {document.pages.map((page) => (
         <Page
           key={page.index}
@@ -57,7 +58,19 @@ interface PageProps extends PageViewProps {
   surfaces: SurfaceInfo[];
 }
 
-function Page({ page, entities, surfaces, images, scale, selectedId, showHidden, onSelect, onToggle, onError }: PageProps) {
+function Page({
+  page,
+  entities,
+  surfaces,
+  images,
+  scale,
+  selectedId,
+  showHidden,
+  previewing,
+  onSelect,
+  onToggle,
+  onError,
+}: PageProps) {
   const pageRef = useRef<HTMLDivElement>(null);
   const nearby = useNearViewport(pageRef);
   const [image, setImage] = useState<string | null>(null);
@@ -120,7 +133,9 @@ function Page({ page, entities, surfaces, images, scale, selectedId, showHidden,
           ))}
         </svg>
         <AnimatePresence>
-          {hovered && <Popover key={hovered.id} entity={hovered} scale={scale} pageHeight={height} />}
+          {hovered && !previewing && (
+            <Popover key={hovered.id} entity={hovered} scale={scale} pageHeight={height} />
+          )}
         </AnimatePresence>
       </div>
       <span className="page-number">{page.index + 1}</span>
@@ -191,7 +206,9 @@ function Popover({ entity, scale, pageHeight }: { entity: EntityInfo; scale: num
         {entity.source === "propagated" && <span className="muted"> · repeat</span>}
       </span>
       <span className="popover-text">{covers(entity)}</span>
-      <span className="popover-hint">{redacted ? "Redacted · click to keep" : "Kept · click to redact"}</span>
+      <span className="popover-hint">
+        {redacted ? "Will be redacted · click to keep" : "Kept · click to redact"}
+      </span>
     </motion.div>
   );
 }

@@ -25,6 +25,8 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [zoom, setZoom] = useState<number | "fit">("fit");
+  // Review shows what is under each box; preview shows the output's black boxes.
+  const [previewing, setPreviewing] = useState(false);
   const [tab, setTab] = useState<SidebarTab>("findings");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
@@ -131,6 +133,7 @@ export function App() {
       else if ((key === "=" || key === "+") && document) zoomBy(1);
       else if (key === "-" && document) zoomBy(-1);
       else if (key === "0" && document) setZoom("fit");
+      else if (key === "y" && document) setPreviewing((value) => !value);
       else return;
       event.preventDefault();
     };
@@ -151,10 +154,12 @@ export function App() {
               scale={scale}
               fitting={zoom === "fit"}
               dirty={dirty}
+              previewing={previewing}
               onOpen={openPdf}
               onZoom={zoomBy}
               onFit={() => setZoom("fit")}
               onSave={save}
+              onPreview={() => setPreviewing((value) => !value)}
             />
             <div className="workspace">
               <Sidebar
@@ -172,6 +177,7 @@ export function App() {
                 scale={scale}
                 selectedId={selectedId}
                 showHidden={tab === "hidden"}
+                previewing={previewing}
                 onSelect={(entity) => setSelectedId(entity.id)}
                 onToggle={toggle}
                 onError={reportError}

@@ -125,6 +125,11 @@ kbd {
   padding: 0;
 }
 
+.toggle[aria-pressed="true"] {
+  background: var(--accent-fill);
+  color: var(--accent);
+}
+
 .badge {
   padding: 1px var(--space-2);
   border-radius: var(--radius-box);
@@ -580,7 +585,8 @@ kbd {
   overflow: visible;
 }
 
-/* Redaction boxes (DESIGN.md → Redaction box) */
+/* Redaction boxes (DESIGN.md → Redaction box). Review mode by default: the
+   text under every box stays readable. Preview mode draws the output. */
 
 .redaction {
   cursor: pointer;
@@ -597,38 +603,49 @@ kbd {
 }
 
 .redaction[data-redacted="true"] rect {
-  fill: var(--ink);
-  fill-opacity: 1;
-  stroke: var(--ink);
+  fill: var(--type);
+  fill-opacity: 0.24;
+  stroke: var(--type);
   stroke-width: 1.5px;
 }
 
-.redaction[data-state="pending"] rect {
-  stroke: var(--type);
+.redaction[data-state="confirmed"] rect {
+  fill-opacity: 0.34;
 }
 
 .redaction[data-propagated="true"] rect {
-  stroke: var(--type);
   stroke-dasharray: 1.5 2.5;
   stroke-linecap: round;
 }
 
 .redaction[data-redacted="false"] rect {
-  fill: var(--type);
-  fill-opacity: 0.12;
+  fill: transparent;
   stroke: var(--type);
+  stroke-opacity: 0.7;
   stroke-width: 1px;
   stroke-dasharray: 4 3;
 }
 
 .redaction:hover rect {
-  stroke: var(--type);
+  fill-opacity: 0.4;
   stroke-width: 2px;
+  stroke-opacity: 1;
   stroke-dasharray: none;
 }
 
+.canvas[data-previewing="true"] .redaction[data-redacted="true"] rect {
+  fill: var(--ink);
+  fill-opacity: 1;
+  stroke: var(--ink);
+  stroke-dasharray: none;
+}
+
+.canvas[data-previewing="true"] .redaction[data-redacted="false"] rect {
+  stroke-opacity: 0;
+}
+
 /* A deliberate peek: only the box under the pointer lets the text show. */
-.redaction[data-redacted="true"]:hover rect {
+.canvas[data-previewing="true"] .redaction[data-redacted="true"]:hover rect {
   fill-opacity: 0.25;
 }
 

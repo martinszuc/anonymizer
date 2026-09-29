@@ -39,7 +39,7 @@ def draw(paths: list[Path], output: Path) -> list[Path]:
     Returns:
         The PNG files written.
     """
-    import matplotlib as mpl
+    import matplotlib as mpl  # pyright: ignore[reportMissingImports]
 
     mpl.use("Agg")
     runs = load_runs(paths)
@@ -71,7 +71,7 @@ def _over_versions(
     *,
     percent: bool,
 ) -> Path:
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt  # pyright: ignore[reportMissingImports]
 
     labels = _run_labels(runs)
     figure, axes = _figure(title)
@@ -129,7 +129,7 @@ def _over_versions(
 
 
 def _by_type(run: dict[str, Any], destination: Path) -> Path:
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt  # pyright: ignore[reportMissingImports]
 
     systems = [system for system in SERIES_COLOURS if system in run["totals"]]
     kinds = sorted({kind for system in systems for kind in run["totals"][system]["by_type"]})
@@ -185,7 +185,7 @@ def _by_type(run: dict[str, Any], destination: Path) -> Path:
 
 
 def _figure(title: str, height: float = 4.2) -> tuple[Any, Any]:
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt  # pyright: ignore[reportMissingImports]
 
     figure, axes = plt.subplots(figsize=(9, height), layout="constrained")
     figure.patch.set_facecolor(SURFACE)

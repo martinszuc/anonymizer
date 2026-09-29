@@ -10,6 +10,9 @@ file, the same format `anonymize detect` writes and `anonymize redact --session`
 anonymize-ui [cv.pdf] [--lang cs]
 ```
 
+Working on the window: start with [`docs/ui.md`](../../docs/ui.md) (status, contract,
+rules, how to add a feature, backlog).
+
 ## Layout
 
 - `src/anonymizer/ui/api.py`: `ReviewApi`, everything the window asks of the core,

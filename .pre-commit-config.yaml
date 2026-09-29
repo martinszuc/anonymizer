@@ -12,9 +12,20 @@ repos:
         args: ["--fix=lf"]
       - id: trailing-whitespace
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.6
+  - repo: local
     hooks:
+      # Run ruff from the project environment so uv.lock is the only place
+      # its version is pinned; a separate hook pin drifts from what CI runs.
       - id: ruff
-        args: ["--fix"]
+        name: ruff check
+        entry: uv run --frozen ruff check --fix
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
       - id: ruff-format
+        name: ruff format
+        entry: uv run --frozen ruff format
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+

@@ -42,8 +42,17 @@ data/            local corpora, git-ignored, never committed
 Implemented so far: the data contract, the rule-based detectors, born-digital
 PDF ingest, the non-text surface scan, blackbox redaction with its leak check,
 the review data format (regions, fingerprint, session files, span adjustment,
-occurrence propagation), the `detect` / `redact` / `check` CLI, and the resource
-catalog with its download script. The OCR adapter, NER and the UI are empty.
+occurrence propagation), the `detect` / `redact` / `check` CLI, the resource
+catalog with its download script, and GLiNER name detection (`detect/gliner.py`,
+CLI `--ner`). The OCR adapter and the UI are empty; NER is not yet evaluated.
+
+- Detectors are combined with `CombinedDetector`, which uses `merge_entities`:
+  a span entirely inside a stronger one is dropped, a partial overlap keeps both
+  (dropping one would leave its remainder unredacted).
+- GLiNER reads at most 384 words and silently drops the rest; `GlinerDetector`
+  scans a page in overlapping windows and widens spans to whole words. Its
+  dependencies are the optional `ner` extra (`uv sync --group ner`); tests use a
+  stand-in model, and the real one only runs under `@pytest.mark.model`.
 
 - Every model and dataset is an entry in `core/resources/catalog.toml`: official
   source, immutable version, licence, languages, and per file a URL, size and

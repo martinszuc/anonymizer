@@ -136,6 +136,97 @@ def resolve_overlaps(
     return sorted(kept, key=lambda match: match.start)
 
 
+def merge_entities(
+    entities: Iterable[Entity],
+    priority: Sequence[EntityType] = OVERLAP_PRIORITY,
+) -> list[Entity]:
+    """Drop entities lying entirely inside a stronger or longer one.
+
+    Unlike `resolve_overlaps`, a partial overlap keeps both entities: when the
+    results of several detectors (rules and a model, or overlapping windows of
+    one model) are combined, dropping a span that reaches beyond the winner
+    would leave its remainder unredacted. Spans are compared only within the
+    same page text or surface; regions are always kept.
+
+    Args:
+        entities: Candidate text entities and regions, in any order.
+        priority: Entity types from strongest to weakest.
+
+    Returns:
+        Surviving entities: regions first, then spans in reading order.
+    """
+    ranks = {entity_type: rank for rank, entity_type in enumerate(priority)}
+    weakest = len(ranks)
+    candidates = list(entities)
+    regions = [entity for entity in candidates if entity.is_region]
+    spans = [entity for entity in candidates if not entity.is_region]
+    ordered = sorted(
+        spans,
+        key=lambda entity: (
+            ranks.get(entity.type, weakest),
+            -(entity.span[1] - entity.span[0]),
+            -(entity.score if entity.score is not None else 1.0),
+            entity.span[0],
+        ),
+    )
+    kept: list[Entity] = []
+    for entity in ordered:
+        start, end = entity.span
+        inside = any(
+            other.page_index == entity.page_index
+            and other.surface_id == entity.surface_id
+            and other.span[0] <= start
+            and end <= other.span[1]
+            for other in kept
+        )
+        if not inside:
+            kept.append(entity)
+    kept.sort(key=lambda entity: (entity.page_index or 0, entity.surface_id or "", entity.span))
+    return regions + kept
+
+
+class CombinedDetector:
+    """Runs several detectors on a page and merges their entities.
+
+    Attributes:
+        detectors: Detectors applied to every page, in order.
+    """
+
+    def __init__(self, detectors: Sequence[Detector], name: str | None = None) -> None:
+        """Initialize the detector.
+
+        Args:
+            detectors: Detectors applied to every page.
+            name: Identifier; the members' names joined with `+` by default.
+
+        Raises:
+            ValueError: If no detector is given.
+        """
+        if not detectors:
+            msg = "at least one detector is needed"
+            raise ValueError(msg)
+        self.detectors = tuple(detectors)
+        self._name = name or "+".join(detector.name for detector in self.detectors)
+
+    @property
+    def name(self) -> str:
+        """Identifier used in logs and evaluation reports."""
+        return self._name
+
+    def detect(self, page: Page) -> list[Entity]:
+        """Return the merged entities of every detector.
+
+        Args:
+            page: Page to scan; offsets refer to `page.text`.
+
+        Returns:
+            Entities in reading order; see `merge_entities`.
+        """
+        return merge_entities(
+            entity for detector in self.detectors for entity in detector.detect(page)
+        )
+
+
 class RuleDetector:
     """Runs a set of finders over a page and resolves their overlaps.
 

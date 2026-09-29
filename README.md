@@ -64,9 +64,10 @@ digest and prints the SHA-256 to record in the catalog.
 ## Status
 
 Working for PDFs with a text layer: text and hidden-data extraction, rule-based
-detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL), review
-through session files, blackbox redaction and a leak check on the output.
-Not yet: names (NER), scanned documents (OCR), the review UI.
+detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL), names
+and street addresses with the GLiNER model (optional, `--ner`), review through
+session files, blackbox redaction and a leak check on the output.
+Not yet: measured NER quality, scanned documents (OCR), the review UI.
 
 ## License
 

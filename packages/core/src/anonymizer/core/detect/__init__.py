@@ -9,10 +9,12 @@ checksum, URLs) always run.
 from anonymizer.core.detect.bank_account import find_account_numbers, is_valid_account_number
 from anonymizer.core.detect.base import (
     OVERLAP_PRIORITY,
+    CombinedDetector,
     Detector,
     Finder,
     Match,
     RuleDetector,
+    merge_entities,
     resolve_overlaps,
 )
 from anonymizer.core.detect.birth_number import find_birth_numbers, is_valid_birth_number
@@ -24,6 +26,7 @@ from anonymizer.core.detect.contact import (
     find_nanp_phone_numbers,
 )
 from anonymizer.core.detect.document import detect_document, detect_surface
+from anonymizer.core.detect.gliner import GlinerDetector, load_gliner_detector
 from anonymizer.core.detect.iban import find_ibans, is_valid_iban, normalize_iban
 from anonymizer.core.detect.propagate import propagate_occurrences
 from anonymizer.core.detect.url import find_urls
@@ -109,8 +112,10 @@ __all__ = [
     "LANGUAGE_INDEPENDENT_FINDERS",
     "OVERLAP_PRIORITY",
     "STRUCTURED_FINDERS",
+    "CombinedDetector",
     "Detector",
     "Finder",
+    "GlinerDetector",
     "Match",
     "RuleDetector",
     "detect_document",
@@ -131,6 +136,8 @@ __all__ = [
     "is_valid_card_number",
     "is_valid_company_id",
     "is_valid_iban",
+    "load_gliner_detector",
+    "merge_entities",
     "normalize_iban",
     "passes_luhn",
     "propagate_occurrences",

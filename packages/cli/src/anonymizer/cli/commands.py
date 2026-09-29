@@ -11,7 +11,14 @@ from pathlib import Path
 from typing import TextIO
 
 from anonymizer.cli import report
-from anonymizer.core.detect import detect_document, detector_for, propagate_occurrences
+from anonymizer.core.detect import (
+    CombinedDetector,
+    Detector,
+    detect_document,
+    detector_for,
+    load_gliner_detector,
+    propagate_occurrences,
+)
 from anonymizer.core.ingest import load_document, pages_needing_ocr
 from anonymizer.core.redact import find_leaks, redact_pdf
 from anonymizer.core.session import load_session, save_session
@@ -34,10 +41,23 @@ class Output:
     err: TextIO
 
 
-def detected(source: Path, language: str | None, *, propagate: bool) -> Document:
-    """Load a PDF and run the rules for its language over pages and surfaces."""
+def detected(
+    source: Path,
+    language: str | None,
+    *,
+    propagate: bool,
+    ner_root: Path | None = None,
+) -> Document:
+    """Load a PDF and run the detectors over its pages and surfaces.
+
+    The rules for the language always run; with `ner_root`, so does the name
+    model stored under that directory.
+    """
+    detector: Detector = detector_for(language)
+    if ner_root is not None:
+        detector = CombinedDetector([detector, load_gliner_detector(ner_root)])
     document = load_document(source, language=language)
-    document.entities = detect_document(detector_for(language), document)
+    document.entities = detect_document(detector, document)
     if propagate:
         document.entities += propagate_occurrences(document)
     return document
@@ -49,13 +69,14 @@ def run_detect(
     *,
     language: str | None,
     propagate: bool,
+    ner_root: Path | None,
     show: bool,
     force: bool,
     output: Output,
 ) -> int:
     """Detect personal data and save it as a session file for review."""
     _refuse_existing(session, force=force)
-    document = detected(source, language, propagate=propagate)
+    document = detected(source, language, propagate=propagate, ner_root=ner_root)
     save_session(document, session)
     print(f"{source.name}: {report.document_summary(document)}", file=output.out)
     if show:
@@ -71,6 +92,7 @@ def run_redact(
     session: Path | None,
     language: str | None,
     propagate: bool,
+    ner_root: Path | None,
     allow_pages_without_text: bool,
     force: bool,
     output: Output,
@@ -88,7 +110,7 @@ def run_redact(
     if session is not None:
         document = load_session(session, source)
     else:
-        document = detected(source, language, propagate=propagate)
+        document = detected(source, language, propagate=propagate, ner_root=ner_root)
     _refuse_unreadable_pages(document, allow=allow_pages_without_text, output=output)
 
     partial = destination.with_name(f".{destination.name}.partial")

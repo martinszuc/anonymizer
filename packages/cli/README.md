@@ -9,6 +9,19 @@ anonymize redact cv.pdf -o cv-redacted.pdf --lang cs      # one step, no review
 anonymize check cv-redacted.pdf --source cv.pdf --session review.json
 ```
 
+**Names and addresses.** The rules find identifiers; names need the GLiNER model.
+Install its dependencies (PyTorch; kept optional) and fetch the model once, then
+add `--ner`:
+
+```sh
+uv sync --group ner
+uv run python scripts/download.py fetch gliner-multi-v2.1
+anonymize redact cv.pdf -o cv-redacted.pdf --lang cs --ner
+```
+
+The model is read from `models/` under `--resource-root` (default: the current
+directory) and never contacts the network.
+
 **Reviewing without a UI.** `review.json` lists every item found. Set an item's
 `"review"` to `"rejected"` to keep it in the output. To redact something without
 text (a photo, a signature), add an entity

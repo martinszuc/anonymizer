@@ -66,8 +66,8 @@ digest and prints the SHA-256 to record in the catalog.
 
 Automated with [release-please](https://github.com/googleapis/release-please).
 Every merge to `main` updates an open `chore: release X.Y.Z` pull request with
-the next version and the changelog, both derived from the Conventional Commit
-messages. Merging that pull request tags the release and publishes it on
+the next version (from the Conventional Commit messages) and the changelog (one
+line per merged pull request). Merging that pull request tags the release and publishes it on
 GitHub with the wheels and source archives. See [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Status

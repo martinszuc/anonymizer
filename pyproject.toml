@@ -17,6 +17,7 @@ dev = [
     "pre-commit>=4.0",
     "pytest-cov>=7.1.0",
 ]
+ner = ["anonymizer-core[ner]"]
 
 [tool.uv]
 package = false

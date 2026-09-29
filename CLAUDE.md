@@ -50,6 +50,9 @@ CLI `--ner`), and the review window (`anonymize-ui`: view pages with the propose
 redactions, toggle each, save the session). The OCR adapter is empty; NER is not yet
 evaluated; the window cannot export, add or draw items yet.
 
+- **Before changing the review window, read `docs/ui.md`**: its status, the
+  payload contract, the rules it keeps, a recipe for adding a feature end to end,
+  how it connects to core and CLI, and the backlog. Update it in the same PR.
 - The review window's Python side is `ReviewApi` in `ui/api.py`: plain JSON in and
   out, no pywebview import, tested like any module. `app.py` only adds the window
   and file dialogs. The frontend lives in `packages/ui/frontend/` (React +

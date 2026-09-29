@@ -4,7 +4,9 @@ The model itself is exercised only by the `model`-marked test at the end,
 which is skipped unless the weights and the `gliner` package are present.
 """
 
+import logging
 import re
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +18,7 @@ from anonymizer.core.detect.gliner import (
     GlinerDetector,
     load_gliner_detector,
     widen_to_words,
+    without_known_warnings,
 )
 from anonymizer.core.types import BBox, DetectionSource, Entity, EntityType, Page, Word
 
@@ -247,6 +250,25 @@ def test_combined_detector_needs_a_member():
 
 
 # --- loading ------------------------------------------------------------
+
+
+def test_known_warnings_are_hidden_only_inside_the_block(caplog):
+    tokenizer_logger = logging.getLogger("transformers.tokenization_utils_tokenizers")
+    regex_message = "The tokenizer you are loading with an incorrect regex pattern: ..."
+    jit_message = "`torch.jit.script` is deprecated. Please switch to `torch.compile`."
+    with caplog.at_level(logging.WARNING), warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        with without_known_warnings():
+            tokenizer_logger.warning(regex_message)
+            warnings.warn(jit_message, FutureWarning, stacklevel=1)
+            tokenizer_logger.warning("an unrelated tokenizer problem")
+            warnings.warn("an unrelated deprecation", FutureWarning, stacklevel=1)
+        tokenizer_logger.warning(regex_message)
+    assert [record.getMessage() for record in caplog.records] == [
+        "an unrelated tokenizer problem",
+        regex_message,
+    ]
+    assert [str(warning.message) for warning in caught] == ["an unrelated deprecation"]
 
 
 def test_missing_model_files_name_the_fetch_command(tmp_path):

@@ -19,13 +19,15 @@ which keeps it testable without the model.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
+import warnings
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from anonymizer.core.detect.base import merge_entities
 from anonymizer.core.resources import load_catalog, resource_status
@@ -232,13 +234,54 @@ def load_gliner(model_dir: Path, encoder_dir: Path) -> SpanModel:
     # anything transformers resolves on its own.
     os.environ.setdefault("HF_HUB_OFFLINE", "1")
     os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+    with without_known_warnings():
+        try:
+            from gliner import GLiNER  # pyright: ignore[reportMissingImports]
+        except ImportError as error:
+            msg = "name detection needs the optional 'ner' dependencies: uv sync --group ner"
+            raise ImportError(msg) from error
+        with _local_encoder(encoder_dir):
+            model = GLiNER.from_pretrained(str(model_dir), local_files_only=True)
+    # gliner types the result as a union of every architecture it can load;
+    # this model's config selects a uni-encoder span model, which fits.
+    return cast("SpanModel", model)
+
+
+@contextmanager
+def without_known_warnings() -> Iterator[None]:
+    """Hide two library messages that do not apply to this model.
+
+    - PyTorch deprecates `torch.jit.script`, which transformers' DeBERTa
+      module uses when it is imported. Nothing to act on in this project.
+    - transformers warns of an "incorrect regex pattern" whenever a local
+      tokenizer's config lacks a `transformers_version` field, which
+      mDeBERTa's does. The check targets Mistral tokenizers; on this path it
+      only logs and leaves the tokenizer unchanged.
+
+    Only these two messages are filtered, and only while the block runs.
+    """
+    tokenizer_logger = logging.getLogger("transformers.tokenization_utils_tokenizers")
+    regex_filter = _DropMessage("incorrect regex pattern")
+    tokenizer_logger.addFilter(regex_filter)
     try:
-        from gliner import GLiNER  # pyright: ignore[reportMissingImports]
-    except ImportError as error:
-        msg = "name detection needs the optional 'ner' dependencies: uv sync --group ner"
-        raise ImportError(msg) from error
-    with _local_encoder(encoder_dir):
-        return GLiNER.from_pretrained(str(model_dir), local_files_only=True)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r"`torch\.jit\.script` is deprecated",
+                category=FutureWarning,
+            )
+            yield
+    finally:
+        tokenizer_logger.removeFilter(regex_filter)
+
+
+class _DropMessage(logging.Filter):
+    def __init__(self, fragment: str) -> None:
+        super().__init__()
+        self.fragment = fragment
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return self.fragment not in record.getMessage()
 
 
 def load_gliner_detector(
@@ -296,7 +339,7 @@ def _local_encoder(encoder_dir: Path) -> Iterator[None]:
     def with_local_encoder(cls: type, config_file: Path, **overrides: Any) -> object:
         return load_config(cls, config_file, **{**overrides, "model_name": str(encoder_dir)})
 
-    BaseGLiNER._load_config = classmethod(with_local_encoder)
+    BaseGLiNER._load_config = classmethod(with_local_encoder)  # pyright: ignore[reportAttributeAccessIssue]
     try:
         yield
     finally:

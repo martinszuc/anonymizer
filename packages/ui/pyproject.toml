@@ -22,6 +22,9 @@ path = "src/anonymizer/ui/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/anonymizer"]
+# The built frontend is git-ignored, which hatch would otherwise leave out.
+# Build it first: npm ci && npm run build in frontend/.
+artifacts = ["src/anonymizer/ui/static/**"]
 
 [tool.uv.sources]
 anonymizer-core = { workspace = true }

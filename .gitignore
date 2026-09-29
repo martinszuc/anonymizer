@@ -35,3 +35,7 @@ hf_cache/
 .idea/
 .vscode/
 .DS_Store
+
+# Review UI frontend: dependencies and the build bundled into the wheel
+node_modules/
+packages/ui/src/anonymizer/ui/static/

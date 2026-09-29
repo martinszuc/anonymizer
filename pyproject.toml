@@ -15,6 +15,7 @@ dev = [
     "pyright>=1.1.390",
     "ruff>=0.8",
     "pre-commit>=4.0",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.uv]
@@ -77,3 +78,14 @@ markers = [
     "model: requires a locally downloaded model; skipped when the model is absent",
     "dataset: requires a locally downloaded corpus; skipped when the corpus is absent",
 ]
+
+[tool.coverage.run]
+branch = true
+source = ["packages/core/src", "packages/cli/src"]
+# Paths relative to the repo root, so reports read the same on every OS.
+relative_files = true
+
+[tool.coverage.report]
+fail_under = 93
+show_missing = true
+skip_covered = true

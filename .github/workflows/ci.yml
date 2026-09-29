@@ -18,6 +18,25 @@ env:
   HF_HUB_OFFLINE: "1"
 
 jobs:
+  # Runs every pre-commit hook, so the rules they enforce (no committed
+  # documents, formatting) hold even for commits made without the hooks.
+  hooks:
+    name: pre-commit hooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --locked --all-packages
+
+      - name: Run hooks
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
   check:
     name: ${{ matrix.os }} / py${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
@@ -47,6 +66,19 @@ jobs:
         run: uv run pyright
 
       # pytest-socket (--disable-socket, see pyproject) fails any test that
-      # opens a socket, enforcing the offline-only constraint.
+      # opens a socket, enforcing the offline-only constraint. --cov applies
+      # the overall floor from [tool.coverage.report].
       - name: Test
-        run: uv run pytest
+        run: uv run pytest --cov
+
+      # A regression in redaction leaks data, so redact/ has its own, higher
+      # floor than the rest of the code.
+      - name: Coverage floor for redact/
+        run: uv run coverage report --include="packages/core/src/anonymizer/core/redact/*" --fail-under=95
+
+      - name: Coverage summary
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          echo "### Coverage (${{ matrix.os }}, py${{ matrix.python-version }})" >> "$GITHUB_STEP_SUMMARY"
+          uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"

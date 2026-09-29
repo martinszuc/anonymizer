@@ -42,7 +42,7 @@ data/            local corpora, git-ignored, never committed
 Implemented so far: the data contract, the rule-based detectors, born-digital
 PDF ingest, the non-text surface scan, blackbox redaction with its leak check,
 the review data format (regions, fingerprint, session files, span adjustment,
-occurrence propagation), the `detect` / `redact` / `check` CLI, the resource
+occurrence propagation), the `detect` / `redact` / `check` / `inspect` CLI, the resource
 catalog with its download script, and GLiNER name detection (`detect/gliner.py`,
 CLI `--ner`). The OCR adapter and the UI are empty; NER is not yet evaluated.
 

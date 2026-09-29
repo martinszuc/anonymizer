@@ -7,6 +7,7 @@ anonymize detect cv.pdf -o review.json --lang cs --show   # find, save for revie
 anonymize redact cv.pdf -o cv-redacted.pdf --session review.json
 anonymize redact cv.pdf -o cv-redacted.pdf --lang cs      # one step, no review
 anonymize check cv-redacted.pdf --source cv.pdf --session review.json
+anonymize inspect cv.pdf -o cv.html [--session review.json]  # see what was found
 ```
 
 **Names and addresses.** The rules find identifiers; names need the GLiNER model.
@@ -21,6 +22,13 @@ anonymize redact cv.pdf -o cv-redacted.pdf --lang cs --ner
 
 The model is read from `models/` under `--resource-root` (default: the current
 directory) and never contacts the network.
+
+**Seeing what was found.** `inspect` writes one HTML file: every page as an image
+with the detected boxes drawn over it, coloured by type (hover for details, rejected
+items dashed, hidden items dotted), and the entities and hidden items listed per page.
+Checkboxes hide a type. The file embeds everything and its security policy blocks all
+loading, so opening it sends nothing anywhere, but it contains the document's content:
+keep it out of the repository and delete it like the original.
 
 **Reviewing without a UI.** `review.json` lists every item found. Set an item's
 `"review"` to `"rejected"` to keep it in the output. To redact something without

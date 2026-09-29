@@ -20,7 +20,6 @@ wheels = [
 
 [[package]]
 name = "anonymizer-cli"
-version = "0.0.0"
 source = { editable = "packages/cli" }
 dependencies = [
     { name = "anonymizer-core" },
@@ -31,7 +30,6 @@ requires-dist = [{ name = "anonymizer-core", editable = "packages/core" }]
 
 [[package]]
 name = "anonymizer-core"
-version = "0.0.0"
 source = { editable = "packages/core" }
 dependencies = [
     { name = "pymupdf" },

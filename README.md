@@ -61,6 +61,14 @@ size or checksum differs from the catalog is deleted and the run fails. Where th
 source publishes only an MD5 or a git blob SHA-1, `fetch --pin` verifies that
 digest and prints the SHA-256 to record in the catalog.
 
+## Releases
+
+Automated with [release-please](https://github.com/googleapis/release-please).
+Every merge to `main` updates an open `chore: release X.Y.Z` pull request with
+the next version and the changelog, both derived from the Conventional Commit
+messages. Merging that pull request tags the release and publishes it on
+GitHub with the wheels and source archives. See [`CHANGELOG.md`](CHANGELOG.md).
+
 ## Status
 
 Working for PDFs with a text layer: text and hidden-data extraction, rule-based

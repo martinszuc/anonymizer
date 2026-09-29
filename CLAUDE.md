@@ -120,8 +120,9 @@ Ruff runs from `uv.lock` everywhere; pre-commit does not pin its own ruff versio
 - Commit with `git commit -s -S`.
 - One logical change per commit.
 - Releases are automated by release-please (`.github/workflows/release.yml`): it
-  reads the Conventional Commits on `main` and keeps a `chore: release X.Y.Z` PR
-  open. Merging it tags the release and attaches the built packages. Never edit
+  derives the next version from the Conventional Commits on `main`, writes the
+  changelog from the merged pull requests (one line per PR title, so PR titles
+  must be Conventional too), and keeps a `chore: release X.Y.Z` PR open. Merging it tags the release and attaches the built packages. Never edit
   versions by hand; `version.txt` and the two `__version__` lines (marked
   `x-release-please-version`) are bumped together. Pre-1.0, `feat` bumps the
   minor version and `fix` the patch.

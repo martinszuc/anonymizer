@@ -6,9 +6,11 @@ from pathlib import Path
 import pytest
 from anonymizer.cli import commands
 from anonymizer.cli.main import main
+from anonymizer.core.detect import GlinerDetector
 from anonymizer.core.ingest import load_document
 from anonymizer.core.redact import Leak, LeakLayer
 
+from tests.detect.test_gliner import StandInModel
 from tests.pdf_builders import CONTACT_EMAIL, write_pdf
 
 PHONE = "+420 603 123 456"
@@ -40,6 +42,36 @@ class TestDetect:
         out = capsys.readouterr().out
         assert CONTACT_EMAIL in out
         assert PHONE in out
+
+
+class TestNer:
+    def test_missing_model_is_reported_before_anything_is_written(
+        self, pdf: Path, tmp_path: Path, capsys: pytest.CaptureFixture
+    ):
+        session = pdf.with_name("review.json")
+        empty_root = tmp_path / "no-models"
+        args = ["detect", str(pdf), "-o", str(session), "--ner", "--resource-root", str(empty_root)]
+        assert main(args) == 1
+        assert "download.py fetch gliner-multi-v2.1" in capsys.readouterr().err
+        assert not session.exists()
+
+    def test_names_from_the_model_are_redacted(
+        self, pdf: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ):
+        detector = GlinerDetector(StandInModel({"Jan Novak": "person"}))
+        roots: list[Path] = []
+
+        def load(root: Path) -> GlinerDetector:
+            roots.append(root)
+            return detector
+
+        monkeypatch.setattr(commands, "load_gliner_detector", load)
+        output = pdf.with_name("out.pdf")
+        args = ["redact", str(pdf), "-o", str(output), "--lang", "cs", "--ner"]
+        assert main([*args, "--resource-root", str(pdf.parent)]) == 0
+        assert roots == [pdf.parent]
+        assert "Jan Novak" not in text_of(output)
+        assert "KEEP this line" in text_of(output)
 
 
 class TestRedact:

@@ -82,6 +82,18 @@ def _add_detection_options(parser: argparse.ArgumentParser) -> None:
         action="store_false",
         help="do not mark further occurrences of found text",
     )
+    parser.add_argument(
+        "--ner",
+        action="store_true",
+        help="also detect names and addresses with the GLiNER model (install with "
+        "uv sync --group ner, fetch with scripts/download.py)",
+    )
+    parser.add_argument(
+        "--resource-root",
+        type=Path,
+        default=Path(),
+        help="directory holding models/ (default: the current directory)",
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -101,7 +113,13 @@ def main(argv: list[str] | None = None) -> int:
     output = Output(out=sys.stdout, err=sys.stderr)
     try:
         return _dispatch(args, output)
-    except (CommandError, ValueError, FileNotFoundError, pymupdf.FileDataError) as error:
+    except (
+        CommandError,
+        ValueError,
+        FileNotFoundError,
+        ImportError,
+        pymupdf.FileDataError,
+    ) as error:
         print(f"anonymize: error: {error}", file=output.err)
         return EXIT_ERROR
 
@@ -114,6 +132,7 @@ def _dispatch(args: argparse.Namespace, output: Output) -> int:
             args.output,
             language=args.lang,
             propagate=args.propagate,
+            ner_root=args.resource_root if args.ner else None,
             show=args.show,
             force=args.force,
             output=output,
@@ -125,6 +144,7 @@ def _dispatch(args: argparse.Namespace, output: Output) -> int:
             session=args.session,
             language=args.lang,
             propagate=args.propagate,
+            ner_root=args.resource_root if args.ner else None,
             allow_pages_without_text=args.allow_pages_without_text,
             force=args.force,
             output=output,

@@ -14,6 +14,7 @@ inference; models load from a local cache and the test suite fails on any outbou
 | --- | --- |
 | `packages/core/` | Library: `ingest/`, `detect/`, `redact/`, shared data contract |
 | `packages/cli/` | `anonymize` command-line client |
+| `packages/ui/` | `anonymize-ui` review window: Python side and React frontend |
 | `benchmark/` | Synthetic benchmark documents, scorer, pictures and charts |
 | `experiments/` | Evaluation scripts; no data committed |
 | `scripts/` | Model and dataset download helpers |
@@ -45,6 +46,16 @@ uv run anonymize inspect cv.pdf -o cv.html --lang cs   # pages with the found it
 ```
 
 See [`packages/cli/README.md`](packages/cli/README.md) for reviewing without a UI.
+
+The review window needs its frontend built once (Node 22):
+
+```sh
+npm --prefix packages/ui/frontend ci
+npm --prefix packages/ui/frontend run build
+uv run anonymize-ui cv.pdf --lang cs
+```
+
+See [`packages/ui/README.md`](packages/ui/README.md) for frontend development.
 
 ## Models and datasets
 
@@ -91,8 +102,10 @@ GitHub with the wheels and source archives. See [`CHANGELOG.md`](CHANGELOG.md).
 Working for PDFs with a text layer: text and hidden-data extraction, rule-based
 detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL), names
 and street addresses with the GLiNER model (optional, `--ner`), review through
-session files, blackbox redaction and a leak check on the output.
-Not yet: measured NER quality, scanned documents (OCR), the review UI.
+session files or the review window (open, toggle each item, save the session),
+blackbox redaction and a leak check on the output.
+Not yet: measured NER quality, scanned documents (OCR), export from the review
+window, adding or drawing items in it.
 
 ## License
 

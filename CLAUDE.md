@@ -33,7 +33,8 @@ packages/core/   library, no UI or CLI dependencies
   redact/        pdf.py (blackbox), surfaces.py (clearing), canvas.py (content
                  outside the visible area), leakage.py (six-layer leak check)
 packages/cli/    thin command-line client
-ui/              review UI (framework not decided)
+packages/ui/     review window: api.py (ReviewApi, plain data), app.py
+                 (pywebview window), frontend/ (React, Vite, DESIGN.md)
 benchmark/       synthetic documents as data, generator, scorer, pictures, charts
 experiments/     evaluation scripts
 scripts/         model and dataset download
@@ -44,8 +45,19 @@ Implemented so far: the data contract, the rule-based detectors, born-digital
 PDF ingest, the non-text surface scan, blackbox redaction with its leak check,
 the review data format (regions, fingerprint, session files, span adjustment,
 occurrence propagation), the `detect` / `redact` / `check` / `inspect` CLI, the resource
-catalog with its download script, and GLiNER name detection (`detect/gliner.py`,
-CLI `--ner`). The OCR adapter and the UI are empty; NER is not yet evaluated.
+catalog with its download script, GLiNER name detection (`detect/gliner.py`,
+CLI `--ner`), and the review window (`anonymize-ui`: view pages with the proposed
+redactions, toggle each, save the session). The OCR adapter is empty; NER is not yet
+evaluated; the window cannot export, add or draw items yet.
+
+- The review window's Python side is `ReviewApi` in `ui/api.py`: plain JSON in and
+  out, no pywebview import, tested like any module. `app.py` only adds the window
+  and file dialogs. The frontend lives in `packages/ui/frontend/` (React +
+  TypeScript + Vite, `npm run check` / `npm test` / `npm run build`); its tokens and
+  components are in `frontend/DESIGN.md`, and styles use tokens, never literals.
+  Pages are rendered by PyMuPDF and boxes drawn in an SVG whose view box is the
+  page in points, so nothing converts coordinates in the browser. Keep
+  `'unsafe-eval'` in the CSP: pywebview returns API results through `eval()`.
 
 - Detectors are combined with `CombinedDetector`, which uses `merge_entities`:
   a span entirely inside a stronger one is dropped, a partial overlap keeps both

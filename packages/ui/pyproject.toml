@@ -1,0 +1,30 @@
+[project]
+name = "anonymizer-ui"
+dynamic = ["version"]
+description = "Review window for the anonymizer core library"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "AGPL-3.0-or-later"
+dependencies = [
+    "anonymizer-core",
+    "pywebview>=5",
+]
+
+[project.scripts]
+anonymize-ui = "anonymizer.ui.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/anonymizer/ui/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/anonymizer"]
+# The built frontend is git-ignored, which hatch would otherwise leave out.
+# Build it first: npm ci && npm run build in frontend/.
+artifacts = ["src/anonymizer/ui/static/**"]
+
+[tool.uv.sources]
+anonymizer-core = { workspace = true }

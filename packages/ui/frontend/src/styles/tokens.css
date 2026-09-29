@@ -1,0 +1,141 @@
+/* Design tokens; see DESIGN.md. Components use these, never literal values. */
+
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI",
+    system-ui, Ubuntu, Cantarell, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas,
+    monospace;
+
+  --text-caption: 11px;
+  --text-footnote: 12px;
+  --text-body: 13px;
+  --text-title: 15px;
+  --text-large: 22px;
+
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --space-7: 24px;
+  --space-8: 32px;
+
+  --radius-box: 3px;
+  --radius-control: 6px;
+  --radius-row: 8px;
+  --radius-card: 12px;
+  --radius-pill: 999px;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 120ms;
+  --duration: 200ms;
+
+  --toolbar-height: 52px;
+  --sidebar-width: 300px;
+  --control-height: 28px;
+
+  /* Light */
+  --canvas: #e6e6e9;
+  --sidebar: rgb(244 244 246 / 0.78);
+  --toolbar: rgb(251 251 252 / 0.82);
+  --elevated: rgb(255 255 255 / 0.9);
+  --page: #ffffff;
+
+  --label: rgb(0 0 0 / 0.86);
+  --label-2: rgb(60 60 67 / 0.66);
+  --label-3: rgb(60 60 67 / 0.4);
+
+  --separator: rgb(60 60 67 / 0.14);
+  --fill: rgb(120 120 128 / 0.1);
+  --fill-hover: rgb(120 120 128 / 0.16);
+  --fill-active: rgb(120 120 128 / 0.24);
+
+  --accent: #007aff;
+  --accent-fill: rgb(0 122 255 / 0.14);
+  --on-accent: #ffffff;
+  --focus-ring: 0 0 0 3px rgb(0 122 255 / 0.4);
+
+  --keep: #28a745;
+  --warning: #c77700;
+  --danger: #ff3b30;
+  --ink: #111113;
+
+  --shadow-page: 0 0 0 0.5px rgb(0 0 0 / 0.08), 0 2px 4px rgb(0 0 0 / 0.06),
+    0 12px 32px rgb(0 0 0 / 0.08);
+  --shadow-popover: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 10px 30px rgb(0 0 0 / 0.16);
+
+  --red: #ff3b30;
+  --orange: #ff9500;
+  --yellow: #ffcc00;
+  --green: #34c759;
+  --mint: #00c7be;
+  --teal: #30b0c7;
+  --blue: #007aff;
+  --indigo: #5856d6;
+  --purple: #af52de;
+  --pink: #ff2d55;
+  --brown: #a2845e;
+  --grey: #8e8e93;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #1b1b1e;
+    --sidebar: rgb(40 40 44 / 0.78);
+    --toolbar: rgb(34 34 38 / 0.82);
+    --elevated: rgb(48 48 52 / 0.92);
+    --page: #ffffff;
+
+    --label: rgb(255 255 255 / 0.9);
+    --label-2: rgb(235 235 245 / 0.62);
+    --label-3: rgb(235 235 245 / 0.34);
+
+    --separator: rgb(84 84 88 / 0.6);
+    --fill: rgb(120 120 128 / 0.2);
+    --fill-hover: rgb(120 120 128 / 0.28);
+    --fill-active: rgb(120 120 128 / 0.36);
+
+    --accent: #0a84ff;
+    --accent-fill: rgb(10 132 255 / 0.24);
+    --focus-ring: 0 0 0 3px rgb(10 132 255 / 0.5);
+
+    --keep: #30d158;
+    --warning: #ffb340;
+    --danger: #ff453a;
+
+    --shadow-page: 0 0 0 0.5px rgb(0 0 0 / 0.5), 0 12px 36px rgb(0 0 0 / 0.45);
+    --shadow-popover: 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 12px 32px rgb(0 0 0 / 0.5);
+
+    --red: #ff453a;
+    --orange: #ff9f0a;
+    --yellow: #ffd60a;
+    --green: #30d158;
+    --mint: #63e6e2;
+    --teal: #40c8e0;
+    --blue: #0a84ff;
+    --indigo: #5e5ce6;
+    --purple: #bf5af2;
+    --pink: #ff375f;
+    --brown: #ac8e68;
+    --grey: #98989d;
+  }
+}
+
+/* Entity type hue, read by boxes, dots and rows through --type. */
+[data-type] { --type: var(--grey); }
+[data-type="person"] { --type: var(--red); }
+[data-type="email"] { --type: var(--blue); }
+[data-type="phone"] { --type: var(--green); }
+[data-type="url"] { --type: var(--orange); }
+[data-type="iban"],
+[data-type="bank_account"] { --type: var(--indigo); }
+[data-type="credit_card"] { --type: var(--purple); }
+[data-type="birth_number"],
+[data-type="id_number"] { --type: var(--pink); }
+[data-type="company_id"],
+[data-type="organization"] { --type: var(--teal); }
+[data-type="address"] { --type: var(--brown); }
+[data-type="date"] { --type: var(--mint); }

@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "anonymizer-core",
     "anonymizer-cli",
+    "anonymizer-ui",
 ]
 
 [dependency-groups]
@@ -30,6 +31,7 @@ members = ["packages/*"]
 [tool.uv.sources]
 anonymizer-core = { workspace = true }
 anonymizer-cli = { workspace = true }
+anonymizer-ui = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -84,7 +86,7 @@ markers = [
 
 [tool.coverage.run]
 branch = true
-source = ["packages/core/src", "packages/cli/src"]
+source = ["packages/core/src", "packages/cli/src", "packages/ui/src"]
 # Paths relative to the repo root, so reports read the same on every OS.
 relative_files = true
 

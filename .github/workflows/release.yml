@@ -51,6 +51,15 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Bundled into the anonymizer-ui wheel (hatch artifacts).
+      - name: Build the review window's frontend
+        working-directory: packages/ui/frontend
+        run: npm ci && npm run build
+
       - name: Build wheels and source archives
         run: uv build --all-packages --out-dir dist
 
@@ -62,6 +71,7 @@ jobs:
           uv pip install --python /tmp/release-check dist/*.whl
           test "$(/tmp/release-check/bin/anonymize --version)" = "$VERSION"
           /tmp/release-check/bin/python -c "from anonymizer.core.resources import load_catalog; load_catalog()"
+          /tmp/release-check/bin/python -c "from anonymizer.ui.app import STATIC_INDEX; assert STATIC_INDEX.is_file()"
 
       - name: Attach to the release
         env:

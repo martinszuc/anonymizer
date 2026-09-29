@@ -109,6 +109,35 @@ rules for the document language alongside.
   a warning. Without windowing, names on the lower half of a full page would
   never be seen, and no score would show it.
 
+### 2026-09-29 · First benchmark run (`benchmark/`, version 0.1.0)
+
+Six synthetic documents (CS CV, contract, invoice, long minutes; SK letter;
+EN CV), 51 planted items, 10 of them in links, metadata or a bookmark.
+
+| | rules | rules + GLiNER |
+|---|---|---|
+| items found whole | 19/51 | 42/51 |
+| names found | 0/23 | 22/23 |
+| distinct false alarms | 1 | 3 |
+| documents with nothing readable left | 0/6 | 2/6 |
+| leak check passed | 6/6 | 6/6 |
+
+- **Addresses are cut in half:** GLiNER's "street address" covers the street
+  and number but not the postcode and town (0/6 whole, 6/6 partial), which
+  stay readable. Address fragments remain in all four unsafe documents and
+  are the only residue in two of them (EN CV, SK letter).
+- **Dates of birth are never found** (0/2): no rule and no prompt label
+  covers them.
+- **One inflected name missed:** the genitive "Petra Svobody"; the
+  nominative, dative and instrumental forms were found.
+- False alarms: "Kupující" (buyer), "Smluvní strany" (contracting parties)
+  as persons; the buyer company's IČO by the rules (by design: an IČO with a
+  label is always flagged).
+- The name after word 420 of the long document was found: the windowing works.
+- The leak check passed everywhere, including documents that were not safe:
+  it verifies that what was *detected* is gone, not that nothing personal
+  remains. The benchmark's residue check is the one that measures safety.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated
@@ -182,6 +211,13 @@ Verified on saved files, one probe per kind of content under a box:
   test fixtures are limited to Latin-1 text and NFC handling is covered by a
   separate unit test. The MG generator must embed a font with full Czech coverage
   (DejaVu, Noto) — otherwise a "Czech" corpus silently isn't one.
+  **Correction 2026-09-29:** the limit is the *non-embedded* standard 14 font
+  with its single-byte encoding, not the typeface. MuPDF bundles Nimbus Sans
+  and Nimbus Roman (URW's Helvetica and Times clones) with full Latin
+  Extended coverage; written through `TextWriter` with `Font("helv")` they are
+  embedded as CID fonts, and Czech and Slovak text round-trips exactly and
+  renders correctly (checked visually). The benchmark generator uses this; no
+  font download is needed.
 - **Checksum strength varies enormously.** Mod-11 on a rodné číslo rejects ~10 of
   11 wrong strings; Luhn alone accepts 1 in 10; IČO mod-11 accepts 1 in 11, which
   on an invoice full of variable symbols is worthless without a label. US SSNs have

@@ -34,6 +34,7 @@ packages/core/   library, no UI or CLI dependencies
                  outside the visible area), leakage.py (six-layer leak check)
 packages/cli/    thin command-line client
 ui/              review UI (framework not decided)
+benchmark/       synthetic documents as data, generator, scorer, pictures, charts
 experiments/     evaluation scripts
 scripts/         model and dataset download
 data/            local corpora, git-ignored, never committed
@@ -106,6 +107,7 @@ Ruff runs from `uv.lock` everywhere; pre-commit does not pin its own ruff versio
 - Fixtures are generated or hand-written synthetic data in `tests/fixtures/`. Checksum-bearing test values (rodná čísla, account numbers, IBANs) are computed independently, never by asking the validator under test whether it likes its own output.
 - Tests needing a downloaded model are marked `@pytest.mark.model` and skipped when the model is absent.
 - Tests needing a downloaded corpus are marked `@pytest.mark.dataset` and skipped when the corpus is absent. The unmarked suite must pass with no network and no `data/` directory, because that is all CI has.
+- The benchmark (`benchmark/`, `python -m benchmark run`) scores the pipeline on synthetic documents whose personal items are marked inline (`[[person:Jan Novák]]`). Add documents there, not PDFs; every value is invented, and checksum-bearing ones are computed independently. Its GitHub workflow is the one place CI fetches a model: started by hand or by a release, from the official source, checked against the catalog checksum.
 - Datasets are never test fixtures, and a dataset containing real personal data is never used in tests at all. Measurement lives in `experiments/`, not in `pytest`.
 
 ## Dependencies and data

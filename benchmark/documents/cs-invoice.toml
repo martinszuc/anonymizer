@@ -1,0 +1,13 @@
+# Czech invoice from a sole trader. The buyer is a company: its name and IČO
+# are not personal data, and neither are the invoice number and amounts.
+language = "cs"
+kind = "invoice"
+lines = [
+  "Faktura – daňový doklad č. 2026001234",
+  "Dodavatel: [[person:Jan Novák]], IČO [[company_id:73120456]], [[address:Lidická 1879/48, 602 00 Brno]]",
+  "Bankovní spojení: [[bank_account:19-2000145399/0800]], variabilní symbol 2026001234",
+  "Odběratel: Stavby Morava a.s., IČO 45862176, Brno",
+  "Položka: Konzultace, 12 hodin, cena 18 000 Kč",
+  "Vystavil: [[person:Jan Novák]], tel. [[phone:+420 603 555 120]]",
+]
+decoys = ["2026001234", "Stavby Morava a.s.", "45862176", "18 000 Kč"]

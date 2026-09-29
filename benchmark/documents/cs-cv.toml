@@ -1,0 +1,22 @@
+# Czech CV. Mirrors the structure of the real samples in docs/findings.md:
+# tel:/mailto: links, a profile link, and a metadata title carrying an account id.
+language = "cs"
+kind = "cv"
+lines = [
+  "[[person:Tereza Procházková]]",
+  "Datum narození: [[date:14. 3. 1991]]",
+  "Adresa: [[address:Kounicova 684/12, 602 00 Brno]]",
+  "Telefon: [[phone:+420 777 123 456]]",
+  "E-mail: [[email:tereza.prochazkova@example.com]]",
+  "Pracovní zkušenosti",
+  "2019–2024 Analytička dat, Stavby Morava a.s., Brno. Zpracování měsíčních reportů a spolupráce s vedoucím týmu [[person:Ondřejem Dvořákem]].",
+  "Vzdělání: Vysoké učení technické v Brně, obor Informatika.",
+  "Reference poskytne Ing. [[person:Kateřina Veselá]], tel. [[phone:603 987 654]].",
+]
+links = [
+  { anchor = "Kontakt: telefon", target = "tel:[[phone:+420777123456]]" },
+  { anchor = "Kontakt: e-mail", target = "mailto:[[email:tereza.prochazkova@example.com]]" },
+  { anchor = "Portfolio", target = "[[url:https://github.com/tereza-prochazkova-demo]]" },
+]
+metadata = { Title = "Životopis – [[person:Tereza Procházková]] (účet [[id_number:TP-448812]])", Author = "[[person:Tereza Procházková]]" }
+decoys = ["Stavby Morava a.s.", "Analytička dat", "Vysoké učení technické v Brně"]

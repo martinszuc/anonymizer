@@ -40,6 +40,23 @@ uv run anonymize redact cv.pdf -o cv-redacted.pdf --session review.json
 
 See [`packages/cli/README.md`](packages/cli/README.md) for reviewing without a UI.
 
+## Models and datasets
+
+Every model and dataset is listed, pinned and checksummed in
+[`catalog.toml`](packages/core/src/anonymizer/core/resources/catalog.toml).
+Nothing downloads on its own; fetch one entry by id:
+
+```sh
+uv run python scripts/download.py list
+uv run python scripts/download.py fetch gliner-multi-v2.1
+uv run python scripts/download.py verify
+```
+
+Files land in `models/<id>/` or `data/<id>/` (both git-ignored). A file whose
+size or checksum differs from the catalog is deleted and the run fails. Where the
+source publishes only an MD5 or a git blob SHA-1, `fetch --pin` verifies that
+digest and prints the SHA-256 to record in the catalog.
+
 ## Status
 
 Working for PDFs with a text layer: text and hidden-data extraction, rule-based

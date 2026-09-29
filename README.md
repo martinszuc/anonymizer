@@ -40,6 +40,7 @@ Tasks are defined in `[tool.poe.tasks]` in `pyproject.toml`, and CI runs the sam
 ```sh
 uv run anonymize detect cv.pdf -o review.json --lang cs --show
 uv run anonymize redact cv.pdf -o cv-redacted.pdf --session review.json
+uv run anonymize inspect cv.pdf -o cv.html --lang cs   # pages with the found items drawn on
 ```
 
 See [`packages/cli/README.md`](packages/cli/README.md) for reviewing without a UI.

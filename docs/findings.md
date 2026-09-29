@@ -83,6 +83,29 @@ rule reaches: the title carrying a job description or an account ID is free text
 Both real CVs redact with no leak in any of the four leak-check layers (page
 text, surface scan, objects, raw bytes). Names remain: nothing detects them yet.
 
+### 2026-09-29 · GLiNER (`--ner`) on the samples
+
+`gliner-multi-v2.1`, labels "person" and "street address", threshold 0.3,
+rules for the document language alongside.
+
+- **Real CS CV:** 1 page; 12 entities (person 4, address 2, phone 2,
+  email 2, URL 2), 10 hidden items removed, leak check passed. The author
+  checked the output visually: the name is removed everywhere and nothing
+  personal remains visible. Names were the gap left by the rules alone
+  (see *Redaction of the real samples*).
+- **Synthetic EN CV:** the name, the street address and the ZIP code were
+  found. False positives at this threshold: a job title and the metadata
+  producer string, both tagged as persons.
+- **The leak check refused the synthetic CV although redaction was
+  correct.** The object and raw-byte layers search each entity's text as a
+  plain substring. The ZIP code `20001` occurs inside the content-stream
+  operand `9.200012`, which is layout, present in the original too. A model
+  can tag a bare short number, which no rule produced before. The check
+  fails safe (nothing is written) but blocks correct output.
+- GLiNER reads at most 384 of its word tokens and drops the rest with only
+  a warning. Without windowing, names on the lower half of a full page would
+  never be seen, and no score would show it.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

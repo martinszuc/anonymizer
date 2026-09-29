@@ -16,6 +16,7 @@ dev = [
     "ruff>=0.8",
     "pre-commit>=4.0",
     "pytest-cov>=7.1.0",
+    "poethepoet>=0.48.0",
 ]
 ner = ["anonymizer-core[ner]"]
 
@@ -90,3 +91,31 @@ relative_files = true
 fail_under = 93
 show_missing = true
 skip_covered = true
+
+# Tasks: `uv run poe <task>`, `uv run poe` lists them. CI calls the same tasks,
+# so every threshold is defined here once.
+[tool.poe.tasks]
+lint = { cmd = "ruff check .", help = "Lint" }
+format-check = { cmd = "ruff format --check .", help = "Check formatting" }
+types = { cmd = "pyright", help = "Type check" }
+test = { cmd = "pytest", help = "Run the tests" }
+hooks = { cmd = "pre-commit run --all-files", help = "Run every pre-commit hook" }
+
+# A regression in redaction leaks data, so redact/ has a higher floor than the
+# overall one in [tool.coverage.report].
+cov-redact = { cmd = "coverage report --include='packages/core/src/anonymizer/core/redact/*' --fail-under=95", help = "Coverage floor for redact/" }
+
+[tool.poe.tasks.cov]
+help = "Run the tests with branch coverage and both floors"
+sequence = [{ cmd = "pytest --cov" }, { ref = "cov-redact" }]
+
+[tool.poe.tasks.fix]
+help = "Fix lint findings and format"
+sequence = ["ruff check --fix .", "ruff format ."]
+default_item_type = "cmd"
+
+[tool.poe.tasks.check]
+help = "Everything CI checks: lint, format, types, tests with coverage"
+sequence = ["lint", "format-check", "types", "cov"]
+# Run every step and fail at the end, so one run lists all problems.
+ignore_fail = "return_non_zero"

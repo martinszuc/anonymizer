@@ -35,7 +35,7 @@ jobs:
         run: uv sync --locked --all-packages
 
       - name: Run hooks
-        run: uv run pre-commit run --all-files --show-diff-on-failure
+        run: uv run poe hooks --show-diff-on-failure
 
   check:
     name: ${{ matrix.os }} / py${{ matrix.python-version }}
@@ -57,24 +57,19 @@ jobs:
         run: uv sync --locked --all-packages
 
       - name: Lint
-        run: uv run ruff check .
+        run: uv run poe lint
 
       - name: Format check
-        run: uv run ruff format --check .
+        run: uv run poe format-check
 
       - name: Type check
-        run: uv run pyright
+        run: uv run poe types
 
       # pytest-socket (--disable-socket, see pyproject) fails any test that
-      # opens a socket, enforcing the offline-only constraint. --cov applies
-      # the overall floor from [tool.coverage.report].
+      # opens a socket, enforcing the offline-only constraint. The task also
+      # applies both coverage floors defined in pyproject.
       - name: Test
-        run: uv run pytest --cov
-
-      # A regression in redaction leaks data, so redact/ has its own, higher
-      # floor than the rest of the code.
-      - name: Coverage floor for redact/
-        run: uv run coverage report --include="packages/core/src/anonymizer/core/redact/*" --fail-under=95
+        run: uv run poe cov
 
       - name: Coverage summary
         if: ${{ !cancelled() }}

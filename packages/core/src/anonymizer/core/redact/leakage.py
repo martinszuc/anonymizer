@@ -17,11 +17,14 @@ Seven layers, because each misses something the others catch:
    for each entity's text. This catches carriers the surface scan does not list
    (JavaScript, named destinations, an overlooked dictionary). It only sees
    strings stored literally; hex or UTF-16 encoded strings and font-encoded page
-   text are the first layers' job.
+   text are the first layers' job. A text that starts or ends with a digit
+   must not continue into another digit or a decimal number there: a ZIP code
+   `20001` also occurs inside the layout operand `9.200012`, which is syntax,
+   not a leak.
 7. **File bytes.** An incremental save appends new object revisions and leaves
    the old ones in the file, where the object table no longer points but any
    text editor still shows them. The raw bytes are searched as well, with the
-   same literal-string limit as layer 6.
+   same literal-string limit and digit rule as layer 6.
 
 Whitespace is ignored when comparing text: a span that crossed a line break
 may be extracted with different spacing.
@@ -29,8 +32,10 @@ may be extracted with different spacing.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import StrEnum
+from functools import cache
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -201,11 +206,11 @@ def _object_leaks(pdf: pymupdf.Document, targets: list[_Target]) -> list[Leak]:
     """Find entity text stored literally in any object or stream."""
     leaks: list[Leak] = []
     for xref in range(1, pdf.xref_length()):
-        content = _compact(_object_text(pdf, xref))
+        content = _object_text(pdf, xref)
         leaks.extend(
             Leak(LeakLayer.OBJECT, f"object {xref}", target.text, target.entity_id)
             for target in targets
-            if _compact(target.text) in content
+            if _literal_pattern(target.text).search(content)
         )
     return leaks
 
@@ -220,12 +225,28 @@ def _object_text(pdf: pymupdf.Document, xref: int) -> str:
 
 def _file_byte_leaks(path: Path, targets: list[_Target]) -> list[Leak]:
     """Find entity text anywhere in the raw file, earlier revisions included."""
-    content = _compact(_latin1(path.read_bytes()))
+    content = _latin1(path.read_bytes())
     return [
         Leak(LeakLayer.FILE_BYTES, path.name, target.text, target.entity_id)
         for target in targets
-        if _compact(target.text) in content
+        if _literal_pattern(target.text).search(content)
     ]
+
+
+@cache
+def _literal_pattern(text: str) -> re.Pattern[str]:
+    """Match a text stored literally, with any whitespace between its characters.
+
+    A text starting or ending with a digit must not continue into another
+    digit or a decimal number: PDF syntax is full of numbers, and `20001`
+    inside `9.200012` is a glyph offset, not a ZIP code. Whitespace still
+    counts as a boundary, so `(20001 12)` matches.
+    """
+    compact = _compact(text)
+    body = r"\s*".join(re.escape(character) for character in compact)
+    before = r"(?<!\d)(?<!\d\.)" if compact[:1].isdigit() else ""
+    after = r"(?!\d)(?!\.\d)" if compact[-1:].isdigit() else ""
+    return re.compile(before + body + after)
 
 
 def _latin1(data: bytes) -> str:

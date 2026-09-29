@@ -19,6 +19,7 @@ dev = [
     "poethepoet>=0.48.0",
 ]
 ner = ["anonymizer-core[ner]"]
+benchmark = ["matplotlib>=3.9"]
 
 [tool.uv]
 package = false
@@ -67,7 +68,7 @@ convention = "google"
 "tests/**" = ["D", "ANN", "ARG"]
 
 [tool.pyright]
-include = ["packages", "scripts", "tests"]
+include = ["packages", "scripts", "tests", "benchmark"]
 exclude = ["**/.venv", "experiments"]
 typeCheckingMode = "standard"
 pythonVersion = "3.12"

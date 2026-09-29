@@ -3,7 +3,9 @@ name: Release
 # release-please keeps an open "chore: release X.Y.Z" pull request that bumps
 # the version and writes CHANGELOG.md from the Conventional Commits on main.
 # Merging that pull request tags the commit and creates the GitHub release;
-# the build job then attaches the wheels and source archives to it.
+# the build job then attaches the wheels and source archives to it, and the
+# benchmark job its results, pictures and charts. (A release created with the
+# workflow token triggers no other workflow, so the benchmark runs from here.)
 
 on:
   push:
@@ -65,3 +67,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" dist/* --clobber
+
+  benchmark:
+    needs: [release-please, build]
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/benchmark.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}

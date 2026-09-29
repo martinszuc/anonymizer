@@ -1,0 +1,11 @@
+# Long Czech minutes: the author's name sits after word 400, beyond the
+# 384 words GLiNER reads at once. Guards the windowing in GlinerDetector.
+language = "cs"
+kind = "minutes"
+lines = [
+  "Zápis z jednání",
+  "Přítomni: [[person:Jana Malá]]",
+  "{{filler:420}}",
+  "Zápis vyhotovil [[person:Lukáš Černý]], [[email:lukas.cerny@example.com]].",
+  "{{filler:60}}",
+]

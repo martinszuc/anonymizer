@@ -6,6 +6,7 @@ data/
 models/
 datasets/
 outputs/
+benchmark-results/
 *.pdf
 !tests/fixtures/**/*.pdf
 

@@ -1,0 +1,14 @@
+# Czech purchase contract: names in several grammatical cases, which exact
+# matching (occurrence propagation) cannot connect to their base form.
+language = "cs"
+kind = "contract"
+lines = [
+  "Kupní smlouva",
+  "Prodávající: [[person:Ondřej Dvořák]], nar. [[date:12. 6. 1988]], r. č. [[birth_number:880612/1005]], bytem [[address:Masarykova 112, 586 01 Jihlava]]",
+  "Kupující: [[person:Kateřina Veselá]], bytem [[address:Nádražní 7, 370 01 České Budějovice]]",
+  "Prodávající prodává kupující osobní automobil. Kupní cenu uhradí [[person:Kateřina Veselá]] převodem na účet [[bank_account:19-2000145399/0800]].",
+  "Předání vozidla proběhne za přítomnosti svědka, pana [[person:Petra Svobody]].",
+  "[[person:Ondřeji Dvořákovi]] bude kupní cena vyplacena do 14 dnů od podpisu.",
+  "Smlouvu podepsali [[person:Ondřej Dvořák]] a [[person:Kateřina Veselá]].",
+]
+decoys = ["osobní automobil", "14 dnů"]

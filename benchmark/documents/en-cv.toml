@@ -1,0 +1,15 @@
+# English CV: the secondary language, covered by the rules and the model.
+language = "en"
+kind = "cv"
+lines = [
+  "[[person:Jordan Ellis]]",
+  "[[address:742 Evergreen Terrace, Springfield, IL 62704]]",
+  "Phone: [[phone:(212) 555-0147]] | Email: [[email:jordan.ellis@example.net]]",
+  "Experience: Data Analyst at Northwind Traders, 2020–2025. Reported to [[person:Priya Raman]], head of analytics.",
+  "Education: B.Sc. in Statistics.",
+]
+links = [
+  { anchor = "LinkedIn profile", target = "[[url:https://www.linkedin.com/in/jordan-ellis-demo]]" },
+]
+metadata = { Title = "Resume – [[person:Jordan Ellis]]" }
+decoys = ["Northwind Traders", "Data Analyst", "B.Sc. in Statistics"]

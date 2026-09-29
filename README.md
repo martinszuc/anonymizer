@@ -14,6 +14,7 @@ inference; models load from a local cache and the test suite fails on any outbou
 | --- | --- |
 | `packages/core/` | Library: `ingest/`, `detect/`, `redact/`, shared data contract |
 | `packages/cli/` | `anonymize` command-line client |
+| `benchmark/` | Synthetic benchmark documents, scorer, pictures and charts |
 | `experiments/` | Evaluation scripts; no data committed |
 | `scripts/` | Model and dataset download helpers |
 
@@ -61,6 +62,21 @@ Files land in `models/<id>/` or `data/<id>/` (both git-ignored). A file whose
 size or checksum differs from the catalog is deleted and the run fails. Where the
 source publishes only an MD5 or a git blob SHA-1, `fetch --pin` verifies that
 digest and prints the SHA-256 to record in the catalog.
+
+## Benchmark
+
+Six synthetic documents (Czech, Slovak, English) with every personal item
+marked, scored for rules only and rules + GLiNER:
+
+```sh
+uv sync --group ner --group benchmark
+uv run python -m benchmark run --out benchmark-results
+```
+
+It writes a results table, per-document pictures (original, detections,
+redacted, and a side-by-side collage) and, with `history`, charts across runs.
+Each release runs it and attaches everything, so the charts show how results
+change from version to version. See [`benchmark/README.md`](benchmark/README.md).
 
 ## Releases
 

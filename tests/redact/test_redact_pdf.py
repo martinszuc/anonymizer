@@ -226,3 +226,74 @@ def test_copying_the_source_does_not_count_as_redaction(tmp_path: Path):
     copy = tmp_path / "copy.pdf"
     shutil.copy(source, copy)
     assert find_leaks(copy, document)
+
+
+class TestNumbersInPdfSyntax:
+    """A short number also occurs inside the numbers PDF syntax is made of."""
+
+    ZIP = "20001"
+
+    def _redacted(self, tmp_path: Path, extra_keys: dict[str, str]) -> tuple[Path, Document]:
+        source = write_pdf(tmp_path / "zip.pdf", [[f"PSC {self.ZIP}", "KEEP"]])
+        document = load_document(source)
+        page = document.pages[0]
+        start = page.text.index(self.ZIP)
+        end = start + len(self.ZIP)
+        zip_code = Entity(
+            type=EntityType.ADDRESS,
+            page_index=0,
+            start=start,
+            end=end,
+            text=self.ZIP,
+            bboxes=page.bboxes_for_span(start, end),
+            source=DetectionSource.MODEL,
+        )
+        document.entities = [zip_code]
+        output = tmp_path / "out.pdf"
+        redact_pdf(source, document, output)
+        with pymupdf.open(output) as pdf:
+            xref = pdf.load_page(0).xref
+            for key, value in extra_keys.items():
+                pdf.xref_set_key(xref, key, value)
+            pdf.save(tmp_path / "planted.pdf")
+        planted = tmp_path / "planted.pdf"
+        # Guard the fixture: the planted value must really be in the file.
+        raw = planted.read_bytes()
+        assert all(value.encode() in raw for value in extra_keys.values())
+        return planted, document
+
+    @pytest.mark.parametrize("operand", ["9.200012", "120001", "1.20001", "20001.5"])
+    def test_number_inside_a_longer_number_is_not_a_leak(self, tmp_path: Path, operand: str):
+        planted, document = self._redacted(tmp_path, {"Pad": operand})
+        assert find_leaks(planted, document) == []
+
+    @pytest.mark.parametrize(
+        "literal",
+        ["(20001)", "(PSC 20001.)", "(20001 12)", "(ZIP:20001)", "(2 0 0 0 1)", "(20001-12)"],
+        ids=["alone", "sentence-end", "space-then-digits", "after-colon", "spaced", "hyphen"],
+    )
+    def test_the_number_stored_as_text_is_a_leak(self, tmp_path: Path, literal: str):
+        planted, document = self._redacted(tmp_path, {"Note": literal})
+        assert layers(find_leaks(planted, document)) == {LeakLayer.OBJECT, LeakLayer.FILE_BYTES}
+
+    def test_letters_keep_matching_inside_words(self, tmp_path: Path):
+        source = write_pdf(tmp_path / "name.pdf", [["Jan Novak", "KEEP"]])
+        document = load_document(source)
+        page = document.pages[0]
+        start = page.text.index("Novak")
+        name = Entity(
+            type=EntityType.PERSON,
+            page_index=0,
+            start=start,
+            end=start + 5,
+            text="Novak",
+            bboxes=page.bboxes_for_span(start, start + 5),
+        )
+        document.entities = [name]
+        output = tmp_path / "out.pdf"
+        redact_pdf(source, document, output)
+        with pymupdf.open(output) as pdf:
+            pdf.xref_set_key(pdf.load_page(0).xref, "Note", "(xNovakx)")
+            pdf.save(tmp_path / "planted.pdf")
+        leaks = find_leaks(tmp_path / "planted.pdf", document)
+        assert layers(leaks) == {LeakLayer.OBJECT, LeakLayer.FILE_BYTES}

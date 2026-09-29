@@ -101,7 +101,10 @@ rules for the document language alongside.
   plain substring. The ZIP code `20001` occurs inside the content-stream
   operand `9.200012`, which is layout, present in the original too. A model
   can tag a bare short number, which no rule produced before. The check
-  fails safe (nothing is written) but blocks correct output.
+  fails safe (nothing is written) but blocks correct output. **Fixed:** in
+  those two layers a text starting or ending with a digit must not continue
+  into another digit or a decimal number; stored as text (`(20001)`,
+  `(20001 12)`, `ZIP:20001`) it is still found.
 - GLiNER reads at most 384 of its word tokens and drops the rest with only
   a warning. Without windowing, names on the lower half of a full page would
   never be seen, and no score would show it.

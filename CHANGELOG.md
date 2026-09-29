@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0 (2026-09-29)
+
+## What's Changed
+* fix: stop the leak check matching short numbers inside PDF syntax by @martinszuc in https://github.com/martinszuc/anonymizer/pull/20
+* feat: synthetic benchmark with pictures and charts across versions by @martinszuc in https://github.com/martinszuc/anonymizer/pull/22
+
+
+**Full Changelog**: https://github.com/martinszuc/anonymizer/compare/v0.1.0...v0.2.0
+
 ## 0.1.0 (2026-09-29)
 
 ## What's Changed

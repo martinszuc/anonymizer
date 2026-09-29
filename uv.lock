@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 members = [
     "anonymizer-cli",
     "anonymizer-core",
+    "anonymizer-ui",
     "anonymizer-workspace",
 ]
 
@@ -50,12 +51,23 @@ requires-dist = [
 provides-extras = ["ner"]
 
 [[package]]
+name = "anonymizer-ui"
+source = { editable = "packages/ui" }
+dependencies = [
+    { name = "anonymizer-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "anonymizer-core", editable = "packages/core" }]
+
+[[package]]
 name = "anonymizer-workspace"
 version = "0.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "anonymizer-cli" },
     { name = "anonymizer-core" },
+    { name = "anonymizer-ui" },
 ]
 
 [package.dev-dependencies]
@@ -79,6 +91,7 @@ ner = [
 requires-dist = [
     { name = "anonymizer-cli", editable = "packages/cli" },
     { name = "anonymizer-core", editable = "packages/core" },
+    { name = "anonymizer-ui", editable = "packages/ui" },
 ]
 
 [package.metadata.requires-dev]

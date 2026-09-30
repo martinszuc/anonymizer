@@ -6,6 +6,7 @@ validate something locale-independent (email syntax, IBAN mod-97, the Luhn
 checksum, URLs) always run.
 """
 
+from anonymizer.core.detect.address import find_czech_slovak_addresses, find_us_addresses
 from anonymizer.core.detect.bank_account import find_account_numbers, is_valid_account_number
 from anonymizer.core.detect.base import (
     OVERLAP_PRIORITY,
@@ -49,12 +50,13 @@ _CZECH_SLOVAK_FINDERS: tuple[Finder, ...] = (
     find_account_numbers,
     find_company_ids,
     find_czech_phone_numbers,
+    find_czech_slovak_addresses,
 )
 
 _FINDERS_BY_LANGUAGE: dict[str, tuple[Finder, ...]] = {
     "cs": _CZECH_SLOVAK_FINDERS,
     "sk": _CZECH_SLOVAK_FINDERS,
-    "en": (find_nanp_phone_numbers, find_english_birth_dates),
+    "en": (find_nanp_phone_numbers, find_english_birth_dates, find_us_addresses),
 }
 
 STRUCTURED_FINDERS: tuple[Finder, ...] = (
@@ -62,6 +64,7 @@ STRUCTURED_FINDERS: tuple[Finder, ...] = (
     *_CZECH_SLOVAK_FINDERS,
     find_nanp_phone_numbers,
     find_english_birth_dates,
+    find_us_addresses,
 )
 """Every rule-based finder, regardless of language."""
 
@@ -132,12 +135,14 @@ __all__ = [
     "find_card_numbers",
     "find_company_ids",
     "find_czech_phone_numbers",
+    "find_czech_slovak_addresses",
     "find_czech_slovak_birth_dates",
     "find_emails",
     "find_english_birth_dates",
     "find_ibans",
     "find_nanp_phone_numbers",
     "find_urls",
+    "find_us_addresses",
     "finders_for",
     "is_valid_account_number",
     "is_valid_birth_number",

@@ -59,8 +59,9 @@ passed.
   payload contract, the rules it keeps, a recipe for adding a feature end to end,
   how it connects to core and CLI, and the backlog. Update it in the same PR.
 - The review window's Python side is `ReviewApi` in `ui/api.py`: plain JSON in and
-  out, no pywebview import, tested like any module. `app.py` only adds the window
-  and file dialogs. The frontend lives in `packages/ui/frontend/` (React +
+  out, no pywebview import, tested like any module. The page never calls it
+  directly: `WindowApi` in `app.py` is the only object pywebview exposes, its
+  public methods equal `ReviewBridge` in `bridge.ts`, and none takes a file path. The frontend lives in `packages/ui/frontend/` (React +
   TypeScript + Vite, `npm run check` / `npm test` / `npm run build`); its tokens and
   components are in `frontend/DESIGN.md`, and styles use tokens, never literals.
   Pages are rendered by PyMuPDF and boxes drawn in an SVG whose view box is the

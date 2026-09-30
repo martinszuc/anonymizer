@@ -1,9 +1,11 @@
 """What the review window asks of the core: open a PDF, show its pages, record decisions.
 
-The window's JavaScript calls these methods through pywebview, which passes
-arguments and results as JSON, so every result here is plain data. Nothing in
-this module imports pywebview: the window is a thin shell around `ReviewApi`,
-which is tested on its own.
+The window's JavaScript reaches these methods through `WindowApi` (`app.py`),
+and pywebview passes arguments and results as JSON, so every result here is
+plain data. Nothing in this module imports pywebview: the window is a thin
+shell around `ReviewApi`, which is tested on its own. Methods here take file
+paths, so the page never calls them directly; `WindowApi` passes on the paths
+the reviewer chose in a dialog.
 
 The PDF is read into memory once; the document is loaded from those bytes and
 pages are rendered from them. Reading the path again instead would draw a file
@@ -106,6 +108,15 @@ class ReviewApi:
             document = apply_session(document_from_bytes(pdf_bytes), session_path)
         self._open = _OpenDocument(Path(pdf_path), document, pdf_bytes)
         return self.document()
+
+    @property
+    def name(self) -> str:
+        """File name of the open PDF, for the window title and default file names.
+
+        Raises:
+            ReviewError: If no document is open.
+        """
+        return self._current().source.name
 
     def close(self) -> None:
         """Forget the open document, so its content no longer stays in memory."""

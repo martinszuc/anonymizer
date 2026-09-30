@@ -157,12 +157,7 @@ def _labelled_date_finder(labels: tuple[str, ...]) -> Finder:
     def find(text: str) -> Iterator[Match]:
         for found in pattern.finditer(text):
             if _is_valid(found):
-                yield Match(
-                    type=EntityType.DATE,
-                    start=found.start("date"),
-                    end=found.end("date"),
-                    text=found["date"],
-                )
+                yield Match.from_regex(found, EntityType.DATE, group="date")
 
     return find
 

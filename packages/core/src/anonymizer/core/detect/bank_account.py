@@ -73,9 +73,4 @@ def find_account_numbers(text: str) -> Iterator[Match]:
     for found in _PATTERN.finditer(text):
         prefix, base, _bank_code = found.groups()
         if is_valid_account_number(base, prefix):
-            yield Match(
-                type=EntityType.BANK_ACCOUNT,
-                start=found.start(),
-                end=found.end(),
-                text=found.group(0),
-            )
+            yield Match.from_regex(found, EntityType.BANK_ACCOUNT)

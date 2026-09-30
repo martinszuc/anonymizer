@@ -8,9 +8,10 @@ in `detect/` modules of their own.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Protocol, Self, runtime_checkable
 
 from anonymizer.core.types import DetectionSource, Entity, EntityType, Page
 
@@ -63,6 +64,22 @@ class Match:
         if self.start < 0 or self.end <= self.start:
             msg = f"invalid match span [{self.start}, {self.end})"
             raise ValueError(msg)
+
+    @classmethod
+    def from_regex(
+        cls, found: re.Match[str], entity_type: EntityType, group: int | str = 0
+    ) -> Self:
+        """Build a match from one group of a regular expression match.
+
+        Args:
+            found: The regular expression match.
+            entity_type: Category of personal data.
+            group: The group that holds the value; the whole match by default.
+
+        Returns:
+            The match, with the group's offsets and text.
+        """
+        return cls(entity_type, found.start(group), found.end(group), found[group])
 
 
 Finder = Callable[[str], Iterable[Match]]

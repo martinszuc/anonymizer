@@ -3,7 +3,7 @@
 // development (see bridge.ts); every value is synthetic.
 
 import type { ReviewBridge } from "./bridge";
-import type { Box, DocumentInfo, EntityInfo, ReviewState } from "./types";
+import type { Box, DocumentInfo, EntityInfo, ExportResult, ReviewState } from "./types";
 
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 842;
@@ -171,6 +171,26 @@ export function demoBridge(): ReviewBridge {
     page_image: async (index, dpi) => {
       await pause();
       return renderPage(index, dpi);
+    },
+    export_as: async (allowPagesWithoutText: boolean): Promise<ExportResult | null> => {
+      await pause();
+      if (!current) throw new Error("no document is open");
+      const unreadable = current.pages.filter((page) => !page.has_text_layer).map((page) => page.index + 1);
+      if (unreadable.length > 0 && !allowPagesWithoutText) {
+        throw new Error(`page ${unreadable.join(", ")} has no text layer; nothing on it would be redacted`);
+      }
+      const applied = current.entities.filter((entity) => entity.review !== "rejected");
+      return {
+        written: true,
+        name: "demo-cv-redacted.pdf",
+        redacted: applied.filter((entity) => !entity.is_region).length,
+        regions: applied.filter((entity) => entity.is_region).length,
+        kept: current.entities.length - applied.length,
+        not_reviewed: applied.filter((entity) => entity.review === "pending").length,
+        hidden_removed: current.surfaces.length,
+        pages_without_text: unreadable,
+        leaks: [],
+      };
     },
     set_review: async (entityId: string, state: ReviewState) => {
       const entity = current?.entities.find((item) => item.id === entityId);

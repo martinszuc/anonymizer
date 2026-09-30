@@ -3,13 +3,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 
 import { connect, errorMessage, type ReviewBridge } from "./bridge";
 import { EmptyState } from "./components/EmptyState";
+import { ExportSheets, type ExportStep } from "./components/ExportSheets";
 import { PageView } from "./components/PageView";
 import { Sidebar, type SidebarTab } from "./components/Sidebar";
 import { Toasts, type Toast } from "./components/Toasts";
 import { Toolbar } from "./components/Toolbar";
 import { PageImages } from "./pageImages";
 import { hasCommand } from "./platform";
-import { steppedZoom, toggled } from "./review";
+import { pagesWithoutText, steppedZoom, toggled } from "./review";
 import type { DocumentInfo, EntityInfo } from "./types";
 
 const TOAST_MS = 4000;
@@ -31,6 +32,8 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [exportStep, setExportStep] = useState<ExportStep | null>(null);
+  const [exporting, setExporting] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const canvasWidth = useElementWidth(canvasRef, document !== null);
 
@@ -91,6 +94,30 @@ export function App() {
     }
   }
 
+  /** Ask for consent first when some pages cannot be redacted, then export. */
+  function startExport() {
+    if (!document || exporting) return;
+    const pages = pagesWithoutText(document);
+    if (pages.length > 0) setExportStep({ kind: "confirm-pages", pages });
+    else void runExport(false);
+  }
+
+  async function runExport(allowPagesWithoutText: boolean) {
+    if (!bridge) return;
+    setExportStep(null);
+    setExporting(true);
+    try {
+      const result = await bridge.export_as(allowPagesWithoutText);
+      if (result) setExportStep({ kind: "result", result });
+    } catch (error) {
+      reportError(errorMessage(error));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const closeExport = useCallback(() => setExportStep(null), []);
+
   async function toggle(entity: EntityInfo) {
     if (!bridge) return;
     const next = toggled(entity.review);
@@ -126,7 +153,8 @@ export function App() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (!hasCommand(event)) return;
+      // A sheet is modal: its own keys only.
+      if (!hasCommand(event) || exportStep) return;
       const key = event.key.toLowerCase();
       if (key === "o") void (event.shiftKey ? openReview() : openPdf());
       else if (key === "s" && document) void save();
@@ -134,6 +162,7 @@ export function App() {
       else if (key === "-" && document) zoomBy(-1);
       else if (key === "0" && document) setZoom("fit");
       else if (key === "y" && document) setPreviewing((value) => !value);
+      else if (key === "e" && document) startExport();
       else return;
       event.preventDefault();
     };
@@ -155,11 +184,13 @@ export function App() {
               fitting={zoom === "fit"}
               dirty={dirty}
               previewing={previewing}
+              exporting={exporting}
               onOpen={openPdf}
               onZoom={zoomBy}
               onFit={() => setZoom("fit")}
               onSave={save}
               onPreview={() => setPreviewing((value) => !value)}
+              onExport={startExport}
             />
             <div className="workspace">
               <Sidebar
@@ -188,6 +219,12 @@ export function App() {
         ) : (
           bridge && <EmptyState busy={busy} onOpen={openPdf} onOpenReview={openReview} />
         )}
+        <ExportSheets
+          step={exportStep}
+          busy={exporting}
+          onExportAnyway={() => void runExport(true)}
+          onClose={closeExport}
+        />
         <Toasts toasts={toasts} />
       </div>
     </MotionConfig>

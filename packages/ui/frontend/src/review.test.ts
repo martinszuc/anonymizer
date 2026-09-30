@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   covers,
+  exportSummary,
   groupByType,
   isRedacted,
+  leakLayerLabel,
+  pageList,
+  pagesWithoutText,
   renderDpi,
   steppedZoom,
   summarize,
@@ -112,5 +116,57 @@ describe("steppedZoom", () => {
   it("stops at the ends", () => {
     expect(steppedZoom(3, 1)).toBe(3);
     expect(steppedZoom(0.5, -1)).toBe(0.5);
+  });
+});
+
+describe("export helpers", () => {
+  const result = {
+    written: true,
+    name: "cv-redacted.pdf",
+    redacted: 12,
+    regions: 0,
+    kept: 1,
+    not_reviewed: 3,
+    hidden_removed: 6,
+    pages_without_text: [],
+    leaks: [],
+  };
+
+  it("lists pages in words", () => {
+    expect(pageList([3])).toBe("page 3");
+    expect(pageList([2, 5])).toBe("pages 2 and 5");
+    expect(pageList([1, 2, 4])).toBe("pages 1, 2 and 4");
+  });
+
+  it("finds pages without a text layer, numbered from one", () => {
+    const document: DocumentInfo = {
+      name: "scan.pdf",
+      language: null,
+      pages: [
+        { index: 0, width: 595, height: 842, has_text_layer: true },
+        { index: 1, width: 595, height: 842, has_text_layer: false },
+      ],
+      entities: [],
+      surfaces: [],
+    };
+    expect(pagesWithoutText(document)).toEqual([2]);
+  });
+
+  it("summarizes what was exported", () => {
+    expect(exportSummary(result)).toEqual([
+      { label: "Redacted", value: "12 items, 3 not reviewed" },
+      { label: "Kept", value: "1 item" },
+      { label: "Hidden data removed", value: "6 items" },
+    ]);
+  });
+
+  it("mentions regions only when there are some", () => {
+    const labels = exportSummary({ ...result, regions: 1, not_reviewed: 0 }).map((line) => line.value);
+    expect(labels).toEqual(["12 items", "1 region", "1 item", "6 items"]);
+  });
+
+  it("names leak layers", () => {
+    expect(leakLayerLabel("surface")).toBe("Hidden data");
+    expect(leakLayerLabel("new_layer")).toBe("new_layer");
   });
 });

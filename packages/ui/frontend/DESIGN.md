@@ -41,8 +41,8 @@ brown, dates mint, other grey. Only a hue: text on a type colour is never used.
 ## Components
 
 **Toolbar** (52 px). Document name and language; page position; zoom group (−, fit,
-+); preview toggle (eye, pressed = accent fill); primary *Save Review*. Controls are
-28 px high.
++); preview toggle (eye, pressed = accent fill); open; *Save Review* (secondary);
+primary *Export…* (Cmd/Ctrl+E), the final step. Controls are 28 px high.
 
 **Sidebar** (300 px, translucent). Summary pill on top, segmented control
 *Findings / Hidden*, then a grouped list. Section header: type dot, label, count.
@@ -67,6 +67,14 @@ Keyboard: ↑/↓ moves the selection, Space toggles, Return scrolls to it.
 
 **Empty state.** Centered icon, title, one sentence on privacy, *Open PDF…* (primary)
 and *Open Review…* (secondary), shortcut hints.
+
+**Sheet.** Modal, drops from under the toolbar (macOS sheet), backdrop `--backdrop`
+below the toolbar only. Icon in a tinted circle (`success` → `--keep`, `warning`,
+`danger`), title, body, actions right-aligned with the default last. Escape closes;
+focus goes to the action marked `data-default`, otherwise the last one; mark Cancel
+when the other choice carries a risk. While a sheet is open, window shortcuts are off.
+Used for export: consent for pages without a text layer, then the result (summary
+rows and "Leak check: Passed", or the leaks and "Nothing was written").
 
 **Toast.** Bottom centre, `--elevated` with blur, icon + one line, 4 s; errors use
 `--danger` for the icon only.

@@ -11,7 +11,7 @@ import { Toolbar } from "./components/Toolbar";
 import { PageImages } from "./pageImages";
 import { hasCommand } from "./platform";
 import { pagesWithoutText, steppedZoom, toggled } from "./review";
-import type { DocumentInfo, EntityInfo } from "./types";
+import type { Box, DocumentInfo, EntityInfo } from "./types";
 
 const TOAST_MS = 4000;
 const CANVAS_PADDING = 48;
@@ -34,6 +34,9 @@ export function App() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [exportStep, setExportStep] = useState<ExportStep | null>(null);
   const [exporting, setExporting] = useState(false);
+  // The region tool, or Alt held down: a drag on a page draws a region.
+  const [drawTool, setDrawTool] = useState(false);
+  const [altHeld, setAltHeld] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const canvasWidth = useElementWidth(canvasRef, document !== null);
 
@@ -118,6 +121,32 @@ export function App() {
 
   const closeExport = useCallback(() => setExportStep(null), []);
 
+  async function addRegion(pageIndex: number, box: Box) {
+    if (!bridge) return;
+    try {
+      const region = await bridge.add_region(pageIndex, ...box);
+      setDocument((current) => current && { ...current, entities: [...current.entities, region] });
+      setSelectedId(region.id);
+      setDirty(true);
+    } catch (error) {
+      reportError(errorMessage(error));
+    }
+  }
+
+  async function removeEntity(entity: EntityInfo) {
+    if (!bridge) return;
+    // Optimistic, like toggling: it goes at once and comes back if Python refuses.
+    setDocument((current) => current && { ...current, entities: current.entities.filter((item) => item.id !== entity.id) });
+    setSelectedId((current) => (current === entity.id ? null : current));
+    setDirty(true);
+    try {
+      await bridge.remove_entity(entity.id);
+    } catch (error) {
+      setDocument((current) => current && { ...current, entities: [...current.entities, entity] });
+      reportError(errorMessage(error));
+    }
+  }
+
   async function toggle(entity: EntityInfo) {
     if (!bridge) return;
     const next = toggled(entity.review);
@@ -154,7 +183,12 @@ export function App() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       // A sheet is modal: its own keys only.
-      if (!hasCommand(event) || exportStep) return;
+      if (exportStep) return;
+      if (event.key === "Alt") setAltHeld(true);
+      if (!hasCommand(event)) {
+        onPlainKey(event);
+        return;
+      }
       const key = event.key.toLowerCase();
       if (key === "o") void (event.shiftKey ? openReview() : openPdf());
       else if (key === "s" && document) void save();
@@ -166,9 +200,32 @@ export function App() {
       else return;
       event.preventDefault();
     };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Alt") setAltHeld(false);
+    };
+    const onBlur = () => setAltHeld(false);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    };
   });
+
+  /** Keys without a modifier: R for the region tool, Escape, Delete on a selected region. */
+  function onPlainKey(event: KeyboardEvent) {
+    if (!document || event.altKey || event.ctrlKey || event.metaKey) return;
+    const selected = document.entities.find((entity) => entity.id === selectedId);
+    if (event.key === "r" || event.key === "R") setDrawTool((value) => !value);
+    else if (event.key === "Escape" && drawTool) setDrawTool(false);
+    else if (event.key === "Escape") setSelectedId(null);
+    else if ((event.key === "Delete" || event.key === "Backspace") && selected?.is_region) {
+      void removeEntity(selected);
+    } else return;
+    event.preventDefault();
+  }
 
   return (
     <MotionConfig reducedMotion="user">
@@ -185,12 +242,14 @@ export function App() {
               dirty={dirty}
               previewing={previewing}
               exporting={exporting}
+              drawing={drawTool}
               onOpen={openPdf}
               onZoom={zoomBy}
               onFit={() => setZoom("fit")}
               onSave={save}
               onPreview={() => setPreviewing((value) => !value)}
               onExport={startExport}
+              onDrawTool={() => setDrawTool((value) => !value)}
             />
             <div className="workspace">
               <Sidebar
@@ -200,6 +259,7 @@ export function App() {
                 onTab={setTab}
                 onSelect={select}
                 onToggle={toggle}
+                onRemove={(entity) => void removeEntity(entity)}
               />
               <PageView
                 ref={canvasRef}
@@ -209,7 +269,9 @@ export function App() {
                 selectedId={selectedId}
                 showHidden={tab === "hidden"}
                 previewing={previewing}
+                drawing={drawTool || altHeld}
                 onSelect={(entity) => setSelectedId(entity.id)}
+                onDrawRegion={(pageIndex, box) => void addRegion(pageIndex, box)}
                 onToggle={toggle}
                 onError={reportError}
                 onCurrentPage={setCurrentPage}

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   covers,
+  dragBox,
   exportSummary,
   groupByType,
+  isLargeEnough,
   isRedacted,
   leakLayerLabel,
   pageList,
@@ -168,5 +170,23 @@ describe("export helpers", () => {
   it("names leak layers", () => {
     expect(leakLayerLabel("surface")).toBe("Hidden data");
     expect(leakLayerLabel("new_layer")).toBe("new_layer");
+  });
+});
+
+describe("drawing a region", () => {
+  const page = { width: 595, height: 842 };
+
+  it("normalises a drag in any direction", () => {
+    expect(dragBox([300, 200], [100, 120], page)).toEqual([100, 120, 300, 200]);
+  });
+
+  it("clamps to the page", () => {
+    expect(dragBox([-40, -10], [700, 900], page)).toEqual([0, 0, 595, 842]);
+  });
+
+  it("treats a tiny drag as a click", () => {
+    expect(isLargeEnough([100, 100, 102, 150], 1)).toBe(false);
+    expect(isLargeEnough([100, 100, 102, 150], 4)).toBe(true);
+    expect(isLargeEnough([100, 100, 160, 150], 1)).toBe(true);
   });
 });

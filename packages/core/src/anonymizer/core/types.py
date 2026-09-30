@@ -693,6 +693,60 @@ class Document:
         entity.bboxes = bboxes
         return entity
 
+    def add_region(self, page_index: int, bbox: BBox) -> Entity:
+        """Add a region a reviewer drew over something without text, such as a photo.
+
+        The box is clipped to the page. Drawing it is an explicit decision, so
+        the region is added confirmed.
+
+        Args:
+            page_index: Page the region was drawn on.
+            bbox: The drawn rectangle in page points.
+
+        Returns:
+            The new region entity, already in `entities`.
+
+        Raises:
+            KeyError: If no page carries that index.
+            ValueError: If the box, clipped to the page, has no area.
+        """
+        page = self.page(page_index)
+        clipped = BBox(
+            min(max(bbox.x0, 0.0), page.width),
+            min(max(bbox.y0, 0.0), page.height),
+            min(max(bbox.x1, 0.0), page.width),
+            min(max(bbox.y1, 0.0), page.height),
+        )
+        region = Entity(
+            type=EntityType.REGION,
+            page_index=page_index,
+            bboxes=[clipped],
+            source=DetectionSource.MANUAL,
+            review=ReviewState.CONFIRMED,
+        )
+        self.entities.append(region)
+        return region
+
+    def remove_entity(self, entity_id: str) -> Entity:
+        """Take an entity out of the document, e.g. a region drawn by mistake.
+
+        A detected entity the reviewer disagrees with is rejected instead, so
+        the decision is kept in the session; removal is for what the reviewer
+        added.
+
+        Args:
+            entity_id: Identifier of the entity to remove.
+
+        Returns:
+            The removed entity.
+
+        Raises:
+            KeyError: If no entity carries that id.
+        """
+        entity = self.entity(entity_id)
+        self.entities.remove(entity)
+        return entity
+
     def entities_on_page(self, index: int) -> list[Entity]:
         """Return the entities in one page's text, in reading order.
 

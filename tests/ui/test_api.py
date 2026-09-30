@@ -244,3 +244,59 @@ class TestExport:
     def test_needs_an_open_document(self, tmp_path: Path):
         with pytest.raises(ReviewError, match="no document is open"):
             ReviewApi().export(str(tmp_path / "out.pdf"))
+
+
+class TestRegions:
+    def test_adds_a_region_with_corners_in_any_order(self, review: ReviewApi):
+        region = review.add_region(0, 300, 200, 100, 120)
+        assert region["type"] == "region"
+        assert region["is_region"] is True
+        assert region["source"] == "manual"
+        assert region["review"] == "confirmed"
+        assert region["text"] is None
+        assert region["boxes"] == [[100, 120, 300, 200]]
+        assert region in review.document()["entities"]
+
+    def test_clips_to_the_page(self, review: ReviewApi):
+        page = review.document()["pages"][0]
+        region = review.add_region(0, -50, -50, 100, 100)
+        assert region["boxes"] == [[0, 0, 100, 100]]
+        assert page["width"] > 100
+
+    def test_refuses_a_box_outside_the_page(self, review: ReviewApi):
+        with pytest.raises(ReviewError, match="exactly one box with an area"):
+            review.add_region(0, -100, 10, -50, 60)
+
+    def test_refuses_an_unknown_page(self, review: ReviewApi):
+        with pytest.raises(ReviewError, match="no page with index 4"):
+            review.add_region(4, 10, 10, 50, 50)
+
+    def test_removes_a_drawn_region(self, review: ReviewApi):
+        region = review.add_region(0, 100, 120, 300, 200)
+        review.remove_entity(region["id"])
+        assert region["id"] not in [entity["id"] for entity in review.document()["entities"]]
+
+    def test_a_detected_item_is_kept_not_removed(self, review: ReviewApi):
+        email = entity_of_type(review.document(), "email")
+        with pytest.raises(ReviewError, match="only items you added can be removed"):
+            review.remove_entity(email["id"])
+        assert entity_of_type(review.document(), "email") == email
+
+    def test_removing_an_unknown_item(self, review: ReviewApi):
+        with pytest.raises(ReviewError, match="no entity with id nope"):
+            review.remove_entity("nope")
+
+    def test_a_region_is_saved_and_exported(self, review: ReviewApi, pdf: Path):
+        keep = next(word for word in load_document(pdf).page(0).words if word.text == "KEEP")
+        region = review.add_region(0, 0, keep.bbox.y0 - 2, 595, keep.bbox.y1 + 2)
+        session = pdf.with_name("review.json")
+        review.save_session(str(session))
+        reopened = ReviewApi()
+        reopened.open_session(str(pdf), str(session))
+        assert region in reopened.document()["entities"]
+
+        destination = pdf.with_name("cv-redacted.pdf")
+        result = reopened.export(str(destination))
+        assert result["written"] is True
+        assert result["regions"] == 1
+        assert "KEEP this line" not in output_text(destination)

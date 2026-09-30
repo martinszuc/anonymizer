@@ -41,14 +41,16 @@ brown, dates mint, other grey. Only a hue: text on a type colour is never used.
 ## Components
 
 **Toolbar** (52 px). Document name and language; page position; zoom group (−, fit,
-+); preview toggle (eye, pressed = accent fill); open; *Save Review* (secondary);
++); region tool (R, pressed = accent fill; holding Alt draws without it); preview
+toggle (eye); open; *Save Review* (secondary);
 primary *Export…* (Cmd/Ctrl+E), the final step. Controls are 28 px high.
 
 **Sidebar** (300 px, translucent). Summary pill on top, segmented control
 *Findings / Hidden*, then a grouped list. Section header: type dot, label, count.
 Row: an accent dot while not reviewed (Mail's unread dot), covered text (monospace
 for identifiers), meta line (page, source, score), trailing switch under a *Redact*
-column label. Meta text uses `--label-2`: `--label-3` fails AA contrast at 11 px
+column label; a drawn region has a round remove button (×, `--danger` on hover)
+instead of the switch, since a region is removed rather than kept. Meta text uses `--label-2`: `--label-3` fails AA contrast at 11 px
 and is for decoration only. Rows: hover `--fill`, selected `--accent-fill`.
 Keyboard: ↑/↓ moves the selection, Space toggles, Return scrolls to it.
 
@@ -62,6 +64,8 @@ Keyboard: ↑/↓ moves the selection, Space toggles, Return scrolls to it.
 | Propagated | as its state, dotted outline | as its state | a repeat of other marked text |
 | Hover | fill 40 %, 2 px outline, popover | `--ink` at 25 % (peek) | what a click will do |
 | Selected | 2.5 px `--accent`, one pulse | same | chosen in the list |
+| Drawn region | hatched (`.hatch-line`), 1.5 px `--label-2` | opaque `--ink` | drawn by the reviewer; a click selects it, Delete removes it |
+| Drawing (draft) | `--accent` at 12 %, dashed `--accent` | same | the rectangle being dragged |
 
 **Summary pill.** "12 redacted · 2 kept · 6 hidden removed"; counts animate.
 

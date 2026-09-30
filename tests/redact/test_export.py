@@ -7,7 +7,7 @@ from anonymizer.core.detect import detect_document, detector_for
 from anonymizer.core.ingest import load_document
 from anonymizer.core.redact import Leak, LeakLayer, export_redacted
 from anonymizer.core.redact import export as export_module
-from anonymizer.core.types import Document
+from anonymizer.core.types import BBox, Document
 
 from tests.pdf_builders import CONTACT_EMAIL, write_pdf
 
@@ -86,3 +86,15 @@ def test_refuses_a_document_of_another_file(pdf: Path, document: Document, tmp_p
         export_redacted(other, document, tmp_path / "out.pdf")
     assert not (tmp_path / "out.pdf").exists()
     assert not list(tmp_path.glob("*.partial"))
+
+
+def test_a_drawn_region_removes_what_lies_under_it(pdf: Path, document: Document):
+    keep_line = next(word for word in document.page(0).words if word.text == "KEEP")
+    # A reviewer draws over the whole "KEEP this line" row, reaching past the page edge.
+    top, bottom = keep_line.bbox.y0 - 2, keep_line.bbox.y1 + 2
+    document.add_region(0, BBox(-10, top, document.page(0).width + 10, bottom))
+    destination = pdf.with_name("cv-redacted.pdf")
+    assert export_redacted(pdf, document, destination) == []
+    text = page_text(destination)
+    assert "KEEP this line" not in text
+    assert "e-mail" in text  # outside the region, and not an entity

@@ -12,6 +12,10 @@ export interface ReviewBridge {
   export_as(allowPagesWithoutText: boolean): Promise<ExportResult | null>;
   page_image(index: number, dpi: number): Promise<string>;
   set_review(entityId: string, state: ReviewState): Promise<EntityInfo>;
+  /** A drawn rectangle in page points; Python clips it to the page. */
+  add_region(pageIndex: number, x0: number, y0: number, x1: number, y1: number): Promise<EntityInfo>;
+  /** Only for items the reviewer added; a detected one is rejected instead. */
+  remove_entity(entityId: string): Promise<void>;
 }
 
 declare global {

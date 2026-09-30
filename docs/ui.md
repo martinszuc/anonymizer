@@ -9,7 +9,7 @@ Visual design (tokens, components, box states) lives in
 [`packages/ui/frontend/DESIGN.md`](../packages/ui/frontend/DESIGN.md);
 package usage in [`packages/ui/README.md`](../packages/ui/README.md).
 
-## Status (after export, 2026-09-30)
+## Status (after drawn regions, 2026-09-30)
 
 Works, for PDFs with a text layer:
 
@@ -29,13 +29,18 @@ Works, for PDFs with a text layer:
   file exists only if the leak check passed. A sheet asks for consent first
   when pages have no text layer; a result sheet shows the counts and "Leak
   check: Passed", or "Nothing was written" with the leaks.
+- **Draw a region** over a photo, signature or stamp: the region tool (R) or
+  holding Alt, then drag. The region is hatched in review mode, black in
+  preview; a click selects it, Delete (or × in its sidebar row) removes it. It
+  is saved in the session and removed with everything under it on export
+  (text, the drawings it touches, image pixels).
 - Zoom (fit width by default, Cmd/Ctrl +/−/0), save the review, toasts for
   errors, light and dark mode, reduced motion respected.
 
 Verified: macOS (real window driven from Python, see *Verifying the real
 window*). Linux and Windows: CI only (install, import, tests), never opened.
 
-Not yet: adding or drawing items, settings, scanned pages. See
+Not yet: adding a missed word, resizing a box, settings, scanned pages. See
 *Backlog*.
 
 ## Architecture
@@ -87,6 +92,8 @@ Methods the page calls (all return promises in JS):
 |---|---|---|
 | `current_document()` | `DocumentInfo \| null` | on start: a PDF given on the command line |
 | `choose_pdf(language)` | `DocumentInfo \| null` | null = cancelled |
+| `add_region(page_index, x0, y0, x1, y1)` | `EntityInfo` | points, corners in any order; clipped to the page; `manual`, `confirmed` |
+| `remove_entity(entity_id)` | `None` | only `manual` items; a detected item is rejected instead |
 | `export_as(allow_pages_without_text)` | `ExportResult \| null` | save dialog; null = cancelled; raises (rejects) when pages lack text and consent is false |
 | `choose_session()` | `DocumentInfo \| null` | asks for session, then PDF |
 | `save_session_as()` | `bool` | false = cancelled |
@@ -211,7 +218,7 @@ core, the sheet) still runs for real.
 | `detect.propagate_occurrences` | on open, always on today |
 | `session.save_session` / `load_session` | save and reopen; same files as `anonymize detect` / `redact --session` |
 | `Document.adjust_span(entity_id, start, end)` | **not wired**: resizing a box to other words |
-| `Entity(type=REGION, bboxes=[box], source=MANUAL)` | **not wired**: drawing a region |
+| `Document.add_region`, `Document.remove_entity` | drawing and removing a region |
 | `redact.export_redacted` | export: temporary file, `redact_pdf`, `find_leaks`, rename only when clean; the CLI's `redact` uses the same function |
 | `ingest.pages_needing_ocr`, `Page.raster_dpi` | page warning today; scanned-page review after the OCR path |
 | `resources.load_catalog`, `fetch_resource`, `resource_status` | **not wired**: the model setup page (M9) |
@@ -226,33 +233,29 @@ In suggested order. Each item names where it plugs in.
    creates a `MANUAL` entity from a span (`Page.bboxes_for_span` gives the
    boxes). UI: drag across words in review mode, a popover with a type
    picker, then propagation of the new text (`propagate_occurrences`).
-2. **Draw a region** (photo, signature, stamp): drag a rectangle with a
-   modifier or a toolbar tool → `REGION` entity with one box in points
-   (divide screen pixels by the zoom scale). Redaction and the region leak
-   check already support it.
-3. **Resize a box** to fewer or more words → `Document.adjust_span`.
-4. **Settings sheet:** language (re-run detection, warning that decisions
+2. **Resize a box** to fewer or more words → `Document.adjust_span`.
+3. **Settings sheet:** language (re-run detection, warning that decisions
    reset or are carried over by span), propagation on/off, NER on/off
    (available only when the `ner` group is installed and the model is
    present: `resource_status`), entity types shown.
-5. **Unsaved changes on close:** pywebview `confirm_close` or a closing
+4. **Unsaved changes on close:** pywebview `confirm_close` or a closing
    event tied to the `dirty` flag; today only opening another document asks.
-6. **Undo / redo** of decisions (Cmd/Ctrl+Z), kept in the frontend as a
+5. **Undo / redo** of decisions (Cmd/Ctrl+Z), kept in the frontend as a
    stack of `set_review` calls.
-7. **Drag and drop a PDF** onto the window.
-8. **Model setup page (M9):** catalog entries with task, languages, size,
+6. **Drag and drop a PDF** onto the window.
+7. **Model setup page (M9):** catalog entries with task, languages, size,
    licence; download only on an explicit click, from the official source,
    verified by SHA-256 (`fetch_resource`), progress shown.
-9. **Scanned pages** once the OCR path exists: OCR words arrive with
+8. **Scanned pages** once the OCR path exists: OCR words arrive with
     `raster_dpi`, boxes are already in points; the warning goes away;
     region drawing matters more.
-10. **Label mode preview** once labels exist (M5): preview draws `[NAME]`
+9. **Label mode preview** once labels exist (M5): preview draws `[NAME]`
     instead of black boxes.
-11. **Accessibility pass:** boxes are not keyboard-reachable (the list is the
+10. **Accessibility pass:** boxes are not keyboard-reachable (the list is the
     keyboard path); run a WCAG review of both themes.
-12. **Packaging (M9):** PyInstaller bundle per OS; test Windows (WebView2)
+11. **Packaging (M9):** PyInstaller bundle per OS; test Windows (WebView2)
     and Linux (GTK or Qt backend) by hand.
-13. **Large documents:** virtualize the page list and the sidebar beyond a
+12. **Large documents:** virtualize the page list and the sidebar beyond a
     few hundred pages or entities.
 
 ## Known gotchas
@@ -272,3 +275,10 @@ In suggested order. Each item names where it plugs in.
   `version.txt` when a rebase crosses a release.
 - On a rebase, `uv.lock` conflicts are resolved by taking the other side and
   running `uv lock`.
+- Pointer handlers keep their drag in a ref, not state: events can arrive
+  before React re-renders, and a handler reading state sees the previous
+  event's value. `setPointerCapture` is wrapped in try/catch; WebKit refuses it
+  for synthetic pointers, which is how a probe script drives a drag.
+- `demo.ts` returns copies (`structuredClone`), as pywebview's JSON round trip
+  does; returning its own objects let a mutation there change React state and
+  duplicated a drawn region.

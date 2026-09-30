@@ -26,7 +26,15 @@ from anonymizer.core.detect import detect_document, detector_for, propagate_occu
 from anonymizer.core.ingest import load_document, pages_needing_ocr
 from anonymizer.core.redact import Leak, export_redacted
 from anonymizer.core.session import load_session, save_session
-from anonymizer.core.types import Document, Entity, Page, ReviewState, Surface
+from anonymizer.core.types import (
+    BBox,
+    DetectionSource,
+    Document,
+    Entity,
+    Page,
+    ReviewState,
+    Surface,
+)
 
 MIN_DPI = 36
 MAX_DPI = 400
@@ -161,6 +169,48 @@ class ReviewApi:
             entity = current.document.entity(entity_id)
             entity.review = ReviewState(state)
         return _entity_payload(entity)
+
+    def add_region(
+        self, page_index: int, x0: float, y0: float, x1: float, y1: float
+    ) -> dict[str, Any]:
+        """Add a region the reviewer drew, in page points; the corners may come in any order.
+
+        Args:
+            page_index: Page it was drawn on.
+            x0: One corner's horizontal position.
+            y0: One corner's vertical position.
+            x1: The opposite corner's horizontal position.
+            y1: The opposite corner's vertical position.
+
+        Returns:
+            The region as `document()` lists entities, clipped to the page.
+
+        Raises:
+            ReviewError: If the page does not exist or the box lies outside it.
+        """
+        current = self._current()
+        box = BBox(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+        with _as_review_error():
+            region = current.document.add_region(page_index, box)
+        return _entity_payload(region)
+
+    def remove_entity(self, entity_id: str) -> None:
+        """Remove an item the reviewer added, such as a region drawn by mistake.
+
+        Args:
+            entity_id: The item to remove.
+
+        Raises:
+            ReviewError: If it is unknown, or was detected rather than added:
+                a detected item is kept by rejecting it, so the decision is saved.
+        """
+        current = self._current()
+        with _as_review_error():
+            entity = current.document.entity(entity_id)
+        if entity.source is not DetectionSource.MANUAL:
+            msg = "only items you added can be removed; keep a detected item instead"
+            raise ReviewError(msg)
+        current.document.remove_entity(entity_id)
 
     def save_session(self, path: str) -> None:
         """Write the review to a session file, replacing one that exists.

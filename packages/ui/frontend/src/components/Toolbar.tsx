@@ -1,6 +1,16 @@
-import { Eye, EyeOff, FileOutput, FileText, FolderOpen, Maximize2, Minus, Plus } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  FileOutput,
+  FileText,
+  FolderOpen,
+  Maximize2,
+  Minus,
+  Plus,
+  SquareDashedMousePointer,
+} from "lucide-react";
 
-import { shortcut } from "../platform";
+import { isMac, shortcut } from "../platform";
 import { Button } from "./Button";
 
 interface ToolbarProps {
@@ -13,12 +23,14 @@ interface ToolbarProps {
   dirty: boolean;
   previewing: boolean;
   exporting: boolean;
+  drawing: boolean;
   onOpen: () => void;
   onZoom: (direction: 1 | -1) => void;
   onFit: () => void;
   onSave: () => void;
   onPreview: () => void;
   onExport: () => void;
+  onDrawTool: () => void;
 }
 
 export function Toolbar(props: ToolbarProps) {
@@ -65,6 +77,15 @@ export function Toolbar(props: ToolbarProps) {
             onClick={() => props.onZoom(1)}
           />
         </div>
+        <Button
+          variant="plain"
+          className="toggle"
+          aria-pressed={props.drawing}
+          icon={<SquareDashedMousePointer size={16} />}
+          aria-label="Draw a region"
+          title={`Draw a region over a photo, signature or stamp (R, or hold ${isMac ? "⌥" : "Alt"} and drag)`}
+          onClick={props.onDrawTool}
+        />
         <Button
           variant="plain"
           className="toggle"

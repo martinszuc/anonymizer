@@ -410,6 +410,27 @@ kbd {
   color: var(--label-2);
 }
 
+.row-remove {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--label-2);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.row-remove:hover {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+
 .row-meta {
   font-size: var(--text-caption);
   color: var(--label-2);
@@ -665,6 +686,39 @@ kbd {
     stroke-width: 2.5px;
     stroke-opacity: 1;
   }
+}
+
+/* Drawn regions: hatched in review mode, so what they cover stays visible;
+   preview mode draws them black like everything redacted. */
+.canvas:not([data-previewing="true"]) .redaction[data-type="region"] rect {
+  fill-opacity: 1;
+  stroke: var(--label-2);
+  stroke-dasharray: none;
+}
+
+.hatch-line {
+  stroke: var(--label);
+  stroke-opacity: 0.4;
+  stroke-width: 1.2;
+}
+
+/* The region tool: a crosshair, and existing boxes let the drag through. */
+.canvas[data-drawing="true"] .page {
+  cursor: crosshair;
+}
+
+.canvas[data-drawing="true"] .redaction {
+  pointer-events: none;
+}
+
+.draft-region {
+  fill: var(--accent);
+  fill-opacity: 0.12;
+  stroke: var(--accent);
+  stroke-width: 1.5px;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
 
 .hidden-box {

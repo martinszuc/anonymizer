@@ -151,6 +151,10 @@ function renderPage(index: number, dpi: number): string {
 }
 
 const LATENCY_MS = 180;
+
+/** Every result is a copy, as pywebview's JSON round trip makes it; sharing
+ * objects with the page would let a mutation here change React state. */
+const copied = <T,>(value: T): T => structuredClone(value);
 const pause = () => new Promise((resolve) => setTimeout(resolve, LATENCY_MS));
 
 export function demoBridge(): ReviewBridge {
@@ -158,10 +162,10 @@ export function demoBridge(): ReviewBridge {
   const open = async () => {
     await pause();
     current = demoDocument();
-    return current;
+    return copied(current);
   };
   return {
-    current_document: async () => current,
+    current_document: async () => copied(current),
     choose_pdf: open,
     choose_session: open,
     save_session_as: async () => {
@@ -192,11 +196,36 @@ export function demoBridge(): ReviewBridge {
         leaks: [],
       };
     },
+    add_region: async (pageIndex, x0, y0, x1, y1) => {
+      if (!current) throw new Error("no document is open");
+      nextId += 1;
+      const region: EntityInfo = {
+        id: `demo-${nextId}`,
+        type: "region",
+        source: "manual",
+        score: null,
+        review: "confirmed",
+        page_index: pageIndex,
+        surface_id: null,
+        text: null,
+        is_region: true,
+        boxes: [[Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1)]],
+      };
+      current.entities.push(region);
+      return copied(region);
+    },
+    remove_entity: async (entityId: string) => {
+      if (!current) throw new Error("no document is open");
+      const entity = current.entities.find((item) => item.id === entityId);
+      if (!entity) throw new Error(`no entity with id ${entityId}`);
+      if (entity.source !== "manual") throw new Error("only items you added can be removed");
+      current.entities = current.entities.filter((item) => item.id !== entityId);
+    },
     set_review: async (entityId: string, state: ReviewState) => {
       const entity = current?.entities.find((item) => item.id === entityId);
       if (!entity) throw new Error(`no entity with id ${entityId}`);
       entity.review = state;
-      return { ...entity };
+      return copied(entity);
     },
   };
 }

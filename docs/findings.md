@@ -162,6 +162,34 @@ Same six documents and 51 items; version 0.2.0 plus the review window and the tw
 - **The one remaining miss** is the genitive `Petra Svobody` (NER, see the
   first run); it leaves the contract the only unsafe document.
 
+### 2026-09-30 · Searchable scans (synthetic)
+
+A searchable scan is a page-sized picture under an invisible OCR text layer
+(render mode 3) written by whoever made the scan searchable. Probed with
+generated scans (`tests/redact/test_searchable_scans.py`); ink counted in
+the image data stored in the saved output, not in a rendering.
+
+- **Ingest reads the invisible layer** as ordinary text, so detection and
+  redaction run as on a born-digital page. `get_texttrace()` reports the
+  spans as type 3, which tells them apart from visible text.
+- **With the layer over the ink, redaction removes the ink** under every box
+  and nothing else, for a Flate and a JPEG picture (redaction re-encodes the
+  JPEG as Flate), a picture inside a form XObject and a `/Rotate 90` page.
+  The invisible text under the boxes is gone and the leak check passes.
+- **A layer narrower than the printed words leaks, and nothing notices.**
+  With word boxes shorter than the ink, the end of the value stays readable
+  in the picture, while the text layer is gone and the leak check passes:
+  no layer of it reads image pixels. The redaction box is only as good as
+  the producer's OCR geometry. How well real producers align is unknown; no
+  real searchable scan has been checked.
+- **A scan carrying a few digital words looked born-digital.** A page with
+  any text-layer word counted as having a text layer, so a scanner's stamp or
+  a page number sent the whole picture past OCR, unread. Ingest now treats a
+  page at least half covered by pictures with fewer than 20 visible words
+  over them as needing OCR (a heuristic, unchecked on real scans).
+- Not probed: CCITT G4, JBIG2, JPEG 2000 and 1-bit stencil-mask pictures,
+  the encodings office scanners use for black-and-white pages.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

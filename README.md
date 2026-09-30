@@ -100,8 +100,9 @@ GitHub with the wheels and source archives. See [`CHANGELOG.md`](CHANGELOG.md).
 ## Status
 
 Working for PDFs with a text layer: text and hidden-data extraction, rule-based
-detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL), names
-and street addresses with the GLiNER model (optional, `--ner`), review through
+detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL, labelled
+dates of birth, postal addresses), names with the GLiNER model (optional,
+`--ner`), review through
 session files or the review window (open, toggle each item, save the session),
 blackbox redaction and a leak check on the output.
 Not yet: measured NER quality, scanned documents (OCR), export from the review

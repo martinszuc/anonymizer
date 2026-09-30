@@ -14,13 +14,15 @@ import pytest
 from anonymizer.core.ingest import load_document
 from anonymizer.core.ingest.normalize import bbox_to_unrotated_rect
 from anonymizer.core.pipeline import build_detector, run_detection
-from anonymizer.core.redact import redact_pdf
-from anonymizer.core.types import Document, EntityType
+from anonymizer.core.redact import export_redacted, redact_pdf
+from anonymizer.core.types import BBox, Document, EntityType, ReviewState
 
 from tests.ocr_stand_in import ScriptedEngine
 from tests.pdf_builders import (
     CONTACT_EMAIL,
     SCAN_PICTURES,
+    scan_of,
+    write_lines,
     write_pdf,
     write_scanned_pdf,
 )
@@ -113,3 +115,77 @@ class TestPixels:
         redact_pdf(path, document, output)
         with pymupdf.open(path) as before, pymupdf.open(output) as after:
             assert ink(after[0], UNTOUCHED_AREA) == ink(before[0], UNTOUCHED_AREA)
+
+
+class TestTextLayer:
+    @pytest.fixture
+    def scan_with_text(self, tmp_path: Path) -> Path:
+        """A scan whose text layer holds a stamp, text under the picture and white text."""
+        document = pymupdf.open()
+        page = document.new_page()
+        page.insert_text((72, 400), "hidden under the picture", fontname="helv")
+        SCAN_PICTURES["flate"](document, page, scan_of(LINES))
+        page.insert_text((72, 820), STAMP, fontname="helv", fontsize=8)
+        page.insert_text((72, 500), "white text", fontname="helv", color=(1, 1, 1))
+        document.save(tmp_path / "scan.pdf")
+        document.close()
+        return tmp_path / "scan.pdf"
+
+    def test_fixture_has_three_kinds_of_text_and_needs_ocr(self, scan_with_text: Path):
+        page = load_document(scan_with_text).pages[0]
+        assert not page.has_text_layer
+        for text in ("hidden under the picture", STAMP, "white text"):
+            assert text in page.text
+
+    def test_page_read_by_ocr_loses_its_whole_text_layer(
+        self, scan_with_text: Path, tmp_path: Path
+    ):
+        output = tmp_path / "out.pdf"
+        redact_pdf(scan_with_text, read_by_ocr(scan_with_text, tmp_path), output)
+        with pymupdf.open(scan_with_text) as before, pymupdf.open(output) as after:
+            assert after[0].get_text("words") == []
+            assert ink(after[0], UNTOUCHED_AREA) == ink(before[0], UNTOUCHED_AREA)
+
+    def test_page_not_read_by_ocr_keeps_its_text(self, scan_with_text: Path, tmp_path: Path):
+        document = load_document(scan_with_text)
+        output = tmp_path / "out.pdf"
+        redact_pdf(scan_with_text, document, output)
+        with pymupdf.open(output) as pdf:
+            assert STAMP in pdf[0].get_text()
+
+    def test_born_digital_page_beside_it_keeps_its_text(self, tmp_path: Path):
+        mixed = pymupdf.open()
+        write_lines(mixed.new_page(), ["Strana jedna"])
+        with pymupdf.open(
+            write_scanned_pdf(tmp_path / "scan.pdf", [LINES], stamp=STAMP)
+        ) as scanned:
+            mixed.insert_pdf(scanned)
+        mixed.save(tmp_path / "mixed.pdf")
+        mixed.close()
+        original = load_document(write_pdf(tmp_path / "original.pdf", [["Strana jedna"], LINES]))
+        engine = ScriptedEngine([ScriptedEngine.reading(original).pages[1]])
+        document = load_document(tmp_path / "mixed.pdf", ocr=engine)
+        output = tmp_path / "out.pdf"
+        redact_pdf(tmp_path / "mixed.pdf", document, output)
+        with pymupdf.open(output) as pdf:
+            assert pdf[1].get_text("words") == []
+        assert load_document(output).pages[0].text == "Strana jedna"
+
+
+def test_export_with_mixed_decisions_on_a_scanned_page(tmp_path: Path):
+    """A kept phone, a redacted email and a drawn region, through the leak-checked export."""
+    path = write_scanned_pdf(tmp_path / "scan.pdf", [LINES])
+    document = read_by_ocr(path, tmp_path)
+    phone = next(entity for entity in document.entities if entity.type is EntityType.PHONE)
+    phone.review = ReviewState.REJECTED
+    region = document.add_region(0, BBox(*UNTOUCHED_AREA))
+    output = tmp_path / "out.pdf"
+    assert export_redacted(path, document, output) == []
+    with pymupdf.open(path) as before, pymupdf.open(output) as after:
+        page = after[0]
+        email = next(entity for entity in document.entities if entity.type is EntityType.EMAIL)
+        assert ink(page, bbox_to_unrotated_rect(email.bboxes[0], page)) == 0
+        assert ink(page, bbox_to_unrotated_rect(region.bboxes[0], page)) == 0
+        kept = [bbox_to_unrotated_rect(box, page) for box in phone.bboxes]
+        assert [ink(page, area) for area in kept] == [ink(before[0], area) for area in kept]
+        assert page.get_text("words") == []

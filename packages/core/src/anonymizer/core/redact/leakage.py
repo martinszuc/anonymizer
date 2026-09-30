@@ -40,7 +40,6 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import StrEnum
-from functools import cache
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -56,10 +55,11 @@ _BLACK = (0.0, 0.0, 0.0)
 
 
 class _Target(NamedTuple):
-    """An entity's text the output must no longer contain."""
+    """An entity's text the output must no longer contain, and how it is stored literally."""
 
     entity_id: str
     text: str
+    literal: re.Pattern[str]
 
 
 class LeakLayer(StrEnum):
@@ -107,7 +107,9 @@ def find_leaks(redacted: Path | str, document: Document) -> list[Leak]:
     """
     redactable = [entity for entity in document.entities if entity.is_redactable]
     targets = [
-        _Target(entity.entity_id, entity.text) for entity in redactable if entity.text is not None
+        _Target(entity.entity_id, entity.text, _literal_pattern(entity.text))
+        for entity in redactable
+        if entity.text is not None
     ]
     regions = [entity for entity in redactable if entity.is_region]
     kept = _kept_texts(document)
@@ -235,7 +237,7 @@ def _object_leaks(pdf: pymupdf.Document, targets: list[_Target]) -> list[Leak]:
         leaks.extend(
             Leak(LeakLayer.OBJECT, f"object {xref}", target.text, target.entity_id)
             for target in targets
-            if _literal_pattern(target.text).search(content)
+            if target.literal.search(content)
         )
     return leaks
 
@@ -254,11 +256,10 @@ def _file_byte_leaks(path: Path, targets: list[_Target]) -> list[Leak]:
     return [
         Leak(LeakLayer.FILE_BYTES, path.name, target.text, target.entity_id)
         for target in targets
-        if _literal_pattern(target.text).search(content)
+        if target.literal.search(content)
     ]
 
 
-@cache
 def _literal_pattern(text: str) -> re.Pattern[str]:
     """Match a text stored literally, with any whitespace between its characters.
 

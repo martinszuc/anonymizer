@@ -2,8 +2,9 @@ import { MotionConfig } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { connect, errorMessage, type ReviewBridge } from "./bridge";
-import { EmptyState } from "./components/EmptyState";
 import { ExportSheets, type ExportStep } from "./components/ExportSheets";
+import { Home } from "./components/Home";
+import { Opening } from "./components/Opening";
 import { PageView } from "./components/PageView";
 import { Sidebar, type SidebarTab } from "./components/Sidebar";
 import { Toasts, type Toast } from "./components/Toasts";
@@ -11,7 +12,15 @@ import { Toolbar } from "./components/Toolbar";
 import { PageImages } from "./pageImages";
 import { hasCommand } from "./platform";
 import { isDecidable, pagesWithoutText, steppedZoom, toggled } from "./review";
-import type { Box, DocumentInfo, EntityInfo, SurfaceInfo } from "./types";
+import type {
+  AppStatus,
+  Box,
+  DocumentInfo,
+  EntityInfo,
+  OpenOptions,
+  OpenStep,
+  SurfaceInfo,
+} from "./types";
 
 const TOAST_MS = 4000;
 const CANVAS_PADDING = 48;
@@ -20,6 +29,17 @@ const MAX_FIT_SCALE = 2;
 
 export function App() {
   const [bridge, setBridge] = useState<ReviewBridge | null>(null);
+  const [status, setStatus] = useState<AppStatus | null>(null);
+  // How the next PDF is opened; the model is on once its status says it is ready.
+  const [options, setOptions] = useState<OpenOptions>({
+    language: null,
+    propagate: true,
+    use_model: false,
+  });
+  // Set by Python's progress events once a file is chosen; null otherwise.
+  const [opening, setOpening] = useState<{ name: string | null; step: OpenStep } | null>(null);
+  const openingName = useRef<string | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [document, setDocument] = useState<DocumentInfo | null>(null);
   // Bumped per opened document, so page images of the previous one are dropped.
   const [generation, setGeneration] = useState(0);
@@ -53,6 +73,9 @@ export function App() {
       setBridge(connected);
       const opened = await connected.current_document();
       if (opened) show(opened);
+      const installed = await connected.status();
+      setStatus(installed);
+      setOptions((current) => ({ ...current, use_model: installed.model.state === "ready" }));
     });
   }, []);
 
@@ -72,9 +95,11 @@ export function App() {
   const discardConfirmed = () =>
     !dirty || window.confirm("Your decisions on this document are not saved. Discard them?");
 
-  async function open(choose: (api: ReviewBridge) => Promise<DocumentInfo | null>) {
+  /** `name` is known for a dropped file; a dialog's choice is named once it opens. */
+  async function open(choose: (api: ReviewBridge) => Promise<DocumentInfo | null>, name: string | null = null) {
     if (!bridge || busy || !discardConfirmed()) return;
     setBusy(true);
+    openingName.current = name;
     try {
       const opened = await choose(bridge);
       if (opened) show(opened);
@@ -82,10 +107,83 @@ export function App() {
       reportError(errorMessage(error));
     } finally {
       setBusy(false);
+      setOpening(null);
     }
   }
-  const openPdf = () => open((api) => api.choose_pdf({ language: null, propagate: true, use_model: false }));
+  const openPdf = () => open((api) => api.choose_pdf(options));
   const openReview = () => open((api) => api.choose_session());
+  const openDropped = (name: string) => open((api) => api.open_dropped(options), name);
+
+  async function closeDocument() {
+    if (!bridge || !discardConfirmed()) return;
+    try {
+      await bridge.close_document();
+      setDocument(null);
+      setDirty(false);
+      setPreviewing(false);
+      setDrawTool(false);
+      setExportStep(null);
+    } catch (error) {
+      reportError(errorMessage(error));
+    }
+  }
+
+  // Python's events reach the latest handlers through this ref, so the
+  // listeners are added once and still see current options and state.
+  const onPythonEvent = useRef({ openDropped, reportError });
+  onPythonEvent.current = { openDropped, reportError };
+
+  useEffect(() => {
+    const onProgress = (event: Event) => {
+      const step = (event as CustomEvent<OpenStep>).detail;
+      setOpening({ name: openingName.current, step });
+    };
+    const onDropped = (event: Event) => {
+      setDragging(false);
+      void onPythonEvent.current.openDropped((event as CustomEvent<string>).detail);
+    };
+    const onRefused = (event: Event) => {
+      setDragging(false);
+      const name = (event as CustomEvent<string>).detail;
+      onPythonEvent.current.reportError(`Only PDF files can be opened${name ? `, not ${name}` : ""}`);
+    };
+    window.addEventListener("anonymizer:progress", onProgress);
+    window.addEventListener("anonymizer:dropped", onDropped);
+    window.addEventListener("anonymizer:drop-refused", onRefused);
+    return () => {
+      window.removeEventListener("anonymizer:progress", onProgress);
+      window.removeEventListener("anonymizer:dropped", onDropped);
+      window.removeEventListener("anonymizer:drop-refused", onRefused);
+    };
+  }, []);
+
+  // Highlight while a file is dragged over the window; the drop itself is
+  // Python's, which alone sees the file's path.
+  useEffect(() => {
+    let depth = 0;
+    const carriesFiles = (event: DragEvent) => event.dataTransfer?.types.includes("Files") ?? false;
+    const onEnter = (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      depth += 1;
+      setDragging(true);
+    };
+    const onLeave = () => {
+      depth = Math.max(depth - 1, 0);
+      if (depth === 0) setDragging(false);
+    };
+    const onDrop = () => {
+      depth = 0;
+      setDragging(false);
+    };
+    window.addEventListener("dragenter", onEnter);
+    window.addEventListener("dragleave", onLeave);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onEnter);
+      window.removeEventListener("dragleave", onLeave);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, []);
 
   async function save() {
     if (!bridge || !document) return;
@@ -243,7 +341,9 @@ export function App() {
   return (
     <MotionConfig reducedMotion="user">
       <div className="app" data-ready={bridge !== null}>
-        {document && images ? (
+        {opening ? (
+          <Opening name={opening.name} step={opening.step} usesModel={options.use_model} />
+        ) : document && images ? (
           <>
             <Toolbar
               name={document.name}
@@ -263,6 +363,7 @@ export function App() {
               onPreview={() => setPreviewing((value) => !value)}
               onExport={startExport}
               onDrawTool={() => setDrawTool((value) => !value)}
+              onClose={() => void closeDocument()}
             />
             <div className="workspace">
               <Sidebar
@@ -293,9 +394,24 @@ export function App() {
                 onCurrentPage={setCurrentPage}
               />
             </div>
+            {dragging && (
+              <div className="drop-overlay" aria-hidden>
+                <p>Drop to open another PDF</p>
+              </div>
+            )}
           </>
         ) : (
-          bridge && <EmptyState busy={busy} onOpen={openPdf} onOpenReview={openReview} />
+          bridge && (
+            <Home
+              status={status}
+              options={options}
+              busy={busy}
+              dragging={dragging}
+              onOptions={setOptions}
+              onOpen={openPdf}
+              onOpenReview={openReview}
+            />
+          )
         )}
         <ExportSheets
           step={exportStep}

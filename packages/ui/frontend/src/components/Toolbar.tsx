@@ -1,4 +1,5 @@
 import {
+  ChevronLeft,
   Eye,
   EyeOff,
   FileOutput,
@@ -31,6 +32,7 @@ interface ToolbarProps {
   onPreview: () => void;
   onExport: () => void;
   onDrawTool: () => void;
+  onClose: () => void;
 }
 
 export function Toolbar(props: ToolbarProps) {
@@ -39,6 +41,13 @@ export function Toolbar(props: ToolbarProps) {
   return (
     <header className="toolbar">
       <div className="toolbar-title">
+        <Button
+          variant="plain"
+          icon={<ChevronLeft size={17} />}
+          aria-label="Close the document"
+          title="Close the document and go back to the start"
+          onClick={props.onClose}
+        />
         <FileText size={16} className="toolbar-title-icon" aria-hidden />
         <span className="toolbar-name" title={name}>
           {name}

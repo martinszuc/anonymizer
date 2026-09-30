@@ -118,23 +118,17 @@ jobs:
 
       # macOS asks whether Python may find devices on the local network when the
       # window starts its page server, and the page stays blank until someone
-      # answers. Nobody sits at a runner, so answer Allow for the first minute.
+      # answers. Nobody sits at a runner, so a script answers Allow.
       - name: Answer macOS's local network prompt
         if: runner.os == 'macOS'
-        run: |
-          (
-            for _ in $(seq 60); do
-              osascript -e 'tell application "System Events" to repeat with p in (every process whose visible is true)
-                try
-                  click button "Allow" of window 1 of p
-                end try
-              end repeat' >/dev/null 2>&1 || true
-              sleep 1
-            done
-          ) &
+        run: scripts/answer-macos-prompts.sh 120 > prompts.log 2>&1 &
 
       - name: Run the tour
         run: uv run --no-sync python scripts/ui_tour.py screenshots
+
+      - name: What the prompt answerer did
+        if: ${{ !cancelled() && runner.os == 'macOS' }}
+        run: sort prompts.log | uniq -c
 
       - name: Upload the screenshots
         if: ${{ !cancelled() }}

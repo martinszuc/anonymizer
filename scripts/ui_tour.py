@@ -46,6 +46,7 @@ PLANTED = (EMAIL, BIRTH_NUMBER, IBAN)
 
 SETTLE_SECONDS = 0.7  # let the page finish animating before the screen is read
 WAIT_SECONDS = 20.0
+LOAD_SECONDS = 120.0
 WEBP_QUALITY = 85
 
 
@@ -160,6 +161,11 @@ class Tour:
 
     def run(self) -> None:
         """Perform every step, asserting as it goes."""
+        # Before the page has loaded every call would raise; on macOS a permission
+        # prompt can hold it up for a while (see scripts/answer-macos-prompts.sh).
+        if not self.window.events.loaded.wait(LOAD_SECONDS):
+            msg = "the page did not load"
+            raise AssertionError(msg)
         self.window.maximize()
         self.wait_for("document.querySelector('.home')", "the home screen")
         self.shot("home", "Home screen before anything is open")

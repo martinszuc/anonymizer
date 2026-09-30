@@ -5,8 +5,10 @@ import {
   dragBox,
   exportSummary,
   groupByType,
+  isDecidable,
   isLargeEnough,
   isRedacted,
+  isRemoved,
   leakLayerLabel,
   pageList,
   pagesWithoutText,
@@ -61,6 +63,17 @@ describe("summarize", () => {
       surfaces: [{ id: "s", kind: "metadata", value: "CV", page_index: null, box: null }],
     };
     expect(summarize(document)).toEqual({ redacted: 2, kept: 1, hidden: 1 });
+  });
+
+  it("counts a rejected finding in hidden data as removed", () => {
+    const document: DocumentInfo = {
+      name: "cv.pdf",
+      language: "cs",
+      pages: [],
+      entities: [entity({ id: "link", surface_id: "link:0:7/uri", review: "rejected" })],
+      surfaces: [],
+    };
+    expect(summarize(document)).toEqual({ redacted: 1, kept: 0, hidden: 0 });
   });
 });
 
@@ -188,5 +201,19 @@ describe("drawing a region", () => {
     expect(isLargeEnough([100, 100, 102, 150], 1)).toBe(false);
     expect(isLargeEnough([100, 100, 102, 150], 4)).toBe(true);
     expect(isLargeEnough([100, 100, 160, 150], 1)).toBe(true);
+  });
+});
+
+describe("what the reviewer decides", () => {
+  it("removes hidden data whatever its review says", () => {
+    expect(isRemoved(entity({ surface_id: "link:0:7/uri", review: "rejected" }))).toBe(true);
+    expect(isRemoved(entity({ review: "rejected" }))).toBe(false);
+    expect(isRemoved(entity({ review: "pending" }))).toBe(true);
+  });
+
+  it("lets the reviewer decide only on page text", () => {
+    expect(isDecidable(entity({}))).toBe(true);
+    expect(isDecidable(entity({ surface_id: "link:0:7/uri" }))).toBe(false);
+    expect(isDecidable(entity({ type: "region", is_region: true, text: null }))).toBe(false);
   });
 });

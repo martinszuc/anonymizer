@@ -312,7 +312,13 @@ def _entity_payload(entity: Entity) -> dict[str, Any]:
 def _export_payload(
     name: str, document: Document, leaks: list[Leak], unreadable: list[int]
 ) -> dict[str, Any]:
-    applied = [entity for entity in document.entities if entity.is_redactable]
+    # A finding in hidden data goes with it, whatever its review says: export
+    # clears every hidden item.
+    applied = [
+        entity
+        for entity in document.entities
+        if entity.is_redactable or entity.surface_id is not None
+    ]
     return {
         "written": not leaks,
         "name": name,

@@ -13,7 +13,7 @@ import {
 import { errorMessage } from "../bridge";
 import { gentle } from "../motion";
 import type { PageImages } from "../pageImages";
-import { covers, dragBox, isLargeEnough, isRedacted, renderDpi, typeLabel } from "../review";
+import { covers, dragBox, isDecidable, isLargeEnough, isRemoved, renderDpi, typeLabel } from "../review";
 import type { Box, DocumentInfo, EntityInfo, PageInfo, SurfaceInfo } from "../types";
 
 interface PageViewProps {
@@ -21,6 +21,8 @@ interface PageViewProps {
   images: PageImages;
   scale: number;
   selectedId: string | null;
+  /** The hidden item chosen in the Hidden tab, outlined on its page. */
+  selectedSurfaceId: string | null;
   showHidden: boolean;
   previewing: boolean;
   /** The region tool is on (or Alt is held): a drag draws a region. */
@@ -83,6 +85,7 @@ function Page({
   images,
   scale,
   selectedId,
+  selectedSurfaceId,
   showHidden,
   previewing,
   drawing,
@@ -194,7 +197,17 @@ function Page({
             </pattern>
           </defs>
           {showHidden &&
-            surfaces.map((surface) => surface.box && <HiddenBox key={surface.id} box={surface.box} />)}
+            surfaces.map(
+              (surface) =>
+                surface.box && (
+                  <HiddenBox
+                    key={surface.id}
+                    id={surface.id}
+                    box={surface.box}
+                    selected={surface.id === selectedSurfaceId}
+                  />
+                ),
+            )}
           {entities.map((entity) => (
             <Redaction
               key={entity.id}
@@ -244,14 +257,14 @@ function Redaction({ entity, hatch, selected, onHover, onToggle, onSelect }: Red
       data-entity-id={entity.id}
       data-type={entity.type}
       data-state={entity.review}
-      data-redacted={isRedacted(entity.review)}
+      data-redacted={isRemoved(entity)}
       data-propagated={entity.source === "propagated"}
       data-selected={selected}
       onMouseEnter={() => onHover(entity)}
       onClick={() => {
         onSelect(entity);
-        // A drawn region is removed, not kept: a click only selects it.
-        if (!entity.is_region) onToggle(entity);
+        // A drawn region is removed and hidden data always goes: a click only selects them.
+        if (isDecidable(entity)) onToggle(entity);
       }}
     >
       {entity.boxes.map(([x0, y0, x1, y1], index) => (
@@ -269,8 +282,18 @@ function Redaction({ entity, hatch, selected, onHover, onToggle, onSelect }: Red
   );
 }
 
-function HiddenBox({ box: [x0, y0, x1, y1] }: { box: Box }) {
-  return <rect className="hidden-box" x={x0} y={y0} width={x1 - x0} height={y1 - y0} />;
+function HiddenBox({ id, box: [x0, y0, x1, y1], selected }: { id: string; box: Box; selected: boolean }) {
+  return (
+    <rect
+      className="hidden-box"
+      data-surface-id={id}
+      data-selected={selected}
+      x={x0}
+      y={y0}
+      width={x1 - x0}
+      height={y1 - y0}
+    />
+  );
 }
 
 const POPOVER_GAP = 8;
@@ -284,7 +307,7 @@ function Popover({ entity, scale, pageHeight }: { entity: EntityInfo; scale: num
   const top = Math.min(...entity.boxes.map((box) => box[1])) * scale;
   // Below the box, or above it when the page ends first.
   const below = bottom + POPOVER_GAP + POPOVER_HEIGHT < pageHeight;
-  const redacted = isRedacted(entity.review);
+  const redacted = isRemoved(entity);
   return (
     <motion.div
       className="popover"
@@ -308,6 +331,7 @@ function Popover({ entity, scale, pageHeight }: { entity: EntityInfo; scale: num
 
 function popoverHint(entity: EntityInfo, redacted: boolean): string {
   if (entity.is_region) return "Drawn by you · click to select, Delete removes it";
+  if (entity.surface_id !== null) return "In hidden data · always removed on export";
   return redacted ? "Will be redacted · click to keep" : "Kept · click to redact";
 }
 

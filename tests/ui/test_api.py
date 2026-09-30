@@ -300,3 +300,16 @@ class TestRegions:
         assert result["written"] is True
         assert result["regions"] == 1
         assert "KEEP this line" not in output_text(destination)
+
+
+def test_a_finding_in_hidden_data_counts_as_removed_even_if_rejected(tmp_path: Path):
+    reviewer = ReviewApi()
+    payload = reviewer.open_pdf(str(write_surfaces_pdf(tmp_path / "hidden.pdf")), "cs")
+    hidden = [entity for entity in payload["entities"] if entity["surface_id"] is not None]
+    assert hidden
+    for entity in hidden:
+        reviewer.set_review(entity["id"], "rejected")
+    result = reviewer.export(str(tmp_path / "out.pdf"), True)
+    assert result["written"] is True
+    assert result["kept"] == 0
+    assert result["redacted"] == len(payload["entities"])

@@ -10,8 +10,8 @@ import { Toasts, type Toast } from "./components/Toasts";
 import { Toolbar } from "./components/Toolbar";
 import { PageImages } from "./pageImages";
 import { hasCommand } from "./platform";
-import { pagesWithoutText, steppedZoom, toggled } from "./review";
-import type { Box, DocumentInfo, EntityInfo } from "./types";
+import { isDecidable, pagesWithoutText, steppedZoom, toggled } from "./review";
+import type { Box, DocumentInfo, EntityInfo, SurfaceInfo } from "./types";
 
 const TOAST_MS = 4000;
 const CANVAS_PADDING = 48;
@@ -30,6 +30,7 @@ export function App() {
   const [previewing, setPreviewing] = useState(false);
   const [tab, setTab] = useState<SidebarTab>("findings");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedSurfaceId, setSelectedSurfaceId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [exportStep, setExportStep] = useState<ExportStep | null>(null);
@@ -62,6 +63,7 @@ export function App() {
     setGeneration((value) => value + 1);
     setDirty(false);
     setSelectedId(null);
+    setSelectedSurfaceId(null);
     setCurrentPage(0);
     setZoom("fit");
     canvasRef.current?.scrollTo({ top: 0 });
@@ -148,7 +150,8 @@ export function App() {
   }
 
   async function toggle(entity: EntityInfo) {
-    if (!bridge) return;
+    // Hidden data always goes and a region is removed instead: nothing to toggle.
+    if (!bridge || !isDecidable(entity)) return;
     const next = toggled(entity.review);
     // Optimistic: the box changes at once, and changes back if Python refuses.
     const setState = (review: EntityInfo["review"]) =>
@@ -166,6 +169,16 @@ export function App() {
       setState(entity.review);
       reportError(errorMessage(error));
     }
+  }
+
+  /** Show a hidden item where it sits on its page: its outline, or the page. */
+  function selectSurface(surface: SurfaceInfo) {
+    setSelectedSurfaceId(surface.id);
+    const canvas = canvasRef.current;
+    const target =
+      canvas?.querySelector(`[data-surface-id="${CSS.escape(surface.id)}"]`) ??
+      canvas?.querySelector(`[data-page-index="${surface.page_index}"]`);
+    target?.scrollIntoView({ block: "center", behavior: "smooth" });
   }
 
   function select(entity: EntityInfo) {
@@ -260,6 +273,8 @@ export function App() {
                 onSelect={select}
                 onToggle={toggle}
                 onRemove={(entity) => void removeEntity(entity)}
+                selectedSurfaceId={selectedSurfaceId}
+                onSelectSurface={selectSurface}
               />
               <PageView
                 ref={canvasRef}
@@ -267,6 +282,7 @@ export function App() {
                 images={images}
                 scale={scale}
                 selectedId={selectedId}
+                selectedSurfaceId={selectedSurfaceId}
                 showHidden={tab === "hidden"}
                 previewing={previewing}
                 drawing={drawTool || altHeld}

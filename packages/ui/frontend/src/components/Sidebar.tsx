@@ -1,9 +1,9 @@
-import { EyeOff, Info, X } from "lucide-react";
+import { EyeOff, Info, Lock, Paperclip, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 
 import { gentle } from "../motion";
-import { covers, groupByType, isIdentifier, isRedacted, summarize } from "../review";
+import { covers, groupByType, isDecidable, isIdentifier, isRemoved, summarize, typeLabel } from "../review";
 import type { DocumentInfo, EntityInfo, SurfaceInfo } from "../types";
 import { SegmentedControl } from "./SegmentedControl";
 import { Switch } from "./Switch";
@@ -18,6 +18,8 @@ interface SidebarProps {
   onSelect: (entity: EntityInfo) => void;
   onToggle: (entity: EntityInfo) => void;
   onRemove: (entity: EntityInfo) => void;
+  selectedSurfaceId: string | null;
+  onSelectSurface: (surface: SurfaceInfo) => void;
 }
 
 export function Sidebar({
@@ -28,6 +30,8 @@ export function Sidebar({
   onSelect,
   onToggle,
   onRemove,
+  selectedSurfaceId,
+  onSelectSurface,
 }: SidebarProps) {
   const summary = summarize(document);
   return (
@@ -55,7 +59,12 @@ export function Sidebar({
           onRemove={onRemove}
         />
       ) : (
-        <HiddenItems surfaces={document.surfaces} />
+        <HiddenItems
+          surfaces={document.surfaces}
+          entities={document.entities}
+          selectedSurfaceId={selectedSurfaceId}
+          onSelectSurface={onSelectSurface}
+        />
       )}
     </aside>
   );
@@ -119,7 +128,7 @@ function Findings({ document, selectedId, onSelect, onToggle, onRemove }: Findin
     if (event.key === "ArrowDown") move(1);
     else if (event.key === "ArrowUp") move(-1);
     // Delete on a selected region is handled window-wide, in App.
-    else if (event.key === " " && ordered[index] && !ordered[index].is_region) onToggle(ordered[index]);
+    else if (event.key === " " && ordered[index] && isDecidable(ordered[index])) onToggle(ordered[index]);
     else return;
     event.preventDefault();
   };
@@ -170,7 +179,9 @@ interface EntityRowProps {
 }
 
 function EntityRow({ entity, selected, onSelect, onToggle, onRemove }: EntityRowProps) {
-  const redacted = isRedacted(entity.review);
+  const redacted = isRemoved(entity);
+  // Only something the reviewer can decide on waits for review.
+  const unreviewed = entity.review === "pending" && isDecidable(entity);
   const text = covers(entity);
   return (
     <div
@@ -185,10 +196,10 @@ function EntityRow({ entity, selected, onSelect, onToggle, onRemove }: EntityRow
     >
       <span
         className="row-pending"
-        data-visible={entity.review === "pending"}
+        data-visible={unreviewed}
         role="img"
-        aria-label={entity.review === "pending" ? "Not reviewed" : undefined}
-        aria-hidden={entity.review !== "pending"}
+        aria-label={unreviewed ? "Not reviewed" : undefined}
+        aria-hidden={!unreviewed}
       />
       <div className="row-body">
         <span className={isIdentifier(entity.type) ? "row-text mono" : "row-text"} title={text}>
@@ -196,7 +207,15 @@ function EntityRow({ entity, selected, onSelect, onToggle, onRemove }: EntityRow
         </span>
         <span className="row-meta">{rowMeta(entity)}</span>
       </div>
-      {entity.is_region ? (
+      {entity.surface_id !== null ? (
+        <span
+          className="row-locked"
+          title="In hidden data (a link, metadata, a note...): export removes it with the hidden item, so there is nothing to decide"
+        >
+          <Lock size={12} aria-hidden />
+          Always removed
+        </span>
+      ) : entity.is_region ? (
         <button
           type="button"
           className="row-remove"
@@ -249,12 +268,40 @@ const SURFACE_LABELS: Record<string, string> = {
 
 const PREVIEW_LENGTH = 160;
 
-function HiddenItems({ surfaces }: { surfaces: SurfaceInfo[] }) {
+/** What each kind is and what export does with it, in one line. */
+const SURFACE_NOTES: Record<string, string> = {
+  metadata: "Title, author, subject and keywords. Cleared.",
+  xmp: "A second, XML copy of the document info. Removed.",
+  link: "Where links point. Links to other pages of this file stay; the rest are removed.",
+  annotation: "Comments, notes and their authors. Removed.",
+  form_field: "Values typed into form fields. Removed.",
+  bookmark: "The outline in a viewer's sidebar. Removed.",
+  embedded_file: "Names of attached files; their contents are never opened. Removed.",
+  structure: "Text read aloud by screen readers. Removed, with the accessibility tags.",
+};
+
+interface HiddenItemsProps {
+  surfaces: SurfaceInfo[];
+  entities: EntityInfo[];
+  selectedSurfaceId: string | null;
+  onSelectSurface: (surface: SurfaceInfo) => void;
+}
+
+function HiddenItems({ surfaces, entities, selectedSurfaceId, onSelectSurface }: HiddenItemsProps) {
   const groups = useMemo(() => {
     const byKind = new Map<string, SurfaceInfo[]>();
     for (const surface of surfaces) byKind.set(surface.kind, [...(byKind.get(surface.kind) ?? []), surface]);
     return [...byKind.entries()];
   }, [surfaces]);
+  const foundIn = useMemo(() => {
+    const types = new Map<string, Set<string>>();
+    for (const entity of entities) {
+      if (entity.surface_id === null) continue;
+      types.set(entity.surface_id, (types.get(entity.surface_id) ?? new Set()).add(entity.type));
+    }
+    return types;
+  }, [entities]);
+  const hasAttachments = surfaces.some((surface) => surface.kind === "embedded_file");
 
   return (
     <div className="list">
@@ -262,9 +309,18 @@ function HiddenItems({ surfaces }: { surfaces: SurfaceInfo[] }) {
         <Info size={14} aria-hidden />
         <span>
           Data outside the visible text. All of it is removed on export, whether or not anything
-          personal was found in it.
+          personal was found in it, so there is nothing to decide here.
         </span>
       </p>
+      {hasAttachments && (
+        <p className="notice" data-tone="warning">
+          <Paperclip size={14} aria-hidden />
+          <span>
+            This file has attachments. Their contents are never opened or checked; they are
+            removed on export.
+          </span>
+        </p>
+      )}
       {groups.length === 0 && (
         <div className="sidebar-empty">
           <EyeOff size={20} aria-hidden />
@@ -277,20 +333,48 @@ function HiddenItems({ surfaces }: { surfaces: SurfaceInfo[] }) {
             {SURFACE_LABELS[kind] ?? kind}
             <span className="group-count">{members.length}</span>
           </h2>
+          {SURFACE_NOTES[kind] && <p className="group-note">{SURFACE_NOTES[kind]}</p>}
           {members.map((surface) => (
-            <div key={surface.id} className="row row-static">
-              <div className="row-body">
-                <span className="row-text mono clamp" title={surface.value}>
-                  {preview(surface.value)}
-                </span>
-                <span className="row-meta">
-                  {surface.page_index === null ? "Whole document" : `Page ${surface.page_index + 1}`}
-                </span>
-              </div>
-            </div>
+            <HiddenRow
+              key={surface.id}
+              surface={surface}
+              found={[...(foundIn.get(surface.id) ?? [])]}
+              selected={surface.id === selectedSurfaceId}
+              onSelect={onSelectSurface}
+            />
           ))}
         </section>
       ))}
+    </div>
+  );
+}
+
+interface HiddenRowProps {
+  surface: SurfaceInfo;
+  found: string[];
+  selected: boolean;
+  onSelect: (surface: SurfaceInfo) => void;
+}
+
+function HiddenRow({ surface, found, selected, onSelect }: HiddenRowProps) {
+  const onPage = surface.page_index !== null;
+  const place = onPage ? `Page ${(surface.page_index ?? 0) + 1}` : "Whole document";
+  return (
+    <div
+      className={onPage ? "row" : "row row-static"}
+      data-selected={selected}
+      title={onPage ? "Show where it is on the page" : undefined}
+      onClick={onPage ? () => onSelect(surface) : undefined}
+    >
+      <div className="row-body">
+        <span className="row-text mono clamp" title={surface.value}>
+          {preview(surface.value)}
+        </span>
+        <span className="row-meta">
+          {place}
+          {found.length > 0 && ` · contains ${found.map((type) => typeLabel(type).toLowerCase()).join(", ")}`}
+        </span>
+      </div>
     </div>
   );
 }

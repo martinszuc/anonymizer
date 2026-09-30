@@ -79,6 +79,7 @@ benchmark = [
     { name = "matplotlib" },
 ]
 dev = [
+    { name = "pillow" },
     { name = "poethepoet" },
     { name = "pre-commit" },
     { name = "pyright" },
@@ -101,6 +102,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 benchmark = [{ name = "matplotlib", specifier = ">=3.9" }]
 dev = [
+    { name = "pillow", specifier = ">=11" },
     { name = "poethepoet", specifier = ">=0.48.0" },
     { name = "pre-commit", specifier = ">=4.0" },
     { name = "pyright", specifier = ">=1.1.390" },

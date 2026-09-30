@@ -1,4 +1,4 @@
-name: CI
+name: Checks
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
   # The review window's frontend. The Python jobs do not need it: the
   # window's Python side is tested with pywebview stood in.
   frontend:
-    name: frontend
+    name: Frontend · types, tests, build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -48,13 +48,18 @@ jobs:
         run: npm run build
 
   check:
-    name: ${{ matrix.os }} / py${{ matrix.python-version }}
+    name: Python ${{ matrix.python-version }} · ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.12", "3.13"]
+        # Adds the label shown in the job name to every combination of that OS.
+        include:
+          - { os: ubuntu-latest, label: Linux }
+          - { os: macos-latest, label: macOS }
+          - { os: windows-latest, label: Windows }
     steps:
       - uses: actions/checkout@v4
 

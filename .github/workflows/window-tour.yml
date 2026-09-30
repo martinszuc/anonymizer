@@ -1,0 +1,143 @@
+name: Window tour
+
+# Opens the real review window on every platform we support, performs the basic
+# tasks (open a PDF, keep a finding, look at hidden data, preview, export) and
+# photographs the whole screen after each step, desktop bars included. The
+# numbered WebP files are the artifacts; a step that fails leaves a photo of
+# the screen at that moment. See scripts/ui_tour.py.
+#
+# Linux runs in a container per distribution, on a virtual display with a
+# window manager and a panel, so each distribution is a fresh install. macOS
+# and Windows use the runner's own desktop. The document is synthetic.
+
+run-name: Window tour · ${{ github.event_name == 'pull_request' && format('PR {0}', github.event.number) || github.ref_name }}
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: &window_paths
+      - "packages/ui/**"
+      - "packages/core/**"
+      - "scripts/ui_tour.py"
+      - "scripts/tour-linux.sh"
+      - ".github/workflows/window-tour.yml"
+      - "uv.lock"
+  pull_request:
+    paths: *window_paths
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Build the frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/ui/frontend/package-lock.json
+
+      - name: Build
+        working-directory: packages/ui/frontend
+        run: npm ci && npm run build
+
+      - name: Share the build with the tour jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: packages/ui/src/anonymizer/ui/static
+          retention-days: 1
+
+  linux:
+    name: ${{ matrix.name }}
+    needs: frontend
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "Linux · Ubuntu 24.04", slug: ubuntu-24.04, image: "ubuntu:24.04" }
+          - { name: "Linux · Debian 12", slug: debian-12, image: "debian:12" }
+          - { name: "Linux · Fedora 42", slug: fedora-42, image: "fedora:42" }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: packages/ui/src/anonymizer/ui/static
+
+      - name: Run the tour in ${{ matrix.image }}
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work "${{ matrix.image }}" \
+            bash scripts/tour-linux.sh /work/screenshots
+
+      - name: Upload the screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: window-tour-${{ matrix.slug }}
+          path: screenshots
+          if-no-files-found: warn
+          retention-days: 30
+
+  desktop:
+    name: ${{ matrix.name }}
+    needs: frontend
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macOS, slug: macos, os: macos-latest }
+          - { name: Windows, slug: windows, os: windows-latest }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: packages/ui/src/anonymizer/ui/static
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --locked --all-packages
+
+      - name: Run the tour
+        run: uv run --no-sync python scripts/ui_tour.py screenshots
+
+      - name: Upload the screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: window-tour-${{ matrix.slug }}
+          path: screenshots
+          if-no-files-found: warn
+          retention-days: 30
+
+  gallery:
+    name: Gather the screenshots
+    needs: [linux, desktop]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      # One download with every platform in its own folder, for side-by-side viewing.
+      - uses: actions/upload-artifact/merge@v4
+        with:
+          name: window-tour-all
+          pattern: window-tour-*
+          delete-merged: false
+          retention-days: 30

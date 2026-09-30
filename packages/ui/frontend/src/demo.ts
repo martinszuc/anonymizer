@@ -3,7 +3,17 @@
 // development (see bridge.ts); every value is synthetic.
 
 import type { ReviewBridge } from "./bridge";
-import type { Box, DocumentInfo, EntityInfo, ExportResult, ReviewState } from "./types";
+import type {
+  AppStatus,
+  Box,
+  DocumentInfo,
+  EntityInfo,
+  ExportResult,
+  ModelState,
+  OpenOptions,
+  OpenStep,
+  ReviewState,
+} from "./types";
 
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 842;
@@ -158,17 +168,75 @@ const LATENCY_MS = 180;
 const copied = <T,>(value: T): T => structuredClone(value);
 const pause = () => new Promise((resolve) => setTimeout(resolve, LATENCY_MS));
 
+/** Tell the page a step of opening has started, as `WindowApi._progress` does. */
+function progress(step: OpenStep) {
+  window.dispatchEvent(new CustomEvent("anonymizer:progress", { detail: step }));
+}
+
+/**
+ * The home screen's model states can be tried with `?model=not_installed` or
+ * `?model=files_missing` in the address.
+ */
+function demoStatus(): AppStatus {
+  const requested = new URLSearchParams(window.location.search).get("model");
+  const state: ModelState =
+    requested === "not_installed" || requested === "files_missing" ? requested : "ready";
+  return {
+    version: "demo",
+    languages: [
+      { code: "cs", name: "Czech" },
+      { code: "sk", name: "Slovak" },
+      { code: "en", name: "English" },
+    ],
+    model: {
+      state,
+      missing: state === "files_missing" ? ["mdeberta-v3-base-tokenizer", "gliner-multi-v2.1"] : [],
+    },
+  };
+}
+
 export function demoBridge(): ReviewBridge {
   let current: DocumentInfo | null = null;
-  const open = async () => {
+  let dropped = false;
+  const open = async (options?: OpenOptions) => {
+    progress("reading");
+    await pause();
+    if (options?.use_model) {
+      progress("loading_model");
+      await pause();
+      await pause();
+    }
+    progress("detecting");
     await pause();
     current = demoDocument();
     return copied(current);
   };
+
+  // A plain browser gives no file paths; a drop just stands in for pywebview's.
+  window.addEventListener("dragover", (event) => event.preventDefault());
+  window.addEventListener("drop", (event) => {
+    event.preventDefault();
+    const file = event.dataTransfer?.files[0];
+    if (!file) return;
+    const isPdf = file.name.toLowerCase().endsWith(".pdf");
+    dropped = isPdf;
+    const name = isPdf ? "anonymizer:dropped" : "anonymizer:drop-refused";
+    window.dispatchEvent(new CustomEvent(name, { detail: file.name }));
+  });
+
   return {
+    status: async () => demoStatus(),
     current_document: async () => copied(current),
     choose_pdf: open,
-    choose_session: open,
+    open_dropped: async (options: OpenOptions) => {
+      if (!dropped) return null;
+      dropped = false;
+      return open(options);
+    },
+    close_document: async () => {
+      current = null;
+    },
+    choose_session: () => open(),
     save_session_as: async () => {
       await pause();
       return true;

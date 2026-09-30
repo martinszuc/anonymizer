@@ -84,7 +84,7 @@ export function App() {
       setBusy(false);
     }
   }
-  const openPdf = () => open((api) => api.choose_pdf(null));
+  const openPdf = () => open((api) => api.choose_pdf({ language: null, propagate: true, use_model: false }));
   const openReview = () => open((api) => api.choose_session());
 
   async function save() {

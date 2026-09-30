@@ -3,12 +3,13 @@
 import base64
 from pathlib import Path
 
+import anonymizer.ui
 import pymupdf
 import pytest
 from anonymizer.core import pipeline
 from anonymizer.core.ingest import load_document
 from anonymizer.core.redact import Leak, LeakLayer
-from anonymizer.core.types import Document
+from anonymizer.core.types import DetectionSource, Document, Entity, EntityType, Page
 from anonymizer.ui import api
 from anonymizer.ui.api import MAX_DPI, ReviewApi, ReviewError
 
@@ -313,3 +314,94 @@ def test_a_finding_in_hidden_data_counts_as_removed_even_if_rejected(tmp_path: P
     assert result["written"] is True
     assert result["kept"] == 0
     assert result["redacted"] == len(payload["entities"])
+
+
+class NameModel:
+    """Stands in for GLiNER: marks every "Jan Novak" in the page text."""
+
+    name = "stand-in"
+
+    def __init__(self) -> None:
+        self.pages_seen = 0
+
+    def detect(self, page: Page) -> list[Entity]:
+        self.pages_seen += 1
+        start = page.text.find("Jan Novak")
+        if start == -1:
+            return []
+        end = start + len("Jan Novak")
+        return [
+            Entity(
+                type=EntityType.PERSON,
+                page_index=page.index,
+                start=start,
+                end=end,
+                text=page.text[start:end],
+                bboxes=page.bboxes_for_span(start, end),
+                source=DetectionSource.MODEL,
+                score=0.9,
+            )
+        ]
+
+
+class TestStatus:
+    def test_reports_version_languages_and_a_ready_model(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr(api, "gliner_installed", lambda: True)
+        monkeypatch.setattr(api, "missing_gliner_files", lambda root: [])
+        status = ReviewApi().status()
+        assert status["version"] == anonymizer.ui.__version__
+        assert [language["code"] for language in status["languages"]] == ["cs", "sk", "en"]
+        assert status["model"] == {"state": "ready", "missing": []}
+
+    def test_model_files_missing(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr(api, "gliner_installed", lambda: True)
+        assert ReviewApi(Path("/nowhere")).status()["model"] == {
+            "state": "files_missing",
+            "missing": ["mdeberta-v3-base-tokenizer", "gliner-multi-v2.1"],
+        }
+
+    def test_model_not_installed(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr(api, "gliner_installed", lambda: False)
+        assert ReviewApi().status()["model"]["state"] == "not_installed"
+
+
+class TestOpenWithModel:
+    def test_the_model_adds_names_and_is_loaded_once(
+        self, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        loads: list[Path] = []
+        model = NameModel()
+
+        def load(root: Path) -> NameModel:
+            loads.append(root)
+            return model
+
+        monkeypatch.setattr(api, "load_gliner_detector", load)
+        reviewer = ReviewApi(Path("/models-root"))
+        steps: list[str] = []
+        payload = reviewer.open_pdf(str(pdf), "cs", True, True, steps.append)
+        assert entity_of_type(payload, "person")["text"] == "Jan Novak"
+        assert steps == ["reading", "loading_model", "detecting"]
+
+        steps.clear()
+        reviewer.open_pdf(str(pdf), "cs", True, True, steps.append)
+        assert steps == ["reading", "detecting"]
+        assert loads == [Path("/models-root")]
+
+    def test_without_the_model_no_names_are_found(self, pdf: Path):
+        payload = ReviewApi().open_pdf(str(pdf), "cs")
+        assert "person" not in {entity["type"] for entity in payload["entities"]}
+
+    @pytest.mark.parametrize("error", [ImportError("no gliner"), FileNotFoundError("no files")])
+    def test_a_model_that_cannot_load_is_reported(
+        self, pdf: Path, monkeypatch: pytest.MonkeyPatch, error: Exception
+    ):
+        def fail(root: Path) -> NameModel:
+            raise error
+
+        monkeypatch.setattr(api, "load_gliner_detector", fail)
+        reviewer = ReviewApi()
+        with pytest.raises(ReviewError, match="the name model is not available"):
+            reviewer.open_pdf(str(pdf), "cs", True, True)
+        with pytest.raises(ReviewError, match="no document is open"):
+            reviewer.document()

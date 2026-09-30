@@ -1,34 +1,73 @@
 """Tests for the window shell, with pywebview replaced by stand-ins."""
 
 import inspect
+import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 import webview
+from anonymizer.ui import api as api_module
 from anonymizer.ui import app
 from anonymizer.ui.api import ReviewApi, ReviewError
 from anonymizer.ui.app import WindowApi, main
 
 from tests.pdf_builders import write_pdf
-from tests.ui.test_api import LINES
+from tests.ui.test_api import LINES, NameModel
 
 BRIDGE = Path(__file__).parents[2] / "packages/ui/frontend/src/bridge.ts"
 
 
+class StandInEvent:
+    """Collects handlers added with `+=`, as a pywebview window event does."""
+
+    def __init__(self) -> None:
+        self.handlers: list[Any] = []
+
+    def __iadd__(self, handler: Any) -> "StandInEvent":
+        self.handlers.append(handler)
+        return self
+
+
+class StandInElement:
+    """Records DOM event handlers bound with `on`."""
+
+    def __init__(self) -> None:
+        self.bound: dict[str, Any] = {}
+
+    def on(self, event: str, handler: Any) -> None:
+        self.bound[event] = handler
+
+
 @dataclass
 class StandInWindow:
-    """Answers file dialogs from a queue and records what was asked."""
+    """Answers file dialogs from a queue and records what was asked and told."""
 
     answers: list[Any] = field(default_factory=list)
     asked: list[dict[str, Any]] = field(default_factory=list)
+    scripts: list[str] = field(default_factory=list)
     title: str = ""
+    events: SimpleNamespace = field(default_factory=lambda: SimpleNamespace(loaded=StandInEvent()))
+    dom: SimpleNamespace = field(default_factory=lambda: SimpleNamespace(document=StandInElement()))
 
     def create_file_dialog(self, dialog: int, **options: Any) -> Any:
         self.asked.append({"dialog": dialog, **options})
         return self.answers.pop(0)
+
+    def evaluate_js(self, script: str) -> None:
+        self.scripts.append(script)
+
+    def events_told(self) -> list[tuple[str, Any]]:
+        """The `anonymizer:` events dispatched on the page, as (name, detail)."""
+        told = []
+        for script in self.scripts:
+            found = re.search(r'CustomEvent\("anonymizer:([\w-]+)", \{detail: (.*)\}\)\)$', script)
+            if found:
+                told.append((found[1], json.loads(found[2])))
+        return told
 
 
 @dataclass
@@ -133,7 +172,7 @@ class TestMain:
 class TestDialogs:
     def test_choose_pdf_opens_it_and_titles_the_window(self, pdf: Path):
         window = StandInWindow(answers=[(str(pdf),)])
-        payload = attached(window).choose_pdf("cs")
+        payload = attached(window).choose_pdf({"language": "cs"})
         assert payload is not None
         assert payload["name"] == "cv.pdf"
         assert window.title == "cv.pdf — Anonymizer"
@@ -149,7 +188,7 @@ class TestDialogs:
         session = pdf.with_name("review.json")
         window = StandInWindow(answers=[(str(pdf),), str(session)])
         api = attached(window)
-        api.choose_pdf("cs")
+        api.choose_pdf({"language": "cs"})
         assert api.save_session_as() is True
         assert window.asked[1]["dialog"] == webview.FileDialog.SAVE
         assert window.asked[1]["save_filename"] == "cv-review.json"
@@ -179,7 +218,7 @@ class TestExportDialog:
         destination = pdf.with_name("chosen.pdf")
         window = StandInWindow(answers=[(str(pdf),), str(destination)])
         api = attached(window)
-        api.choose_pdf("cs")
+        api.choose_pdf({"language": "cs"})
         result = api.export_as()
         assert result is not None
         assert result["written"] is True
@@ -189,7 +228,7 @@ class TestExportDialog:
 
     def test_cancelled_export_writes_nothing(self, pdf: Path):
         api = attached(StandInWindow(answers=[(str(pdf),), None]))
-        api.choose_pdf("cs")
+        api.choose_pdf({"language": "cs"})
         assert api.export_as() is None
         assert sorted(path.name for path in pdf.parent.iterdir()) == ["cv.pdf"]
 
@@ -197,7 +236,111 @@ class TestExportDialog:
         mixed = write_pdf(tmp_path / "mixed.pdf", [LINES, []])
         destination = tmp_path / "out.pdf"
         api = attached(StandInWindow(answers=[(str(mixed),), str(destination)]))
-        api.choose_pdf("cs")
+        api.choose_pdf({"language": "cs"})
         result = api.export_as(True)
         assert result is not None
         assert result["pages_without_text"] == [2]
+
+
+def drop_event(*paths: str) -> dict[str, Any]:
+    """A drop event as pywebview's handler receives it, with full paths filled in."""
+    files = [{"name": Path(path).name, "pywebviewFullPath": path} for path in paths]
+    return {"type": "drop", "dataTransfer": {"files": files}}
+
+
+class TestHomeScreenCalls:
+    def test_status_is_forwarded(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr(api_module, "gliner_installed", lambda: False)
+        assert WindowApi(ReviewApi()).status()["model"]["state"] == "not_installed"
+
+    def test_opening_reports_each_step_to_the_page(self, pdf: Path):
+        window = StandInWindow(answers=[(str(pdf),)])
+        attached(window).choose_pdf({"language": "cs", "propagate": False})
+        assert window.events_told() == [("progress", "reading"), ("progress", "detecting")]
+
+    def test_options_select_the_name_model(self, pdf: Path, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr(api_module, "load_gliner_detector", lambda root: NameModel())
+        window = StandInWindow(answers=[(str(pdf),)])
+        payload = attached(window).choose_pdf({"language": "cs", "use_model": True})
+        assert payload is not None
+        assert "person" in {entity["type"] for entity in payload["entities"]}
+        assert ("progress", "loading_model") in window.events_told()
+
+    @pytest.mark.parametrize(
+        ("options", "message"),
+        [("cs", "must be an object"), ({"language": "xx"}, "unknown language 'xx'")],
+    )
+    def test_options_from_the_page_are_checked(self, pdf: Path, options: Any, message: str):
+        api = attached(StandInWindow(answers=[(str(pdf),)]))
+        with pytest.raises(ReviewError, match=message):
+            api.choose_pdf(options)
+
+    def test_close_returns_to_home(self, pdf: Path):
+        window = StandInWindow(answers=[(str(pdf),)])
+        api = attached(window)
+        api.choose_pdf({"language": "cs"})
+        api.close_document()
+        assert api.current_document() is None
+        assert window.title == "Anonymizer"
+
+
+class TestDrop:
+    def test_drop_handlers_are_bound_when_the_page_loads(self, stand_in: StandInWebview):
+        main([])
+        api = stand_in.created["js_api"]
+        (bind,) = stand_in.window.events.loaded.handlers
+        bind()
+        bound = stand_in.window.dom.document.bound
+        assert set(bound) == {"dragover", "drop"}
+        assert bound["drop"].callback == api._on_drop
+        assert bound["drop"].prevent_default is True
+
+    def test_a_dropped_pdf_is_named_to_the_page_and_opened_on_request(self, pdf: Path):
+        window = StandInWindow()
+        api = attached(window)
+        api._on_drop(drop_event("/tmp/notes.txt", str(pdf)))
+        assert window.events_told() == [("dropped", "cv.pdf")]
+        assert not any(str(pdf) in script for script in window.scripts)  # the path stays here
+
+        payload = api.open_dropped({"language": "cs"})
+        assert payload is not None
+        assert payload["name"] == "cv.pdf"
+        assert window.title == "cv.pdf — Anonymizer"
+        assert api.open_dropped() is None  # used once
+
+    def test_a_drop_without_a_pdf_is_refused(self):
+        window = StandInWindow()
+        api = attached(window)
+        api._on_drop(drop_event("/tmp/photo.png"))
+        assert window.events_told() == [("drop-refused", "photo.png")]
+        assert api.open_dropped() is None
+
+    def test_a_drop_without_paths_is_refused(self):
+        window = StandInWindow()
+        attached(window)._on_drop({"type": "drop", "dataTransfer": {"files": [{"name": "x.pdf"}]}})
+        assert window.events_told() == [("drop-refused", "")]
+
+    def test_closing_forgets_a_pending_drop(self, pdf: Path):
+        window = StandInWindow(answers=[(str(pdf),)])
+        api = attached(window)
+        api.choose_pdf({"language": "cs"})
+        api._on_drop(drop_event(str(pdf)))
+        api.close_document()
+        assert api.open_dropped() is None
+
+
+class TestMainOptions:
+    def test_the_name_model_for_the_given_pdf(
+        self, stand_in: StandInWebview, pdf: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        roots: list[Path] = []
+
+        def load(root: Path) -> NameModel:
+            roots.append(root)
+            return NameModel()
+
+        monkeypatch.setattr(api_module, "load_gliner_detector", load)
+        assert main([str(pdf), "--lang", "cs", "--ner", "--resource-root", str(tmp_path)]) == 0
+        document = stand_in.created["js_api"].current_document()
+        assert "person" in {entity["type"] for entity in document["entities"]}
+        assert roots == [tmp_path]

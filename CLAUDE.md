@@ -65,9 +65,14 @@ passed.
   page in points, so nothing converts coordinates in the browser. Keep
   `'unsafe-eval'` in the CSP: pywebview returns API results through `eval()`.
 
-- Detectors are combined with `CombinedDetector`, which uses `merge_entities`:
-  a span entirely inside a stronger one is dropped, a partial overlap keeps both
-  (dropping one would leave its remainder unredacted).
+- Overlapping detections, within the rules and between detectors
+  (`CombinedDetector`), go through `merge_entities`: a span entirely inside a
+  stronger or longer one is dropped; a partial overlap, or a weaker span
+  containing a stronger one, keeps both (dropping one would leave its remainder
+  unredacted). Strength is entity-type priority first (checksum-backed
+  identifiers beat free-form patterns; URLs beat everything, since anything
+  overlapping a URL lies inside it), then span length. Add a type to
+  `OVERLAP_PRIORITY` rather than special-casing a caller.
 - GLiNER reads at most 384 words and silently drops the rest; `GlinerDetector`
   scans a page in overlapping windows and widens spans to whole words. Its
   dependencies are the optional `ner` extra (`uv sync --group ner`); tests use a
@@ -89,7 +94,6 @@ passed.
 - **The text layer is not the only place personal data hides.** Link annotations, document metadata and XMP, form field values, bookmarks, embedded files and a tagged PDF's structure tree all carry identifying data that never appears in `Page.text`, and clearing the visible words leaves them intact. Ingest lists them as `Document.surfaces`; an entity on one sets `surface_id` and its offsets refer to `Surface.value`. Redaction must clear surfaces whether or not an entity was found in them.
 - Text offsets are **page-local into `Page.text`**. An entity carries its character span *and* one bbox per covered word, so a span crossing a line break yields several boxes instead of one covering the gap. A **region** entity (a box a reviewer drew over a photo, signature or stamp) has no span and exactly one box; use `Entity.span`, which refuses a region, rather than reading `start`/`end` directly.
 - A document is tied to its source by **fingerprint** (SHA-256), never by file name, which can itself be personal data. Redaction and session loading refuse a different file. Surface ids are derived from kind, page and reference, so they are stable across loads.
-- Overlapping detections are resolved by `resolve_overlaps`: entity-type priority first (checksum-backed identifiers beat free-form patterns; URLs beat everything, since anything overlapping a URL lies inside it), then longest span. Add a type to `OVERLAP_PRIORITY` rather than special-casing a caller.
 - Detection is **recall-first**: a missed entity leaks, a false positive is removed during review. Prefer a rule that over-matches to one that depends on a register that can go stale (this is why bank codes are not validated against the ČNB list).
 - Czech and Slovak are the primary target for name detection (NER); English is covered by the rules and serves as a secondary check. Keep language a configuration value, never hardcoded.
 

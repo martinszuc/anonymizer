@@ -1,7 +1,7 @@
-"""Tests for the rule detector and overlap resolution."""
+"""Tests for the rule detector and how it merges overlapping matches."""
 
-from anonymizer.core.detect import structured_detector
-from anonymizer.core.detect.base import Match, resolve_overlaps
+from anonymizer.core.detect import detector_for, structured_detector
+from anonymizer.core.detect.base import Finder, Match, RuleDetector
 from anonymizer.core.types import BBox, DetectionSource, EntityType, Page, Word
 
 TEXT = (
@@ -11,22 +11,58 @@ TEXT = (
 )
 
 
-def test_overlap_resolution_prefers_stronger_type():
-    weaker = Match(EntityType.PHONE, 0, 9, "123456789")
-    stronger = Match(EntityType.BIRTH_NUMBER, 0, 10, "9001010007")
-    assert resolve_overlaps([weaker, stronger]) == [stronger]
+def _fixed(*matches: Match) -> Finder:
+    """A finder that reports the given matches whatever the text."""
+    return lambda _text: matches
 
 
-def test_overlap_resolution_prefers_longer_span_within_a_type():
-    short = Match(EntityType.PERSON, 0, 3, "Jan")
-    long = Match(EntityType.PERSON, 0, 9, "Jan Novák")
-    assert resolve_overlaps([short, long]) == [long]
+def _detect(*finders: Finder, text: str = "x" * 40) -> list[tuple[EntityType, int, int]]:
+    page = Page(index=0, width=595, height=842, text=text)
+    return [(entity.type, *entity.span) for entity in RuleDetector(finders).detect(page)]
 
 
-def test_overlap_resolution_keeps_disjoint_matches_in_order():
-    first = Match(EntityType.EMAIL, 20, 30, "a@b.example")
-    second = Match(EntityType.PHONE, 0, 9, "777123456")
-    assert resolve_overlaps([first, second]) == [second, first]
+def test_a_match_inside_a_stronger_one_is_dropped():
+    weaker = Match(EntityType.PHONE, 0, 9, "x" * 9)
+    stronger = Match(EntityType.BIRTH_NUMBER, 0, 10, "x" * 10)
+    assert _detect(_fixed(weaker), _fixed(stronger)) == [(EntityType.BIRTH_NUMBER, 0, 10)]
+
+
+def test_a_match_inside_a_longer_one_of_its_type_is_dropped():
+    short = Match(EntityType.PHONE, 0, 3, "x" * 3)
+    long = Match(EntityType.PHONE, 0, 9, "x" * 9)
+    assert _detect(_fixed(short, long)) == [(EntityType.PHONE, 0, 9)]
+
+
+def test_partial_overlaps_keep_both_matches():
+    # Dropping the weaker one would leave its part beyond the stronger one readable.
+    stronger = Match(EntityType.BANK_ACCOUNT, 5, 15, "x" * 10)
+    weaker = Match(EntityType.ADDRESS, 10, 30, "x" * 20)
+    assert _detect(_fixed(stronger), _fixed(weaker)) == [
+        (EntityType.BANK_ACCOUNT, 5, 15),
+        (EntityType.ADDRESS, 10, 30),
+    ]
+
+
+def test_an_address_containing_a_valid_account_number_is_kept_whole():
+    # 19/1234 passes the account checksum and sits inside the house number.
+    text = "Bydliště: Hlavní 19/1234, 602 00 Brno"
+    found = {
+        entity.type: entity.text
+        for entity in detector_for("cs").detect(Page(0, 595, 842, text=text))
+    }
+    assert found == {
+        EntityType.ADDRESS: "Hlavní 19/1234, 602 00 Brno",
+        EntityType.BANK_ACCOUNT: "19/1234",
+    }
+
+
+def test_disjoint_matches_are_kept_in_order():
+    first = Match(EntityType.EMAIL, 20, 30, "x" * 10)
+    second = Match(EntityType.PHONE, 0, 9, "x" * 9)
+    assert _detect(_fixed(first, second)) == [
+        (EntityType.PHONE, 0, 9),
+        (EntityType.EMAIL, 20, 30),
+    ]
 
 
 def test_email_wins_over_digits_it_contains():

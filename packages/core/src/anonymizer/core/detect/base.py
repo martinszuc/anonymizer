@@ -14,12 +14,12 @@ from typing import Protocol, runtime_checkable
 
 from anonymizer.core.types import DetectionSource, Entity, EntityType, Page
 
-# Applied when two matches overlap: the type listed first wins. Structured
-# identifiers beat free-form ones, because a valid checksum is stronger evidence
-# than a digit pattern (a birth number also looks like `account/bank code`).
-# URLs come first as the exception: a URL is a single token, so whatever overlaps
-# it lies inside it, and keeping only the inner match would leave the rest of
-# the URL (a profile path, say) unredacted.
+# Applied when one span lies inside another: the type listed first wins.
+# Structured identifiers beat free-form ones, because a valid checksum is
+# stronger evidence than a digit pattern (a birth number also looks like
+# `account/bank code`). URLs come first as the exception: a URL is a single
+# token, so whatever overlaps it lies inside it, and keeping only the inner
+# match would leave the rest of the URL (a profile path, say) unredacted.
 OVERLAP_PRIORITY: tuple[EntityType, ...] = (
     EntityType.URL,
     EntityType.BIRTH_NUMBER,
@@ -64,22 +64,6 @@ class Match:
             msg = f"invalid match span [{self.start}, {self.end})"
             raise ValueError(msg)
 
-    @property
-    def length(self) -> int:
-        """Number of characters covered."""
-        return self.end - self.start
-
-    def overlaps(self, other: Match) -> bool:
-        """Whether the two spans share at least one character.
-
-        Args:
-            other: Span to compare with.
-
-        Returns:
-            `True` if the spans intersect.
-        """
-        return self.start < other.end and other.start < self.end
-
 
 Finder = Callable[[str], Iterable[Match]]
 """Scans a string and yields matches with offsets into that same string."""
@@ -106,47 +90,17 @@ class Detector(Protocol):
         ...
 
 
-def resolve_overlaps(
-    matches: Iterable[Match],
-    priority: Sequence[EntityType] = OVERLAP_PRIORITY,
-) -> list[Match]:
-    """Drop matches that overlap a stronger one.
-
-    Matches are considered by type priority first, then by length, then by
-    position, and a match is kept only if it does not overlap a match already
-    kept. Equal-priority overlaps therefore resolve in favour of the longer span.
-
-    Args:
-        matches: Candidate matches, in any order.
-        priority: Entity types from strongest to weakest.
-
-    Returns:
-        Surviving matches sorted by start offset.
-    """
-    ranks = {entity_type: rank for rank, entity_type in enumerate(priority)}
-    weakest = len(ranks)
-    ordered = sorted(
-        matches,
-        key=lambda match: (ranks.get(match.type, weakest), -match.length, match.start),
-    )
-    kept: list[Match] = []
-    for match in ordered:
-        if not any(match.overlaps(other) for other in kept):
-            kept.append(match)
-    return sorted(kept, key=lambda match: match.start)
-
-
 def merge_entities(
     entities: Iterable[Entity],
     priority: Sequence[EntityType] = OVERLAP_PRIORITY,
 ) -> list[Entity]:
     """Drop entities lying entirely inside a stronger or longer one.
 
-    Unlike `resolve_overlaps`, a partial overlap keeps both entities: when the
-    results of several detectors (rules and a model, or overlapping windows of
-    one model) are combined, dropping a span that reaches beyond the winner
-    would leave its remainder unredacted. Spans are compared only within the
-    same page text or surface; regions are always kept.
+    A partial overlap keeps both entities, and so does a weaker span that
+    contains a stronger one: dropping a span that reaches beyond the winner
+    would leave its remainder unredacted (an address containing a valid
+    account number, a model span crossing a rule match). Spans are compared
+    only within the same page text or surface; regions are always kept.
 
     Args:
         entities: Candidate text entities and regions, in any order.
@@ -228,7 +182,7 @@ class CombinedDetector:
 
 
 class RuleDetector:
-    """Runs a set of finders over a page and resolves their overlaps.
+    """Runs a set of finders over a page and merges their matches.
 
     Attributes:
         finders: Finder functions applied to the page text.
@@ -256,10 +210,10 @@ class RuleDetector:
             page: Page to scan; offsets refer to `page.text`.
 
         Returns:
-            Entities in reading order, with geometry resolved from page words.
+            Entities in reading order, with geometry resolved from page words;
+            see `merge_entities` for overlapping matches.
         """
-        candidates = [match for finder in self.finders for match in finder(page.text)]
-        return [
+        return merge_entities(
             Entity(
                 type=match.type,
                 page_index=page.index,
@@ -269,5 +223,6 @@ class RuleDetector:
                 bboxes=page.bboxes_for_span(match.start, match.end),
                 source=DetectionSource.RULE,
             )
-            for match in resolve_overlaps(candidates)
-        ]
+            for finder in self.finders
+            for match in finder(page.text)
+        )

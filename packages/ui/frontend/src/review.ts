@@ -7,6 +7,19 @@ export function isRedacted(state: ReviewState): boolean {
   return state !== "rejected";
 }
 
+/**
+ * Whether export removes an entity. A finding in hidden data goes with the
+ * hidden item, which export always clears, whatever its review says.
+ */
+export function isRemoved(entity: EntityInfo): boolean {
+  return entity.surface_id !== null || isRedacted(entity.review);
+}
+
+/** Whether the reviewer decides on the entity; a region is removed instead, hidden data always goes. */
+export function isDecidable(entity: EntityInfo): boolean {
+  return entity.surface_id === null && !entity.is_region;
+}
+
 /** One click flips what export will do; toggling back is an explicit decision to redact. */
 export function toggled(state: ReviewState): ReviewState {
   return isRedacted(state) ? "rejected" : "confirmed";
@@ -19,7 +32,7 @@ export interface Summary {
 }
 
 export function summarize(document: DocumentInfo): Summary {
-  const redacted = document.entities.filter((entity) => isRedacted(entity.review)).length;
+  const redacted = document.entities.filter(isRemoved).length;
   return {
     redacted,
     kept: document.entities.length - redacted,

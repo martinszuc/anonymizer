@@ -128,6 +128,7 @@ function demoDocument(): DocumentInfo {
         box: boxOf(emailLine, "jan.novak@example.com"),
       },
       { id: "bookmark:1", kind: "bookmark", value: "Jan Novák – CV", page_index: 0, box: null },
+      { id: "embedded:0/desc", kind: "embedded_file", value: "original CV (cv.docx)", page_index: null, box: null },
     ],
   };
 }

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pymupdf
 import pytest
+from anonymizer.core import pipeline
 from anonymizer.core.ingest import load_document
 from anonymizer.core.redact import Leak, LeakLayer
 from anonymizer.core.types import Document
@@ -76,7 +77,7 @@ class TestOpenPdf:
         self, pdf: Path, monkeypatch: pytest.MonkeyPatch
     ):
         calls: list[Document] = []
-        monkeypatch.setattr(api, "propagate_occurrences", lambda doc: calls.append(doc) or [])
+        monkeypatch.setattr(pipeline, "propagate_occurrences", lambda doc: calls.append(doc) or [])
         ReviewApi().open_pdf(str(pdf), "cs")
         ReviewApi().open_pdf(str(pdf), "cs", False)
         assert len(calls) == 1

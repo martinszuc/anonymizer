@@ -212,11 +212,10 @@ core, the sheet) still runs for real.
 
 | Core / CLI piece | How the window uses it, or will |
 |---|---|
-| `ingest.load_document`, `file_fingerprint` | `open_pdf`; fingerprint checked against the bytes kept for rendering |
-| `detect.detector_for(language)`, `detect_document` | detection on open (rules only today) |
-| `detect.load_gliner_detector(root)`, `CombinedDetector` | **not wired**: NER in the window (see backlog, settings) |
-| `detect.propagate_occurrences` | on open, always on today |
-| `session.save_session` / `load_session` | save and reopen; same files as `anonymize detect` / `redact --session` |
+| `ingest.read_pdf`, `document_from_bytes` | `open_pdf`: the file is read once; the document is loaded from those bytes and pages render from them |
+| `pipeline.build_detector(language)`, `run_detection` | detection on open (rules only today), with occurrence propagation (always on today) |
+| `detect.load_gliner_detector(root)` → `build_detector(language, model=...)` | **not wired**: NER in the window (see backlog, settings) |
+| `session.save_session` / `apply_session` | save and reopen; same files as `anonymize detect` / `redact --session` |
 | `Document.adjust_span(entity_id, start, end)` | **not wired**: resizing a box to other words |
 | `Document.add_region`, `Document.remove_entity` | drawing and removing a region |
 | `redact.export_redacted` | export: temporary file, `redact_pdf`, `find_leaks`, rename only when clean; the CLI's `redact` uses the same function |

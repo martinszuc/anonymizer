@@ -22,8 +22,8 @@ from pathlib import Path
 from typing import Any
 
 import pymupdf
-from anonymizer.core.detect import detect_document, detector_for, propagate_occurrences
 from anonymizer.core.ingest import document_from_bytes, pages_needing_ocr, read_pdf
+from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import Leak, export_redacted
 from anonymizer.core.session import apply_session, save_session
 from anonymizer.core.types import (
@@ -83,9 +83,7 @@ class ReviewApi:
         with _as_review_error():
             pdf_bytes = read_pdf(path)
             document = document_from_bytes(pdf_bytes, language=language)
-            document.entities = detect_document(detector_for(language), document)
-            if propagate:
-                document.entities += propagate_occurrences(document)
+            run_detection(document, build_detector(language), propagate=propagate)
         self._open = _OpenDocument(Path(path), document, pdf_bytes)
         return self.document()
 

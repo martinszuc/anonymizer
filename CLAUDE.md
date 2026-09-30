@@ -23,6 +23,8 @@ Part of a diploma thesis at FEKT VUT Brno. Roadmap and open decisions: `PLAN.md`
 packages/core/   library, no UI or CLI dependencies
   types.py       shared data contract (the data format every component exchanges)
   session.py     slim session files: a saved review
+  pipeline.py    detection as every client runs it: build the detector, run it,
+                 propagate occurrences
   ingest/        pdf.py (text layer), surfaces.py (non-text surfaces),
                  normalize.py (NFC, rotation), OCR engine adapters
   detect/        base.py (protocol, Match, RuleDetector, overlap resolution),

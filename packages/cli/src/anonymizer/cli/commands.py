@@ -11,15 +11,9 @@ from pathlib import Path
 from typing import TextIO
 
 from anonymizer.cli import html_report, report
-from anonymizer.core.detect import (
-    CombinedDetector,
-    Detector,
-    detect_document,
-    detector_for,
-    load_gliner_detector,
-    propagate_occurrences,
-)
+from anonymizer.core.detect import load_gliner_detector
 from anonymizer.core.ingest import load_document, pages_needing_ocr
+from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import export_redacted, find_leaks
 from anonymizer.core.session import load_session, save_session
 from anonymizer.core.types import Document
@@ -53,13 +47,9 @@ def detected(
     The rules for the language always run; with `ner_root`, so does the name
     model stored under that directory.
     """
-    detector: Detector = detector_for(language)
-    if ner_root is not None:
-        detector = CombinedDetector([detector, load_gliner_detector(ner_root)])
+    model = load_gliner_detector(ner_root) if ner_root is not None else None
     document = load_document(source, language=language)
-    document.entities = detect_document(detector, document)
-    if propagate:
-        document.entities += propagate_occurrences(document)
+    run_detection(document, build_detector(language, model=model), propagate=propagate)
     return document
 
 

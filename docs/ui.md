@@ -167,14 +167,18 @@ api.open_pdf(sys.argv[1], "cs")
 window = webview.create_window("check", url=str(STATIC_INDEX), js_api=api)
 api.attach(window)
 
+
 def probe():
     time.sleep(3)
     print(window.evaluate_js("document.querySelectorAll('.redaction').length"))
-    window.evaluate_js("document.querySelector('.redaction')"
-                       ".dispatchEvent(new MouseEvent('click', {bubbles: true}))")
+    window.evaluate_js(
+        "document.querySelector('.redaction')"
+        ".dispatchEvent(new MouseEvent('click', {bubbles: true}))"
+    )
     time.sleep(1)
     print([e["review"] for e in api.document()["entities"]])
     window.destroy()
+
 
 webview.start(probe, private_mode=True)
 ```

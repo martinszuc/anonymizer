@@ -41,7 +41,8 @@ scripts/         model and dataset download
 data/            local corpora, git-ignored, never committed
 ```
 
-Implemented so far: the data contract, the rule-based detectors, born-digital
+Implemented so far: the data contract, the rule-based detectors (including dates
+of birth after a birth label and postcode-anchored addresses), born-digital
 PDF ingest, the non-text surface scan, blackbox redaction with its leak check,
 the review data format (regions, fingerprint, session files, span adjustment,
 occurrence propagation), the `detect` / `redact` / `check` / `inspect` CLI, the resource

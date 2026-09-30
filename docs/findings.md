@@ -138,6 +138,30 @@ EN CV), 51 planted items, 10 of them in links, metadata or a bookmark.
   it verifies that what was *detected* is gone, not that nothing personal
   remains. The benchmark's residue check is the one that measures safety.
 
+### 2026-09-30 · Benchmark after the date-of-birth and address rules
+
+Same six documents and 51 items; version 0.2.0 plus the review window and the two rules.
+
+| | rules | rules + GLiNER |
+|---|---|---|
+| items found whole | 19 → 27/51 | 42 → 50/51 |
+| dates of birth | 0 → 2/2 | 0 → 2/2 |
+| addresses whole | 0 → 6/6 | 0 → 6/6 (was 6/6 partial) |
+| distinct false alarms | 1 → 1 | 3 → 3 |
+| documents with nothing readable left | 0/6 | 2 → 5/6 |
+
+- **Dates of birth need a label, and have one.** Both planted dates follow
+  `nar.` or `Datum narození`; the invoice's issue and due dates were left
+  alone.
+- **The postcode anchors the address.** GLiNER's street-only span now lies
+  inside the rule's whole address and is dropped when the results merge.
+- **A wrapped line split an address** after the postcode (`586 01` /
+  `Jihlava`): the page text keeps the line break, so the rule allows one
+  there and after the comma, but not inside the town, where it would take
+  the next line's first word.
+- **The one remaining miss** is the genitive `Petra Svobody` (NER, see the
+  first run); it leaves the contract the only unsafe document.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

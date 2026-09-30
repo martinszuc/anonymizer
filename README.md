@@ -17,7 +17,7 @@ inference; models load from a local cache and the test suite fails on any outbou
 | `packages/ui/` | `anonymize-ui` review window: Python side and React frontend |
 | `benchmark/` | Synthetic benchmark documents, scorer, pictures and charts |
 | `experiments/` | Evaluation scripts; no data committed (planned, not created yet) |
-| `scripts/` | Model and dataset download helpers |
+| `scripts/` | Model and dataset download (`download.py`), mixed-format sample generator (`make_mixed_sample.py`) |
 
 ## Development
 
@@ -58,6 +58,50 @@ uv run anonymize-ui cv.pdf --lang cs
 ```
 
 See [`packages/ui/README.md`](packages/ui/README.md) for frontend development.
+
+## Try it on a sample
+
+No real document is needed. The generator writes a four-page synthetic PDF (every
+value invented) into the git-ignored `data/samples/`:
+
+```sh
+uv run python scripts/make_mixed_sample.py        # data/samples/mixed-synthetic.pdf
+uv run anonymize inspect data/samples/mixed-synthetic.pdf -o inspect.html --lang cs
+uv run anonymize redact data/samples/mixed-synthetic.pdf -o redacted.pdf --lang cs --allow-pages-without-text
+```
+
+| Page | Content | Today |
+| --- | --- | --- |
+| 1 | typed form, link, form field, bookmarks, metadata, attachment | detected and redacted, hidden items cleared |
+| 2 | scanned form (skewed, speckled, no text layer) | not read; needs OCR |
+| 3 | handwriting-font values, scanned | not read; needs OCR |
+| 4 | typed text beside a scanned stamp | typed text redacted; the stamp needs a drawn region |
+
+Without `--allow-pages-without-text` the redaction stops at pages 2 and 3 on purpose:
+their content could not be redacted, so the tool refuses rather than hand back a
+copy that looks safe. The handwriting font is a macOS system font; on another
+system set `HANDWRITING_FONT` in the script to any TTF. A font only imitates
+handwriting and tests the plumbing, not recognition quality. A real handwritten scan
+belongs in `data/samples/` and is never committed or used as a fixture.
+
+## What it produces
+
+For a PDF: a redacted copy in which the detected text is removed from the file,
+not covered, and every link, metadata field, attachment, bookmark, annotation and
+form field is cleared. A copy is written only if the leak check passes. A
+`review.json` session file records what was found and each decision; it holds
+snippets of personal data, so treat it like the original. The leak check proves
+the *detected* items are gone; what detection missed is what the benchmark
+measures, so a human review before sharing the copy stays part of the workflow.
+
+## Installing and distribution
+
+Today it is a developer install: `uv sync`, and Node 22 to build the review
+window (see *Usage*). Releases attach wheels and source archives on GitHub. A
+per-OS bundle of the review window (PyInstaller) is planned and not built yet.
+Models are never bundled; the user fetches each explicitly, checked against the
+catalog checksum (next section). Because PyMuPDF is AGPL, any distributed bundle
+is AGPL-3.0-or-later.
 
 ## Models and datasets
 

@@ -50,7 +50,16 @@ primary *Export…* (Cmd/Ctrl+E), the final step. Controls are 28 px high.
 Row: an accent dot while not reviewed (Mail's unread dot), covered text (monospace
 for identifiers), meta line (page, source, score), trailing switch under a *Redact*
 column label; a drawn region has a round remove button (×, `--danger` on hover)
-instead of the switch, since a region is removed rather than kept. Meta text uses `--label-2`: `--label-3` fails AA contrast at 11 px
+instead of the switch, since a region is removed rather than kept. A finding in
+hidden data (a link, metadata) shows a locked pill *Always removed* (`--fill`,
+`--label-2`) instead, and no review dot: export clears it with the hidden item,
+so there is nothing to decide.
+
+**Hidden tab.** A notice saying everything here is removed; a warning-tone notice
+(`--warning` at 12 %) when the file has attachments, whose contents are never
+checked. Each kind has a one-line note under its header (what it is, what export
+does). A row names its place and the findings it contains; a row with a place on
+a page is selectable and outlines the item there (`--accent`, one pulse). Meta text uses `--label-2`: `--label-3` fails AA contrast at 11 px
 and is for decoration only. Rows: hover `--fill`, selected `--accent-fill`.
 Keyboard: ↑/↓ moves the selection, Space toggles, Return scrolls to it.
 

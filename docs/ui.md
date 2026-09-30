@@ -22,8 +22,12 @@ Works, for PDFs with a text layer:
   Cmd/Ctrl+Y) draws the output's opaque black boxes.
 - Click a box or a row switch to toggle redact / keep; hover shows a popover.
 - Sidebar: counts, findings grouped by type, a dot on items not yet reviewed,
-  arrow keys and Space; a *Hidden* tab lists every hidden item (informational:
-  all are removed on export) and outlines their areas on the page.
+  arrow keys and Space. A finding in hidden data (a link, metadata) is locked,
+  *Always removed*: export clears it with the hidden item, so there is nothing
+  to decide. The *Hidden* tab lists every hidden item with what it is, what
+  export does with it and the findings it contains; selecting one outlines it
+  on its page. A file with attachments gets a warning: their contents are
+  never opened or checked.
 - **Export** (Cmd/Ctrl+E, the primary toolbar action): save dialog (default
   `<name>-redacted.pdf`), written through core's `export_redacted`, so the
   file exists only if the leak check passed. A sheet asks for consent first
@@ -125,7 +129,10 @@ A change to a payload or method touches four places: `api.py` (and its test),
 - **Review semantics** (decided in `PLAN.md`): undecided (`pending`) items are
   redacted at export; hidden data is always removed, so it has no decision;
   toggling a pending item means *keep* (`rejected`), toggling back is an
-  explicit *redact* (`confirmed`).
+  explicit *redact* (`confirmed`). In code: `review.isRemoved(entity)` says
+  what export does, `review.isDecidable(entity)` whether there is a choice
+  (not for hidden-data findings, not for regions, which are removed instead).
+  Never offer a control that export ignores.
 - **Logic belongs in the core, not the window.** If the CLI could use it
   (export, adding an entity, re-detection), write it in `core` with tests,
   then call it from `ReviewApi`. The window stays a thin client.

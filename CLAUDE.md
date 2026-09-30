@@ -48,8 +48,10 @@ the review data format (regions, fingerprint, session files, span adjustment,
 occurrence propagation), the `detect` / `redact` / `check` / `inspect` CLI, the resource
 catalog with its download script, GLiNER name detection (`detect/gliner.py`,
 CLI `--ner`), and the review window (`anonymize-ui`: view pages with the proposed
-redactions, toggle each, save the session). The OCR adapter is empty; NER is not yet
-evaluated; the window cannot export, add or draw items yet.
+redactions, toggle each, save the session, export). The OCR adapter is empty; NER is
+not yet evaluated; the window cannot add or draw items yet. The CLI and the window
+both export through `redact.export_redacted`: the copy exists only if the leak check
+passed.
 
 - **Before changing the review window, read `docs/ui.md`**: its status, the
   payload contract, the rules it keeps, a recipe for adding a feature end to end,

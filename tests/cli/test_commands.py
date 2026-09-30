@@ -153,26 +153,17 @@ class TestRedact:
         assert main(["redact", str(pdf), "-o", str(output), "--allow-pages-without-text"]) == 0
         assert "page 2 has no text layer and is NOT redacted" in capsys.readouterr().err
 
-    def test_failed_leak_check_writes_nothing(
+    def test_failed_leak_check_reports_and_exits_with_three(
         self, pdf: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
     ):
+        # Writing nothing on a leak is export_redacted's job, tested in core.
         leak = Leak(LeakLayer.PAGE_TEXT, "page 0", CONTACT_EMAIL, "e1")
-        monkeypatch.setattr(commands, "find_leaks", lambda *_: [leak])
+        monkeypatch.setattr(commands, "export_redacted", lambda *_: [leak])
         output = pdf.with_name("out.pdf")
         assert main(["redact", str(pdf), "-o", str(output)]) == 3
-        assert "leak check FAILED: 1 leak" in capsys.readouterr().err
-        assert list(pdf.parent.glob("*out.pdf*")) == []
-
-    def test_temporary_copy_is_removed_when_redaction_fails(
-        self, pdf: Path, monkeypatch: pytest.MonkeyPatch
-    ):
-        def broken_check(*_: object) -> list[Leak]:
-            raise RuntimeError("check crashed")
-
-        monkeypatch.setattr(commands, "find_leaks", broken_check)
-        with pytest.raises(RuntimeError, match="check crashed"):
-            main(["redact", str(pdf), "-o", str(pdf.with_name("out.pdf"))])
-        assert list(pdf.parent.glob("*out.pdf*")) == []
+        err = capsys.readouterr().err
+        assert "leak check FAILED: 1 leak" in err
+        assert f"nothing written to {output}" in err
 
 
 class TestCheck:

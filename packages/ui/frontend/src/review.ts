@@ -1,6 +1,6 @@
 // Review rules shared by the page view and the sidebar. Pure, so they are unit-tested.
 
-import type { DocumentInfo, EntityInfo, ReviewState } from "./types";
+import type { DocumentInfo, EntityInfo, ExportResult, ReviewState } from "./types";
 
 /** Undecided items are redacted at export (decided in PLAN.md), so only a rejection keeps text. */
 export function isRedacted(state: ReviewState): boolean {
@@ -112,4 +112,49 @@ export const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
 export function steppedZoom(scale: number, direction: 1 | -1): number {
   if (direction === 1) return ZOOM_STEPS.find((step) => step > scale + 0.01) ?? scale;
   return [...ZOOM_STEPS].reverse().find((step) => step < scale - 0.01) ?? scale;
+}
+
+/** 1-based numbers of the pages export cannot redact: they have no text layer. */
+export function pagesWithoutText(document: DocumentInfo): number[] {
+  return document.pages.filter((page) => !page.has_text_layer).map((page) => page.index + 1);
+}
+
+/** "page 3", "pages 2 and 5", "pages 1, 2 and 4". */
+export function pageList(pages: number[]): string {
+  if (pages.length === 1) return `page ${pages[0]}`;
+  return `pages ${pages.slice(0, -1).join(", ")} and ${pages[pages.length - 1]}`;
+}
+
+export function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+export interface ExportLine {
+  label: string;
+  value: string;
+}
+
+/** The rows of the export result sheet, in reading order. */
+export function exportSummary(result: ExportResult): ExportLine[] {
+  const lines: ExportLine[] = [];
+  const unreviewed = result.not_reviewed > 0 ? `, ${result.not_reviewed} not reviewed` : "";
+  lines.push({ label: "Redacted", value: `${plural(result.redacted, "item")}${unreviewed}` });
+  if (result.regions > 0) lines.push({ label: "Regions", value: plural(result.regions, "region") });
+  lines.push({ label: "Kept", value: plural(result.kept, "item") });
+  lines.push({ label: "Hidden data removed", value: plural(result.hidden_removed, "item") });
+  return lines;
+}
+
+const LEAK_LAYERS: Record<string, string> = {
+  page_text: "Page text",
+  region: "Drawn region",
+  off_page_text: "Outside the page",
+  surface: "Hidden data",
+  thumbnail: "Page thumbnail",
+  object: "PDF object",
+  file_bytes: "File bytes",
+};
+
+export function leakLayerLabel(layer: string): string {
+  return LEAK_LAYERS[layer] ?? layer;
 }

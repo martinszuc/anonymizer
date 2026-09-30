@@ -1,4 +1,4 @@
-import { Eye, EyeOff, FileText, FolderOpen, Maximize2, Minus, Plus } from "lucide-react";
+import { Eye, EyeOff, FileOutput, FileText, FolderOpen, Maximize2, Minus, Plus } from "lucide-react";
 
 import { shortcut } from "../platform";
 import { Button } from "./Button";
@@ -12,15 +12,18 @@ interface ToolbarProps {
   fitting: boolean;
   dirty: boolean;
   previewing: boolean;
+  exporting: boolean;
   onOpen: () => void;
   onZoom: (direction: 1 | -1) => void;
   onFit: () => void;
   onSave: () => void;
   onPreview: () => void;
+  onExport: () => void;
 }
 
 export function Toolbar(props: ToolbarProps) {
-  const { name, language, pageCount, currentPage, scale, fitting, dirty, previewing } = props;
+  const { name, language, pageCount, currentPage, scale, fitting, dirty, previewing, exporting } =
+    props;
   return (
     <header className="toolbar">
       <div className="toolbar-title">
@@ -78,8 +81,17 @@ export function Toolbar(props: ToolbarProps) {
           title={`Open a PDF (${shortcut("O")})`}
           onClick={props.onOpen}
         />
-        <Button variant="primary" title={`Save the review (${shortcut("S")})`} onClick={props.onSave}>
+        <Button title={`Save the review to continue later (${shortcut("S")})`} onClick={props.onSave}>
           Save Review
+        </Button>
+        <Button
+          variant="primary"
+          icon={<FileOutput size={15} />}
+          disabled={exporting}
+          title={`Write the redacted PDF (${shortcut("E")})`}
+          onClick={props.onExport}
+        >
+          {exporting ? "Exporting…" : "Export…"}
         </Button>
       </div>
     </header>

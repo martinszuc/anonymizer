@@ -42,3 +42,23 @@ export interface DocumentInfo {
   entities: EntityInfo[];
   surfaces: SurfaceInfo[];
 }
+
+export interface LeakInfo {
+  layer: string;
+  where: string;
+  text: string;
+}
+
+/** What `ReviewApi.export` did; nothing was written unless `written`. */
+export interface ExportResult {
+  written: boolean;
+  name: string;
+  redacted: number;
+  regions: number;
+  kept: number;
+  not_reviewed: number;
+  hidden_removed: number;
+  /** 1-based numbers of pages left unredacted because they have no text layer. */
+  pages_without_text: number[];
+  leaks: LeakInfo[];
+}

@@ -1,6 +1,6 @@
 // The Python side, reached through pywebview's `window.pywebview.api`.
 
-import type { DocumentInfo, EntityInfo, ReviewState } from "./types";
+import type { DocumentInfo, EntityInfo, ExportResult, ReviewState } from "./types";
 
 /** The methods of `anonymizer.ui.app.WindowApi`; every call returns a promise. */
 export interface ReviewBridge {
@@ -8,6 +8,8 @@ export interface ReviewBridge {
   choose_pdf(language?: string | null): Promise<DocumentInfo | null>;
   choose_session(): Promise<DocumentInfo | null>;
   save_session_as(): Promise<boolean>;
+  /** Null when the reviewer cancelled the save dialog. */
+  export_as(allowPagesWithoutText: boolean): Promise<ExportResult | null>;
   page_image(index: number, dpi: number): Promise<string>;
   set_review(entityId: string, state: ReviewState): Promise<EntityInfo>;
 }

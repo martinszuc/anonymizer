@@ -9,7 +9,7 @@ Visual design (tokens, components, box states) lives in
 [`packages/ui/frontend/DESIGN.md`](../packages/ui/frontend/DESIGN.md);
 package usage in [`packages/ui/README.md`](../packages/ui/README.md).
 
-## Status (after #23, 2026-09-29)
+## Status (after export, 2026-09-30)
 
 Works, for PDFs with a text layer:
 
@@ -24,13 +24,18 @@ Works, for PDFs with a text layer:
 - Sidebar: counts, findings grouped by type, a dot on items not yet reviewed,
   arrow keys and Space; a *Hidden* tab lists every hidden item (informational:
   all are removed on export) and outlines their areas on the page.
+- **Export** (Cmd/Ctrl+E, the primary toolbar action): save dialog (default
+  `<name>-redacted.pdf`), written through core's `export_redacted`, so the
+  file exists only if the leak check passed. A sheet asks for consent first
+  when pages have no text layer; a result sheet shows the counts and "Leak
+  check: Passed", or "Nothing was written" with the leaks.
 - Zoom (fit width by default, Cmd/Ctrl +/−/0), save the review, toasts for
   errors, light and dark mode, reduced motion respected.
 
 Verified: macOS (real window driven from Python, see *Verifying the real
 window*). Linux and Windows: CI only (install, import, tests), never opened.
 
-Not yet: export, adding or drawing items, settings, scanned pages. See
+Not yet: adding or drawing items, settings, scanned pages. See
 *Backlog*.
 
 ## Architecture
@@ -72,12 +77,17 @@ EntityInfo   { id, type, source, score, review, page_index, surface_id,
 SurfaceInfo  { id, kind, value, page_index, box | null }
 ```
 
+`ReviewApi.export()` returns `ExportResult { written, name, redacted, regions,
+kept, not_reviewed, hidden_removed, pages_without_text: number[] (1-based),
+leaks: { layer, where, text }[] }`; nothing was written unless `written`.
+
 Methods the page calls (all return promises in JS):
 
 | Method | Returns | Notes |
 |---|---|---|
 | `current_document()` | `DocumentInfo \| null` | on start: a PDF given on the command line |
 | `choose_pdf(language)` | `DocumentInfo \| null` | null = cancelled |
+| `export_as(allow_pages_without_text)` | `ExportResult \| null` | save dialog; null = cancelled; raises (rejects) when pages lack text and consent is false |
 | `choose_session()` | `DocumentInfo \| null` | asks for session, then PDF |
 | `save_session_as()` | `bool` | false = cancelled |
 | `page_image(index, dpi)` | `data:` PNG URL | dpi clamped to 36..400 in Python |
@@ -186,6 +196,11 @@ webview.start(probe, private_mode=True)
 Use a synthetic PDF (build one with `tests/pdf_builders.py`), never a real
 document.
 
+Native file dialogs cannot be scripted. To drive a feature behind one (open,
+save, export), subclass `WindowApi` in the script and override `_ask` to
+return a fixed path; everything else (the click in WebKit, the bridge, the
+core, the sheet) still runs for real.
+
 ## Connections to the rest of the project
 
 | Core / CLI piece | How the window uses it, or will |
@@ -197,7 +212,7 @@ document.
 | `session.save_session` / `load_session` | save and reopen; same files as `anonymize detect` / `redact --session` |
 | `Document.adjust_span(entity_id, start, end)` | **not wired**: resizing a box to other words |
 | `Entity(type=REGION, bboxes=[box], source=MANUAL)` | **not wired**: drawing a region |
-| `redact.redact_pdf` + `redact.find_leaks` | **not wired**: export. The CLI's write-to-temporary-then-check-then-rename lives in `cli/commands.py::run_redact`; move it to core first |
+| `redact.export_redacted` | export: temporary file, `redact_pdf`, `find_leaks`, rename only when clean; the CLI's `redact` uses the same function |
 | `ingest.pages_needing_ocr`, `Page.raster_dpi` | page warning today; scanned-page review after the OCR path |
 | `resources.load_catalog`, `fetch_resource`, `resource_status` | **not wired**: the model setup page (M9) |
 | CLI `inspect` (HTML report) | independent; same box geometry, useful to compare against |
@@ -206,45 +221,38 @@ document.
 
 In suggested order. Each item names where it plugs in.
 
-1. **Export with the leak check.** Move the CLI's safe write (temporary file
-   next to the destination, `redact_pdf`, `find_leaks`, rename only when
-   clean) into `core/redact` as one function; the CLI calls it; `WindowApi`
-   gets `export_as()` (save dialog, default name `<stem>-redacted.pdf`,
-   refuse the source path). The page shows a result sheet: redacted counts,
-   hidden items removed, leak check passed, or the leaks listed and nothing
-   written. Refuse or warn on pages without a text layer, as the CLI does.
-2. **Add a missed word or phrase.** Needs the page's words in the payload
+1. **Add a missed word or phrase.** Needs the page's words in the payload
    (new `page_words(index)` → text, offsets, boxes) and a core helper that
    creates a `MANUAL` entity from a span (`Page.bboxes_for_span` gives the
    boxes). UI: drag across words in review mode, a popover with a type
    picker, then propagation of the new text (`propagate_occurrences`).
-3. **Draw a region** (photo, signature, stamp): drag a rectangle with a
+2. **Draw a region** (photo, signature, stamp): drag a rectangle with a
    modifier or a toolbar tool → `REGION` entity with one box in points
    (divide screen pixels by the zoom scale). Redaction and the region leak
    check already support it.
-4. **Resize a box** to fewer or more words → `Document.adjust_span`.
-5. **Settings sheet:** language (re-run detection, warning that decisions
+3. **Resize a box** to fewer or more words → `Document.adjust_span`.
+4. **Settings sheet:** language (re-run detection, warning that decisions
    reset or are carried over by span), propagation on/off, NER on/off
    (available only when the `ner` group is installed and the model is
    present: `resource_status`), entity types shown.
-6. **Unsaved changes on close:** pywebview `confirm_close` or a closing
+5. **Unsaved changes on close:** pywebview `confirm_close` or a closing
    event tied to the `dirty` flag; today only opening another document asks.
-7. **Undo / redo** of decisions (Cmd/Ctrl+Z), kept in the frontend as a
+6. **Undo / redo** of decisions (Cmd/Ctrl+Z), kept in the frontend as a
    stack of `set_review` calls.
-8. **Drag and drop a PDF** onto the window.
-9. **Model setup page (M9):** catalog entries with task, languages, size,
+7. **Drag and drop a PDF** onto the window.
+8. **Model setup page (M9):** catalog entries with task, languages, size,
    licence; download only on an explicit click, from the official source,
    verified by SHA-256 (`fetch_resource`), progress shown.
-10. **Scanned pages** once the OCR path exists: OCR words arrive with
+9. **Scanned pages** once the OCR path exists: OCR words arrive with
     `raster_dpi`, boxes are already in points; the warning goes away;
     region drawing matters more.
-11. **Label mode preview** once labels exist (M5): preview draws `[NAME]`
+10. **Label mode preview** once labels exist (M5): preview draws `[NAME]`
     instead of black boxes.
-12. **Accessibility pass:** boxes are not keyboard-reachable (the list is the
+11. **Accessibility pass:** boxes are not keyboard-reachable (the list is the
     keyboard path); run a WCAG review of both themes.
-13. **Packaging (M9):** PyInstaller bundle per OS; test Windows (WebView2)
+12. **Packaging (M9):** PyInstaller bundle per OS; test Windows (WebView2)
     and Linux (GTK or Qt backend) by hand.
-14. **Large documents:** virtualize the page list and the sidebar beyond a
+13. **Large documents:** virtualize the page list and the sidebar beyond a
     few hundred pages or entities.
 
 ## Known gotchas

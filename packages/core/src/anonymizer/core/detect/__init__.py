@@ -30,7 +30,12 @@ from anonymizer.core.detect.contact import (
     find_nanp_phone_numbers,
 )
 from anonymizer.core.detect.document import detect_document, detect_surface
-from anonymizer.core.detect.gliner import GlinerDetector, load_gliner_detector
+from anonymizer.core.detect.gliner import (
+    GlinerDetector,
+    gliner_installed,
+    load_gliner_detector,
+    missing_gliner_files,
+)
 from anonymizer.core.detect.iban import find_ibans, is_valid_iban, normalize_iban
 from anonymizer.core.detect.propagate import propagate_occurrences
 from anonymizer.core.detect.url import find_urls
@@ -143,6 +148,7 @@ __all__ = [
     "find_urls",
     "find_us_addresses",
     "finders_for",
+    "gliner_installed",
     "is_valid_account_number",
     "is_valid_birth_number",
     "is_valid_card_number",
@@ -150,6 +156,7 @@ __all__ = [
     "is_valid_iban",
     "load_gliner_detector",
     "merge_entities",
+    "missing_gliner_files",
     "normalize_iban",
     "passes_luhn",
     "propagate_occurrences",

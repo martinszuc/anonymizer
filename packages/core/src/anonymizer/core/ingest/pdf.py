@@ -15,14 +15,10 @@ import hashlib
 from pathlib import Path
 
 import pymupdf
-from anonymizer.core.ingest.normalize import normalize_text, unrotated_rect_to_bbox
+from anonymizer.core.ingest.layout import PlacedWord, assemble
+from anonymizer.core.ingest.normalize import unrotated_rect_to_bbox
 from anonymizer.core.ingest.surfaces import extract_surfaces
-from anonymizer.core.types import Document, Page, Word
-
-# Reading order is reconstructed from PyMuPDF's block, line and word numbering.
-_WORD_SEPARATOR = " "
-_LINE_SEPARATOR = "\n"
-_BLOCK_SEPARATOR = "\n\n"
+from anonymizer.core.types import Document, Page
 
 # Field positions in PyMuPDF's "words" tuples.
 _BLOCK_INDEX = 5
@@ -45,54 +41,23 @@ def extract_page(pdf_page: pymupdf.Page, index: int) -> Page:
         pdf_page.get_text("words"),
         key=lambda word: (word[_BLOCK_INDEX], word[_LINE_INDEX], word[_WORD_INDEX]),
     )
-
-    parts: list[str] = []
-    words: list[Word] = []
-    cursor = 0
-    previous_block: int | None = None
-    previous_line: int | None = None
-
-    for raw in raw_words:
-        x0, y0, x1, y1, raw_text, block_no, line_no, _word_no = raw
-        text = normalize_text(str(raw_text))
-        if not text:
-            continue
-        separator = _separator_before(int(block_no), int(line_no), previous_block, previous_line)
-        if separator:
-            parts.append(separator)
-            cursor += len(separator)
-        start = cursor
-        parts.append(text)
-        cursor += len(text)
-        bbox = unrotated_rect_to_bbox(pymupdf.Rect(x0, y0, x1, y1), pdf_page)
-        words.append(Word(text=text, bbox=bbox, start=start, end=cursor))
-        previous_block = int(block_no)
-        previous_line = int(line_no)
-
+    text, words = assemble(
+        PlacedWord(
+            text=str(raw_text),
+            bbox=unrotated_rect_to_bbox(pymupdf.Rect(x0, y0, x1, y1), pdf_page),
+            block=int(block_no),
+            line=int(line_no),
+        )
+        for x0, y0, x1, y1, raw_text, block_no, line_no, _word_no in raw_words
+    )
     return Page(
         index=index,
         width=pdf_page.rect.width,
         height=pdf_page.rect.height,
-        text="".join(parts),
+        text=text,
         words=words,
         has_text_layer=bool(words),
     )
-
-
-def _separator_before(
-    block_no: int,
-    line_no: int,
-    previous_block: int | None,
-    previous_line: int | None,
-) -> str:
-    """Whitespace to insert before a word, given the previous word's position."""
-    if previous_block is None:
-        return ""
-    if block_no != previous_block:
-        return _BLOCK_SEPARATOR
-    if line_no != previous_line:
-        return _LINE_SEPARATOR
-    return _WORD_SEPARATOR
 
 
 def load_document(path: Path | str, *, language: str | None = None) -> Document:

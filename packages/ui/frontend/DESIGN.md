@@ -49,7 +49,7 @@ brown, dates mint, other grey. Only a hue: text on a type colour is never used.
 ## Components
 
 **Toolbar** (52 px). Document name and language; page position; zoom group (−, fit,
-+); region tool (R, pressed = accent fill; holding Alt draws without it); preview
++); a back chevron at the far left closes the document; region tool (R, pressed = accent fill; holding Alt draws without it); preview
 toggle (eye); open; *Save Review* (secondary);
 primary *Export…* (Cmd/Ctrl+E), the final step. Controls are 28 px high.
 
@@ -88,6 +88,28 @@ Keyboard: ↑/↓ moves the selection, Space toggles, Return scrolls to it.
 
 **Empty state.** Centered icon, title, one sentence on privacy, *Open PDF…* (primary)
 and *Open Review…* (secondary), shortcut hints.
+
+**Home** (no document). A centred column (560 px): app icon, name and one
+line; the **drop area** (dashed `--separator` border, `--elevated`, *Open PDF…*
+primary; while a file is dragged over the window: `--accent` border on
+`--accent-fill`, "Drop to open"); a **Detection** card of option rows (label,
+one-line note in `--label-2`, control on the right: the language segmented
+control, setting switches); *Continue a saved review…* as a plain button; a
+footer "Everything stays on this computer · version". The model's row says why
+its switch is disabled and what to run.
+
+**Opening.** A step list in an `--elevated` card: done (check, `--keep`),
+current (spinning loader, `--accent`, label in `--label`), pending (circle,
+`--label-3`). Shown from Python's first progress event until the document
+opens; a model step appears only when the model is used.
+
+**Drop overlay.** Over an open document while a file is dragged: dashed
+`--accent` border on `--accent-fill` below the toolbar, a pill "Drop to open
+another PDF".
+
+**Switch tones.** `redact` (findings): on is `--ink`, not a Tab stop (the list
+drives it). `setting` (home options): on is `--accent`, a Tab stop, can be
+disabled (40 % opacity).
 
 **Sheet.** Modal, drops from under the toolbar (macOS sheet), backdrop `--backdrop`
 below the toolbar only. Icon in a tinted circle (`success` → `--keep`, `warning`,

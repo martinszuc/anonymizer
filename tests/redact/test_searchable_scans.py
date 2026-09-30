@@ -3,8 +3,7 @@
 Ingest reads such a page through its text layer, so detection finds the
 invisible words and redaction boxes land where the layer puts them. What a
 reader sees is the picture, so every test counts ink in the image data stored
-in the saved output, not in a rendering, where the black fill would look like
-ink.
+in the saved output (`tests.pixels`).
 """
 
 from pathlib import Path
@@ -17,7 +16,8 @@ from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import find_leaks, redact_pdf
 from anonymizer.core.types import BBox, Document, EntityType
 
-from tests.pdf_builders import CONTACT_EMAIL, INK_LEVEL, write_searchable_scan
+from tests.pdf_builders import CONTACT_EMAIL, write_searchable_scan
+from tests.pixels import ink
 
 PHONE = "+420 603 123 456"
 UNTOUCHED = "Poznamka: nic osobniho"
@@ -39,27 +39,6 @@ def detected(path: Path) -> Document:
     document = load_document(path, language="cs")
     run_detection(document, build_detector("cs"))
     return document
-
-
-def stored_image(page: pymupdf.Page) -> pymupdf.Pixmap:
-    """Return the page's picture as stored in the file, decoded."""
-    document = page.parent
-    assert document is not None
-    return pymupdf.Pixmap(document, page.get_images(full=True)[0][0])
-
-
-def ink(page: pymupdf.Page, area: pymupdf.Rect) -> int:
-    """Count ink pixels of the page's picture inside an area given in unrotated points.
-
-    The picture covers the whole unrotated page (checked on each fixture), so
-    points scale to pixels by the ratio of the two widths.
-    """
-    image = stored_image(page)
-    scale = image.width / page.mediabox.width
-    channels = min(image.n, 3)
-    columns = range(int(area.x0 * scale), int(area.x1 * scale))
-    rows = range(int(area.y0 * scale), int(area.y1 * scale))
-    return sum(1 for x in columns for y in rows if min(image.pixel(x, y)[:channels]) < INK_LEVEL)
 
 
 def entity_boxes(document: Document) -> list[BBox]:

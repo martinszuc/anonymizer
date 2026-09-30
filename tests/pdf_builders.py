@@ -204,3 +204,20 @@ def add_structure_tree(document: pymupdf.Document, page_xref: int, link_xref: in
     catalog = document.pdf_catalog()
     document.xref_set_key(catalog, "StructTreeRoot", f"{root} 0 R")
     document.xref_set_key(catalog, "MarkInfo", "<< /Marked true >>")
+
+
+def write_scanned_pdf(path: Path, pages: list[list[str]], rotation: int = 0) -> Path:
+    """Write the pages `write_pdf` would, but each as a picture only: a scan without text.
+
+    `write_pdf` with the same pages and rotation gives the born-digital
+    original, whose words are the ground truth of what OCR should read.
+    """
+    document = pymupdf.open()
+    for lines in pages:
+        page = document.new_page()
+        page.insert_image(page.rect, pixmap=scan_of(lines))
+        if rotation:
+            page.set_rotation(rotation)
+    document.save(path)
+    document.close()
+    return path

@@ -251,10 +251,11 @@ class Page:
         height: Page height in points.
         text: Reading-order reconstruction that offsets refer to.
         words: Words in reading order.
-        has_text_layer: Whether the source page carried an extractable text
-            layer. `False` means `text` came from OCR.
-        raster_dpi: Resolution the page was rendered at before OCR, or `None`
-            for a born-digital page.
+        has_text_layer: Whether `text` comes from the page's own text layer.
+            `False` for a page without one (a scan): its text then came from
+            OCR if `raster_dpi` is set, and is empty otherwise.
+        raster_dpi: Resolution the page was rendered at for OCR, or `None` if
+            OCR did not read it.
     """
 
     index: int

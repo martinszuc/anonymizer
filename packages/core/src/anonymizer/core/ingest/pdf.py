@@ -5,8 +5,8 @@ PyMuPDF reports word boxes in the page's **unrotated** coordinate system while
 `page.rotation_matrix` before they enter the data contract (see `normalize`).
 
 Pages whose text layer yields no words are marked `has_text_layer=False`. They
-need OCR; this module does not attempt it. Strings outside the text layer are
-listed by `surfaces`.
+need OCR: given an engine, they are read through it (see `ocr`); without one
+they stay empty. Strings outside the text layer are listed by `surfaces`.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from pathlib import Path
 import pymupdf
 from anonymizer.core.ingest.layout import PlacedWord, assemble
 from anonymizer.core.ingest.normalize import unrotated_rect_to_bbox
+from anonymizer.core.ingest.ocr import DEFAULT_OCR_DPI, OcrEngine, read_page
 from anonymizer.core.ingest.surfaces import extract_surfaces
 from anonymizer.core.types import Document, Page
 
@@ -60,13 +61,22 @@ def extract_page(pdf_page: pymupdf.Page, index: int) -> Page:
     )
 
 
-def load_document(path: Path | str, *, language: str | None = None) -> Document:
+def load_document(
+    path: Path | str,
+    *,
+    language: str | None = None,
+    ocr: OcrEngine | None = None,
+    ocr_dpi: int = DEFAULT_OCR_DPI,
+) -> Document:
     """Read a PDF into a `Document`.
 
     Args:
         path: Path to the PDF file.
         language: BCP 47 tag the detectors will be configured for, recorded on
             the document.
+        ocr: Engine that reads the pages needing OCR; without one they stay
+            empty.
+        ocr_dpi: Resolution those pages are rendered at for the engine.
 
     Returns:
         The document, as `document_from_bytes` describes it.
@@ -75,10 +85,16 @@ def load_document(path: Path | str, *, language: str | None = None) -> Document:
         FileNotFoundError: If `path` does not exist.
         pymupdf.FileDataError: If the file is not a readable PDF.
     """
-    return document_from_bytes(read_pdf(path), language=language)
+    return document_from_bytes(read_pdf(path), language=language, ocr=ocr, ocr_dpi=ocr_dpi)
 
 
-def document_from_bytes(data: bytes, *, language: str | None = None) -> Document:
+def document_from_bytes(
+    data: bytes,
+    *,
+    language: str | None = None,
+    ocr: OcrEngine | None = None,
+    ocr_dpi: int = DEFAULT_OCR_DPI,
+) -> Document:
     """Read a PDF held in memory into a `Document`.
 
     A caller that needs the file again (to render or redact it) keeps these
@@ -89,6 +105,11 @@ def document_from_bytes(data: bytes, *, language: str | None = None) -> Document
         data: The PDF file's bytes.
         language: BCP 47 tag the detectors will be configured for, recorded on
             the document.
+        ocr: Engine that reads the pages needing OCR; without one they stay
+            empty. A session saved for the document can only be reopened with
+            the same engine and resolution, since its offsets refer to what
+            OCR read.
+        ocr_dpi: Resolution those pages are rendered at for the engine.
 
     Returns:
         A document with one page per PDF page, every string found outside the
@@ -100,6 +121,13 @@ def document_from_bytes(data: bytes, *, language: str | None = None) -> Document
     """
     with pymupdf.open(stream=data, filetype="pdf") as pdf:
         pages = [extract_page(pdf.load_page(index), index) for index in range(pdf.page_count)]
+        if ocr is not None:
+            pages = [
+                page
+                if page.has_text_layer
+                else read_page(pdf.load_page(page.index), page.index, ocr, ocr_dpi)
+                for page in pages
+            ]
         surfaces = extract_surfaces(pdf)
     return Document(
         pages=pages,
@@ -171,12 +199,17 @@ def fingerprint(data: bytes) -> str:
 
 
 def pages_needing_ocr(document: Document) -> list[int]:
-    """Return the indices of pages that yielded no text layer.
+    """Return the indices of pages that have no text layer and were not read by OCR.
+
+    Nothing on such a page is detected, so it would reach a redacted copy
+    unchanged while the leak check still passes.
 
     Args:
         document: Document to inspect.
 
     Returns:
-        Page indices, in document order, that require OCR.
+        Page indices, in document order, that still require OCR.
     """
-    return [page.index for page in document.pages if not page.has_text_layer]
+    return [
+        page.index for page in document.pages if not page.has_text_layer and page.raster_dpi is None
+    ]

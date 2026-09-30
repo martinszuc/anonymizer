@@ -1,11 +1,19 @@
 import { TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { forwardRef, useEffect, useRef, useState, type RefObject, type UIEvent } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent,
+  type RefObject,
+  type UIEvent,
+} from "react";
 
 import { errorMessage } from "../bridge";
 import { gentle } from "../motion";
 import type { PageImages } from "../pageImages";
-import { covers, isRedacted, renderDpi, typeLabel } from "../review";
+import { covers, dragBox, isLargeEnough, isRedacted, renderDpi, typeLabel } from "../review";
 import type { Box, DocumentInfo, EntityInfo, PageInfo, SurfaceInfo } from "../types";
 
 interface PageViewProps {
@@ -15,7 +23,10 @@ interface PageViewProps {
   selectedId: string | null;
   showHidden: boolean;
   previewing: boolean;
+  /** The region tool is on (or Alt is held): a drag draws a region. */
+  drawing: boolean;
   onSelect: (entity: EntityInfo) => void;
+  onDrawRegion: (pageIndex: number, box: Box) => void;
   onToggle: (entity: EntityInfo) => void;
   onError: (message: string) => void;
   onCurrentPage: (index: number) => void;
@@ -23,7 +34,7 @@ interface PageViewProps {
 
 /** Every page of the document, stacked, with its proposed redactions drawn over it. */
 export const PageView = forwardRef<HTMLDivElement, PageViewProps>(function PageView(props, ref) {
-  const { document, previewing, onCurrentPage } = props;
+  const { document, previewing, drawing, onCurrentPage } = props;
 
   const onScroll = (event: UIEvent<HTMLDivElement>) => {
     const scroller = event.currentTarget;
@@ -38,7 +49,14 @@ export const PageView = forwardRef<HTMLDivElement, PageViewProps>(function PageV
   };
 
   return (
-    <main ref={ref} className="canvas" data-previewing={previewing} onScroll={onScroll} aria-label="Pages">
+    <main
+      ref={ref}
+      className="canvas"
+      data-previewing={previewing}
+      data-drawing={drawing}
+      onScroll={onScroll}
+      aria-label="Pages"
+    >
       {document.pages.map((page) => (
         <Page
           key={page.index}
@@ -67,14 +85,20 @@ function Page({
   selectedId,
   showHidden,
   previewing,
+  drawing,
   onSelect,
   onToggle,
   onError,
+  onDrawRegion,
 }: PageProps) {
   const pageRef = useRef<HTMLDivElement>(null);
   const nearby = useNearViewport(pageRef);
   const [image, setImage] = useState<string | null>(null);
   const [hovered, setHovered] = useState<EntityInfo | null>(null);
+  // The drag lives in a ref: pointer events can arrive before React re-renders,
+  // and a handler reading state would see the previous event's value.
+  const drag = useRef<{ start: [number, number]; box: Box } | null>(null);
+  const [draft, setDraft] = useState<Box | null>(null);
   const dpi = renderDpi(scale, window.devicePixelRatio || 1);
 
   useEffect(() => {
@@ -91,6 +115,46 @@ function Page({
 
   const width = page.width * scale;
   const height = page.height * scale;
+  const hatchId = `region-hatch-${page.index}`;
+
+  /** The pointer's position in page points. */
+  const toPoints = (event: PointerEvent<SVGSVGElement>): [number, number] => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return [
+      ((event.clientX - bounds.left) * page.width) / bounds.width,
+      ((event.clientY - bounds.top) * page.height) / bounds.height,
+    ];
+  };
+
+  const onPointerDown = (event: PointerEvent<SVGSVGElement>) => {
+    if (event.button !== 0 || !(drawing || event.altKey)) return;
+    event.preventDefault();
+    try {
+      // Keeps the drag going when the pointer leaves the page; a nicety, so a
+      // browser that refuses it must not stop the drawing.
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Drawing works without capture while the pointer stays on the page.
+    }
+    const start = toPoints(event);
+    drag.current = { start, box: dragBox(start, start, page) };
+    setDraft(drag.current.box);
+    setHovered(null);
+  };
+
+  const onPointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    if (!drag.current) return;
+    drag.current.box = dragBox(drag.current.start, toPoints(event), page);
+    setDraft(drag.current.box);
+  };
+
+  const onPointerUp = (event: PointerEvent<SVGSVGElement>) => {
+    if (!drag.current) return;
+    const box = dragBox(drag.current.start, toPoints(event), page);
+    drag.current = null;
+    setDraft(null);
+    if (isLargeEnough(box, scale)) onDrawRegion(page.index, box);
+  };
 
   return (
     <section className="page-slot" data-page-index={page.index} aria-label={`Page ${page.index + 1}`}>
@@ -118,22 +182,42 @@ function Page({
           viewBox={`0 0 ${page.width} ${page.height}`}
           preserveAspectRatio="none"
           onMouseLeave={() => setHovered(null)}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
+          <defs>
+            {/* Drawn regions are hatched in review mode, so what they cover stays visible. */}
+            <pattern id={hatchId} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <line className="hatch-line" x1="0" y1="0" x2="0" y2="6" />
+            </pattern>
+          </defs>
           {showHidden &&
             surfaces.map((surface) => surface.box && <HiddenBox key={surface.id} box={surface.box} />)}
           {entities.map((entity) => (
             <Redaction
               key={entity.id}
               entity={entity}
+              hatch={entity.is_region && !previewing ? `url(#${hatchId})` : undefined}
               selected={entity.id === selectedId}
               onHover={setHovered}
               onToggle={onToggle}
               onSelect={onSelect}
             />
           ))}
+          {draft && (
+            <rect
+              className="draft-region"
+              x={draft[0]}
+              y={draft[1]}
+              width={draft[2] - draft[0]}
+              height={draft[3] - draft[1]}
+            />
+          )}
         </svg>
         <AnimatePresence>
-          {hovered && !previewing && (
+          {hovered && !previewing && !draft && (
             <Popover key={hovered.id} entity={hovered} scale={scale} pageHeight={height} />
           )}
         </AnimatePresence>
@@ -145,13 +229,15 @@ function Page({
 
 interface RedactionProps {
   entity: EntityInfo;
+  /** Fill for a drawn region in review mode: the page's hatch pattern. */
+  hatch?: string;
   selected: boolean;
   onHover: (entity: EntityInfo | null) => void;
   onToggle: (entity: EntityInfo) => void;
   onSelect: (entity: EntityInfo) => void;
 }
 
-function Redaction({ entity, selected, onHover, onToggle, onSelect }: RedactionProps) {
+function Redaction({ entity, hatch, selected, onHover, onToggle, onSelect }: RedactionProps) {
   return (
     <g
       className="redaction"
@@ -164,11 +250,20 @@ function Redaction({ entity, selected, onHover, onToggle, onSelect }: RedactionP
       onMouseEnter={() => onHover(entity)}
       onClick={() => {
         onSelect(entity);
-        onToggle(entity);
+        // A drawn region is removed, not kept: a click only selects it.
+        if (!entity.is_region) onToggle(entity);
       }}
     >
       {entity.boxes.map(([x0, y0, x1, y1], index) => (
-        <rect key={index} x={x0} y={y0} width={x1 - x0} height={y1 - y0} rx={1} />
+        <rect
+          key={index}
+          x={x0}
+          y={y0}
+          width={x1 - x0}
+          height={y1 - y0}
+          rx={1}
+          style={hatch ? { fill: hatch } : undefined}
+        />
       ))}
     </g>
   );
@@ -206,11 +301,14 @@ function Popover({ entity, scale, pageHeight }: { entity: EntityInfo; scale: num
         {entity.source === "propagated" && <span className="muted"> · repeat</span>}
       </span>
       <span className="popover-text">{covers(entity)}</span>
-      <span className="popover-hint">
-        {redacted ? "Will be redacted · click to keep" : "Kept · click to redact"}
-      </span>
+      <span className="popover-hint">{popoverHint(entity, redacted)}</span>
     </motion.div>
   );
+}
+
+function popoverHint(entity: EntityInfo, redacted: boolean): string {
+  if (entity.is_region) return "Drawn by you · click to select, Delete removes it";
+  return redacted ? "Will be redacted · click to keep" : "Kept · click to redact";
 }
 
 /** Whether an element is within a screen or two of the viewport, so its image is worth loading. */

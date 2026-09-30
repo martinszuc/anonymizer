@@ -1,4 +1,4 @@
-import { EyeOff, Info } from "lucide-react";
+import { EyeOff, Info, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 
@@ -17,9 +17,18 @@ interface SidebarProps {
   onTab: (tab: SidebarTab) => void;
   onSelect: (entity: EntityInfo) => void;
   onToggle: (entity: EntityInfo) => void;
+  onRemove: (entity: EntityInfo) => void;
 }
 
-export function Sidebar({ document, tab, selectedId, onTab, onSelect, onToggle }: SidebarProps) {
+export function Sidebar({
+  document,
+  tab,
+  selectedId,
+  onTab,
+  onSelect,
+  onToggle,
+  onRemove,
+}: SidebarProps) {
   const summary = summarize(document);
   return (
     <aside className="sidebar" aria-label="Review">
@@ -38,7 +47,13 @@ export function Sidebar({ document, tab, selectedId, onTab, onSelect, onToggle }
         ]}
       />
       {tab === "findings" ? (
-        <Findings document={document} selectedId={selectedId} onSelect={onSelect} onToggle={onToggle} />
+        <Findings
+          document={document}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          onToggle={onToggle}
+          onRemove={onRemove}
+        />
       ) : (
         <HiddenItems surfaces={document.surfaces} />
       )}
@@ -71,9 +86,10 @@ interface FindingsProps {
   selectedId: string | null;
   onSelect: (entity: EntityInfo) => void;
   onToggle: (entity: EntityInfo) => void;
+  onRemove: (entity: EntityInfo) => void;
 }
 
-function Findings({ document, selectedId, onSelect, onToggle }: FindingsProps) {
+function Findings({ document, selectedId, onSelect, onToggle, onRemove }: FindingsProps) {
   const groups = useMemo(() => groupByType(document.entities), [document.entities]);
   const ordered = groups.flatMap((group) => group.entities);
   const listRef = useRef<HTMLDivElement>(null);
@@ -102,7 +118,8 @@ function Findings({ document, selectedId, onSelect, onToggle }: FindingsProps) {
     };
     if (event.key === "ArrowDown") move(1);
     else if (event.key === "ArrowUp") move(-1);
-    else if (event.key === " " && ordered[index]) onToggle(ordered[index]);
+    // Delete on a selected region is handled window-wide, in App.
+    else if (event.key === " " && ordered[index] && !ordered[index].is_region) onToggle(ordered[index]);
     else return;
     event.preventDefault();
   };
@@ -135,6 +152,7 @@ function Findings({ document, selectedId, onSelect, onToggle }: FindingsProps) {
               selected={entity.id === selectedId}
               onSelect={onSelect}
               onToggle={onToggle}
+              onRemove={onRemove}
             />
           ))}
         </section>
@@ -148,9 +166,10 @@ interface EntityRowProps {
   selected: boolean;
   onSelect: (entity: EntityInfo) => void;
   onToggle: (entity: EntityInfo) => void;
+  onRemove: (entity: EntityInfo) => void;
 }
 
-function EntityRow({ entity, selected, onSelect, onToggle }: EntityRowProps) {
+function EntityRow({ entity, selected, onSelect, onToggle, onRemove }: EntityRowProps) {
   const redacted = isRedacted(entity.review);
   const text = covers(entity);
   return (
@@ -177,11 +196,27 @@ function EntityRow({ entity, selected, onSelect, onToggle }: EntityRowProps) {
         </span>
         <span className="row-meta">{rowMeta(entity)}</span>
       </div>
-      <Switch
-        checked={redacted}
-        label={redacted ? `Redacted: click to keep “${text}”` : `Kept: click to redact “${text}”`}
-        onChange={() => onToggle(entity)}
-      />
+      {entity.is_region ? (
+        <button
+          type="button"
+          className="row-remove"
+          aria-label={`Remove this region on page ${(entity.page_index ?? 0) + 1}`}
+          title="Remove region (Delete)"
+          tabIndex={-1}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove(entity);
+          }}
+        >
+          <X size={14} />
+        </button>
+      ) : (
+        <Switch
+          checked={redacted}
+          label={redacted ? `Redacted: click to keep “${text}”` : `Kept: click to redact “${text}”`}
+          onChange={() => onToggle(entity)}
+        />
+      )}
     </div>
   );
 }

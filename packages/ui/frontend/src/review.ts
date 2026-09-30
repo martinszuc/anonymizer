@@ -1,6 +1,6 @@
 // Review rules shared by the page view and the sidebar. Pure, so they are unit-tested.
 
-import type { DocumentInfo, EntityInfo, ExportResult, ReviewState } from "./types";
+import type { Box, DocumentInfo, EntityInfo, ExportResult, ReviewState } from "./types";
 
 /** Undecided items are redacted at export (decided in PLAN.md), so only a rejection keeps text. */
 export function isRedacted(state: ReviewState): boolean {
@@ -157,4 +157,25 @@ const LEAK_LAYERS: Record<string, string> = {
 
 export function leakLayerLabel(layer: string): string {
   return LEAK_LAYERS[layer] ?? layer;
+}
+
+/** A drag across a page, in page points: normalised and clamped to the page. */
+export function dragBox(
+  start: [number, number],
+  end: [number, number],
+  page: { width: number; height: number },
+): Box {
+  const clampX = (x: number) => Math.min(Math.max(x, 0), page.width);
+  const clampY = (y: number) => Math.min(Math.max(y, 0), page.height);
+  const [x0, x1] = [clampX(start[0]), clampX(end[0])].sort((a, b) => a - b) as [number, number];
+  const [y0, y1] = [clampY(start[1]), clampY(end[1])].sort((a, b) => a - b) as [number, number];
+  return [x0, y0, x1, y1];
+}
+
+/** Smallest region side on screen: anything smaller was a click, not a drag. */
+export const MIN_REGION_PIXELS = 6;
+
+export function isLargeEnough(box: Box, scale: number): boolean {
+  const [x0, y0, x1, y1] = box;
+  return (x1 - x0) * scale >= MIN_REGION_PIXELS && (y1 - y0) * scale >= MIN_REGION_PIXELS;
 }

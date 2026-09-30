@@ -103,10 +103,10 @@ Working for PDFs with a text layer: text and hidden-data extraction, rule-based
 detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL, labelled
 dates of birth, postal addresses), names with the GLiNER model (optional,
 `--ner`), review through
-session files or the review window (open, toggle each item, save the session),
-blackbox redaction and a leak check on the output.
-Not yet: measured NER quality, scanned documents (OCR), export from the review
-window, adding or drawing items in it.
+session files or the review window (open, toggle each item, save the session,
+export), blackbox redaction and a leak check on the output.
+Not yet: measured NER quality, scanned documents (OCR), adding or drawing items
+in the review window.
 
 ## License
 

@@ -187,8 +187,31 @@ the image data stored in the saved output, not in a rendering.
   a page number sent the whole picture past OCR, unread. Ingest now treats a
   page at least half covered by pictures with fewer than 20 visible words
   over them as needing OCR (a heuristic, unchecked on real scans).
-- Not probed: CCITT G4, JBIG2, JPEG 2000 and 1-bit stencil-mask pictures,
-  the encodings office scanners use for black-and-white pages.
+- Picture encodings are covered for pages OCR read (next entry); JBIG2 and
+  JPEG 2000 are not probed (no pip-installable JBIG2 encoder).
+
+### 2026-09-30 · Redaction of pages OCR read (synthetic)
+
+Boxes from a stand-in engine reporting the born-digital original's words;
+ink counted in the stored image data (`tests/redact/test_scanned_pages.py`).
+
+- **Pixels under every box are overwritten in every encoding tried:** Flate,
+  JPEG, CMYK JPEG, black-and-white CCITT G4, a 1-bit stencil mask of the
+  text over a background photo (mixed raster content, as compressed
+  searchable scans store a page), a picture split in two strips across a
+  line of text, and a rotated page. The rest of each picture is unchanged.
+- MuPDF re-encodes a redacted picture: JPEG and CCITT pictures come back as
+  Flate, a redacted stencil mask as CCITT.
+- **Text on a page OCR read was never checked**, since detection read the
+  pixels: a stamp, text drawn under the picture (hidden by it, still
+  extractable) or in white. Redaction removes the whole text layer of such a
+  page, painting no fill.
+- **Fixture traps:** PyMuPDF re-encodes what `insert_image` receives (a G4
+  TIFF or a palette PNG arrives as Flate), so CCITT and stencil pictures are
+  written by hand; writing the stream drops its `/Filter`, which then
+  decoded compressed bytes as pixels and made the whole box look inked; and
+  Pillow splits a G4 TIFF into several strips unless told otherwise. Each
+  was caught by checking the fixture before redacting.
 
 ### Toolchain findings: redaction
 
@@ -210,7 +233,7 @@ Verified on saved files, one probe per kind of content under a box:
 | Under the box | Result |
 |---|---|
 | Text, also inside a form XObject | removed |
-| Raster image | pixels inside the box overwritten in the image data; rest intact |
+| Raster image | pixels inside the box overwritten in the image data; rest intact (also JPEG, CMYK, CCITT G4, stencil masks, strips) |
 | Image shared by two pages | redacted copy made for the redacted page; the other page untouched |
 | Image with transparency | mask made uniform inside the box (no shape left); unchanged outside |
 | Vector drawing fully under the box | **kept** with PyMuPDF's normal setting; removed with the strict setting (`graphics=2`), which also deletes any line merely touching the box |

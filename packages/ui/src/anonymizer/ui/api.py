@@ -5,16 +5,16 @@ arguments and results as JSON, so every result here is plain data. Nothing in
 this module imports pywebview: the window is a thin shell around `ReviewApi`,
 which is tested on its own.
 
-The PDF is read into memory once, and pages are rendered from those bytes.
-Rendering from the path instead would draw a file that changed on disk under
-boxes computed for the old one. Export reads the path again, and the core
-refuses it if the file no longer matches the fingerprint.
+The PDF is read into memory once; the document is loaded from those bytes and
+pages are rendered from them. Reading the path again instead would draw a file
+that changed on disk under boxes computed for the old one. Export reads the
+path again, and the core refuses it if the file no longer matches the
+fingerprint.
 """
 
 from __future__ import annotations
 
 import base64
-import hashlib
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -23,9 +23,9 @@ from typing import Any
 
 import pymupdf
 from anonymizer.core.detect import detect_document, detector_for, propagate_occurrences
-from anonymizer.core.ingest import load_document, pages_needing_ocr
+from anonymizer.core.ingest import document_from_bytes, pages_needing_ocr, read_pdf
 from anonymizer.core.redact import Leak, export_redacted
-from anonymizer.core.session import load_session, save_session
+from anonymizer.core.session import apply_session, save_session
 from anonymizer.core.types import (
     BBox,
     DetectionSource,
@@ -78,11 +78,11 @@ class ReviewApi:
             The document as `document()` describes it.
 
         Raises:
-            ReviewError: If the file is missing, unreadable or changed while opening.
+            ReviewError: If the file is missing or unreadable.
         """
         with _as_review_error():
-            document = load_document(path, language=language)
-            pdf_bytes = _read_matching(Path(path), document)
+            pdf_bytes = read_pdf(path)
+            document = document_from_bytes(pdf_bytes, language=language)
             document.entities = detect_document(detector_for(language), document)
             if propagate:
                 document.entities += propagate_occurrences(document)
@@ -104,8 +104,8 @@ class ReviewApi:
                 matches it, or either file cannot be read.
         """
         with _as_review_error():
-            document = load_session(session_path, pdf_path)
-            pdf_bytes = _read_matching(Path(pdf_path), document)
+            pdf_bytes = read_pdf(pdf_path)
+            document = apply_session(document_from_bytes(pdf_bytes), session_path)
         self._open = _OpenDocument(Path(pdf_path), document, pdf_bytes)
         return self.document()
 
@@ -274,15 +274,6 @@ def _as_review_error() -> Iterator[None]:
         # str() of a KeyError quotes its message.
         message = error.args[0] if isinstance(error, KeyError) and error.args else str(error)
         raise ReviewError(message) from error
-
-
-def _read_matching(path: Path, document: Document) -> bytes:
-    """Read the PDF's bytes, refusing a file that differs from the one loaded."""
-    pdf_bytes = path.read_bytes()
-    if hashlib.sha256(pdf_bytes).hexdigest() != document.fingerprint:
-        msg = "the file changed while it was being opened; open it again"
-        raise ValueError(msg)
-    return pdf_bytes
 
 
 def _page_payload(page: Page) -> dict[str, Any]:

@@ -8,7 +8,7 @@ from pathlib import Path
 import pymupdf
 import pytest
 from anonymizer.cli import commands
-from anonymizer.cli.html_report import TYPE_COLORS
+from anonymizer.cli.html_report import TYPE_COLORS, render_report
 from anonymizer.cli.main import main
 from anonymizer.core.detect import GlinerDetector
 from anonymizer.core.types import EntityType
@@ -122,6 +122,12 @@ class TestReport:
     def test_warns_about_a_page_without_text(self, tmp_path: Path):
         html = inspect(write_pdf(tmp_path / "blank.pdf", [[]]))
         assert "No text layer" in html
+
+    def test_refuses_a_file_other_than_the_one_detected(self, pdf: Path, tmp_path: Path):
+        document = commands.detected(pdf, "cs", propagate=False)
+        other = write_pdf(tmp_path / "other.pdf", [["someone else's file"]])
+        with pytest.raises(ValueError, match="different file"):
+            render_report(other, document, dpi=36)
 
     def test_every_entity_type_has_a_color(self):
         assert set(TYPE_COLORS) == set(EntityType)

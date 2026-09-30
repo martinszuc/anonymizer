@@ -91,20 +91,19 @@ class TestOpenPdf:
         with pytest.raises(ReviewError):
             ReviewApi().open_pdf(str(text_file))
 
-    def test_refuses_a_file_that_changed_while_opening(
-        self, pdf: Path, monkeypatch: pytest.MonkeyPatch
-    ):
-        def load_then_change(path: str, *, language: str | None = None) -> Document:
-            document = load_document(path, language=language)
-            write_pdf(pdf, [["someone else's file"]])
-            return document
+    def test_reads_the_file_once(self, pdf: Path, monkeypatch: pytest.MonkeyPatch):
+        # Loading and rendering use the same bytes, so a change on disk
+        # between them cannot put boxes over another file's content.
+        reads: list[str] = []
+        read_pdf = api.read_pdf
 
-        monkeypatch.setattr(api, "load_document", load_then_change)
-        reviewer = ReviewApi()
-        with pytest.raises(ReviewError, match="changed while it was being opened"):
-            reviewer.open_pdf(str(pdf))
-        with pytest.raises(ReviewError, match="no document is open"):
-            reviewer.document()
+        def counting_read(path: str) -> bytes:
+            reads.append(path)
+            return read_pdf(path)
+
+        monkeypatch.setattr(api, "read_pdf", counting_read)
+        ReviewApi().open_pdf(str(pdf))
+        assert reads == [str(pdf)]
 
 
 class TestPageImage:

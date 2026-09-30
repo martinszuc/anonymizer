@@ -4,15 +4,22 @@ PyMuPDF reports word boxes in the page's **unrotated** coordinate system while
 `page.rect` reflects the rotation, so boxes on a rotated page are mapped through
 `page.rotation_matrix` before they enter the data contract (see `normalize`).
 
-Pages whose text layer yields no words are marked `has_text_layer=False`. They
-need OCR: given an engine, they are read through it (see `ocr`); without one
-they stay empty. Strings outside the text layer are listed by `surfaces`.
+Pages whose text layer yields no words are marked `has_text_layer=False`, and
+so are pages mostly covered by pictures with only a few visible words over
+them: a scan with a page number or a scanner's stamp, whose content is in the
+picture. Invisible text over a picture is a producer's OCR layer (a
+searchable scan) and is used as the text layer.
+Such pages need OCR: given an engine, they are read through it (see `ocr`);
+without one they keep only what the text layer had. The thresholds are a
+heuristic, not yet checked on real scans. Strings outside the text layer are
+listed by `surfaces`.
 """
 
 from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from typing import Any
 
 import pymupdf
 from anonymizer.core.ingest.layout import PlacedWord, assemble
@@ -25,6 +32,13 @@ from anonymizer.core.types import Document, Page
 _BLOCK_INDEX = 5
 _LINE_INDEX = 6
 _WORD_INDEX = 7
+
+# A page at least this much covered by pictures, with fewer words than this
+# over them, is a scan: a stamp or a page number is not its content.
+_SCAN_PICTURE_SHARE = 0.5
+_STAMP_WORDS = 20
+# PyMuPDF's trace type for invisible text (render mode 3), as OCR layers use.
+_INVISIBLE_TEXT = 3
 
 
 def extract_page(pdf_page: pymupdf.Page, index: int) -> Page:
@@ -57,8 +71,27 @@ def extract_page(pdf_page: pymupdf.Page, index: int) -> Page:
         height=pdf_page.rect.height,
         text=text,
         words=words,
-        has_text_layer=bool(words),
+        has_text_layer=bool(words) and not _is_stamped_scan(pdf_page, raw_words),
     )
+
+
+def _is_stamped_scan(pdf_page: pymupdf.Page, raw_words: list[Any]) -> bool:
+    """Whether pictures cover most of the page with only a few visible words over them.
+
+    Pictures and words are compared in the page's unrotated space, where
+    PyMuPDF reports both.
+    """
+    page_area = pdf_page.rect.width * pdf_page.rect.height
+    unrotated = pdf_page.rect * pdf_page.derotation_matrix
+    pictures = [pymupdf.Rect(info["bbox"]) & unrotated for info in pdf_page.get_image_info()]
+    pictures = [picture for picture in pictures if not picture.is_empty]
+    if sum(picture.get_area() for picture in pictures) < _SCAN_PICTURE_SHARE * page_area:
+        return False
+    if any(span["type"] == _INVISIBLE_TEXT for span in pdf_page.get_texttrace()):
+        return False
+    centres = (pymupdf.Point((raw[0] + raw[2]) / 2, (raw[1] + raw[3]) / 2) for raw in raw_words)
+    over_pictures = sum(1 for centre in centres if any(centre in picture for picture in pictures))
+    return over_pictures < _STAMP_WORDS
 
 
 def load_document(
@@ -199,7 +232,7 @@ def fingerprint(data: bytes) -> str:
 
 
 def pages_needing_ocr(document: Document) -> list[int]:
-    """Return the indices of pages that have no text layer and were not read by OCR.
+    """Return the indices of pages without a usable text layer that OCR has not read.
 
     Nothing on such a page is detected, so it would reach a redacted copy
     unchanged while the leak check still passes.

@@ -206,16 +206,22 @@ def add_structure_tree(document: pymupdf.Document, page_xref: int, link_xref: in
     document.xref_set_key(catalog, "MarkInfo", "<< /Marked true >>")
 
 
-def write_scanned_pdf(path: Path, pages: list[list[str]], rotation: int = 0) -> Path:
+def write_scanned_pdf(
+    path: Path, pages: list[list[str]], rotation: int = 0, stamp: str | None = None
+) -> Path:
     """Write the pages `write_pdf` would, but each as a picture only: a scan without text.
 
     `write_pdf` with the same pages and rotation gives the born-digital
-    original, whose words are the ground truth of what OCR should read.
+    original, whose words are the ground truth of what OCR should read. A
+    `stamp` is written as visible text at the foot of every page, as a
+    scanner's page stamp would be.
     """
     document = pymupdf.open()
     for lines in pages:
         page = document.new_page()
         page.insert_image(page.rect, pixmap=scan_of(lines))
+        if stamp:
+            page.insert_text((72, 820), stamp, fontname="helv", fontsize=8)
         if rotation:
             page.set_rotation(rotation)
     document.save(path)

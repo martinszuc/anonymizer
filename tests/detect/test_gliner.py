@@ -5,7 +5,9 @@ which is skipped unless the weights and the `gliner` package are present.
 """
 
 import logging
+import os
 import re
+import sys
 import warnings
 from pathlib import Path
 from typing import Any
@@ -16,6 +18,7 @@ from anonymizer.core.detect.gliner import (
     OVERLAP_WORDS,
     WINDOW_WORDS,
     GlinerDetector,
+    load_gliner,
     load_gliner_detector,
     widen_to_words,
     without_known_warnings,
@@ -269,6 +272,16 @@ def test_known_warnings_are_hidden_only_inside_the_block(caplog):
         regex_message,
     ]
     assert [str(warning.message) for warning in caught] == ["an unrelated deprecation"]
+
+
+def test_loading_forces_offline_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    monkeypatch.setenv("HF_HUB_OFFLINE", "0")
+    monkeypatch.delenv("TRANSFORMERS_OFFLINE", raising=False)
+    monkeypatch.setitem(sys.modules, "gliner", None)  # stop before any model code runs
+    with pytest.raises(ImportError, match="optional 'ner' dependencies"):
+        load_gliner(tmp_path, tmp_path)
+    assert os.environ["HF_HUB_OFFLINE"] == "1"
+    assert os.environ["TRANSFORMERS_OFFLINE"] == "1"
 
 
 def test_missing_model_files_name_the_fetch_command(tmp_path):

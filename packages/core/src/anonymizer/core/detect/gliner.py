@@ -60,6 +60,8 @@ seen whole by the next."""
 
 # Czech and Slovak also quote with single low-9 and single turned commas,
 # written as escapes because they look like a comma and backticks.
+_OFFLINE_VARIABLES = ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE")
+
 _EDGE_PUNCTUATION = ",;:!?()[]{}\"'„“”\u201a\u2018\u2019«»"
 _WORD = re.compile(r"\S+")
 
@@ -230,10 +232,12 @@ def load_gliner(model_dir: Path, encoder_dir: Path) -> SpanModel:
     Raises:
         ImportError: If the `gliner` package is not installed.
     """
-    # Belt and braces: local_files_only covers the model, the variable covers
-    # anything transformers resolves on its own.
-    os.environ.setdefault("HF_HUB_OFFLINE", "1")
-    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+    # Belt and braces: local_files_only covers the model, the variables cover
+    # anything transformers resolves on its own. Set outright rather than as
+    # defaults, so an environment saying otherwise cannot reopen the network.
+    # huggingface_hub reads them when first imported, which happens below.
+    for variable in _OFFLINE_VARIABLES:
+        os.environ[variable] = "1"
     with without_known_warnings():
         try:
             from gliner import GLiNER  # pyright: ignore[reportMissingImports]

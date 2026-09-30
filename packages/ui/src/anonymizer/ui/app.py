@@ -76,6 +76,17 @@ class WindowApi(ReviewApi):
         self.save_session(path)
         return True
 
+    def export_as(self, allow_pages_without_text: bool = False) -> dict[str, Any] | None:
+        """Ask where to write the redacted copy and export it; None if cancelled.
+
+        See `ReviewApi.export` for the result and for pages without a text layer.
+        """
+        name = Path(self.document()["name"]).stem
+        path = self._ask(webview.FileDialog.SAVE, _PDF_TYPES, f"{name}-redacted.pdf")
+        if path is None:
+            return None
+        return self.export(path, allow_pages_without_text)
+
     def _ask(
         self, dialog: webview.FileDialog, file_types: tuple[str, ...], save_name: str = ""
     ) -> str | None:

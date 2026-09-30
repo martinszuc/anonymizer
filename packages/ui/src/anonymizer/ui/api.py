@@ -7,7 +7,8 @@ which is tested on its own.
 
 The PDF is read into memory once, and pages are rendered from those bytes.
 Rendering from the path instead would draw a file that changed on disk under
-boxes computed for the old one.
+boxes computed for the old one. Export reads the path again, and the core
+refuses it if the file no longer matches the fingerprint.
 """
 
 from __future__ import annotations
@@ -22,7 +23,8 @@ from typing import Any
 
 import pymupdf
 from anonymizer.core.detect import detect_document, detector_for, propagate_occurrences
-from anonymizer.core.ingest import load_document
+from anonymizer.core.ingest import load_document, pages_needing_ocr
+from anonymizer.core.redact import Leak, export_redacted
 from anonymizer.core.session import load_session, save_session
 from anonymizer.core.types import Document, Entity, Page, ReviewState, Surface
 
@@ -37,9 +39,9 @@ class ReviewError(Exception):
 
 @dataclass
 class _OpenDocument:
-    """The document under review and the exact bytes it was loaded from."""
+    """The document under review, its file, and the exact bytes it was loaded from."""
 
-    name: str
+    source: Path
     document: Document
     pdf_bytes: bytes
 
@@ -76,7 +78,7 @@ class ReviewApi:
             document.entities = detect_document(detector_for(language), document)
             if propagate:
                 document.entities += propagate_occurrences(document)
-        self._open = _OpenDocument(Path(path).name, document, pdf_bytes)
+        self._open = _OpenDocument(Path(path), document, pdf_bytes)
         return self.document()
 
     def open_session(self, pdf_path: str, session_path: str) -> dict[str, Any]:
@@ -96,7 +98,7 @@ class ReviewApi:
         with _as_review_error():
             document = load_session(session_path, pdf_path)
             pdf_bytes = _read_matching(Path(pdf_path), document)
-        self._open = _OpenDocument(Path(pdf_path).name, document, pdf_bytes)
+        self._open = _OpenDocument(Path(pdf_path), document, pdf_bytes)
         return self.document()
 
     def close(self) -> None:
@@ -113,7 +115,7 @@ class ReviewApi:
         current = self._current()
         document = current.document
         return {
-            "name": current.name,
+            "name": current.source.name,
             "language": document.language,
             "pages": [_page_payload(page) for page in document.pages],
             "entities": [_entity_payload(entity) for entity in document.entities],
@@ -174,6 +176,38 @@ class ReviewApi:
         with _as_review_error():
             save_session(current.document, path)
 
+    def export(self, path: str, allow_pages_without_text: bool = False) -> dict[str, Any]:
+        """Write the redacted copy, keeping it only if the leak check passes.
+
+        Undecided items are redacted, rejected ones kept, and every hidden
+        item removed (`export_redacted`).
+
+        Args:
+            path: Where to write the copy; the window's save dialog has
+                already confirmed replacing an existing file.
+            allow_pages_without_text: Export even though some pages have no
+                text layer. Nothing on such a page is detected, so it reaches
+                the output unredacted while the leak check still passes.
+
+        Returns:
+            What the export did: whether the copy was written, the counts of
+            redacted, kept and not reviewed items and of hidden items removed,
+            the pages left unredacted, and the leaks that stopped it.
+
+        Raises:
+            ReviewError: If pages have no text layer and that was not allowed,
+                the path is the original, or the original changed on disk.
+        """
+        current = self._current()
+        unreadable = [index + 1 for index in pages_needing_ocr(current.document)]
+        if unreadable and not allow_pages_without_text:
+            listed = ", ".join(str(page) for page in unreadable)
+            msg = f"page {listed} has no text layer; nothing on it would be redacted"
+            raise ReviewError(msg)
+        with _as_review_error():
+            leaks = export_redacted(current.source, current.document, path)
+        return _export_payload(Path(path).name, current.document, leaks, unreadable)
+
     def _current(self) -> _OpenDocument:
         if self._open is None:
             msg = "no document is open"
@@ -222,6 +256,25 @@ def _entity_payload(entity: Entity) -> dict[str, Any]:
         "text": entity.text,
         "is_region": entity.is_region,
         "boxes": [box.to_list() for box in entity.bboxes],
+    }
+
+
+def _export_payload(
+    name: str, document: Document, leaks: list[Leak], unreadable: list[int]
+) -> dict[str, Any]:
+    applied = [entity for entity in document.entities if entity.is_redactable]
+    return {
+        "written": not leaks,
+        "name": name,
+        "redacted": sum(not entity.is_region for entity in applied),
+        "regions": sum(entity.is_region for entity in applied),
+        "kept": len(document.entities) - len(applied),
+        "not_reviewed": sum(entity.review is ReviewState.PENDING for entity in applied),
+        "hidden_removed": len(document.surfaces),
+        "pages_without_text": unreadable,
+        "leaks": [
+            {"layer": leak.layer.value, "where": leak.where, "text": leak.text} for leak in leaks
+        ],
     }
 
 

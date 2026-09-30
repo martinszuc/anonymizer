@@ -148,3 +148,32 @@ class TestDialogs:
     def test_dialogs_need_the_window(self):
         with pytest.raises(ReviewError, match="window is not ready"):
             WindowApi().choose_pdf()
+
+
+class TestExportDialog:
+    def test_exports_where_the_reviewer_chose(self, pdf: Path):
+        destination = pdf.with_name("chosen.pdf")
+        window = StandInWindow(answers=[(str(pdf),), str(destination)])
+        api = attached(window)
+        api.choose_pdf("cs")
+        result = api.export_as()
+        assert result is not None
+        assert result["written"] is True
+        assert destination.exists()
+        assert window.asked[1]["dialog"] == webview.FileDialog.SAVE
+        assert window.asked[1]["save_filename"] == "cv-redacted.pdf"
+
+    def test_cancelled_export_writes_nothing(self, pdf: Path):
+        api = attached(StandInWindow(answers=[(str(pdf),), None]))
+        api.choose_pdf("cs")
+        assert api.export_as() is None
+        assert sorted(path.name for path in pdf.parent.iterdir()) == ["cv.pdf"]
+
+    def test_passes_consent_for_pages_without_text(self, tmp_path: Path):
+        mixed = write_pdf(tmp_path / "mixed.pdf", [LINES, []])
+        destination = tmp_path / "out.pdf"
+        api = attached(StandInWindow(answers=[(str(mixed),), str(destination)]))
+        api.choose_pdf("cs")
+        result = api.export_as(True)
+        assert result is not None
+        assert result["pages_without_text"] == [2]

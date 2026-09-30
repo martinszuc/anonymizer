@@ -6,6 +6,7 @@ from pathlib import Path
 import pymupdf
 import pytest
 from anonymizer.core.ingest import load_document
+from anonymizer.core.redact import Leak, LeakLayer
 from anonymizer.core.types import Document
 from anonymizer.ui import api
 from anonymizer.ui.api import MAX_DPI, ReviewApi, ReviewError
@@ -181,3 +182,65 @@ def test_closing_forgets_the_document(review: ReviewApi):
     review.close()
     with pytest.raises(ReviewError, match="no document is open"):
         review.page_image(0)
+
+
+def output_text(path: Path) -> str:
+    return "\n".join(page.text for page in load_document(path).pages)
+
+
+class TestExport:
+    def test_writes_the_decisions_and_reports_them(self, review: ReviewApi, pdf: Path):
+        phone = entity_of_type(review.document(), "phone")
+        review.set_review(phone["id"], "rejected")
+        destination = pdf.with_name("cv-redacted.pdf")
+
+        result = review.export(str(destination))
+
+        assert result == {
+            "written": True,
+            "name": "cv-redacted.pdf",
+            "redacted": 1,
+            "regions": 0,
+            "kept": 1,
+            "not_reviewed": 1,
+            "hidden_removed": 0,
+            "pages_without_text": [],
+            "leaks": [],
+        }
+        text = output_text(destination)
+        assert CONTACT_EMAIL not in text
+        assert PHONE in text  # kept in review
+
+    def test_a_leak_writes_nothing_and_is_reported(
+        self, review: ReviewApi, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        leak = Leak(LeakLayer.PAGE_TEXT, "page 1", CONTACT_EMAIL, "e1")
+        monkeypatch.setattr(api, "export_redacted", lambda *_: [leak])
+        result = review.export(str(pdf.with_name("cv-redacted.pdf")))
+        assert result["written"] is False
+        assert result["leaks"] == [{"layer": "page_text", "where": "page 1", "text": CONTACT_EMAIL}]
+
+    def test_pages_without_text_need_consent(self, tmp_path: Path):
+        reviewer = ReviewApi()
+        reviewer.open_pdf(str(write_pdf(tmp_path / "mixed.pdf", [LINES, []])), "cs")
+        destination = tmp_path / "out.pdf"
+        with pytest.raises(ReviewError, match="page 2 has no text layer"):
+            reviewer.export(str(destination))
+        assert not destination.exists()
+        result = reviewer.export(str(destination), True)
+        assert result["written"] is True
+        assert result["pages_without_text"] == [2]
+
+    def test_refuses_to_overwrite_the_original(self, review: ReviewApi, pdf: Path):
+        with pytest.raises(ReviewError, match="must not overwrite its source"):
+            review.export(str(pdf))
+
+    def test_refuses_an_original_that_changed_on_disk(self, review: ReviewApi, pdf: Path):
+        write_pdf(pdf, [["someone else's file"]])
+        with pytest.raises(ReviewError):
+            review.export(str(pdf.with_name("cv-redacted.pdf")))
+        assert not pdf.with_name("cv-redacted.pdf").exists()
+
+    def test_needs_an_open_document(self, tmp_path: Path):
+        with pytest.raises(ReviewError, match="no document is open"):
+            ReviewApi().export(str(tmp_path / "out.pdf"))

@@ -23,16 +23,10 @@ from pathlib import Path
 from typing import Any
 
 import anonymizer.core
-from anonymizer.core.detect import (
-    CombinedDetector,
-    Detector,
-    detect_document,
-    detector_for,
-    load_gliner_detector,
-    propagate_occurrences,
-)
+from anonymizer.core.detect import Detector, load_gliner_detector
 from anonymizer.core.detect.gliner import GLINER_RESOURCE
 from anonymizer.core.ingest import load_document
+from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import find_leaks, redact_pdf
 from anonymizer.core.resources import load_catalog
 from anonymizer.core.types import Entity
@@ -115,8 +109,7 @@ def _run_one(
 
     started = time.perf_counter()
     document = load_document(source, language=spec.language)
-    document.entities = detect_document(factory(spec.language), document)
-    document.entities += propagate_occurrences(document)
+    run_detection(document, factory(spec.language))
     redact_pdf(source, document, redacted_path)
     seconds = time.perf_counter() - started
 
@@ -175,13 +168,11 @@ def _factories(systems: tuple[str, ...], resource_root: Path) -> dict[str, Detec
         raise ValueError(msg)
     factories: dict[str, DetectorFactory] = {}
     if "rules" in systems:
-        factories["rules"] = detector_for
+        factories["rules"] = build_detector
     if "rules+gliner" in systems:
         # Load once; the model takes seconds to read.
         model = load_gliner_detector(resource_root)
-        factories["rules+gliner"] = lambda language: CombinedDetector(
-            [detector_for(language), model]
-        )
+        factories["rules+gliner"] = lambda language: build_detector(language, model=model)
     return factories
 
 

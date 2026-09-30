@@ -53,12 +53,7 @@ def find_emails(text: str) -> Iterator[Match]:
         One match per address, in order of appearance.
     """
     for found in _EMAIL_PATTERN.finditer(text):
-        yield Match(
-            type=EntityType.EMAIL,
-            start=found.start(),
-            end=found.end(),
-            text=found.group(0),
-        )
+        yield Match.from_regex(found, EntityType.EMAIL)
 
 
 def find_czech_phone_numbers(text: str) -> Iterator[Match]:
@@ -71,16 +66,9 @@ def find_czech_phone_numbers(text: str) -> Iterator[Match]:
         One match per number, in order of appearance.
     """
     for found in _PHONE_PATTERN.finditer(text):
-        value = found.group(0)
-        digits = re.sub(r"\D", "", value)
-        if len(digits) < _MIN_PHONE_DIGITS:
-            continue
-        yield Match(
-            type=EntityType.PHONE,
-            start=found.start(),
-            end=found.end(),
-            text=value,
-        )
+        digits = re.sub(r"\D", "", found[0])
+        if len(digits) >= _MIN_PHONE_DIGITS:
+            yield Match.from_regex(found, EntityType.PHONE)
 
 
 # North American numbers are 3-3-4 with an optional country code. Separators and
@@ -128,9 +116,4 @@ def find_nanp_phone_numbers(text: str) -> Iterator[Match]:
         formatted = any(char in _NANP_SEPARATORS for char in value)
         if not formatted and not _is_plausible_nanp(digits):
             continue
-        yield Match(
-            type=EntityType.PHONE,
-            start=found.start(),
-            end=found.end(),
-            text=value,
-        )
+        yield Match.from_regex(found, EntityType.PHONE)

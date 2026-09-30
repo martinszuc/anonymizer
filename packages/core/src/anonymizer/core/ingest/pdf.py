@@ -104,43 +104,105 @@ def load_document(path: Path | str, *, language: str | None = None) -> Document:
             the document.
 
     Returns:
-        A document with one page per PDF page, every string found outside the
-        text layer as a surface, and the file's fingerprint. Neither the path
-        nor the file name is recorded: both can be personal data.
+        The document, as `document_from_bytes` describes it.
 
     Raises:
         FileNotFoundError: If `path` does not exist.
         pymupdf.FileDataError: If the file is not a readable PDF.
     """
-    source = Path(path)
-    if not source.is_file():
-        msg = f"no such file: {source.name}"
-        raise FileNotFoundError(msg)
-    with pymupdf.open(source) as pdf:
+    return document_from_bytes(read_pdf(path), language=language)
+
+
+def document_from_bytes(data: bytes, *, language: str | None = None) -> Document:
+    """Read a PDF held in memory into a `Document`.
+
+    A caller that needs the file again (to render or redact it) keeps these
+    bytes rather than reading the path twice: the file could change in
+    between, and boxes computed for one version would land on another.
+
+    Args:
+        data: The PDF file's bytes.
+        language: BCP 47 tag the detectors will be configured for, recorded on
+            the document.
+
+    Returns:
+        A document with one page per PDF page, every string found outside the
+        text layer as a surface, and the fingerprint of `data`. Neither a path
+        nor a file name is recorded: both can be personal data.
+
+    Raises:
+        pymupdf.FileDataError: If the bytes are not a readable PDF.
+    """
+    with pymupdf.open(stream=data, filetype="pdf") as pdf:
         pages = [extract_page(pdf.load_page(index), index) for index in range(pdf.page_count)]
         surfaces = extract_surfaces(pdf)
     return Document(
         pages=pages,
         surfaces=surfaces,
-        fingerprint=file_fingerprint(source),
+        fingerprint=fingerprint(data),
         language=language,
     )
 
 
-def file_fingerprint(path: Path | str) -> str:
+def read_pdf(path: Path | str) -> bytes:
+    """Read a PDF file's bytes.
+
+    Args:
+        path: Path to the PDF file.
+
+    Returns:
+        The file's content.
+
+    Raises:
+        FileNotFoundError: If `path` does not exist. The message names the file
+            only, not the folders above it.
+    """
+    source = Path(path)
+    if not source.is_file():
+        msg = f"no such file: {source.name}"
+        raise FileNotFoundError(msg)
+    return source.read_bytes()
+
+
+def read_verified(path: Path | str, document: Document) -> bytes:
+    """Read the PDF a document was loaded from, refusing any other file.
+
+    Boxes computed for one file land on unrelated content in another, even one
+    with the same number of pages, and nothing would report it. The check runs
+    on the bytes returned, so the file cannot change between check and use.
+
+    Args:
+        path: Path to the PDF file.
+        document: Document loaded from it.
+
+    Returns:
+        The file's content.
+
+    Raises:
+        FileNotFoundError: If `path` does not exist.
+        ValueError: If the document carries no fingerprint or one of a
+            different file.
+    """
+    if document.fingerprint is None:
+        msg = "document carries no fingerprint; load it from the file with load_document"
+        raise ValueError(msg)
+    data = read_pdf(path)
+    if fingerprint(data) != document.fingerprint:
+        msg = "document was loaded from a different file than the one given"
+        raise ValueError(msg)
+    return data
+
+
+def fingerprint(data: bytes) -> str:
     """Return the SHA-256 of a file's bytes, as lowercase hex.
 
     Args:
-        path: File to hash.
+        data: The file's content.
 
     Returns:
         The hex digest.
     """
-    digest = hashlib.sha256()
-    with Path(path).open("rb") as stream:
-        for block in iter(lambda: stream.read(1 << 20), b""):
-            digest.update(block)
-    return digest.hexdigest()
+    return hashlib.sha256(data).hexdigest()
 
 
 def pages_needing_ocr(document: Document) -> list[int]:

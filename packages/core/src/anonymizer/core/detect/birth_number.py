@@ -88,11 +88,5 @@ def find_birth_numbers(text: str) -> Iterator[Match]:
         One match per valid birth number, in order of appearance.
     """
     for found in _PATTERN.finditer(text):
-        value = found.group(0)
-        if is_valid_birth_number(value):
-            yield Match(
-                type=EntityType.BIRTH_NUMBER,
-                start=found.start(),
-                end=found.end(),
-                text=value,
-            )
+        if is_valid_birth_number(found[0]):
+            yield Match.from_regex(found, EntityType.BIRTH_NUMBER)

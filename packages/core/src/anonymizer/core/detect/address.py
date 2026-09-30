@@ -112,11 +112,6 @@ _US_ADDRESS = re.compile(
 )
 
 
-def _matches(pattern: re.Pattern[str], text: str) -> Iterator[Match]:
-    for found in pattern.finditer(text):
-        yield Match(type=EntityType.ADDRESS, start=found.start(), end=found.end(), text=found[0])
-
-
 def find_czech_slovak_addresses(text: str) -> Iterator[Match]:
     """Yield Czech and Slovak addresses: a postcode and town, with the street before them.
 
@@ -127,7 +122,8 @@ def find_czech_slovak_addresses(text: str) -> Iterator[Match]:
         One match per postal line, including a street and house number written
         directly before it (after a comma or a line break).
     """
-    yield from _matches(_CZECH_SLOVAK_ADDRESS, text)
+    for found in _CZECH_SLOVAK_ADDRESS.finditer(text):
+        yield Match.from_regex(found, EntityType.ADDRESS)
 
 
 def find_us_addresses(text: str) -> Iterator[Match]:
@@ -139,4 +135,5 @@ def find_us_addresses(text: str) -> Iterator[Match]:
     Yields:
         One match per address.
     """
-    yield from _matches(_US_ADDRESS, text)
+    for found in _US_ADDRESS.finditer(text):
+        yield Match.from_regex(found, EntityType.ADDRESS)

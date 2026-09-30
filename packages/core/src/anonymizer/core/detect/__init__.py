@@ -16,7 +16,6 @@ from anonymizer.core.detect.base import (
     Match,
     RuleDetector,
     merge_entities,
-    resolve_overlaps,
 )
 from anonymizer.core.detect.birth_date import (
     find_czech_slovak_birth_dates,
@@ -154,6 +153,5 @@ __all__ = [
     "normalize_iban",
     "passes_luhn",
     "propagate_occurrences",
-    "resolve_overlaps",
     "structured_detector",
 ]

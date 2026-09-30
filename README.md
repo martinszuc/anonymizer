@@ -16,7 +16,7 @@ inference; models load from a local cache and the test suite fails on any outbou
 | `packages/cli/` | `anonymize` command-line client |
 | `packages/ui/` | `anonymize-ui` review window: Python side and React frontend |
 | `benchmark/` | Synthetic benchmark documents, scorer, pictures and charts |
-| `experiments/` | Evaluation scripts; no data committed |
+| `experiments/` | Evaluation scripts; no data committed (planned, not created yet) |
 | `scripts/` | Model and dataset download helpers |
 
 ## Development

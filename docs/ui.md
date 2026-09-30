@@ -48,8 +48,10 @@ Not yet: adding a missed word, resizing a box, settings, scanned pages. See
 ```
 anonymizer.core  (ingest, detect, session, redact)
       │  Python calls
-anonymizer/ui/api.py     ReviewApi: plain JSON in and out, no pywebview import
-anonymizer/ui/app.py     WindowApi(ReviewApi): native dialogs, window title,
+anonymizer/ui/api.py     ReviewApi: plain JSON in and out, no pywebview import,
+      │                  takes file paths, never reached by the page directly
+anonymizer/ui/app.py     WindowApi: the only object the page sees; wraps a
+      │                  private ReviewApi, asks for paths in native dialogs;
       │                  `anonymize-ui` command, starts pywebview
       │  pywebview js_api bridge: window.pywebview.api.<method>(...) → Promise
 frontend/src/bridge.ts   ReviewBridge interface, connect(), errorMessage()
@@ -114,8 +116,14 @@ A change to a payload or method touches four places: `api.py` (and its test),
   `data:` URLs); the window runs with `private_mode=True`; a session file is
   written only on the reviewer's Save. Do not add "recent files" or caches
   that persist paths or content: a file name can itself be personal data.
-- **The PDF bytes are read once** and checked against the fingerprint; pages
-  render from those bytes, never from the path again.
+- **The PDF bytes are read once**; the document is loaded from them and
+  pages render from them, never from the path again.
+- **The page reaches only `WindowApi`'s public methods**, which equal the
+  `ReviewBridge` interface in `bridge.ts` (`tests/ui/test_app.py` checks
+  this). pywebview exposes every public attribute, inherited ones included,
+  and the page runs with `'unsafe-eval'`; a method taking a file path from the
+  page would let any injected script read or write files. Paths come from
+  dialogs the reviewer answered.
 - **`api.py` never imports pywebview.** Anything needing the window goes in
   `WindowApi` (`app.py`); pure logic goes in `ReviewApi` or the core.
 - **Coordinates are PDF points, top-left origin**, as in the core. The page
@@ -129,8 +137,10 @@ A change to a payload or method touches four places: `api.py` (and its test),
 - **Logic belongs in the core, not the window.** If the CLI could use it
   (export, adding an entity, re-detection), write it in `core` with tests,
   then call it from `ReviewApi`. The window stays a thin client.
-- **Styles use tokens** from `tokens.css`, never literal colours or sizes;
-  add a token to `DESIGN.md` and `tokens.css` first. Motion respects
+- **Styles use tokens** from `tokens.css` for colours, shadows, materials,
+  type, spacing, radii, motion and any size two components share; add a
+  token to `DESIGN.md` and `tokens.css` first. Only one component's own
+  geometry (a switch track, a dot) is a literal in its rule. Motion respects
   `prefers-reduced-motion` (`MotionConfig reducedMotion="user"` in `App`).
 - **Demo data is synthetic** and development-only (`import.meta.env.DEV`).
 
@@ -138,12 +148,13 @@ A change to a payload or method touches four places: `api.py` (and its test),
 
 1. **Core first**, if the behaviour is not window-specific: function in
    `packages/core`, Google-style docstring, tests in `tests/`.
-2. **`ReviewApi` method** in `api.py`: positional parameters only (pywebview
-   passes arguments positionally), plain-data result, core errors wrapped
+2. **`ReviewApi` method** in `api.py`: plain-data result, core errors wrapped
    with `_as_review_error()`. Test it in `tests/ui/test_api.py` with PDFs from
    `tests/pdf_builders.py`.
-3. **Needs a dialog or the window?** Add it to `WindowApi` in `app.py`; test
-   it with `StandInWindow` in `tests/ui/test_app.py`.
+3. **Expose it in `WindowApi`** (`app.py`): a forwarding method, or one that
+   first asks for a path in a dialog. Positional parameters only (pywebview
+   passes arguments positionally), and never a path parameter. Test it with
+   `StandInWindow` in `tests/ui/test_app.py`.
 4. **Frontend contract:** extend `types.ts`, the `ReviewBridge` interface in
    `bridge.ts`, and the stand-in in `demo.ts` so `npm run dev` keeps working.
 5. **Pure rules** into `review.ts` (or a new module) with vitest tests;
@@ -177,12 +188,14 @@ scratchpad, not the repository):
 
 ```python
 import sys, time, webview
+from anonymizer.ui.api import ReviewApi
 from anonymizer.ui.app import STATIC_INDEX, WindowApi
 
-api = WindowApi()
-api.open_pdf(sys.argv[1], "cs")
+review = ReviewApi()
+review.open_pdf(sys.argv[1], "cs")
+api = WindowApi(review)
 window = webview.create_window("check", url=str(STATIC_INDEX), js_api=api)
-api.attach(window)
+api._attach(window)
 
 
 def probe():
@@ -193,7 +206,7 @@ def probe():
         ".dispatchEvent(new MouseEvent('click', {bubbles: true}))"
     )
     time.sleep(1)
-    print([e["review"] for e in api.document()["entities"]])
+    print([e["review"] for e in review.document()["entities"]])
     window.destroy()
 
 
@@ -212,11 +225,10 @@ core, the sheet) still runs for real.
 
 | Core / CLI piece | How the window uses it, or will |
 |---|---|
-| `ingest.load_document`, `file_fingerprint` | `open_pdf`; fingerprint checked against the bytes kept for rendering |
-| `detect.detector_for(language)`, `detect_document` | detection on open (rules only today) |
-| `detect.load_gliner_detector(root)`, `CombinedDetector` | **not wired**: NER in the window (see backlog, settings) |
-| `detect.propagate_occurrences` | on open, always on today |
-| `session.save_session` / `load_session` | save and reopen; same files as `anonymize detect` / `redact --session` |
+| `ingest.read_pdf`, `document_from_bytes` | `open_pdf`: the file is read once; the document is loaded from those bytes and pages render from them |
+| `pipeline.build_detector(language)`, `run_detection` | detection on open (rules only today), with occurrence propagation (always on today) |
+| `detect.load_gliner_detector(root)` → `build_detector(language, model=...)` | **not wired**: NER in the window (see backlog, settings) |
+| `session.save_session` / `apply_session` | save and reopen; same files as `anonymize detect` / `redact --session` |
 | `Document.adjust_span(entity_id, start, end)` | **not wired**: resizing a box to other words |
 | `Document.add_region`, `Document.remove_entity` | drawing and removing a region |
 | `redact.export_redacted` | export: temporary file, `redact_pdf`, `find_leaks`, rename only when clean; the CLI's `redact` uses the same function |
@@ -260,8 +272,9 @@ In suggested order. Each item names where it plugs in.
 
 ## Known gotchas
 
-- pywebview exposes public attributes of the `js_api` object to the page;
-  keep state in underscore attributes (`_open`, `_window`).
+- pywebview exposes every public method and attribute of the `js_api`
+  object to the page, inherited ones and those of nested objects included;
+  keep everything else in underscore attributes (`_review`, `_window`).
 - pywebview calls methods with positional arguments; keyword-only
   parameters cannot be called from the page.
 - A Python exception reaches the page as a rejected promise whose `message`

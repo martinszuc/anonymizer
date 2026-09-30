@@ -92,11 +92,5 @@ def find_card_numbers(text: str) -> Iterator[Match]:
         One match per valid card number, in order of appearance.
     """
     for found in _PATTERN.finditer(text):
-        value = found.group(1)
-        if is_valid_card_number(value):
-            yield Match(
-                type=EntityType.CREDIT_CARD,
-                start=found.start(1),
-                end=found.end(1),
-                text=value,
-            )
+        if is_valid_card_number(found[1]):
+            yield Match.from_regex(found, EntityType.CREDIT_CARD, group=1)

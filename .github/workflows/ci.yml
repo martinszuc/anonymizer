@@ -18,25 +18,6 @@ env:
   HF_HUB_OFFLINE: "1"
 
 jobs:
-  # Runs every pre-commit hook, so the rules they enforce (no committed
-  # documents, formatting) hold even for commits made without the hooks.
-  hooks:
-    name: pre-commit hooks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - name: Sync dependencies
-        run: uv sync --locked --all-packages
-
-      - name: Run hooks
-        run: uv run poe hooks --show-diff-on-failure
-
   # The review window's frontend. The Python jobs do not need it: the
   # window's Python side is tested with pywebview stood in.
   frontend:

@@ -3,7 +3,9 @@
 Seven layers, because each misses something the others catch:
 
 1. **Page text.** The output is extracted the way ingest extracts the input,
-   and no redacted entity's text may remain on any page.
+   and no redacted entity's text may remain on any page beyond the copies
+   review kept there: the same text can be redacted in one place and kept in
+   another, so occurrences are counted against the rejected entities.
 2. **Regions.** A region has no text to search for, so nothing may remain
    inside its box: no word and no drawing apart from the black fill itself.
    Image pixels under a box are not re-read here; their removal is verified by
@@ -20,7 +22,9 @@ Seven layers, because each misses something the others catch:
    text are the first layers' job. A text that starts or ends with a digit
    must not continue into another digit or a decimal number there: a ZIP code
    `20001` also occurs inside the layout operand `9.200012`, which is syntax,
-   not a leak.
+   not a leak. A text review kept on some page is not searched for: this
+   layer cannot tell the kept copy from a redacted one, and a copy of a text
+   the output shows anyway reveals nothing more.
 7. **File bytes.** An incremental save appends new object revisions and leaves
    the old ones in the file, where the object table no longer points but any
    text editor still shows them. The raw bytes are searched as well, with the
@@ -33,9 +37,9 @@ may be extracted with different spacing.
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from dataclasses import dataclass
 from enum import StrEnum
-from functools import cache
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -51,10 +55,11 @@ _BLACK = (0.0, 0.0, 0.0)
 
 
 class _Target(NamedTuple):
-    """An entity's text the output must no longer contain."""
+    """An entity's text the output must no longer contain, and how it is stored literally."""
 
     entity_id: str
     text: str
+    literal: re.Pattern[str]
 
 
 class LeakLayer(StrEnum):
@@ -102,19 +107,24 @@ def find_leaks(redacted: Path | str, document: Document) -> list[Leak]:
     """
     redactable = [entity for entity in document.entities if entity.is_redactable]
     targets = [
-        _Target(entity.entity_id, entity.text) for entity in redactable if entity.text is not None
+        _Target(entity.entity_id, entity.text, _literal_pattern(entity.text))
+        for entity in redactable
+        if entity.text is not None
     ]
     regions = [entity for entity in redactable if entity.is_region]
+    kept = _kept_texts(document)
+    all_kept = [text for texts in kept.values() for text in texts]
+    never_kept = [target for target in targets if _copies(target.text, all_kept) == 0]
     with pymupdf.open(redacted) as pdf:
         leaks = [
-            *_page_text_leaks(pdf, targets),
+            *_page_text_leaks(pdf, targets, kept),
             *_region_leaks(pdf, regions),
             *_off_page_leaks(pdf),
             *_surface_leaks(pdf),
             *_thumbnail_leaks(pdf),
-            *_object_leaks(pdf, targets),
+            *_object_leaks(pdf, never_kept),
         ]
-    return leaks + _file_byte_leaks(Path(redacted), targets)
+    return leaks + _file_byte_leaks(Path(redacted), never_kept)
 
 
 def _compact(text: str) -> str:
@@ -122,15 +132,32 @@ def _compact(text: str) -> str:
     return "".join(text.split())
 
 
-def _page_text_leaks(pdf: pymupdf.Document, targets: list[_Target]) -> list[Leak]:
-    """Find entity text in any page's extracted text."""
+def _kept_texts(document: Document) -> dict[int, list[str]]:
+    """Return the page texts review rejected, compacted, by page."""
+    kept: dict[int, list[str]] = defaultdict(list)
+    for entity in document.entities:
+        if not entity.is_redactable and entity.in_page_text and entity.page_index is not None:
+            kept[entity.page_index].append(_compact(entity.text or ""))
+    return kept
+
+
+def _copies(text: str, compacted: list[str]) -> int:
+    """Count the occurrences of a text in already compacted texts."""
+    needle = _compact(text)
+    return sum(haystack.count(needle) for haystack in compacted)
+
+
+def _page_text_leaks(
+    pdf: pymupdf.Document, targets: list[_Target], kept: dict[int, list[str]]
+) -> list[Leak]:
+    """Find entity text in any page's extracted text, beyond the copies review kept."""
     leaks: list[Leak] = []
     for index in range(pdf.page_count):
         page_text = _compact(extract_page(pdf.load_page(index), index).text)
         leaks.extend(
             Leak(LeakLayer.PAGE_TEXT, f"page {index}", target.text, target.entity_id)
             for target in targets
-            if _compact(target.text) in page_text
+            if _copies(target.text, [page_text]) > _copies(target.text, kept.get(index, []))
         )
     return leaks
 
@@ -210,7 +237,7 @@ def _object_leaks(pdf: pymupdf.Document, targets: list[_Target]) -> list[Leak]:
         leaks.extend(
             Leak(LeakLayer.OBJECT, f"object {xref}", target.text, target.entity_id)
             for target in targets
-            if _literal_pattern(target.text).search(content)
+            if target.literal.search(content)
         )
     return leaks
 
@@ -229,11 +256,10 @@ def _file_byte_leaks(path: Path, targets: list[_Target]) -> list[Leak]:
     return [
         Leak(LeakLayer.FILE_BYTES, path.name, target.text, target.entity_id)
         for target in targets
-        if _literal_pattern(target.text).search(content)
+        if target.literal.search(content)
     ]
 
 
-@cache
 def _literal_pattern(text: str) -> re.Pattern[str]:
     """Match a text stored literally, with any whitespace between its characters.
 

@@ -63,11 +63,5 @@ def find_company_ids(text: str) -> Iterator[Match]:
         One match per valid IČO, in order of appearance.
     """
     for found in _PATTERN.finditer(text):
-        digits = found.group(2)
-        if is_valid_company_id(digits):
-            yield Match(
-                type=EntityType.COMPANY_ID,
-                start=found.start(2),
-                end=found.end(2),
-                text=digits,
-            )
+        if is_valid_company_id(found[2]):
+            yield Match.from_regex(found, EntityType.COMPANY_ID, group=2)

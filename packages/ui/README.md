@@ -17,7 +17,8 @@ rules, how to add a feature, backlog).
 
 - `src/anonymizer/ui/api.py`: `ReviewApi`, everything the window asks of the core,
   as plain JSON data. No pywebview import; tested on its own.
-- `src/anonymizer/ui/app.py`: the window (pywebview), native file dialogs, the
+- `src/anonymizer/ui/app.py`: the window (pywebview); `WindowApi`, the only
+  calls the page can make, with paths chosen in native file dialogs; the
   `anonymize-ui` command.
 - `frontend/`: React + TypeScript, built by Vite into `src/anonymizer/ui/static/`
   (git-ignored, bundled into the wheel). `frontend/DESIGN.md` holds the design

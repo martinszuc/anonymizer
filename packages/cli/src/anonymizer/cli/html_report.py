@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pymupdf
 from anonymizer.cli import report
+from anonymizer.core.ingest import read_verified
 from anonymizer.core.types import BBox, Document, Entity, EntityType, Surface
 
 _CONTENT_SECURITY_POLICY = "default-src 'none'; img-src data:; style-src 'unsafe-inline'"
@@ -82,8 +83,11 @@ def render_report(source: Path, document: Document, *, dpi: int) -> str:
 
     Returns:
         A complete HTML page with every image embedded.
+
+    Raises:
+        ValueError: If `source` is not the file the document was loaded from.
     """
-    with pymupdf.open(source) as pdf:
+    with pymupdf.open(stream=read_verified(source, document), filetype="pdf") as pdf:
         pages = [
             _page_section(document, index, _page_png(pdf[index], dpi))
             for index in range(len(document.pages))

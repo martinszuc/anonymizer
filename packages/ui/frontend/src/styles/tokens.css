@@ -1,4 +1,5 @@
-/* Design tokens; see DESIGN.md. Components use these, never literal values. */
+/* Design tokens; see DESIGN.md. Colours, shadows, materials and every shared size
+   come from here; only one component's own geometry is written in its rule. */
 
 :root {
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI",
@@ -34,6 +35,14 @@
   --toolbar-height: 52px;
   --sidebar-width: 300px;
   --control-height: 28px;
+  --control-height-small: 24px;
+  --hairline: 0.5px;
+
+  /* Translucent materials behind bars and popovers. */
+  --material-toolbar: blur(24px) saturate(180%);
+  --material-sidebar: blur(30px) saturate(180%);
+  --material-popover: blur(20px) saturate(180%);
+  --material-sheet: blur(24px) saturate(180%);
 
   /* Light */
   --canvas: #e6e6e9;
@@ -66,6 +75,13 @@
   --shadow-popover: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 10px 30px rgb(0 0 0 / 0.16);
   --shadow-sheet: 0 0 0 0.5px rgb(0 0 0 / 0.14), 0 24px 60px rgb(0 0 0 / 0.22);
   --backdrop: rgb(0 0 0 / 0.18);
+  --shadow-control: 0 1px 2px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.06);
+  --shadow-knob: 0 1px 2px rgb(0 0 0 / 0.25);
+
+  --shimmer: rgb(120 120 128 / 0.08);
+  --switch-thumb: #ffffff;
+  --switch-on-track: var(--ink);
+  --switch-on-thumb: #ffffff;
 
   --red: #ff3b30;
   --orange: #ff9500;
@@ -112,6 +128,9 @@
     --shadow-popover: 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 12px 32px rgb(0 0 0 / 0.5);
     --shadow-sheet: 0 0 0 0.5px rgb(255 255 255 / 0.12), 0 24px 60px rgb(0 0 0 / 0.6);
     --backdrop: rgb(0 0 0 / 0.4);
+
+    --switch-on-track: #f5f5f7;
+    --switch-on-thumb: var(--ink);
 
     --red: #ff453a;
     --orange: #ff9f0a;

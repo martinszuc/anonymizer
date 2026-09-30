@@ -60,6 +60,8 @@ seen whole by the next."""
 
 # Czech and Slovak also quote with single low-9 and single turned commas,
 # written as escapes because they look like a comma and backticks.
+_OFFLINE_VARIABLES = ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE")
+
 _EDGE_PUNCTUATION = ",;:!?()[]{}\"'„“”\u201a\u2018\u2019«»"
 _WORD = re.compile(r"\S+")
 
@@ -217,73 +219,6 @@ def _windows(text: str) -> Iterator[_Window]:
             return
 
 
-def load_gliner(model_dir: Path, encoder_dir: Path) -> SpanModel:
-    """Load a GLiNER model from local files only.
-
-    Args:
-        model_dir: Directory with `gliner_config.json` and the weights.
-        encoder_dir: Directory with the encoder's config and tokenizer.
-
-    Returns:
-        The loaded model.
-
-    Raises:
-        ImportError: If the `gliner` package is not installed.
-    """
-    # Belt and braces: local_files_only covers the model, the variable covers
-    # anything transformers resolves on its own.
-    os.environ.setdefault("HF_HUB_OFFLINE", "1")
-    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
-    with without_known_warnings():
-        try:
-            from gliner import GLiNER  # pyright: ignore[reportMissingImports]
-        except ImportError as error:
-            msg = "name detection needs the optional 'ner' dependencies: uv sync --group ner"
-            raise ImportError(msg) from error
-        with _local_encoder(encoder_dir):
-            model = GLiNER.from_pretrained(str(model_dir), local_files_only=True)
-    # gliner types the result as a union of every architecture it can load;
-    # this model's config selects a uni-encoder span model, which fits.
-    return cast("SpanModel", model)
-
-
-@contextmanager
-def without_known_warnings() -> Iterator[None]:
-    """Hide two library messages that do not apply to this model.
-
-    - PyTorch deprecates `torch.jit.script`, which transformers' DeBERTa
-      module uses when it is imported. Nothing to act on in this project.
-    - transformers warns of an "incorrect regex pattern" whenever a local
-      tokenizer's config lacks a `transformers_version` field, which
-      mDeBERTa's does. The check targets Mistral tokenizers; on this path it
-      only logs and leaves the tokenizer unchanged.
-
-    Only these two messages are filtered, and only while the block runs.
-    """
-    tokenizer_logger = logging.getLogger("transformers.tokenization_utils_tokenizers")
-    regex_filter = _DropMessage("incorrect regex pattern")
-    tokenizer_logger.addFilter(regex_filter)
-    try:
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                message=r"`torch\.jit\.script` is deprecated",
-                category=FutureWarning,
-            )
-            yield
-    finally:
-        tokenizer_logger.removeFilter(regex_filter)
-
-
-class _DropMessage(logging.Filter):
-    def __init__(self, fragment: str) -> None:
-        super().__init__()
-        self.fragment = fragment
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        return self.fragment not in record.getMessage()
-
-
 def load_gliner_detector(
     root: Path,
     *,
@@ -323,6 +258,38 @@ def load_gliner_detector(
     return GlinerDetector(model, labels=labels, threshold=threshold)
 
 
+def load_gliner(model_dir: Path, encoder_dir: Path) -> SpanModel:
+    """Load a GLiNER model from local files only.
+
+    Args:
+        model_dir: Directory with `gliner_config.json` and the weights.
+        encoder_dir: Directory with the encoder's config and tokenizer.
+
+    Returns:
+        The loaded model.
+
+    Raises:
+        ImportError: If the `gliner` package is not installed.
+    """
+    # Belt and braces: local_files_only covers the model, the variables cover
+    # anything transformers resolves on its own. Set outright rather than as
+    # defaults, so an environment saying otherwise cannot reopen the network.
+    # huggingface_hub reads them when first imported, which happens below.
+    for variable in _OFFLINE_VARIABLES:
+        os.environ[variable] = "1"
+    with without_known_warnings():
+        try:
+            from gliner import GLiNER  # pyright: ignore[reportMissingImports]
+        except ImportError as error:
+            msg = "name detection needs the optional 'ner' dependencies: uv sync --group ner"
+            raise ImportError(msg) from error
+        with _local_encoder(encoder_dir):
+            model = GLiNER.from_pretrained(str(model_dir), local_files_only=True)
+    # gliner types the result as a union of every architecture it can load;
+    # this model's config selects a uni-encoder span model, which fits.
+    return cast("SpanModel", model)
+
+
 @contextmanager
 def _local_encoder(encoder_dir: Path) -> Iterator[None]:
     """Make gliner read the encoder from `encoder_dir` instead of its Hub id.
@@ -344,3 +311,40 @@ def _local_encoder(encoder_dir: Path) -> Iterator[None]:
         yield
     finally:
         BaseGLiNER._load_config = original
+
+
+@contextmanager
+def without_known_warnings() -> Iterator[None]:
+    """Hide two library messages that do not apply to this model.
+
+    - PyTorch deprecates `torch.jit.script`, which transformers' DeBERTa
+      module uses when it is imported. Nothing to act on in this project.
+    - transformers warns of an "incorrect regex pattern" whenever a local
+      tokenizer's config lacks a `transformers_version` field, which
+      mDeBERTa's does. The check targets Mistral tokenizers; on this path it
+      only logs and leaves the tokenizer unchanged.
+
+    Only these two messages are filtered, and only while the block runs.
+    """
+    tokenizer_logger = logging.getLogger("transformers.tokenization_utils_tokenizers")
+    regex_filter = _DropMessage("incorrect regex pattern")
+    tokenizer_logger.addFilter(regex_filter)
+    try:
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r"`torch\.jit\.script` is deprecated",
+                category=FutureWarning,
+            )
+            yield
+    finally:
+        tokenizer_logger.removeFilter(regex_filter)
+
+
+class _DropMessage(logging.Filter):
+    def __init__(self, fragment: str) -> None:
+        super().__init__()
+        self.fragment = fragment
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return self.fragment not in record.getMessage()

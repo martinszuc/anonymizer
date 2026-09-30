@@ -78,6 +78,23 @@ def load_session(session_path: Path | str, pdf_path: Path | str) -> Document:
             belongs to a different PDF, an entity refers to a missing page or
             surface, or an entity no longer covers the text it recorded.
     """
+    return apply_session(load_document(pdf_path), session_path)
+
+
+def apply_session(document: Document, session_path: Path | str) -> Document:
+    """Give a document freshly read from its PDF the decisions of a saved review.
+
+    Args:
+        document: The original PDF, loaded without entities (see
+            `load_document` or `document_from_bytes`).
+        session_path: Session file written by `save_session`.
+
+    Returns:
+        The same document, with the session's language and entities.
+
+    Raises:
+        ValueError: As `load_session`.
+    """
     data = json.loads(Path(session_path).read_text(encoding="utf-8"))
     if not isinstance(data, dict) or data.get("format") != SESSION_FORMAT:
         msg = "not a session file"
@@ -86,10 +103,10 @@ def load_session(session_path: Path | str, pdf_path: Path | str) -> Document:
     if version != SCHEMA_VERSION:
         msg = f"unsupported session version {version}, expected {SCHEMA_VERSION}"
         raise ValueError(msg)
-    document = load_document(pdf_path, language=data.get("language"))
     if document.fingerprint != data.get("fingerprint"):
         msg = "session belongs to a different PDF"
         raise ValueError(msg)
+    document.language = data.get("language")
     document.entities = [Entity.from_dict(entity) for entity in data.get("entities", [])]
     document.check_references()
     _check_covered_text(document)

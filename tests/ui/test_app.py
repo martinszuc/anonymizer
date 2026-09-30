@@ -1,5 +1,7 @@
 """Tests for the window shell, with pywebview replaced by stand-ins."""
 
+import inspect
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -7,11 +9,13 @@ from typing import Any
 import pytest
 import webview
 from anonymizer.ui import app
-from anonymizer.ui.api import ReviewError
+from anonymizer.ui.api import ReviewApi, ReviewError
 from anonymizer.ui.app import WindowApi, main
 
 from tests.pdf_builders import write_pdf
 from tests.ui.test_api import LINES
+
+BRIDGE = Path(__file__).parents[2] / "packages/ui/frontend/src/bridge.ts"
 
 
 @dataclass
@@ -57,9 +61,29 @@ def pdf(tmp_path: Path) -> Path:
 
 
 def attached(window: StandInWindow) -> WindowApi:
-    api = WindowApi()
-    api.attach(window)  # type: ignore[arg-type]
+    api = WindowApi(ReviewApi())
+    api._attach(window)  # type: ignore[arg-type]
     return api
+
+
+def bridge_methods() -> set[str]:
+    """Method names of the `ReviewBridge` interface the frontend calls."""
+    source = BRIDGE.read_text(encoding="utf-8")
+    interface = source[source.index("interface ReviewBridge") :]
+    body = interface[: interface.index("}")]
+    return set(re.findall(r"^\s+(\w+)\(", body, re.MULTILINE))
+
+
+class TestExposedCalls:
+    def test_the_page_can_call_exactly_the_bridge_methods(self):
+        # pywebview exposes every public attribute, so this set is the page's reach.
+        exposed = {name for name in dir(WindowApi(ReviewApi())) if not name.startswith("_")}
+        assert exposed == bridge_methods()
+
+    def test_no_exposed_call_takes_a_file_path(self):
+        for name in bridge_methods():
+            parameters = inspect.signature(getattr(WindowApi, name)).parameters
+            assert not {"path", "pdf_path", "session_path"} & set(parameters), name
 
 
 class TestMain:
@@ -147,7 +171,7 @@ class TestDialogs:
 
     def test_dialogs_need_the_window(self):
         with pytest.raises(ReviewError, match="window is not ready"):
-            WindowApi().choose_pdf()
+            WindowApi(ReviewApi()).choose_pdf()
 
 
 class TestExportDialog:

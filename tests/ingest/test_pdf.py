@@ -6,7 +6,13 @@ from pathlib import Path
 import pymupdf
 import pytest
 from anonymizer.core.detect import structured_detector
-from anonymizer.core.ingest import load_document, normalize_text, pages_needing_ocr
+from anonymizer.core.ingest import (
+    document_from_bytes,
+    load_document,
+    normalize_text,
+    pages_needing_ocr,
+    read_verified,
+)
 from anonymizer.core.types import EntityType
 
 
@@ -33,6 +39,17 @@ class TestLoadDocument:
     def test_records_the_file_fingerprint_computed_independently(self, single_page_pdf: Path):
         expected = hashlib.sha256(single_page_pdf.read_bytes()).hexdigest()
         assert load_document(single_page_pdf).fingerprint == expected
+
+    def test_bytes_in_memory_load_like_the_file(self, single_page_pdf: Path):
+        data = single_page_pdf.read_bytes()
+        from_bytes = document_from_bytes(data, language="cs")
+        assert from_bytes.to_dict() == load_document(single_page_pdf, language="cs").to_dict()
+        assert from_bytes.fingerprint == hashlib.sha256(data).hexdigest()
+
+    def test_missing_file_is_named_without_its_folders(self, tmp_path: Path):
+        with pytest.raises(FileNotFoundError) as raised:
+            load_document(tmp_path / "absent.pdf")
+        assert str(raised.value) == "no such file: absent.pdf"
 
     def test_records_neither_the_path_nor_the_file_name(self, single_page_pdf: Path):
         serialized = load_document(single_page_pdf).to_json()
@@ -108,3 +125,22 @@ class TestIngestFeedsDetection:
         for entity in entities:
             assert entity.bboxes
             assert all(box.width > 0 and box.height > 0 for box in entity.bboxes)
+
+
+class TestReadVerified:
+    def test_returns_the_bytes_the_document_was_loaded_from(self, single_page_pdf: Path):
+        document = load_document(single_page_pdf)
+        assert read_verified(single_page_pdf, document) == single_page_pdf.read_bytes()
+
+    def test_refuses_another_file(self, single_page_pdf: Path, tmp_path: Path):
+        document = load_document(single_page_pdf)
+        other = tmp_path / "other.pdf"
+        other.write_bytes(single_page_pdf.read_bytes() + b"\n")
+        with pytest.raises(ValueError, match="different file"):
+            read_verified(other, document)
+
+    def test_refuses_a_document_without_fingerprint(self, single_page_pdf: Path):
+        document = load_document(single_page_pdf)
+        document.fingerprint = None
+        with pytest.raises(ValueError, match="no fingerprint"):
+            read_verified(single_page_pdf, document)

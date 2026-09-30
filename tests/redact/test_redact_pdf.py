@@ -89,6 +89,34 @@ class TestPageText:
         assert CONTACT_EMAIL in output_text(output)
         assert find_leaks(output, document) == []
 
+    def test_text_kept_in_one_place_and_redacted_in_another_passes(self, tmp_path: Path):
+        source = write_pdf(tmp_path / "twice.pdf", [[f"to {CONTACT_EMAIL}", f"cc {CONTACT_EMAIL}"]])
+        document = detected(source)
+        assert len(document.entities) == 2
+        document.entities[1].review = ReviewState.REJECTED
+        output = tmp_path / "out.pdf"
+        redact_pdf(source, document, output)
+        assert output_text(output).count(CONTACT_EMAIL) == 1
+        assert find_leaks(output, document) == []
+
+    def test_copies_beyond_those_kept_are_leaks(self, tmp_path: Path):
+        lines = [f"to {CONTACT_EMAIL}", f"cc {CONTACT_EMAIL}", f"bcc {CONTACT_EMAIL}"]
+        source = write_pdf(tmp_path / "thrice.pdf", [lines])
+        document = detected(source)
+        document.entities[2].review = ReviewState.REJECTED
+        # The unredacted original still shows the two copies review did not keep.
+        leaks = find_leaks(source, document)
+        assert layers(leaks) == {LeakLayer.PAGE_TEXT}
+        assert {leak.entity_id for leak in leaks} == {e.entity_id for e in document.entities[:2]}
+
+    def test_a_copy_kept_on_one_page_does_not_excuse_another_page(self, tmp_path: Path):
+        source = write_pdf(tmp_path / "pages.pdf", [[CONTACT_EMAIL], [CONTACT_EMAIL]])
+        document = detected(source)
+        kept, redacted = document.entities
+        kept.review = ReviewState.REJECTED
+        leaks = find_leaks(source, document)
+        assert [(leak.where, leak.entity_id) for leak in leaks] == [("page 1", redacted.entity_id)]
+
     def test_entity_added_in_review_is_redacted(self, contact_pdf: Path):
         document = detected(contact_pdf)
         page = document.pages[0]

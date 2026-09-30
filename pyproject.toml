@@ -18,6 +18,8 @@ dev = [
     "pre-commit>=4.0",
     "pytest-cov>=7.1.0",
     "poethepoet>=0.48.0",
+    # Screen capture and WebP encoding for scripts/ui_tour.py.
+    "pillow>=11",
 ]
 ner = ["anonymizer-core[ner]"]
 benchmark = ["matplotlib>=3.9"]

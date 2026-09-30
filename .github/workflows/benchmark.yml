@@ -24,6 +24,7 @@ permissions: {}
 
 jobs:
   benchmark:
+    name: Score detection on the synthetic documents
     runs-on: ubuntu-latest
     permissions:
       contents: write

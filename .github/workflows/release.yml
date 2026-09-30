@@ -19,6 +19,7 @@ permissions: {}
 
 jobs:
   release-please:
+    name: Release PR and tag
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -35,6 +36,7 @@ jobs:
           manifest-file: .release-please-manifest.json
 
   build:
+    name: Build and attach the packages
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
@@ -79,6 +81,7 @@ jobs:
         run: gh release upload "$TAG" dist/* --clobber
 
   benchmark:
+    name: Benchmark the release
     needs: [release-please, build]
     if: needs.release-please.outputs.release_created == 'true'
     permissions:

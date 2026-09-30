@@ -53,7 +53,9 @@ Works, for PDFs with a text layer:
   errors, light and dark mode, reduced motion respected.
 
 Verified: macOS (real window driven from Python, see *Verifying the real
-window*). Linux and Windows: CI only (install, import, tests), never opened.
+window*). Linux and Windows: the *Window tour* workflow opens the window and
+photographs it on every run (see *Window tour*); its first runs are the first
+time the window opens there.
 
 Not yet: adding a missed word, resizing a box, changing options on an open
 document, remembered preferences, scanned pages. See
@@ -257,6 +259,27 @@ Native file dialogs cannot be scripted. To drive a feature behind one (open,
 save, export), subclass `WindowApi` in the script and override `_ask` to
 return a fixed path; everything else (the click in WebKit, the bridge, the
 core, the sheet) still runs for real.
+
+### Window tour (CI)
+
+`scripts/ui_tour.py` opens the real window on a synthetic letter and performs
+the basic tasks: home screen, choose a language, open a PDF, keep one finding, the *Hidden* tab,
+preview, export. Each step is asserted and followed by a screenshot of the
+*whole screen* (WebP), so the window appears with the desktop's own bars. It
+ends by re-reading the exported PDF and failing if a planted value survived.
+The page is driven with `evaluate_js` (no synthetic mouse), and file dialogs
+are answered by a `WindowApi` subclass.
+
+The `Window tour` workflow (`.github/workflows/window-tour.yml`) runs it on
+Ubuntu 24.04, Debian 12 and Fedora 42 (containers started by
+`scripts/tour-linux.sh`: Xvfb, xfwm4, xfce4-panel, Qt WebEngine from PyPI, so
+Linux is checked with the Qt backend, not GTK), and on the macOS and Windows
+runners. Artifacts: `window-tour-<platform>` per platform and `window-tour-all`
+with every platform side by side; a failure adds `NN-failure.webp`.
+
+The script refuses to run outside CI without `--allow-desktop`, because it
+photographs everything on the screen. To try it locally, use a virtual
+display (the script in a Linux container), not your desktop.
 
 ## Connections to the rest of the project
 

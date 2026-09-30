@@ -210,6 +210,53 @@ class TestRegion:
         assert document.regions_on_page(0)[0].bboxes == [PHOTO_BOX]
 
 
+class TestAddRegion:
+    def test_adds_a_confirmed_manual_region(self):
+        document = sample_document()
+        region = document.add_region(0, PHOTO_BOX)
+        assert region in document.entities
+        assert region.is_region
+        assert region.bboxes == [PHOTO_BOX]
+        assert region.source is DetectionSource.MANUAL
+        assert region.review is ReviewState.CONFIRMED
+        assert document.regions_on_page(0) == [region]
+
+    def test_clips_the_box_to_the_page(self):
+        document = sample_document()
+        page = document.page(0)
+        region = document.add_region(0, BBox(-20, -5, page.width + 30, 40))
+        assert region.bboxes == [BBox(0, 0, page.width, 40)]
+
+    def test_refuses_a_box_outside_the_page(self):
+        document = sample_document()
+        page = document.page(0)
+        with pytest.raises(ValueError, match="exactly one box with an area"):
+            document.add_region(0, BBox(page.width + 1, 10, page.width + 50, 40))
+        assert document.regions_on_page(0) == []
+
+    def test_refuses_an_unknown_page(self):
+        with pytest.raises(KeyError, match="no page with index 3"):
+            sample_document().add_region(3, PHOTO_BOX)
+
+    def test_a_drawn_region_survives_a_json_round_trip(self):
+        document = sample_document()
+        document.add_region(0, PHOTO_BOX)
+        restored = Document.from_json(document.to_json())
+        assert restored.regions_on_page(0) == document.regions_on_page(0)
+
+
+class TestRemoveEntity:
+    def test_removes_and_returns_it(self):
+        document = sample_document()
+        region = document.add_region(0, PHOTO_BOX)
+        assert document.remove_entity(region.entity_id) is region
+        assert region not in document.entities
+
+    def test_unknown_id(self):
+        with pytest.raises(KeyError, match="no entity with id nope"):
+            sample_document().remove_entity("nope")
+
+
 class TestAdjustSpan:
     def test_widening_a_span_recomputes_text_and_boxes(self):
         document = sample_document()

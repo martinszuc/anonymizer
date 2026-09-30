@@ -17,6 +17,10 @@ from anonymizer.core.detect.base import (
     merge_entities,
     resolve_overlaps,
 )
+from anonymizer.core.detect.birth_date import (
+    find_czech_slovak_birth_dates,
+    find_english_birth_dates,
+)
 from anonymizer.core.detect.birth_number import find_birth_numbers, is_valid_birth_number
 from anonymizer.core.detect.card import find_card_numbers, is_valid_card_number, passes_luhn
 from anonymizer.core.detect.company_id import find_company_ids, is_valid_company_id
@@ -41,6 +45,7 @@ LANGUAGE_INDEPENDENT_FINDERS: tuple[Finder, ...] = (
 
 _CZECH_SLOVAK_FINDERS: tuple[Finder, ...] = (
     find_birth_numbers,
+    find_czech_slovak_birth_dates,
     find_account_numbers,
     find_company_ids,
     find_czech_phone_numbers,
@@ -49,13 +54,14 @@ _CZECH_SLOVAK_FINDERS: tuple[Finder, ...] = (
 _FINDERS_BY_LANGUAGE: dict[str, tuple[Finder, ...]] = {
     "cs": _CZECH_SLOVAK_FINDERS,
     "sk": _CZECH_SLOVAK_FINDERS,
-    "en": (find_nanp_phone_numbers,),
+    "en": (find_nanp_phone_numbers, find_english_birth_dates),
 }
 
 STRUCTURED_FINDERS: tuple[Finder, ...] = (
     *LANGUAGE_INDEPENDENT_FINDERS,
     *_CZECH_SLOVAK_FINDERS,
     find_nanp_phone_numbers,
+    find_english_birth_dates,
 )
 """Every rule-based finder, regardless of language."""
 
@@ -126,7 +132,9 @@ __all__ = [
     "find_card_numbers",
     "find_company_ids",
     "find_czech_phone_numbers",
+    "find_czech_slovak_birth_dates",
     "find_emails",
+    "find_english_birth_dates",
     "find_ibans",
     "find_nanp_phone_numbers",
     "find_urls",

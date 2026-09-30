@@ -2,7 +2,10 @@
 
 Target: a native-feeling macOS app (Preview, Mail, Xcode sidebars) that also looks
 at home on Windows and Linux. Every value below is a CSS custom property in
-`src/styles/tokens.css`; components use tokens, never literal colors or sizes.
+`src/styles/tokens.css`. Colours, shadows, materials, type, spacing, radii,
+motion and every size more than one component uses come from tokens. Only the
+geometry of a single component (a switch track, a status dot, a stroke width) is
+written as a literal, in that component's rule.
 
 ## Principles
 
@@ -31,7 +34,12 @@ at home on Windows and Linux. Every value below is a CSS custom property in
 | Fonts | `--font` system stack, `--font-mono` `ui-monospace` for identifiers | no downloads |
 | Spacing | `--space-1`..`--space-8` = 2, 4, 8, 12, 16, 20, 24, 32 px | 4 px grid |
 | Radius | `--radius-box` 3, `--radius-control` 6, `--radius-row` 8, `--radius-card` 12, `--radius-pill` 999 | |
-| Elevation | `--shadow-page`, `--shadow-popover` | two levels only |
+| Elevation | `--shadow-page`, `--shadow-popover`, `--shadow-sheet`; `--backdrop` behind a sheet | three levels: page, popover, modal sheet |
+| Control shadows | `--shadow-control` (selected segment), `--shadow-knob` (switch thumb) | not elevation: they separate a control's moving part |
+| Materials | `--material-toolbar`, `--material-sidebar`, `--material-popover`, `--material-sheet` | `backdrop-filter` blur + saturation behind translucent surfaces |
+| Sizes | `--toolbar-height` 52, `--sidebar-width` 300, `--control-height` 28, `--control-height-small` 24, `--hairline` 0.5 px | |
+| Switch | `--switch-thumb`, `--switch-on-track`, `--switch-on-thumb` | on: ink track, white thumb; inverted in dark mode |
+| Loading | `--shimmer` | placeholder sweep while a page renders |
 | Motion | `--ease-out`, `--duration-fast` 120 ms, `--duration` 200 ms; springs in `src/motion.ts` | all motion off under `prefers-reduced-motion` |
 
 Entity type colours: names red, email blue, phone green, links orange, IBAN and

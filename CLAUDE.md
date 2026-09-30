@@ -63,7 +63,8 @@ passed.
   directly: `WindowApi` in `app.py` is the only object pywebview exposes, its
   public methods equal `ReviewBridge` in `bridge.ts`, and none takes a file path. The frontend lives in `packages/ui/frontend/` (React +
   TypeScript + Vite, `npm run check` / `npm test` / `npm run build`); its tokens and
-  components are in `frontend/DESIGN.md`, and styles use tokens, never literals.
+  components are in `frontend/DESIGN.md`; colours, shadows and shared sizes are
+  tokens, and only one component's own geometry is written as a literal.
   Pages are rendered by PyMuPDF and boxes drawn in an SVG whose view box is the
   page in points, so nothing converts coordinates in the browser. Keep
   `'unsafe-eval'` in the CSP: pywebview returns API results through `eval()`.

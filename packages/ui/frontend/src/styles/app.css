@@ -150,8 +150,8 @@ kbd {
   height: var(--toolbar-height);
   padding: 0 var(--space-4) 0 var(--space-5);
   background: var(--toolbar);
-  backdrop-filter: blur(24px) saturate(180%);
-  border-bottom: 0.5px solid var(--separator);
+  backdrop-filter: var(--material-toolbar);
+  border-bottom: var(--hairline) solid var(--separator);
   position: relative;
   z-index: 2;
 }
@@ -198,18 +198,18 @@ kbd {
   display: flex;
   align-items: center;
   padding: var(--space-1);
-  border-radius: calc(var(--radius-control) + 2px);
+  border-radius: calc(var(--radius-control) + var(--space-1));
   background: var(--fill);
 }
 
 .control-group .button-plain {
-  height: 24px;
+  height: var(--control-height-small);
   width: 26px;
 }
 
 .zoom-level {
   min-width: 52px;
-  height: 24px;
+  height: var(--control-height-small);
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
@@ -239,8 +239,8 @@ kbd {
   flex: none;
   padding: var(--space-5) var(--space-4) 0;
   background: var(--sidebar);
-  backdrop-filter: blur(30px) saturate(180%);
-  border-right: 0.5px solid var(--separator);
+  backdrop-filter: var(--material-sidebar);
+  border-right: var(--hairline) solid var(--separator);
   min-height: 0;
 }
 
@@ -289,13 +289,13 @@ kbd {
   grid-auto-columns: 1fr;
   grid-auto-flow: column;
   padding: var(--space-1);
-  border-radius: calc(var(--radius-control) + 2px);
+  border-radius: calc(var(--radius-control) + var(--space-1));
   background: var(--fill);
 }
 
 .segment {
   position: relative;
-  height: 24px;
+  height: var(--control-height-small);
   border: 0;
   background: transparent;
   font-weight: 500;
@@ -306,7 +306,7 @@ kbd {
   inset: 0;
   border-radius: var(--radius-control);
   background: var(--elevated);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.06);
+  box-shadow: var(--shadow-control);
 }
 
 .segment-label {
@@ -505,25 +505,19 @@ kbd {
 
 .switch[data-on="true"] {
   justify-content: flex-end;
-  background: var(--ink);
-}
-
-@media (prefers-color-scheme: dark) {
-  .switch[data-on="true"] {
-    background: #f5f5f7;
-  }
-
-  .switch[data-on="true"] .switch-thumb {
-    background: var(--ink);
-  }
+  background: var(--switch-on-track);
 }
 
 .switch-thumb {
   width: 14px;
   height: 14px;
   border-radius: var(--radius-pill);
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  background: var(--switch-thumb);
+  box-shadow: var(--shadow-knob);
+}
+
+.switch[data-on="true"] .switch-thumb {
+  background: var(--switch-on-thumb);
 }
 
 /* Pages */
@@ -564,7 +558,7 @@ kbd {
 }
 
 .page-placeholder {
-  background: linear-gradient(100deg, transparent 30%, rgb(120 120 128 / 0.08) 50%, transparent 70%)
+  background: linear-gradient(100deg, transparent 30%, var(--shimmer) 50%, transparent 70%)
     var(--page);
   background-size: 200% 100%;
   animation: shimmer 1.4s linear infinite;
@@ -740,7 +734,7 @@ kbd {
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-row);
   background: var(--elevated);
-  backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: var(--material-popover);
   box-shadow: var(--shadow-popover);
   pointer-events: none;
   transform-origin: top left;
@@ -835,7 +829,7 @@ kbd {
   padding: var(--space-7) var(--space-6) var(--space-5);
   border-radius: var(--radius-card);
   background: var(--elevated);
-  backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: var(--material-sheet);
   box-shadow: var(--shadow-sheet);
   text-align: center;
   overflow: auto;
@@ -902,7 +896,7 @@ kbd {
 }
 
 .sheet-summary > div + div {
-  border-top: 0.5px solid var(--separator);
+  border-top: var(--hairline) solid var(--separator);
 }
 
 .sheet-summary dt {
@@ -986,7 +980,7 @@ kbd {
   padding: var(--space-3) var(--space-5);
   border-radius: var(--radius-pill);
   background: var(--elevated);
-  backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: var(--material-popover);
   box-shadow: var(--shadow-popover);
   font-weight: 500;
 }

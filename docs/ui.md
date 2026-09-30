@@ -137,8 +137,10 @@ A change to a payload or method touches four places: `api.py` (and its test),
 - **Logic belongs in the core, not the window.** If the CLI could use it
   (export, adding an entity, re-detection), write it in `core` with tests,
   then call it from `ReviewApi`. The window stays a thin client.
-- **Styles use tokens** from `tokens.css`, never literal colours or sizes;
-  add a token to `DESIGN.md` and `tokens.css` first. Motion respects
+- **Styles use tokens** from `tokens.css` for colours, shadows, materials,
+  type, spacing, radii, motion and any size two components share; add a
+  token to `DESIGN.md` and `tokens.css` first. Only one component's own
+  geometry (a switch track, a dot) is a literal in its rule. Motion respects
   `prefers-reduced-motion` (`MotionConfig reducedMotion="user"` in `App`).
 - **Demo data is synthetic** and development-only (`import.meta.env.DEV`).
 

@@ -1,11 +1,23 @@
 // The Python side, reached through pywebview's `window.pywebview.api`.
 
-import type { DocumentInfo, EntityInfo, ExportResult, ReviewState } from "./types";
+import type {
+  AppStatus,
+  DocumentInfo,
+  EntityInfo,
+  ExportResult,
+  OpenOptions,
+  ReviewState,
+} from "./types";
 
 /** The methods of `anonymizer.ui.app.WindowApi`; every call returns a promise. */
 export interface ReviewBridge {
+  status(): Promise<AppStatus>;
   current_document(): Promise<DocumentInfo | null>;
-  choose_pdf(language?: string | null): Promise<DocumentInfo | null>;
+  /** Null when the reviewer cancelled the open dialog. */
+  choose_pdf(options: OpenOptions): Promise<DocumentInfo | null>;
+  /** Opens the PDF last dropped on the window (see `DROPPED`); null if there is none. */
+  open_dropped(options: OpenOptions): Promise<DocumentInfo | null>;
+  close_document(): Promise<void>;
   choose_session(): Promise<DocumentInfo | null>;
   save_session_as(): Promise<boolean>;
   /** Null when the reviewer cancelled the save dialog. */

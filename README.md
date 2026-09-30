@@ -47,7 +47,9 @@ uv run anonymize inspect cv.pdf -o cv.html --lang cs   # pages with the found it
 
 See [`packages/cli/README.md`](packages/cli/README.md) for reviewing without a UI.
 
-The review window needs its frontend built once (Node 22):
+The review window needs its frontend built once (Node 22). It opens on a home
+screen: drop a PDF or open one, with the language and the name model chosen
+there (`--resource-root` says where `models/` is, as for the CLI):
 
 ```sh
 npm --prefix packages/ui/frontend ci
@@ -103,10 +105,11 @@ Working for PDFs with a text layer: text and hidden-data extraction, rule-based
 detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL, labelled
 dates of birth, postal addresses), names with the GLiNER model (optional,
 `--ner`), review through
-session files or the review window (open, toggle each item, save the session,
-export), blackbox redaction and a leak check on the output.
-Not yet: measured NER quality, scanned documents (OCR), adding or drawing items
-in the review window.
+session files or the review window (a home screen with the detection options
+and the name model, open or drop a PDF, toggle each item, draw regions, save the
+session, export), blackbox redaction and a leak check on the output.
+Not yet: measured NER quality, scanned documents (OCR), adding a missed word in
+the review window.
 
 ## License
 

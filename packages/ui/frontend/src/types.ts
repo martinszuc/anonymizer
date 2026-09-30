@@ -62,3 +62,23 @@ export interface ExportResult {
   pages_without_text: number[];
   leaks: LeakInfo[];
 }
+
+export type ModelState = "ready" | "not_installed" | "files_missing";
+
+/** What `ReviewApi.status` says about the installation, for the home screen. */
+export interface AppStatus {
+  version: string;
+  languages: { code: string; name: string }[];
+  model: { state: ModelState; missing: string[] };
+}
+
+/** How a PDF is opened; each is a detection option (see `ReviewApi.open_pdf`). */
+export interface OpenOptions {
+  /** Null runs every language's rules. */
+  language: string | null;
+  propagate: boolean;
+  use_model: boolean;
+}
+
+/** A step of opening a PDF, told by Python as it starts. */
+export type OpenStep = "reading" | "loading_model" | "detecting";

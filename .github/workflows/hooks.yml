@@ -1,0 +1,31 @@
+name: Hooks
+
+# Separate from CI, which skips changes to Markdown only: ruff formats the
+# Python examples inside Markdown files, and the hooks also reject committed
+# documents, so a docs-only change must pass them too.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hooks:
+    name: pre-commit hooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --locked --all-packages
+
+      - name: Run hooks
+        run: uv run poe hooks --show-diff-on-failure

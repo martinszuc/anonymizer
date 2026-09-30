@@ -19,6 +19,7 @@ which keeps it testable without the model.
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import os
 import re
@@ -219,6 +220,39 @@ def _windows(text: str) -> Iterator[_Window]:
             return
 
 
+def gliner_installed() -> bool:
+    """Whether the optional `ner` dependencies are installed.
+
+    Checked without importing them: `gliner` pulls in PyTorch, which takes
+    seconds to load, too slow for a status check.
+
+    Returns:
+        `True` if the `gliner` package can be imported.
+    """
+    try:
+        return importlib.util.find_spec("gliner") is not None
+    except (ImportError, ValueError):
+        # find_spec raises for a module that is present but broken or blocked.
+        return False
+
+
+def missing_gliner_files(root: Path) -> list[str]:
+    """Return the catalog ids of the model resources not stored under a root.
+
+    Args:
+        root: Storage root holding `models/` (see `scripts/download.py`).
+
+    Returns:
+        Ids in download order; empty when the model can be loaded.
+    """
+    catalog = load_catalog()
+    return [
+        resource.id
+        for resource in catalog.with_requirements(GLINER_RESOURCE)
+        if resource_status(resource, root) != "present"
+    ]
+
+
 def load_gliner_detector(
     root: Path,
     *,
@@ -239,18 +273,14 @@ def load_gliner_detector(
         FileNotFoundError: If the model or its encoder files are not stored.
         ImportError: If the `gliner` package is not installed.
     """
-    catalog = load_catalog()
-    missing = [
-        resource.id
-        for resource in catalog.with_requirements(GLINER_RESOURCE)
-        if resource_status(resource, root) != "present"
-    ]
+    missing = missing_gliner_files(root)
     if missing:
         msg = (
             f"model files missing under {root}: {', '.join(missing)}; "
             f"fetch them with: uv run python scripts/download.py fetch {GLINER_RESOURCE}"
         )
         raise FileNotFoundError(msg)
+    catalog = load_catalog()
     model = load_gliner(
         catalog[GLINER_RESOURCE].directory(root),
         catalog[ENCODER_RESOURCE].directory(root),

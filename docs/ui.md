@@ -9,12 +9,23 @@ Visual design (tokens, components, box states) lives in
 [`packages/ui/frontend/DESIGN.md`](../packages/ui/frontend/DESIGN.md);
 package usage in [`packages/ui/README.md`](../packages/ui/README.md).
 
-## Status (after drawn regions, 2026-09-30)
+## Status (after the home screen, 2026-10-01)
 
 Works, for PDFs with a text layer:
 
-- Open a PDF (native dialog, or `anonymize-ui file.pdf --lang cs`); detection
-  runs with the rules for the language and occurrence propagation.
+- **Home screen** (no document open): a drop area with *Open PDF…*, the
+  detection options that apply to the next PDF (language: All or one with
+  its own rules; the name model on or off; marking repeats), the model's
+  state (ready, not installed, files missing with the fetch command), and
+  *Continue a saved review…*. The options live for the session; the model
+  is on by default when it is ready.
+- Open a PDF from the dialog, by **dropping it on the window** (on the home
+  screen or over an open document), or `anonymize-ui file.pdf --lang cs
+  [--ner]`. An **Opening screen** shows each step as Python starts it
+  (reading, loading the model once per session, detecting); the model's
+  first load takes about ten seconds.
+- **Close the document** (the back chevron in the toolbar) returns home,
+  asking first if decisions are unsaved.
 - Reopen a saved review: pick the session file, then the original PDF (a
   session stores a fingerprint, not a path).
 - Every page rendered, proposed redactions drawn over it. **Review mode**
@@ -46,7 +57,8 @@ window*). Linux and Windows: the *Window tour* workflow opens the window and
 photographs it on every run (see *Window tour*); its first runs are the first
 time the window opens there.
 
-Not yet: adding a missed word, resizing a box, settings, scanned pages. See
+Not yet: adding a missed word, resizing a box, changing options on an open
+document, remembered preferences, scanned pages. See
 *Backlog*.
 
 ## Architecture
@@ -98,8 +110,11 @@ Methods the page calls (all return promises in JS):
 
 | Method | Returns | Notes |
 |---|---|---|
+| `status()` | `AppStatus` | version, languages with their own rules, the model's state; never loads the model |
 | `current_document()` | `DocumentInfo \| null` | on start: a PDF given on the command line |
-| `choose_pdf(language)` | `DocumentInfo \| null` | null = cancelled |
+| `choose_pdf(options)` | `DocumentInfo \| null` | options `{language, propagate, use_model}`, checked in Python; null = cancelled |
+| `open_dropped(options)` | `DocumentInfo \| null` | opens the PDF Python kept from the last drop; null if none |
+| `close_document()` | `None` | forgets the document, window title back to "Anonymizer" |
 | `add_region(page_index, x0, y0, x1, y1)` | `EntityInfo` | points, corners in any order; clipped to the page; `manual`, `confirmed` |
 | `remove_entity(entity_id)` | `None` | only `manual` items; a detected item is rejected instead |
 | `export_as(allow_pages_without_text)` | `ExportResult \| null` | save dialog; null = cancelled; raises (rejects) when pages lack text and consent is false |
@@ -110,6 +125,21 @@ Methods the page calls (all return promises in JS):
 
 A change to a payload or method touches four places: `api.py` (and its test),
 `types.ts`, `bridge.ts`, `demo.ts`. Payloads use the core's snake_case names.
+
+Python tells the page about what it did not ask for with DOM events on
+`window` (`WindowApi._notify`), each with plain-data `detail`:
+
+| Event | Detail | When |
+|---|---|---|
+| `anonymizer:progress` | `reading` / `loading_model` / `detecting` | a step of opening a PDF starts |
+| `anonymizer:dropped` | the file's name | a PDF was dropped; the page calls `open_dropped` |
+| `anonymizer:drop-refused` | the file's name | something other than a PDF was dropped |
+
+**Drag and drop keeps the no-path rule.** Only pywebview's own drop handler
+(bound in `WindowApi._watch_drops` whenever the page loads) sees a dropped
+file's full path. Python keeps it privately and tells the page only the name;
+the page then calls `open_dropped`, which takes options, never a path. The
+page's own drag listeners only draw the highlight.
 
 ## Rules to keep
 
@@ -256,8 +286,9 @@ display (the script in a Linux container), not your desktop.
 | Core / CLI piece | How the window uses it, or will |
 |---|---|
 | `ingest.read_pdf`, `document_from_bytes` | `open_pdf`: the file is read once; the document is loaded from those bytes and pages render from them |
-| `pipeline.build_detector(language)`, `run_detection` | detection on open (rules only today), with occurrence propagation (always on today) |
-| `detect.load_gliner_detector(root)` → `build_detector(language, model=...)` | **not wired**: NER in the window (see backlog, settings) |
+| `pipeline.build_detector(language, model=...)`, `run_detection` | detection on open, with the options from the home screen |
+| `detect.load_gliner_detector(root)` | the name model, loaded on first use from `--resource-root` and kept for the session |
+| `detect.gliner_installed`, `missing_gliner_files` | the model's state on the home screen, without loading it |
 | `session.save_session` / `apply_session` | save and reopen; same files as `anonymize detect` / `redact --session` |
 | `Document.adjust_span(entity_id, start, end)` | **not wired**: resizing a box to other words |
 | `Document.add_region`, `Document.remove_entity` | drawing and removing a region |
@@ -276,28 +307,29 @@ In suggested order. Each item names where it plugs in.
    boxes). UI: drag across words in review mode, a popover with a type
    picker, then propagation of the new text (`propagate_occurrences`).
 2. **Resize a box** to fewer or more words → `Document.adjust_span`.
-3. **Settings sheet:** language (re-run detection, warning that decisions
-   reset or are carried over by span), propagation on/off, NER on/off
-   (available only when the `ner` group is installed and the model is
-   present: `resource_status`), entity types shown.
+3. **Change options on an open document:** re-run detection with another
+   language or with the model, carrying decisions over by span. Opening
+   options already live on the home screen.
+4. **Remembered preferences:** the home screen's options kept between runs
+   in a small settings file (no personal data), and an **opt-in** list of
+   recent files, off by default: a file name can be personal data.
 4. **Unsaved changes on close:** pywebview `confirm_close` or a closing
    event tied to the `dirty` flag; today only opening another document asks.
 5. **Undo / redo** of decisions (Cmd/Ctrl+Z), kept in the frontend as a
    stack of `set_review` calls.
-6. **Drag and drop a PDF** onto the window.
-7. **Model setup page (M9):** catalog entries with task, languages, size,
+6. **Model setup page (M9):** catalog entries with task, languages, size,
    licence; download only on an explicit click, from the official source,
    verified by SHA-256 (`fetch_resource`), progress shown.
-8. **Scanned pages** once the OCR path exists: OCR words arrive with
+7. **Scanned pages** once the OCR path exists: OCR words arrive with
     `raster_dpi`, boxes are already in points; the warning goes away;
     region drawing matters more.
-9. **Label mode preview** once labels exist (M5): preview draws `[NAME]`
+8. **Label mode preview** once labels exist (M5): preview draws `[NAME]`
     instead of black boxes.
-10. **Accessibility pass:** boxes are not keyboard-reachable (the list is the
+9. **Accessibility pass:** boxes are not keyboard-reachable (the list is the
     keyboard path); run a WCAG review of both themes.
-11. **Packaging (M9):** PyInstaller bundle per OS; test Windows (WebView2)
+10. **Packaging (M9):** PyInstaller bundle per OS; test Windows (WebView2)
     and Linux (GTK or Qt backend) by hand.
-12. **Large documents:** virtualize the page list and the sidebar beyond a
+11. **Large documents:** virtualize the page list and the sidebar beyond a
     few hundred pages or entities.
 
 ## Known gotchas

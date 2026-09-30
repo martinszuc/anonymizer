@@ -4,6 +4,7 @@ The model itself is exercised only by the `model`-marked test at the end,
 which is skipped unless the weights and the `gliner` package are present.
 """
 
+import importlib.util
 import logging
 import os
 import re
@@ -18,11 +19,14 @@ from anonymizer.core.detect.gliner import (
     OVERLAP_WORDS,
     WINDOW_WORDS,
     GlinerDetector,
+    gliner_installed,
     load_gliner,
     load_gliner_detector,
+    missing_gliner_files,
     widen_to_words,
     without_known_warnings,
 )
+from anonymizer.core.resources import load_catalog
 from anonymizer.core.types import BBox, DetectionSource, Entity, EntityType, Page, Word
 
 
@@ -287,6 +291,27 @@ def test_loading_forces_offline_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: 
 def test_missing_model_files_name_the_fetch_command(tmp_path):
     with pytest.raises(FileNotFoundError, match=re.escape("download.py fetch gliner-multi-v2.1")):
         load_gliner_detector(tmp_path)
+
+
+def test_missing_files_are_listed_in_download_order(tmp_path: Path):
+    assert missing_gliner_files(tmp_path) == ["mdeberta-v3-base-tokenizer", "gliner-multi-v2.1"]
+
+
+def test_no_files_are_missing_once_every_file_is_stored(tmp_path: Path):
+    for resource in load_catalog().with_requirements("gliner-multi-v2.1"):
+        for item in resource.files:
+            stored = resource.directory(tmp_path) / item.path
+            stored.parent.mkdir(parents=True, exist_ok=True)
+            stored.write_bytes(b"")
+    assert missing_gliner_files(tmp_path) == []
+
+
+def test_installed_is_checked_without_importing(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setitem(sys.modules, "gliner", None)
+    assert gliner_installed() is False
+    monkeypatch.delitem(sys.modules, "gliner")
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: object())
+    assert gliner_installed() is True
 
 
 REPOSITORY = Path(__file__).resolve().parents[2]

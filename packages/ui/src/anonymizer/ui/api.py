@@ -17,13 +17,19 @@ fingerprint.
 from __future__ import annotations
 
 import base64
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import pymupdf
+from anonymizer.core.detect import (
+    Detector,
+    gliner_installed,
+    load_gliner_detector,
+    missing_gliner_files,
+)
 from anonymizer.core.ingest import document_from_bytes, pages_needing_ocr, read_pdf
 from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import Leak, export_redacted
@@ -37,10 +43,18 @@ from anonymizer.core.types import (
     ReviewState,
     Surface,
 )
+from anonymizer.ui import __version__
 
 MIN_DPI = 36
 MAX_DPI = 400
 """Render resolution bounds. 400 dpi puts an A4 page at about 4,700 by 6,600 pixels."""
+
+
+LANGUAGES = {"cs": "Czech", "sk": "Slovak", "en": "English"}
+"""Languages with their own rules (`detect.finders_for`); without one, every rule runs."""
+
+Progress = Callable[[str], None]
+"""Told each step of opening a PDF: `reading`, `loading_model`, `detecting`."""
 
 
 class ReviewError(Exception):
@@ -63,11 +77,50 @@ class ReviewApi:
     `ReviewError` when none is.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, resource_root: Path | None = None) -> None:
+        """Initialize the API.
+
+        Args:
+            resource_root: Directory holding `models/`, as for the CLI's
+                `--resource-root`; the working directory when omitted.
+        """
         self._open: _OpenDocument | None = None
+        self._resource_root = resource_root or Path()
+        # Loaded on first use and kept: loading takes seconds, detecting does not.
+        self._model: Detector | None = None
+
+    def status(self) -> dict[str, Any]:
+        """Describe what this installation can do, for the home screen.
+
+        Checking the name model never loads it, so the home screen appears at
+        once.
+
+        Returns:
+            The version, the languages with their own rules, and the name
+            model's state: `ready`, `not_installed` (the optional `ner`
+            dependencies are missing) or `files_missing` (with the catalog ids
+            to fetch).
+        """
+        missing = missing_gliner_files(self._resource_root)
+        if not gliner_installed():
+            state = "not_installed"
+        elif missing:
+            state = "files_missing"
+        else:
+            state = "ready"
+        return {
+            "version": __version__,
+            "languages": [{"code": code, "name": name} for code, name in LANGUAGES.items()],
+            "model": {"state": state, "missing": missing},
+        }
 
     def open_pdf(
-        self, path: str, language: str | None = None, propagate: bool = True
+        self,
+        path: str,
+        language: str | None = None,
+        propagate: bool = True,
+        use_model: bool = False,
+        progress: Progress | None = None,
     ) -> dict[str, Any]:
         """Open a PDF and propose redactions for it.
 
@@ -75,19 +128,37 @@ class ReviewApi:
             path: The PDF to review.
             language: BCP 47 tag selecting the rules; every rule runs when omitted.
             propagate: Also mark further occurrences of the text found.
+            use_model: Also run the name model (see `status`).
+            progress: Told each step as it starts.
 
         Returns:
             The document as `document()` describes it.
 
         Raises:
-            ReviewError: If the file is missing or unreadable.
+            ReviewError: If the file is missing or unreadable, or the model was
+                asked for but cannot be loaded.
         """
+        report = progress or (lambda _step: None)
+        report("reading")
         with _as_review_error():
             pdf_bytes = read_pdf(path)
             document = document_from_bytes(pdf_bytes, language=language)
-            run_detection(document, build_detector(language), propagate=propagate)
+        model = self._loaded_model(report) if use_model else None
+        report("detecting")
+        run_detection(document, build_detector(language, model=model), propagate=propagate)
         self._open = _OpenDocument(Path(path), document, pdf_bytes)
         return self.document()
+
+    def _loaded_model(self, report: Progress) -> Detector:
+        """Return the name model, loading it the first time."""
+        if self._model is None:
+            report("loading_model")
+            try:
+                self._model = load_gliner_detector(self._resource_root)
+            except (ImportError, FileNotFoundError) as error:
+                msg = f"the name model is not available: {error}"
+                raise ReviewError(msg) from error
+        return self._model
 
     def open_session(self, pdf_path: str, session_path: str) -> dict[str, Any]:
         """Reopen a saved review of a PDF.

@@ -20,7 +20,7 @@ from anonymizer.core.detect import (
     propagate_occurrences,
 )
 from anonymizer.core.ingest import load_document, pages_needing_ocr
-from anonymizer.core.redact import find_leaks, redact_pdf
+from anonymizer.core.redact import export_redacted, find_leaks
 from anonymizer.core.session import load_session, save_session
 from anonymizer.core.types import Document
 
@@ -97,12 +97,7 @@ def run_redact(
     force: bool,
     output: Output,
 ) -> int:
-    """Redact a PDF, and write it only if the leak check passes.
-
-    The copy is written under a temporary name next to the destination and
-    renamed only after the check, so a file that failed it never appears
-    under the name the user asked for.
-    """
+    """Redact a PDF, and write it only if the leak check passes (`export_redacted`)."""
     if destination.resolve() == source.resolve():
         msg = "the output must not overwrite the input"
         raise CommandError(msg)
@@ -112,19 +107,11 @@ def run_redact(
     )
     _refuse_unreadable_pages(document, allow=allow_pages_without_text, output=output)
 
-    partial = destination.with_name(f".{destination.name}.partial")
-    try:
-        redact_pdf(source, document, partial)
-        leaks = find_leaks(partial, document)
-    except BaseException:
-        partial.unlink(missing_ok=True)
-        raise
+    leaks = export_redacted(source, document, destination)
     if leaks:
-        partial.unlink()
         print(report.leak_report(leaks), file=output.err)
         print(f"nothing written to {destination}", file=output.err)
         return EXIT_LEAKS
-    partial.replace(destination)
     print(f"{source.name}: {report.document_summary(document)}", file=output.out)
     print(report.redaction_summary(document), file=output.out)
     print("leak check passed", file=output.out)

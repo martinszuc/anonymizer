@@ -263,7 +263,7 @@ core, the sheet) still runs for real.
 ### Window tour (CI)
 
 `scripts/ui_tour.py` opens the real window on a synthetic letter and performs
-the basic tasks: start screen, open a PDF, keep one finding, the *Hidden* tab,
+the basic tasks: home screen, choose a language, open a PDF, keep one finding, the *Hidden* tab,
 preview, export. Each step is asserted and followed by a screenshot of the
 *whole screen* (WebP), so the window appears with the desktop's own bars. It
 ends by re-reading the exported PDF and failing if a planted value survived.

@@ -161,8 +161,16 @@ class Tour:
     def run(self) -> None:
         """Perform every step, asserting as it goes."""
         self.window.maximize()
-        self.wait_for("document.querySelector('.empty')", "the start screen")
-        self.shot("start", "Start screen before anything is open")
+        self.wait_for("document.querySelector('.home')", "the home screen")
+        self.shot("home", "Home screen before anything is open")
+
+        self.click_button("Czech")
+        self.wait_for(
+            "[...document.querySelectorAll('[role=tab][aria-selected=true]')]"
+            ".some((t) => t.textContent.includes('Czech'))",
+            "the Czech language choice",
+        )
+        self.shot("language", "Language set to Czech before opening")
 
         self.click_button("Open PDF…")
         self.wait_for("document.querySelectorAll('.redaction').length >= 3", "proposed redactions")
@@ -178,7 +186,11 @@ class Tour:
 
         self.click_box(KEPT_TYPE)
         self.click_button("Hidden")
-        self.wait_for("document.querySelector('.group[aria-label]')", "the hidden-data list")
+        self.wait_for(
+            "[...document.querySelectorAll('[role=tab][aria-selected=true]')]"
+            ".some((t) => t.textContent.includes('Hidden'))",
+            "the Hidden tab",
+        )
         self.shot("hidden", "Hidden tab: link and metadata that export clears")
 
         self.click_button("Findings")

@@ -116,6 +116,23 @@ jobs:
       - name: Sync dependencies
         run: uv sync --locked --all-packages
 
+      # macOS asks whether Python may find devices on the local network when the
+      # window starts its page server, and the page stays blank until someone
+      # answers. Nobody sits at a runner, so answer Allow for the first minute.
+      - name: Answer macOS's local network prompt
+        if: runner.os == 'macOS'
+        run: |
+          (
+            for _ in $(seq 60); do
+              osascript -e 'tell application "System Events" to repeat with p in (every process whose visible is true)
+                try
+                  click button "Allow" of window 1 of p
+                end try
+              end repeat' >/dev/null 2>&1 || true
+              sleep 1
+            done
+          ) &
+
       - name: Run the tour
         run: uv run --no-sync python scripts/ui_tour.py screenshots
 
@@ -134,10 +151,14 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
-      # One download with every platform in its own folder, for side-by-side viewing.
-      - uses: actions/upload-artifact/merge@v4
+      # Each platform keeps its own folder, for side-by-side viewing.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: window-tour-*
+          path: gallery
+
+      - uses: actions/upload-artifact@v4
         with:
           name: window-tour-all
-          pattern: window-tour-*
-          delete-merged: false
+          path: gallery
           retention-days: 30

@@ -7,6 +7,13 @@ converts to rotated page space by scale alone (`points = pixels * 72 / dpi`),
 with no rotation mapping as the text layer needs. The page records the
 resolution in `Page.raster_dpi`.
 
+Engines fit a word's box to the core of its ink and clip the edges of its
+letters; redacted from such a box, a word leaves slivers of ink beside it,
+which the leak check cannot see. Every box is therefore grown on each side
+by `OCR_BOX_MARGIN` of its height. In the scanned benchmark (OnnxTR, clean
+scans) 322 of 750 words had ink outside their boxes; with this margin 4 did.
+A larger margin starts to cover the neighbouring lines at usual spacing.
+
 An engine runs locally and never downloads anything: an adapter for a
 library that fetches its own weights is given local model paths from the
 resource catalog instead.
@@ -23,6 +30,9 @@ from anonymizer.core.types import BBox, Page
 
 DEFAULT_OCR_DPI = 300
 """Resolution pages are rendered at for OCR; 300 DPI is the usual scanning resolution."""
+
+OCR_BOX_MARGIN = 0.15
+"""Share of a word box's height added on each side of it."""
 
 _POINTS_PER_INCH = 72
 
@@ -132,16 +142,22 @@ def read_page(pdf_page: pymupdf.Page, index: int, engine: OcrEngine, dpi: int) -
 
 
 def _to_points(box: tuple[float, float, float, float], image: PageImage, page: Page) -> BBox:
-    """Convert a pixel box to page points, corners ordered and clipped to the page.
+    """Convert a pixel box to page points, grown by the margin and clipped to the page.
 
     The picture is rounded up to whole pixels, so it can reach a fraction of
     a point past the page; clipping happens in points for that reason.
     """
     scale = _POINTS_PER_INCH / image.dpi
     x0, y0, x1, y1 = (value * scale for value in box)
-    left, right = sorted((_clip(x0, page.width), _clip(x1, page.width)))
-    top, bottom = sorted((_clip(y0, page.height), _clip(y1, page.height)))
-    return BBox(left, top, right, bottom)
+    left, right = sorted((x0, x1))
+    top, bottom = sorted((y0, y1))
+    margin = OCR_BOX_MARGIN * (bottom - top)
+    return BBox(
+        _clip(left - margin, page.width),
+        _clip(top - margin, page.height),
+        _clip(right + margin, page.width),
+        _clip(bottom + margin, page.height),
+    )
 
 
 def _clip(value: float, limit: float) -> float:

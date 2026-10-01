@@ -90,6 +90,59 @@ size = 4305025
 sha256 = "13c8d666d62a7bc4ac8f040aab68e942c861f93303156cc28f5c7e885d86d6e3"
 
 [[resource]]
+id = "onnxtr-fast-base"
+name = "OnnxTR FAST base: text detection"
+kind = "model"
+uses = ["ocr-detection"]
+engine = "onnxtr"
+source = "https://huggingface.co/Felix92/onnxtr-fast-base"
+version = "9e1b4f4773acfee2f252523c7fa563bf699c1fe5"
+licence = "Apache-2.0"
+languages = ["mul"]
+notes = """
+docTR's FAST detector exported to ONNX by the OnnxTR maintainer; it finds word boxes on a page without reading them. The same model.onnx is OnnxTR's GitHub release asset rep_fast_base-1b89ebf9.onnx (the name carries its SHA-256 prefix). config.json is not in Git LFS, so only its git blob SHA-1 is published."""
+
+[[resource.files]]
+path = "config.json"
+url = "https://huggingface.co/Felix92/onnxtr-fast-base/resolve/9e1b4f4773acfee2f252523c7fa563bf699c1fe5/config.json"
+size = 303
+sha256 = "40bc39016d5ecb10e09f6deaa808e8052b9acec83f027653d89fa87ccc7cd560"
+source_digest = "git-sha1:883714c2e958c003505ae0cc3d432f2147a54db1"
+
+[[resource.files]]
+path = "model.onnx"
+url = "https://huggingface.co/Felix92/onnxtr-fast-base/resolve/9e1b4f4773acfee2f252523c7fa563bf699c1fe5/model.onnx"
+size = 42342927
+sha256 = "1b89ebf9b6a5e01eb21b1775efc54aab6dbf8c726dcce938e40ddcb91404b43a"
+
+[[resource]]
+id = "onnxtr-parseq-multilingual-v1"
+name = "OnnxTR PARSeq multilingual v1: text recognition"
+kind = "model"
+uses = ["ocr-recognition"]
+engine = "onnxtr"
+source = "https://huggingface.co/Felix92/onnxtr-parseq-multilingual-v1"
+version = "7d7329948dbcff02637a3eb9c14ae0c4440c5ed0"
+licence = "Apache-2.0"
+languages = ["en", "da", "fr", "it", "es", "de", "pt", "cs", "pl", "nl", "no", "fi"]
+requires = ["onnxtr-fast-base"]
+notes = """
+PARSeq fine-tuned by the docTR maintainer on a multilingual vocabulary of 195 characters, every Czech letter included; docTR's own recognition models use a French vocabulary without háček letters. Slovak is not listed but its letters are in the vocabulary. config.json carries the vocabulary; only its git blob SHA-1 is published."""
+
+[[resource.files]]
+path = "config.json"
+url = "https://huggingface.co/Felix92/onnxtr-parseq-multilingual-v1/resolve/7d7329948dbcff02637a3eb9c14ae0c4440c5ed0/config.json"
+size = 727
+sha256 = "c89846a1022925eab2c5470ec028c6729a993c869c0066578fa44e47a03ee639"
+source_digest = "git-sha1:d2af81589126973d747786ba0349e94043e5b803"
+
+[[resource.files]]
+path = "model.onnx"
+url = "https://huggingface.co/Felix92/onnxtr-parseq-multilingual-v1/resolve/7d7329948dbcff02637a3eb9c14ae0c4440c5ed0/model.onnx"
+size = 96712454
+sha256 = "ef468ad6415b93bdd73d9442a14e40a58e5f109bcbf6f328bad4873fb7f7998b"
+
+[[resource]]
 id = "redact"
 name = "REDACT PII benchmark"
 kind = "dataset"

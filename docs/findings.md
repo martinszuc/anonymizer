@@ -235,6 +235,44 @@ Rules only.
   threshold and missed 7 % of words at blur radius 3, where ink turns light
   grey; it now compares each word with its first reading.
 
+### 2026-10-01 · OnnxTR on the scanned benchmark (synthetic)
+
+`python -m benchmark ocr --engines oracle,onnxtr`, six documents, 16 levels,
+rules only; OnnxTR with FAST base and PARSeq multilingual v1 on the CPU.
+
+| level | CER | diacritics | items found | partly readable after | s/page |
+|---|---|---|---|---|---|
+| clean | 1.1 % | 0.0 % | 22/41 | 0 | 1.5 |
+| resolution 100 DPI | 1.4 % | 0.9 % | 16/41 | 0 | 1.4 |
+| noise σ 50 | 1.1 % | 0.0 % | 20/41 | 0 | 1.4 |
+| skew 1° | 5.0 % | 3.1 % | 21/41 | 0 | 1.3 |
+| skew 5° | 0.5 % | 0.0 % | 22/41 | 0 | 1.3 |
+
+(The oracle finds 23/41 at every level; the leak check passed in all 96 runs.)
+
+- **Czech letters are read reliably** by the multilingual recognizer; docTR's
+  own recognizers lack háček letters altogether. One dash (—) was dropped
+  in a probe.
+- **Read as straight, a skewed page fell apart:** at 3° the character error
+  rate was 41 %, at 5° 56 %, with detection down to 11/41. A tilted line was
+  split into pieces in the wrong order and tilted words misread. Read in
+  rotated mode it stays under 1 % at 3° and 5°; 1° is an unexplained outlier
+  at 5 %.
+- **OCR boxes hug the ink and clip letter edges.** On clean scans 322 of 750
+  words had ink outside their boxes, and at most levels one or two items
+  detection had found stayed partly readable after redaction, while the leak
+  check passed. Growing every OCR box by 15 % of its height brought this to
+  4 of 750 words and no partly readable item at any level.
+- **OnnxTR downloads models it is not handed:** building its rotated-mode
+  predictor fetched two orientation classifiers (6 MB each) into
+  `~/.cache/onnxtr` during an experiment. The loader now disables them and
+  makes any download raise.
+- **onnxruntime's default providers on macOS** start with CoreML, which fails
+  to build the recognizer, and include Azure's remote provider; the engine
+  runs on the CPU provider only.
+- Missed items are detection misses (mostly names: rules only), not OCR
+  losses: the oracle finds just one more.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

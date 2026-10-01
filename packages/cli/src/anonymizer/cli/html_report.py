@@ -179,10 +179,12 @@ def _page_section(document: Document, index: int, png: str) -> str:
         f'<h2>Page {index + 1} <span class="muted">'
         f"{page.width:.0f} &times; {page.height:.0f} pt</span></h2>",
     ]
-    if not page.has_text_layer:
+    if page.raster_dpi is not None:
+        parts.append(f'<p class="muted">Scanned page, read by OCR at {page.raster_dpi:g} DPI.</p>')
+    elif not page.has_text_layer:
         parts.append(
-            '<p class="warning">No text layer (a scan?): nothing on this page is detected '
-            "until OCR exists.</p>"
+            '<p class="warning">A scan OCR has not read: nothing on this page is detected. '
+            "Run with --ocr to read it.</p>"
         )
     parts += [
         '<div class="canvas">',

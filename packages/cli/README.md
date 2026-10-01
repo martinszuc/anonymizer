@@ -46,8 +46,13 @@ and a fingerprint of the PDF, not the whole text, and only applies to that PDF.
 
 - A redacted copy is written only if the leak check passes; otherwise nothing is
   written and the leaks are listed.
-- Pages without a text layer (usually scans) stop the run, since they cannot be
-  read yet; `--allow-pages-without-text` redacts the rest and leaves them as they are.
+- Scanned pages (no text layer, or only a few words over a picture) are read with
+  `--ocr onnxtr` (`uv sync --group ocr-onnxtr`, then
+  `uv run python scripts/download.py fetch onnxtr-parseq-multilingual-v1`). Their
+  pixels under each box are overwritten, their text layer removed, and the leak
+  check re-reads them with the same engine. A review of scanned pages reopens, and
+  `check` runs, only with the same `--ocr`. Without it, scanned pages stop the run;
+  `--allow-pages-without-text` redacts the rest and leaves them as they are.
 - Existing files are replaced only with `--force`; the output is never the input.
 - Every link, metadata field, attachment, bookmark, annotation and form field is
   removed, as is anything outside the visible page area.

@@ -10,6 +10,8 @@ dependencies = ["pymupdf>=1.24"]
 [project.optional-dependencies]
 # Name detection. Pulls in PyTorch, so it is kept out of the default install.
 ner = ["gliner>=0.2.29,<0.3", "protobuf>=4"]
+# OCR with OnnxTR: onnxruntime, no PyTorch. Headless OpenCV, as no window is opened.
+ocr-onnxtr = ["onnxtr[cpu-headless]>=0.9,<0.10"]
 
 [build-system]
 requires = ["hatchling"]

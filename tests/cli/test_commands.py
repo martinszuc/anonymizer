@@ -148,17 +148,19 @@ class TestRedact:
         pdf = write_pdf(tmp_path / "mixed.pdf", [LINES, []])
         output = tmp_path / "out.pdf"
         assert main(["redact", str(pdf), "-o", str(output)]) == 1
-        assert "page 2 has no text layer" in capsys.readouterr().err
+        err = capsys.readouterr().err
+        assert "page 2 is a scan OCR has not read" in err
+        assert "--ocr onnxtr" in err
         assert not output.exists()
         assert main(["redact", str(pdf), "-o", str(output), "--allow-pages-without-text"]) == 0
-        assert "page 2 has no text layer and is NOT redacted" in capsys.readouterr().err
+        assert "page 2 is a scan OCR has not read and is NOT redacted" in capsys.readouterr().err
 
     def test_failed_leak_check_reports_and_exits_with_three(
         self, pdf: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
     ):
         # Writing nothing on a leak is export_redacted's job, tested in core.
         leak = Leak(LeakLayer.PAGE_TEXT, "page 0", CONTACT_EMAIL, "e1")
-        monkeypatch.setattr(commands, "export_redacted", lambda *_: [leak])
+        monkeypatch.setattr(commands, "export_redacted", lambda *_, **__: [leak])
         output = pdf.with_name("out.pdf")
         assert main(["redact", str(pdf), "-o", str(output)]) == 3
         err = capsys.readouterr().err

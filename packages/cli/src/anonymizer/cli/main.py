@@ -34,6 +34,7 @@ from anonymizer.cli.commands import (
     run_redact,
 )
 from anonymizer.core import __version__
+from anonymizer.core.ingest import OCR_ENGINES, load_ocr_engine
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -64,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     redact.add_argument(
         "--allow-pages-without-text",
         action="store_true",
-        help="redact even if some pages have no text layer (they are left unredacted)",
+        help="redact even if some scanned pages were not read by OCR (they are left unredacted)",
     )
     redact.add_argument("--force", action="store_true", help="replace an existing output file")
 
@@ -72,6 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("redacted", type=Path, help="redacted PDF to check")
     check.add_argument("--source", type=Path, required=True, help="the original PDF")
     check.add_argument("--session", type=Path, required=True, help="the review it came from")
+    _add_ocr_options(check)
 
     inspect = commands.add_parser(
         "inspect",
@@ -116,6 +118,17 @@ def _add_detection_options(parser: argparse.ArgumentParser) -> None:
         help="also detect names and addresses with the GLiNER model (install with "
         "uv sync --group ner, fetch with scripts/download.py)",
     )
+    _add_ocr_options(parser)
+
+
+def _add_ocr_options(parser: argparse.ArgumentParser) -> None:
+    """Options for reading scanned pages, and where the models are stored."""
+    parser.add_argument(
+        "--ocr",
+        choices=sorted(OCR_ENGINES),
+        help="read scanned pages with this OCR engine (install with uv sync --group "
+        "ocr-<engine>, fetch its models with scripts/download.py)",
+    )
     parser.add_argument(
         "--resource-root",
         type=Path,
@@ -154,6 +167,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def _dispatch(args: argparse.Namespace, output: Output) -> int:
     """Run the command the arguments name."""
+    ocr = load_ocr_engine(args.ocr, args.resource_root) if args.ocr else None
     if args.command == "detect":
         return run_detect(
             args.input,
@@ -164,6 +178,7 @@ def _dispatch(args: argparse.Namespace, output: Output) -> int:
             show=args.show,
             force=args.force,
             output=output,
+            ocr=ocr,
         )
     if args.command == "redact":
         return run_redact(
@@ -176,6 +191,7 @@ def _dispatch(args: argparse.Namespace, output: Output) -> int:
             allow_pages_without_text=args.allow_pages_without_text,
             force=args.force,
             output=output,
+            ocr=ocr,
         )
     if args.command == "inspect":
         return run_inspect(
@@ -188,8 +204,9 @@ def _dispatch(args: argparse.Namespace, output: Output) -> int:
             dpi=args.dpi,
             force=args.force,
             output=output,
+            ocr=ocr,
         )
-    return run_check(args.redacted, args.source, args.session, output=output)
+    return run_check(args.redacted, args.source, args.session, output=output, ocr=ocr)
 
 
 if __name__ == "__main__":

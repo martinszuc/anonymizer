@@ -121,7 +121,7 @@ class TestReport:
 
     def test_warns_about_a_page_without_text(self, tmp_path: Path):
         html = inspect(write_pdf(tmp_path / "blank.pdf", [[]]))
-        assert "No text layer" in html
+        assert "A scan OCR has not read" in html
 
     def test_refuses_a_file_other_than_the_one_detected(self, pdf: Path, tmp_path: Path):
         document = commands.detected(pdf, "cs", propagate=False)

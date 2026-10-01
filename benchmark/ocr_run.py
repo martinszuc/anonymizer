@@ -10,7 +10,8 @@ For every document, level and engine, a run writes under its output directory:
 
 Only items on the page are scored: a scan carries no links or metadata. The
 `oracle` engine reads the ground truth and bounds what OCR can give the rest
-of the pipeline; real engines are added beside it.
+of the pipeline. `onnxtr` is the first real engine (models from the catalog,
+`uv sync --group ocr-onnxtr`).
 """
 
 from __future__ import annotations
@@ -25,9 +26,16 @@ from pathlib import Path
 from typing import Any
 
 import anonymizer.core
-from anonymizer.core.ingest import OcrEngine, load_document
+from anonymizer.core.ingest import (
+    OCR_ENGINE_RESOURCES,
+    OCR_ENGINES,
+    OcrEngine,
+    load_document,
+    load_ocr_engine,
+)
 from anonymizer.core.pipeline import run_detection
 from anonymizer.core.redact import find_leaks, redact_pdf
+from anonymizer.core.resources import load_catalog
 
 from benchmark.degrade import LEVELS, Level
 from benchmark.ocr_score import box_scores, item_residue, residue_counts, text_errors
@@ -40,8 +48,26 @@ from benchmark.spec import DocumentSpec, load_documents
 OCR_RESULTS_SCHEMA = 1
 
 EngineFactory = Callable[[list[TruthPage]], OcrEngine]
-ENGINES: dict[str, EngineFactory] = {"oracle": OracleEngine}
-"""Engines by name; each is built per scan, from its ground truth if it needs it."""
+"""Gives the engine for one scan, from its ground truth if the engine needs it."""
+
+
+def _oracle(resource_root: Path) -> EngineFactory:
+    del resource_root
+    return OracleEngine
+
+
+def _loaded(name: str) -> Callable[[Path], EngineFactory]:
+    def load(resource_root: Path) -> EngineFactory:
+        engine = load_ocr_engine(name, resource_root)
+        return lambda _truth: engine
+
+    return load
+
+
+ENGINES: dict[str, Callable[[Path], EngineFactory]] = {"oracle": _oracle} | {
+    name: _loaded(name) for name in OCR_ENGINES
+}
+"""Engines by name; each is loaded once per run, from the models under a storage root."""
 
 
 def run_ocr(
@@ -60,7 +86,7 @@ def run_ocr(
         engines: Names from `ENGINES`.
         levels: Degradation levels to scan at.
         system: Detector system, as in the born-digital benchmark (`SYSTEMS`).
-        resource_root: Storage root holding `models/`, for GLiNER.
+        resource_root: Storage root holding `models/`, for GLiNER and OCR engines.
         specs: Documents; every file in `benchmark/documents` by default.
 
     Returns:
@@ -73,13 +99,15 @@ def run_ocr(
     if unknown:
         msg = f"unknown engines {sorted(unknown)}; choose from {list(ENGINES)}"
         raise ValueError(msg)
+    factories = {engine: ENGINES[engine](resource_root) for engine in engines}
     specs = specs if specs is not None else load_documents()
     detector_for = detector_factories((system,), resource_root)[system]
     runs: dict[str, dict[str, Any]] = {engine: {} for engine in engines}
     for level in levels:
         for engine in engines:
             documents = {
-                spec.name: _run_one(spec, level, engine, detector_for, output) for spec in specs
+                spec.name: _run_one(spec, level, engine, factories[engine], detector_for, output)
+                for spec in specs
             }
             runs[engine][level.name] = {"documents": documents, "totals": _totals(documents)}
     results = {
@@ -89,6 +117,7 @@ def run_ocr(
         "git_commit": git_commit(),
         "machine": machine(),
         "engines": list(engines),
+        "models": _model_versions(engines),
         "system": system,
         "levels": [dataclasses.asdict(level) | {"name": level.name} for level in levels],
         "runs": runs,
@@ -104,6 +133,7 @@ def _run_one(
     spec: DocumentSpec,
     level: Level,
     engine_name: str,
+    engine_for: EngineFactory,
     detector_for: DetectorFactory,
     output: Path,
 ) -> dict[str, Any]:
@@ -112,7 +142,7 @@ def _run_one(
         render(spec, original)
     scan = output / "scans" / f"{spec.name}.{level.name}.pdf"
     truth = scan_document(original, level, scan)
-    engine = ENGINES[engine_name](truth)
+    engine = engine_for(truth)
 
     started = time.perf_counter()
     document = load_document(scan, language=spec.language, ocr=engine)
@@ -133,7 +163,7 @@ def _run_one(
         "pages": len(truth),
         "seconds": round(seconds, 3),
         "text": text_errors(truth, document.pages),
-        "boxes": box_scores(truth, document.pages),
+        "boxes": box_scores(scan, truth, document.pages),
         "items": {
             "gold": len(on_page.gold),
             "found": found["found"],
@@ -143,6 +173,15 @@ def _run_one(
         | residue,
         "safe": residue["readable_after"] + residue["partly_after"] == 0,
         "leak_check_passed": leak_check_passed,
+    }
+
+
+def _model_versions(engines: tuple[str, ...]) -> dict[str, str]:
+    catalog = load_catalog()
+    return {
+        resource_id: catalog[resource_id].version
+        for engine in engines
+        for resource_id in OCR_ENGINE_RESOURCES.get(engine, ())
     }
 
 
@@ -160,7 +199,8 @@ def _totals(documents: dict[str, Any]) -> dict[str, Any]:
         "character_error_rate": _rate(text["character_errors"], text["characters"]),
         "diacritic_error_rate": _rate(text["diacritic_errors"], text["diacritics"]),
         "boxed": _rate(boxes["boxed"], boxes["words"]),
-        "coverage": _rate(boxes["coverage"], boxes["words"]),
+        "ink_under_boxes": _rate(boxes["ink_covered"], boxes["ink"]),
+        "words_partly_outside": boxes["partly_outside"],
         "items": dict(items),
         "safe_documents": sum(result["safe"] for result in results),
         "leak_check_passed": sum(result["leak_check_passed"] for result in results),
@@ -189,7 +229,8 @@ def ocr_markdown(results: dict[str, Any]) -> str:
         "CER",
         "diacritics",
         "boxed",
-        "coverage",
+        "ink under boxes",
+        "partly outside",
         "found",
         "readable after",
         "partly after",
@@ -209,7 +250,8 @@ def ocr_markdown(results: dict[str, Any]) -> str:
                         _percent(total["character_error_rate"]),
                         _percent(total["diacritic_error_rate"]),
                         _percent(total["boxed"]),
-                        _percent(total["coverage"]),
+                        _percent(total["ink_under_boxes"]),
+                        f"{total['words_partly_outside']}/{_words_in(run)}",
                         f"{items['found']}/{items['gold']}",
                         str(items["readable_after"]),
                         str(items["partly_after"]),
@@ -220,6 +262,11 @@ def ocr_markdown(results: dict[str, Any]) -> str:
                 )
             )
     return "\n".join(lines) + "\n"
+
+
+def _words_in(run: dict[str, Any]) -> int:
+    """Count the ground-truth words of a level's run."""
+    return sum(document["boxes"]["words"] for document in run["documents"].values())
 
 
 def _row(cells: list[str]) -> str:

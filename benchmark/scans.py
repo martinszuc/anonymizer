@@ -186,6 +186,43 @@ def _unchanged(original: np.ndarray, crop: np.ndarray) -> bool:
     return bool(changed < crop.size / 2)
 
 
+def ink_under_boxes(
+    pdf_path: Path, page_index: int, corners: Corners, boxes: list[BBox]
+) -> tuple[int, int]:
+    """Count a word's ink pixels, and those lying inside any of the given boxes (points).
+
+    Returns:
+        The word's ink pixels and how many of them the boxes cover.
+    """
+    levels, scale = _grey_picture(pdf_path, page_index, pdf_path.stat().st_mtime_ns)
+    window = _window(np.array(corners) * scale, levels.shape)
+    if window is None:
+        return 0, 0
+    left, top, right, bottom, inked = window
+    inked &= levels[top:bottom, left:right] < INK_LEVEL
+    covered = np.zeros(inked.shape, dtype=bool)
+    for box in boxes:
+        x0, y0 = max(int(box.x0 * scale) - left, 0), max(int(box.y0 * scale) - top, 0)
+        x1, y1 = int(np.ceil(box.x1 * scale)) - left, int(np.ceil(box.y1 * scale)) - top
+        if x1 > 0 and y1 > 0:
+            covered[y0:y1, x0:x1] = True
+    return int(np.count_nonzero(inked)), int(np.count_nonzero(inked & covered))
+
+
+def _window(
+    polygon: np.ndarray, shape: tuple[int, ...]
+) -> tuple[int, int, int, int, np.ndarray] | None:
+    """Return the pixel rectangle around a polygon and which of its pixels lie inside it."""
+    height, width = shape
+    left, top = np.floor(polygon.min(axis=0)).astype(int).clip(0)
+    right, bottom = np.ceil(polygon.max(axis=0)).astype(int)
+    right, bottom = min(right, width), min(bottom, height)
+    if right <= left or bottom <= top:
+        return None
+    ys, xs = np.mgrid[top:bottom, left:right] + 0.5
+    return left, top, right, bottom, _inside(polygon, xs, ys)
+
+
 def ink_inside(pdf_path: Path, page_index: int, corners: Corners) -> int:
     """Count ink pixels of a scanned page's picture inside a (possibly rotated) box.
 
@@ -193,16 +230,11 @@ def ink_inside(pdf_path: Path, page_index: int, corners: Corners) -> int:
     `scan_document` writes it; redaction overwrites its pixels in place.
     """
     levels, scale = _grey_picture(pdf_path, page_index, pdf_path.stat().st_mtime_ns)
-    height, width = levels.shape
-    polygon = np.array(corners) * scale
-    left, top = np.floor(polygon.min(axis=0)).astype(int).clip(0)
-    right, bottom = np.ceil(polygon.max(axis=0)).astype(int)
-    right, bottom = min(right, width), min(bottom, height)
-    if right <= left or bottom <= top:
+    window = _window(np.array(corners) * scale, levels.shape)
+    if window is None:
         return 0
-    ys, xs = np.mgrid[top:bottom, left:right] + 0.5
-    inked = levels[top:bottom, left:right] < INK_LEVEL
-    return int(np.count_nonzero(_inside(polygon, xs, ys) & inked))
+    left, top, right, bottom, inside = window
+    return int(np.count_nonzero(inside & (levels[top:bottom, left:right] < INK_LEVEL)))
 
 
 @functools.lru_cache(maxsize=4)

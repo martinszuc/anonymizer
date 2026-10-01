@@ -8,9 +8,12 @@
   names and addresses depend on these letters, and a detector matching a
   name or a label fails on a misread one.
 - **Word boxes.** A ground-truth word is *boxed* when one OCR box overlaps
-  it by intersection over union of at least one half. *Coverage* is the
-  share of its area under any OCR box: below one, a redaction box drawn from
-  OCR leaves part of the word in the picture.
+  it by intersection over union of at least one half. *Ink under boxes* is
+  the share of the words' printed pixels inside OCR boxes, and a word is
+  *partly outside* when some of its ink lies outside every box: redacted
+  from OCR boxes, such a word would leave that ink in the picture. Ink, not
+  the font's box, is the measure: OCR boxes hug the ink, while the original's
+  word boxes span the font's full height.
 - **Residue.** After redaction the ink inside each planted item's ground-truth
   word boxes is counted in the output picture and compared with the scan. An
   item is *readable* when a word keeps at least half of its ink, *partly
@@ -29,10 +32,12 @@ from pathlib import Path
 from anonymizer.core.types import BBox, Page
 from rapidfuzz.distance import Levenshtein
 
-from benchmark.scans import TruthPage, ink_inside
+from benchmark.scans import TruthPage, ink_inside, ink_under_boxes
 from benchmark.spec import GoldItem
 
 BOXED_IOU = 0.5
+# Below this share of its ink under OCR boxes, a word's ink is partly outside them.
+FULLY_COVERED = 0.99
 READABLE_SHARE = 0.5
 TRACE_SHARE = 0.05
 
@@ -56,22 +61,25 @@ def text_errors(truth: Sequence[TruthPage], read: Sequence[Page]) -> dict[str, i
     return dict(counts)
 
 
-def box_scores(truth: Sequence[TruthPage], read: Sequence[Page]) -> dict[str, float]:
-    """Count boxed ground-truth words and sum their coverage over a document.
+def box_scores(scan: Path, truth: Sequence[TruthPage], read: Sequence[Page]) -> dict[str, int]:
+    """Score OCR's word boxes against the ground truth over a document.
 
     Returns:
-        `words`, `boxed` and `coverage` (the sum of per-word shares).
+        `words`, `boxed` (matched by one box), `ink` and `ink_covered` (the
+        words' ink pixels, and those inside OCR boxes), and `partly_outside`
+        (words with ink outside every box).
     """
-    words = boxed = 0
-    coverage = 0.0
-    for expected, page in zip(truth, read, strict=True):
+    counts: Counter[str] = Counter()
+    for page_index, (expected, page) in enumerate(zip(truth, read, strict=True)):
         boxes = [word.bbox for word in page.words]
         for word in expected.words:
-            target = word.bbox
-            words += 1
-            boxed += any(_iou(target, box) >= BOXED_IOU for box in boxes)
-            coverage += min(1.0, sum(_intersection(target, box) for box in boxes) / _area(target))
-    return {"words": words, "boxed": boxed, "coverage": coverage}
+            counts["words"] += 1
+            counts["boxed"] += any(_iou(word.bbox, box) >= BOXED_IOU for box in boxes)
+            ink, covered = ink_under_boxes(scan, page_index, word.corners, boxes)
+            counts["ink"] += ink
+            counts["ink_covered"] += covered
+            counts["partly_outside"] += covered < ink * FULLY_COVERED
+    return dict(counts)
 
 
 def item_residue(

@@ -26,6 +26,7 @@ dev = [
     "rapidfuzz>=3",
 ]
 ner = ["anonymizer-core[ner]"]
+ocr-onnxtr = ["anonymizer-core[ocr-onnxtr]"]
 benchmark = ["matplotlib>=3.9"]
 
 [tool.uv]

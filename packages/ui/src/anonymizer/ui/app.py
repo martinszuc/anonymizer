@@ -68,7 +68,7 @@ class WindowApi:
     def choose_pdf(self, options: Any = None) -> dict[str, Any] | None:
         """Ask for a PDF and open it; None if the reviewer cancelled.
 
-        `options` is `{language, propagate, use_model}`, all optional; see
+        `options` is `{language, propagate, use_model, use_ocr}`, all optional; see
         `ReviewApi.open_pdf`.
         """
         path = self._ask(webview.FileDialog.OPEN, _PDF_TYPES)
@@ -104,7 +104,7 @@ class WindowApi:
         pdf = self._ask(webview.FileDialog.OPEN, _PDF_TYPES)
         if pdf is None:
             return None
-        return self._titled(self._review.open_session(pdf, session))
+        return self._titled(self._review.open_session(pdf, session, self._progress))
 
     def save_session_as(self) -> bool:
         """Ask where to save the review and write it; False if cancelled."""
@@ -145,8 +145,10 @@ class WindowApi:
         self._review.remove_entity(entity_id)
 
     def _open(self, path: str, options: Any) -> dict[str, Any]:
-        language, propagate, use_model = _open_options(options)
-        payload = self._review.open_pdf(path, language, propagate, use_model, self._progress)
+        language, propagate, use_model, use_ocr = _open_options(options)
+        payload = self._review.open_pdf(
+            path, language, propagate, use_model, self._progress, use_ocr
+        )
         return self._titled(payload)
 
     def _progress(self, step: str) -> None:
@@ -209,8 +211,8 @@ def _ignore(_event: dict[str, Any]) -> None:
     """A drag over the page needs a handler only so the drop is allowed."""
 
 
-def _open_options(options: Any) -> tuple[str | None, bool, bool]:
-    """Read `{language, propagate, use_model}` from the page, which is not trusted."""
+def _open_options(options: Any) -> tuple[str | None, bool, bool, bool]:
+    """Read `{language, propagate, use_model, use_ocr}` from the page, which is not trusted."""
     if options is None:
         options = {}
     if not isinstance(options, dict):
@@ -220,7 +222,12 @@ def _open_options(options: Any) -> tuple[str | None, bool, bool]:
     if language is not None and language not in LANGUAGES:
         msg = f"unknown language {language!r}"
         raise ReviewError(msg)
-    return language, bool(options.get("propagate", True)), bool(options.get("use_model", False))
+    return (
+        language,
+        bool(options.get("propagate", True)),
+        bool(options.get("use_model", False)),
+        bool(options.get("use_ocr", False)),
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -236,6 +243,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--ner",
         action="store_true",
         help="also run the name model on the PDF given here (install with uv sync --group ner)",
+    )
+    parser.add_argument(
+        "--ocr",
+        action="store_true",
+        help="read scanned pages of the PDF given here with OCR (uv sync --group ocr-onnxtr)",
     )
     parser.add_argument(
         "--resource-root",
@@ -266,7 +278,7 @@ def main(argv: list[str] | None = None) -> int:
     title = "Anonymizer"
     if args.input is not None:
         try:
-            opened = review.open_pdf(str(args.input), args.lang, True, args.ner)
+            opened = review.open_pdf(str(args.input), args.lang, True, args.ner, use_ocr=args.ocr)
             title = f"{opened['name']} — {title}"
         except ReviewError as error:
             print(f"anonymize-ui: error: {error}", file=sys.stderr)

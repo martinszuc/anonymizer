@@ -1,6 +1,6 @@
 // Review rules shared by the page view and the sidebar. Pure, so they are unit-tested.
 
-import type { Box, DocumentInfo, EntityInfo, ExportResult, ReviewState } from "./types";
+import type { Box, DocumentInfo, EntityInfo, ExportResult, PageInfo, ReviewState } from "./types";
 
 /** Undecided items are redacted at export (decided in PLAN.md), so only a rejection keeps text. */
 export function isRedacted(state: ReviewState): boolean {
@@ -127,9 +127,14 @@ export function steppedZoom(scale: number, direction: 1 | -1): number {
   return [...ZOOM_STEPS].reverse().find((step) => step < scale - 0.01) ?? scale;
 }
 
-/** 1-based numbers of the pages export cannot redact: they have no text layer. */
+/** Whether a page is a scan OCR has not read: nothing on it was detected. */
+export function isUnreadScan(page: PageInfo): boolean {
+  return !page.has_text_layer && page.raster_dpi === null;
+}
+
+/** 1-based numbers of the pages export cannot redact: scans OCR has not read. */
 export function pagesWithoutText(document: DocumentInfo): number[] {
-  return document.pages.filter((page) => !page.has_text_layer).map((page) => page.index + 1);
+  return document.pages.filter(isUnreadScan).map((page) => page.index + 1);
 }
 
 /** "page 3", "pages 2 and 5", "pages 1, 2 and 4". */
@@ -166,6 +171,7 @@ const LEAK_LAYERS: Record<string, string> = {
   thumbnail: "Page thumbnail",
   object: "PDF object",
   file_bytes: "File bytes",
+  ocr: "Re-read by OCR",
 };
 
 export function leakLayerLabel(layer: string): string {

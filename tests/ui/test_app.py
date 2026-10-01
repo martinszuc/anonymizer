@@ -10,12 +10,14 @@ from typing import Any
 
 import pytest
 import webview
+from anonymizer.core.ingest import load_document
 from anonymizer.ui import api as api_module
 from anonymizer.ui import app
 from anonymizer.ui.api import ReviewApi, ReviewError
 from anonymizer.ui.app import WindowApi, main
 
-from tests.pdf_builders import write_pdf
+from tests.ocr_stand_in import InkReadingEngine
+from tests.pdf_builders import write_pdf, write_scanned_pdf
 from tests.ui.test_api import LINES, NameModel
 
 BRIDGE = Path(__file__).parents[2] / "packages/ui/frontend/src/bridge.ts"
@@ -344,3 +346,38 @@ class TestMainOptions:
         document = stand_in.created["js_api"].current_document()
         assert "person" in {entity["type"] for entity in document["entities"]}
         assert roots == [tmp_path]
+
+
+class TestOcr:
+    @pytest.fixture
+    def scan(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        """A scan of `LINES`, with the ink-reading stand-in in place of the engine."""
+        original = load_document(write_pdf(tmp_path / "original.pdf", [LINES]))
+        monkeypatch.setattr(
+            api_module, "load_ocr_engine", lambda name, root: InkReadingEngine.reading(original)
+        )
+        return write_scanned_pdf(tmp_path / "scan.pdf", [LINES])
+
+    def test_the_page_asks_for_ocr_and_is_told_it_loads(self, scan: Path):
+        window = StandInWindow(answers=[(str(scan),)])
+        payload = attached(window).choose_pdf({"language": "cs", "use_ocr": True})
+        assert payload is not None
+        assert payload["pages"][0]["raster_dpi"] == 300
+        assert window.events_told()[:2] == [("progress", "loading_ocr"), ("progress", "reading")]
+
+    def test_a_saved_review_of_a_scan_reopens_with_its_engine(self, scan: Path, tmp_path: Path):
+        session = tmp_path / "review.json"
+        window = StandInWindow(answers=[(str(scan),), str(session), (str(session),), (str(scan),)])
+        api = attached(window)
+        api.choose_pdf({"language": "cs", "use_ocr": True})
+        assert api.save_session_as() is True
+        payload = api.choose_session()
+        assert payload is not None
+        assert payload["pages"][0]["raster_dpi"] == 300
+
+    def test_command_line_reads_the_given_scan(
+        self, stand_in: StandInWebview, scan: Path, tmp_path: Path
+    ):
+        assert main([str(scan), "--lang", "cs", "--ocr", "--resource-root", str(tmp_path)]) == 0
+        document = stand_in.created["js_api"].current_document()
+        assert document["pages"][0]["raster_dpi"] == 300

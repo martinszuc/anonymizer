@@ -9,18 +9,23 @@ interface OpeningProps {
   name: string | null;
   step: OpenStep;
   usesModel: boolean;
+  usesOcr: boolean;
 }
 
 const STEPS: { step: OpenStep; label: string }[] = [
+  { step: "loading_ocr", label: "Loading OCR (once per session)" },
   { step: "reading", label: "Reading the pages" },
   { step: "loading_model", label: "Loading the AI model (once per session)" },
   { step: "detecting", label: "Finding personal data" },
 ];
 
 /** Progress while a PDF opens: a slow model load shows steps, not a frozen window. */
-export function Opening({ name, step, usesModel }: OpeningProps) {
-  // The model step appears only when the model is used; Python skips it once loaded.
-  const steps = STEPS.filter((item) => item.step !== "loading_model" || usesModel);
+export function Opening({ name, step, usesModel, usesOcr }: OpeningProps) {
+  // A loading step appears only when its model is used; Python skips it once loaded.
+  const steps = STEPS.filter(
+    (item) =>
+      (item.step !== "loading_model" || usesModel) && (item.step !== "loading_ocr" || usesOcr),
+  );
   const current = steps.findIndex((item) => item.step === step);
   return (
     <motion.main

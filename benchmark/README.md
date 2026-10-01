@@ -15,6 +15,7 @@ uv run python -m benchmark history run-a/results.json run-b/results.json --out c
 ```sh
 uv run python -m benchmark ocr --out ocr-results                    # every level, the oracle
 uv run python -m benchmark ocr --out ocr-results --levels clean,blur-2,skew-3
+uv run python -m benchmark ocr --out ocr-results --engines oracle,onnxtr   # uv sync --group ocr-onnxtr
 ```
 
 Each document is rendered to a greyscale picture, degraded one factor at a
@@ -36,7 +37,8 @@ scored: a scan carries no links or metadata. Scores, per engine and level:
 
 The `oracle` engine reads the ground truth (and, when the leak check re-reads
 a redacted page, only the words still printed), so it bounds what OCR can
-give the rest of the pipeline. Real engines are added beside it. Output:
+give the rest of the pipeline. `onnxtr` is the first real engine; the release
+workflow runs both on one level per factor. Output:
 `ocr-results.json`, `ocr-results.md`, `pdf/`, and `scans/<doc>.<level>[.<engine>].pdf`.
 
 ## Output

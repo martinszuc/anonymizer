@@ -9,9 +9,9 @@ Visual design (tokens, components, box states) lives in
 [`packages/ui/frontend/DESIGN.md`](../packages/ui/frontend/DESIGN.md);
 package usage in [`packages/ui/README.md`](../packages/ui/README.md).
 
-## Status (after the home screen, 2026-10-01)
+## Status (after OCR in the window, 2026-10-01)
 
-Works, for PDFs with a text layer:
+Works, for PDFs with a text layer and for scanned pages read by OCR:
 
 - **Home screen** (no document open): a drop area with *Open PDF…*, the
   detection options that apply to the next PDF (language: All or one with
@@ -49,6 +49,14 @@ Works, for PDFs with a text layer:
   preview; a click selects it, Delete (or × in its sidebar row) removes it. It
   is saved in the session and removed with everything under it on export
   (text, the drawings it touches, image pixels).
+- **Scanned pages**: the home screen's *Scanned pages* switch (on when the
+  OCR engine is ready, with the same three states as the model) reads pages
+  without a usable text layer with OnnxTR on open. Such a page shows a quiet
+  "read by OCR" note; its boxes are OCR's, grown by a margin. Export passes
+  the engine to the leak check, which re-reads the redacted page, and asks
+  for consent only for scans OCR did not read (they keep the warning). A
+  saved review of scans reopens with the engine it names (`ocr_engine` in
+  the session), loading it first.
 - Zoom (fit width by default, Cmd/Ctrl +/−/0), save the review, toasts for
   errors, light and dark mode, reduced motion respected.
 
@@ -58,8 +66,8 @@ photographs it on every run (see *Window tour*); its first runs are the first
 time the window opens there.
 
 Not yet: adding a missed word, resizing a box, changing options on an open
-document, remembered preferences, scanned pages. See
-*Backlog*.
+document, remembered preferences, choosing an OCR engine (one is offered).
+See *Backlog*.
 
 ## Architecture
 
@@ -96,29 +104,29 @@ frontend/src/components  Toolbar, Sidebar, PageView, EmptyState, Toasts, control
 
 ```
 DocumentInfo { name, language, pages: PageInfo[], entities: EntityInfo[], surfaces: SurfaceInfo[] }
-PageInfo     { index, width, height, has_text_layer }              # points
+PageInfo     { index, width, height, has_text_layer, raster_dpi }  # points; raster_dpi null unless OCR read it
 EntityInfo   { id, type, source, score, review, page_index, surface_id,
                text, is_region, boxes: [x0, y0, x1, y1][] }        # points, top-left origin
 SurfaceInfo  { id, kind, value, page_index, box | null }
 ```
 
 `ReviewApi.export()` returns `ExportResult { written, name, redacted, regions,
-kept, not_reviewed, hidden_removed, pages_without_text: number[] (1-based),
+kept, not_reviewed, hidden_removed, pages_without_text: number[] (1-based scans OCR did not read),
 leaks: { layer, where, text }[] }`; nothing was written unless `written`.
 
 Methods the page calls (all return promises in JS):
 
 | Method | Returns | Notes |
 |---|---|---|
-| `status()` | `AppStatus` | version, languages with their own rules, the model's state; never loads the model |
+| `status()` | `AppStatus` | version, languages with their own rules, the states of the model and of OCR (`ocr: {engine, state, missing}`); loads neither |
 | `current_document()` | `DocumentInfo \| null` | on start: a PDF given on the command line |
-| `choose_pdf(options)` | `DocumentInfo \| null` | options `{language, propagate, use_model}`, checked in Python; null = cancelled |
+| `choose_pdf(options)` | `DocumentInfo \| null` | options `{language, propagate, use_model, use_ocr}`, checked in Python; null = cancelled |
 | `open_dropped(options)` | `DocumentInfo \| null` | opens the PDF Python kept from the last drop; null if none |
 | `close_document()` | `None` | forgets the document, window title back to "Anonymizer" |
 | `add_region(page_index, x0, y0, x1, y1)` | `EntityInfo` | points, corners in any order; clipped to the page; `manual`, `confirmed` |
 | `remove_entity(entity_id)` | `None` | only `manual` items; a detected item is rejected instead |
-| `export_as(allow_pages_without_text)` | `ExportResult \| null` | save dialog; null = cancelled; raises (rejects) when pages lack text and consent is false |
-| `choose_session()` | `DocumentInfo \| null` | asks for session, then PDF |
+| `export_as(allow_pages_without_text)` | `ExportResult \| null` | save dialog; null = cancelled; raises (rejects) when scans OCR did not read remain and consent is false |
+| `choose_session()` | `DocumentInfo \| null` | asks for session, then PDF; reads it with the OCR engine the session names |
 | `save_session_as()` | `bool` | false = cancelled |
 | `page_image(index, dpi)` | `data:` PNG URL | dpi clamped to 36..400 in Python |
 | `set_review(entity_id, state)` | `EntityInfo` | `pending` / `confirmed` / `rejected` |
@@ -131,7 +139,7 @@ Python tells the page about what it did not ask for with DOM events on
 
 | Event | Detail | When |
 |---|---|---|
-| `anonymizer:progress` | `reading` / `loading_model` / `detecting` | a step of opening a PDF starts |
+| `anonymizer:progress` | `loading_ocr` / `reading` / `loading_model` / `detecting` | a step of opening a PDF (or a saved review) starts |
 | `anonymizer:dropped` | the file's name | a PDF was dropped; the page calls `open_dropped` |
 | `anonymizer:drop-refused` | the file's name | something other than a PDF was dropped |
 
@@ -293,7 +301,9 @@ display (the script in a Linux container), not your desktop.
 | `Document.adjust_span(entity_id, start, end)` | **not wired**: resizing a box to other words |
 | `Document.add_region`, `Document.remove_entity` | drawing and removing a region |
 | `redact.export_redacted` | export: temporary file, `redact_pdf`, `find_leaks`, rename only when clean; the CLI's `redact` uses the same function |
-| `ingest.pages_needing_ocr`, `Page.raster_dpi` | page warning today; scanned-page review after the OCR path |
+| `ingest.load_ocr_engine`, `ocr_engine_installed`, `missing_ocr_files` | OCR on open, loaded once per session; its state on the home screen without loading it |
+| `ingest.pages_needing_ocr`, `Page.raster_dpi` | the page warning and export consent for scans OCR did not read; the "read by OCR" note |
+| `session.session_ocr_engine` | reopening a review of scans with the engine that read them |
 | `resources.load_catalog`, `fetch_resource`, `resource_status` | **not wired**: the model setup page (M9) |
 | CLI `inspect` (HTML report) | independent; same box geometry, useful to compare against |
 
@@ -320,9 +330,9 @@ In suggested order. Each item names where it plugs in.
 6. **Model setup page (M9):** catalog entries with task, languages, size,
    licence; download only on an explicit click, from the official source,
    verified by SHA-256 (`fetch_resource`), progress shown.
-7. **Scanned pages** once the OCR path exists: OCR words arrive with
-    `raster_dpi`, boxes are already in points; the warning goes away;
-    region drawing matters more.
+7. **OCR quality in review:** show OCR's confidence per word and flag
+    low-confidence words (an `@` read as `(m` hides an email from the rules),
+    and offer a second engine once RapidOCR or EasyOCR is in the catalog.
 8. **Label mode preview** once labels exist (M5): preview draws `[NAME]`
     instead of black boxes.
 9. **Accessibility pass:** boxes are not keyboard-reachable (the list is the

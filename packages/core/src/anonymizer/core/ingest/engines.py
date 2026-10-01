@@ -7,6 +7,7 @@ engine added here reaches all of them.
 
 from __future__ import annotations
 
+import importlib.util
 from collections.abc import Callable
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from anonymizer.core.ingest.onnxtr import (
     RECOGNITION_RESOURCE,
     load_onnxtr_engine,
 )
+from anonymizer.core.resources import load_catalog, resource_status
 
 OCR_ENGINES: dict[str, Callable[[Path], OcrEngine]] = {"onnxtr": load_onnxtr_engine}
 """Engine loaders by name."""
@@ -23,7 +25,43 @@ OCR_ENGINES: dict[str, Callable[[Path], OcrEngine]] = {"onnxtr": load_onnxtr_eng
 OCR_ENGINE_RESOURCES: dict[str, tuple[str, ...]] = {
     "onnxtr": (DETECTION_RESOURCE, RECOGNITION_RESOURCE),
 }
-"""The catalog ids each engine loads, for recording versions and download hints."""
+"""The catalog ids each engine loads, in download order, for versions and download hints."""
+
+_PACKAGES = {"onnxtr": "onnxtr"}
+
+
+def ocr_engine_installed(name: str) -> bool:
+    """Whether an engine's optional dependencies are installed, checked without importing them.
+
+    Args:
+        name: A key of `OCR_ENGINES`.
+
+    Returns:
+        `True` if the engine's package can be imported.
+    """
+    try:
+        return importlib.util.find_spec(_PACKAGES[name]) is not None
+    except (ImportError, ValueError):
+        # find_spec raises for a module that is present but broken or blocked.
+        return False
+
+
+def missing_ocr_files(name: str, root: Path) -> list[str]:
+    """Return the catalog ids of an engine's models not stored under a root.
+
+    Args:
+        name: A key of `OCR_ENGINES`.
+        root: Storage root holding `models/` (see `scripts/download.py`).
+
+    Returns:
+        Ids in download order; empty when the engine can be loaded.
+    """
+    catalog = load_catalog()
+    return [
+        resource.id
+        for resource in catalog.with_requirements(OCR_ENGINE_RESOURCES[name][-1])
+        if resource_status(resource, root) != "present"
+    ]
 
 
 def load_ocr_engine(name: str, root: Path) -> OcrEngine:

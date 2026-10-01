@@ -75,7 +75,7 @@ def test_check_of_a_scan_without_the_engine_is_an_error(
     main(["redact", str(scan), "-o", str(output), "--session", str(session), "--ocr", "onnxtr"])
     capsys.readouterr()
     assert main(["check", str(output), "--source", str(scan), "--session", str(session)]) == 1
-    assert "no longer cover" in capsys.readouterr().err
+    assert "made with OCR engine 'stand-in'" in capsys.readouterr().err
 
 
 def test_inspect_says_the_page_was_read_by_ocr(scan: Path, roots: list[tuple[str, Path]]):
@@ -94,3 +94,15 @@ def test_missing_models_are_reported_with_the_download_command(
 
 def test_unknown_engine_is_an_invalid_argument(scan: Path):
     assert main(["detect", str(scan), "-o", "review.json", "--ocr", "tesseract"]) == 2
+
+
+def test_review_made_without_ocr_is_refused_when_reading_with_ocr(
+    scan: Path, roots: list[tuple[str, Path]], capsys: pytest.CaptureFixture
+):
+    """Read now, the scans would pass as redacted although nothing on them was detected."""
+    session, output = scan.with_name("review.json"), scan.with_name("out.pdf")
+    assert main(["detect", str(scan), "-o", str(session)]) == 0
+    redact = ["redact", str(scan), "-o", str(output), "--session", str(session), "--ocr", "onnxtr"]
+    assert main(redact) == 1
+    assert "made without OCR" in capsys.readouterr().err
+    assert not output.exists()

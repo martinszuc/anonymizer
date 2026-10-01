@@ -30,10 +30,18 @@ from anonymizer.core.detect import (
     load_gliner_detector,
     missing_gliner_files,
 )
-from anonymizer.core.ingest import document_from_bytes, pages_needing_ocr, read_pdf
+from anonymizer.core.ingest import (
+    OcrEngine,
+    document_from_bytes,
+    load_ocr_engine,
+    missing_ocr_files,
+    ocr_engine_installed,
+    pages_needing_ocr,
+    read_pdf,
+)
 from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import Leak, export_redacted
-from anonymizer.core.session import apply_session, save_session
+from anonymizer.core.session import apply_session, save_session, session_ocr_engine
 from anonymizer.core.types import (
     BBox,
     DetectionSource,
@@ -53,8 +61,11 @@ MAX_DPI = 400
 LANGUAGES = {"cs": "Czech", "sk": "Slovak", "en": "English"}
 """Languages with their own rules (`detect.finders_for`); without one, every rule runs."""
 
+OCR_ENGINE = "onnxtr"
+"""The OCR engine the window offers (see `ingest.OCR_ENGINES`)."""
+
 Progress = Callable[[str], None]
-"""Told each step of opening a PDF: `reading`, `loading_model`, `detecting`."""
+"""Told each step of opening a PDF: `loading_ocr`, `reading`, `loading_model`, `detecting`."""
 
 
 class ReviewError(Exception):
@@ -88,6 +99,7 @@ class ReviewApi:
         self._resource_root = resource_root or Path()
         # Loaded on first use and kept: loading takes seconds, detecting does not.
         self._model: Detector | None = None
+        self._ocr: dict[str, OcrEngine] = {}
 
     def status(self) -> dict[str, Any]:
         """Describe what this installation can do, for the home screen.
@@ -96,22 +108,25 @@ class ReviewApi:
         once.
 
         Returns:
-            The version, the languages with their own rules, and the name
-            model's state: `ready`, `not_installed` (the optional `ner`
-            dependencies are missing) or `files_missing` (with the catalog ids
-            to fetch).
+            The version, the languages with their own rules, and the states of
+            the name model and of the OCR engine: `ready`, `not_installed`
+            (the optional dependencies are missing) or `files_missing` (with
+            the catalog ids to fetch).
         """
-        missing = missing_gliner_files(self._resource_root)
-        if not gliner_installed():
-            state = "not_installed"
-        elif missing:
-            state = "files_missing"
-        else:
-            state = "ready"
+        model_missing = missing_gliner_files(self._resource_root)
+        ocr_missing = missing_ocr_files(OCR_ENGINE, self._resource_root)
         return {
             "version": __version__,
             "languages": [{"code": code, "name": name} for code, name in LANGUAGES.items()],
-            "model": {"state": state, "missing": missing},
+            "model": {
+                "state": _state(gliner_installed(), model_missing),
+                "missing": model_missing,
+            },
+            "ocr": {
+                "engine": OCR_ENGINE,
+                "state": _state(ocr_engine_installed(OCR_ENGINE), ocr_missing),
+                "missing": ocr_missing,
+            },
         }
 
     def open_pdf(
@@ -121,6 +136,7 @@ class ReviewApi:
         propagate: bool = True,
         use_model: bool = False,
         progress: Progress | None = None,
+        use_ocr: bool = False,
     ) -> dict[str, Any]:
         """Open a PDF and propose redactions for it.
 
@@ -130,19 +146,21 @@ class ReviewApi:
             propagate: Also mark further occurrences of the text found.
             use_model: Also run the name model (see `status`).
             progress: Told each step as it starts.
+            use_ocr: Read scanned pages with the OCR engine (see `status`).
 
         Returns:
             The document as `document()` describes it.
 
         Raises:
-            ReviewError: If the file is missing or unreadable, or the model was
-                asked for but cannot be loaded.
+            ReviewError: If the file is missing or unreadable, or the model or
+                the OCR engine was asked for but cannot be loaded.
         """
         report = progress or (lambda _step: None)
+        ocr = self._loaded_ocr(OCR_ENGINE, report) if use_ocr else None
         report("reading")
         with _as_review_error():
             pdf_bytes = read_pdf(path)
-            document = document_from_bytes(pdf_bytes, language=language)
+            document = document_from_bytes(pdf_bytes, language=language, ocr=ocr)
         model = self._loaded_model(report) if use_model else None
         report("detecting")
         run_detection(document, build_detector(language, model=model), propagate=propagate)
@@ -160,23 +178,47 @@ class ReviewApi:
                 raise ReviewError(msg) from error
         return self._model
 
-    def open_session(self, pdf_path: str, session_path: str) -> dict[str, Any]:
+    def _loaded_ocr(self, name: str, report: Progress) -> OcrEngine:
+        """Return an OCR engine, loading it the first time."""
+        if name not in self._ocr:
+            report("loading_ocr")
+            try:
+                self._ocr[name] = load_ocr_engine(name, self._resource_root)
+            except (ImportError, FileNotFoundError, ValueError) as error:
+                msg = f"the OCR engine is not available: {error}"
+                raise ReviewError(msg) from error
+        return self._ocr[name]
+
+    def open_session(
+        self, pdf_path: str, session_path: str, progress: Progress | None = None
+    ) -> dict[str, Any]:
         """Reopen a saved review of a PDF.
+
+        A review of scanned pages records the OCR engine that read them; the
+        PDF is read with that engine again, since the review's offsets refer
+        to what it read.
 
         Args:
             pdf_path: The original PDF.
             session_path: The session file saved from a review of it.
+            progress: Told each step as it starts.
 
         Returns:
             The document as `document()` describes it.
 
         Raises:
             ReviewError: If the session belongs to another file or no longer
-                matches it, or either file cannot be read.
+                matches it, either file cannot be read, or the review's OCR
+                engine cannot be loaded.
         """
+        report = progress or (lambda _step: None)
+        with _as_review_error():
+            engine = session_ocr_engine(session_path)
+        ocr = self._loaded_ocr(engine, report) if engine is not None else None
+        report("reading")
         with _as_review_error():
             pdf_bytes = read_pdf(pdf_path)
-            document = apply_session(document_from_bytes(pdf_bytes), session_path)
+            document = apply_session(document_from_bytes(pdf_bytes, ocr=ocr), session_path)
         self._open = _OpenDocument(Path(pdf_path), document, pdf_bytes)
         return self.document()
 
@@ -315,9 +357,10 @@ class ReviewApi:
         Args:
             path: Where to write the copy; the window's save dialog has
                 already confirmed replacing an existing file.
-            allow_pages_without_text: Export even though some pages have no
-                text layer. Nothing on such a page is detected, so it reaches
-                the output unredacted while the leak check still passes.
+            allow_pages_without_text: Export even though some scanned pages
+                were not read by OCR. Nothing on such a page is detected, so
+                it reaches the output unredacted while the leak check still
+                passes.
 
         Returns:
             What the export did: whether the copy was written, the counts of
@@ -332,11 +375,22 @@ class ReviewApi:
         unreadable = [index + 1 for index in pages_needing_ocr(current.document)]
         if unreadable and not allow_pages_without_text:
             listed = ", ".join(str(page) for page in unreadable)
-            msg = f"page {listed} has no text layer; nothing on it would be redacted"
+            msg = f"page {listed} is a scan OCR has not read; nothing on it would be redacted"
             raise ReviewError(msg)
+        ocr = self._engine_that_read(current.document)
         with _as_review_error():
-            leaks = export_redacted(current.source, current.document, path)
+            leaks = export_redacted(current.source, current.document, path, ocr=ocr)
         return _export_payload(Path(path).name, current.document, leaks, unreadable)
+
+    def _engine_that_read(self, document: Document) -> OcrEngine | None:
+        """Return the loaded engine that read the document, for the leak check to re-read with."""
+        if document.ocr_engine is None:
+            return None
+        for engine in self._ocr.values():
+            if engine.name == document.ocr_engine:
+                return engine
+        msg = f"the OCR engine {document.ocr_engine!r} that read this document is not loaded"
+        raise ReviewError(msg)
 
     def _current(self) -> _OpenDocument:
         if self._open is None:
@@ -356,12 +410,20 @@ def _as_review_error() -> Iterator[None]:
         raise ReviewError(message) from error
 
 
+def _state(installed: bool, missing: list[str]) -> str:
+    """Whether an optional model can be used: `ready`, `not_installed` or `files_missing`."""
+    if not installed:
+        return "not_installed"
+    return "files_missing" if missing else "ready"
+
+
 def _page_payload(page: Page) -> dict[str, Any]:
     return {
         "index": page.index,
         "width": page.width,
         "height": page.height,
         "has_text_layer": page.has_text_layer,
+        "raster_dpi": page.raster_dpi,
     }
 
 

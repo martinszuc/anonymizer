@@ -30,11 +30,12 @@ const MAX_FIT_SCALE = 2;
 export function App() {
   const [bridge, setBridge] = useState<ReviewBridge | null>(null);
   const [status, setStatus] = useState<AppStatus | null>(null);
-  // How the next PDF is opened; the model is on once its status says it is ready.
+  // How the next PDF is opened; the model and OCR are on once their status says ready.
   const [options, setOptions] = useState<OpenOptions>({
     language: null,
     propagate: true,
     use_model: false,
+    use_ocr: false,
   });
   // Set by Python's progress events once a file is chosen; null otherwise.
   const [opening, setOpening] = useState<{ name: string | null; step: OpenStep } | null>(null);
@@ -75,7 +76,11 @@ export function App() {
       if (opened) show(opened);
       const installed = await connected.status();
       setStatus(installed);
-      setOptions((current) => ({ ...current, use_model: installed.model.state === "ready" }));
+      setOptions((current) => ({
+        ...current,
+        use_model: installed.model.state === "ready",
+        use_ocr: installed.ocr.state === "ready",
+      }));
     });
   }, []);
 
@@ -342,7 +347,12 @@ export function App() {
     <MotionConfig reducedMotion="user">
       <div className="app" data-ready={bridge !== null}>
         {opening ? (
-          <Opening name={opening.name} step={opening.step} usesModel={options.use_model} />
+          <Opening
+            name={opening.name}
+            step={opening.step}
+            usesModel={options.use_model}
+            usesOcr={options.use_ocr}
+          />
         ) : document && images ? (
           <>
             <Toolbar

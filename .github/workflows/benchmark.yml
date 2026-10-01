@@ -41,17 +41,19 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Sync dependencies, with the name model and charts
-        run: uv sync --locked --all-packages --group ner --group benchmark
+      - name: Sync dependencies, with the name model, OCR and charts
+        run: uv sync --locked --all-packages --group ner --group ocr-onnxtr --group benchmark
 
-      - name: Cache the model
+      - name: Cache the models
         uses: actions/cache@v4
         with:
           path: models
           key: models-${{ hashFiles('packages/core/src/anonymizer/core/resources/catalog.toml') }}
 
-      - name: Fetch the model (checksum verified)
-        run: uv run python scripts/download.py fetch gliner-multi-v2.1 --yes
+      - name: Fetch the models (checksum verified)
+        run: |
+          uv run python scripts/download.py fetch gliner-multi-v2.1 --yes
+          uv run python scripts/download.py fetch onnxtr-parseq-multilingual-v1 --yes
 
       - name: Run the benchmark
         env:
@@ -59,10 +61,14 @@ jobs:
           TRANSFORMERS_OFFLINE: "1"
         run: uv run python -m benchmark run --out "$OUT"
 
-      # No engine is downloaded yet: the oracle reads the ground truth and
-      # bounds what OCR can give detection and redaction on scans.
-      - name: Run the scanned benchmark (oracle)
-        run: uv run python -m benchmark ocr --out "$OUT/ocr" --engines oracle
+      # One level per factor keeps the run short; the oracle reads the ground
+      # truth and bounds what OCR can give detection and redaction on scans.
+      - name: Run the scanned benchmark (oracle, OnnxTR)
+        env:
+          HF_HUB_OFFLINE: "1"
+        run: |
+          uv run python -m benchmark ocr --out "$OUT/ocr" --engines oracle,onnxtr \
+            --levels clean,resolution-150,blur-2,noise-25,jpeg-20,skew-3
 
       # Earlier releases' results, so the charts show the change over versions.
       - name: Collect earlier results

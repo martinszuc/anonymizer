@@ -48,6 +48,8 @@ _OFFLINE_VARIABLES = ("HF_HUB_OFFLINE",)
 class OnnxtrEngine:
     """Reads a page with an OnnxTR predictor (see `load_onnxtr_engine`)."""
 
+    name = "onnxtr"
+
     def __init__(self, predictor: Any) -> None:
         self.predictor = predictor
 

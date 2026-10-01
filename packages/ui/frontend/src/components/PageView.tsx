@@ -1,4 +1,4 @@
-import { TriangleAlert } from "lucide-react";
+import { ScanText, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   forwardRef,
@@ -13,7 +13,16 @@ import {
 import { errorMessage } from "../bridge";
 import { gentle } from "../motion";
 import type { PageImages } from "../pageImages";
-import { covers, dragBox, isDecidable, isLargeEnough, isRemoved, renderDpi, typeLabel } from "../review";
+import {
+  covers,
+  dragBox,
+  isDecidable,
+  isLargeEnough,
+  isRemoved,
+  isUnreadScan,
+  renderDpi,
+  typeLabel,
+} from "../review";
 import type { Box, DocumentInfo, EntityInfo, PageInfo, SurfaceInfo } from "../types";
 
 interface PageViewProps {
@@ -161,10 +170,17 @@ function Page({
 
   return (
     <section className="page-slot" data-page-index={page.index} aria-label={`Page ${page.index + 1}`}>
-      {!page.has_text_layer && (
+      {isUnreadScan(page) && (
         <p className="page-warning">
           <TriangleAlert size={14} aria-hidden />
-          No text layer: this page looks like a scan. Nothing on it is detected until OCR is supported.
+          This page looks like a scan, and OCR did not read it: nothing on it is detected. Turn on
+          scanned pages on the home screen and open it again.
+        </p>
+      )}
+      {page.raster_dpi !== null && (
+        <p className="page-note">
+          <ScanText size={14} aria-hidden />
+          Scanned page, read by OCR. OCR can misread a word, so check what it found.
         </p>
       )}
       <div ref={pageRef} className="page" style={{ width, height }}>

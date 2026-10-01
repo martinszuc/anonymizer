@@ -157,12 +157,11 @@ session, export), blackbox redaction and a leak check on the output.
 Scanned pages: ingest reads pages without a text layer through an OCR engine
 interface, redaction overwrites the pixels under each box and removes the page's
 text layer, and the leak check re-reads the redacted page with the same engine.
-The first engine is OnnxTR with a multilingual recognizer (optional, CLI `--ocr
-onnxtr`); the review window does not offer it yet and warns about scanned pages.
+The first engine is OnnxTR with a multilingual recognizer (optional: CLI `--ocr
+onnxtr`, the review window's *Scanned pages* switch).
 Searchable scans (a picture under an invisible text layer) are redacted through
 that layer; see `docs/findings.md`.
-Not yet: measured NER and OCR quality, OCR in the review window, adding a missed
-word in the review window.
+Not yet: measured NER and OCR quality, adding a missed word in the review window.
 
 ## License
 

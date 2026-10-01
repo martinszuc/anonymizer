@@ -11,6 +11,7 @@ import {
   isRemoved,
   leakLayerLabel,
   pageList,
+  isUnreadScan,
   pagesWithoutText,
   renderDpi,
   steppedZoom,
@@ -153,18 +154,20 @@ describe("export helpers", () => {
     expect(pageList([1, 2, 4])).toBe("pages 1, 2 and 4");
   });
 
-  it("finds pages without a text layer, numbered from one", () => {
+  it("finds scans OCR has not read, numbered from one", () => {
     const document: DocumentInfo = {
       name: "scan.pdf",
       language: null,
       pages: [
-        { index: 0, width: 595, height: 842, has_text_layer: true },
-        { index: 1, width: 595, height: 842, has_text_layer: false },
+        { index: 0, width: 595, height: 842, has_text_layer: true, raster_dpi: null },
+        { index: 1, width: 595, height: 842, has_text_layer: false, raster_dpi: null },
+        { index: 2, width: 595, height: 842, has_text_layer: false, raster_dpi: 300 },
       ],
       entities: [],
       surfaces: [],
     };
     expect(pagesWithoutText(document)).toEqual([2]);
+    expect(document.pages.map(isUnreadScan)).toEqual([false, true, false]);
   });
 
   it("summarizes what was exported", () => {

@@ -63,6 +63,11 @@ hidden data (a link, metadata) shows a locked pill *Always removed* (`--fill`,
 `--label-2`) instead, and no review dot: export clears it with the hidden item,
 so there is nothing to decide.
 
+**Page notices.** Above a page: a warning (`--warning` at 16 %, triangle icon)
+for a scan OCR did not read, since nothing on it was detected; a quiet note
+(`--fill`, `--label-2`, scan icon) for a page OCR read, reminding that OCR can
+misread. Same shape for both (`.page-warning`, `.page-note`).
+
 **Hidden tab.** A notice saying everything here is removed; a warning-tone notice
 (`--warning` at 12 %) when the file has attachments, whose contents are never
 checked. Each kind has a one-line note under its header (what it is, what export

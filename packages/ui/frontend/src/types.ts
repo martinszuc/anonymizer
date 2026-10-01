@@ -12,6 +12,8 @@ export interface PageInfo {
   width: number;
   height: number;
   has_text_layer: boolean;
+  /** Resolution OCR read the page at; null when OCR did not read it. */
+  raster_dpi: number | null;
 }
 
 export interface EntityInfo {
@@ -58,7 +60,7 @@ export interface ExportResult {
   kept: number;
   not_reviewed: number;
   hidden_removed: number;
-  /** 1-based numbers of pages left unredacted because they have no text layer. */
+  /** 1-based numbers of scanned pages left unredacted because OCR did not read them. */
   pages_without_text: number[];
   leaks: LeakInfo[];
 }
@@ -70,6 +72,7 @@ export interface AppStatus {
   version: string;
   languages: { code: string; name: string }[];
   model: { state: ModelState; missing: string[] };
+  ocr: { engine: string; state: ModelState; missing: string[] };
 }
 
 /** How a PDF is opened; each is a detection option (see `ReviewApi.open_pdf`). */
@@ -78,7 +81,9 @@ export interface OpenOptions {
   language: string | null;
   propagate: boolean;
   use_model: boolean;
+  /** Read scanned pages with the OCR engine. */
+  use_ocr: boolean;
 }
 
 /** A step of opening a PDF, told by Python as it starts. */
-export type OpenStep = "reading" | "loading_model" | "detecting";
+export type OpenStep = "loading_ocr" | "reading" | "loading_model" | "detecting";

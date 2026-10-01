@@ -7,8 +7,13 @@ over it. The reviewer keeps or redacts each one and saves the decisions as a ses
 file, the same format `anonymize detect` writes and `anonymize redact --session` reads.
 
 ```sh
-anonymize-ui [cv.pdf] [--lang cs]
+anonymize-ui [cv.pdf] [--lang cs] [--ner] [--ocr]
 ```
+
+Scanned pages are read with OCR when the home screen's *Scanned pages* switch is
+on (`--ocr` for a PDF given on the command line): install `uv sync --group
+ocr-onnxtr` and fetch the models with
+`uv run python scripts/download.py fetch onnxtr-parseq-multilingual-v1`.
 
 Working on the window: start with [`docs/ui.md`](../../docs/ui.md) (status, contract,
 rules, how to add a feature, backlog).

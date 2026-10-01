@@ -14,8 +14,12 @@ provider: the default list on macOS starts with CoreML, which fails to
 build the recognizer, and includes Azure's, which runs models on remote
 endpoints; the CPU gives the same results on every machine.
 
-The page is read as straight: words come back in axis-aligned boxes, so a
-skewed scan's boxes enclose its tilted words.
+Pages are read without assuming straight text: OnnxTR then measures each
+word as a rotated box and straightens it before reading. Read as straight,
+a scan skewed by 3 degrees lost half its text to misread and misordered
+words in the scanned benchmark; read this way it stayed under one per cent.
+A rotated word comes back as four corners, and its box is the axis-aligned
+rectangle around them, which encloses the tilted word.
 
 The optional dependency is the `ocr-onnxtr` extra (`uv sync --group
 ocr-onnxtr`); it is imported inside the loader, as GLiNER is.
@@ -79,13 +83,14 @@ class OnnxtrEngine:
 
 
 def _pixels(geometry: Any, image: PageImage) -> tuple[float, float, float, float]:
-    """Convert OnnxTR's relative `((x0, y0), (x1, y1))` into pixels of the picture."""
-    (x0, y0), (x1, y1) = geometry
+    """Enclose OnnxTR's relative corner points, two or four, in a box in pixels."""
+    xs = [float(x) for x, _ in geometry]
+    ys = [float(y) for _, y in geometry]
     return (
-        float(x0) * image.width,
-        float(y0) * image.height,
-        float(x1) * image.width,
-        float(y1) * image.height,
+        min(xs) * image.width,
+        min(ys) * image.height,
+        max(xs) * image.width,
+        max(ys) * image.height,
     )
 
 
@@ -147,7 +152,7 @@ def load_onnxtr_engine(root: Path) -> OnnxtrEngine:
     predictor = ocr_predictor(
         det_arch=fast_base(str(detection / _MODEL_FILE), engine_cfg=cpu),
         reco_arch=parseq(str(recognition / _MODEL_FILE), engine_cfg=cpu, vocab=vocab),
-        assume_straight_pages=True,
+        assume_straight_pages=False,
         detect_orientation=False,
         straighten_pages=False,
         detect_language=False,

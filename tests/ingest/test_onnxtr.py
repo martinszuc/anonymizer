@@ -96,6 +96,12 @@ class TestRead:
         assert words[1].box == pytest.approx((50, 10, 80, 20))
         assert words[1].confidence == pytest.approx(0.8)
 
+    def test_a_rotated_word_is_enclosed_by_the_box_around_its_corners(self):
+        corners = ((0.30, 0.42), (0.50, 0.40), (0.51, 0.50), (0.31, 0.52))
+        page = _Page([_Block([_Line([_Word("Šumavská", 0.9, corners)])])])  # type: ignore[arg-type]
+        (word,) = OnnxtrEngine(_Predictor(page)).read(IMAGE)
+        assert word.box == pytest.approx((60, 40, 102, 52))
+
     def test_predictor_receives_the_page_as_height_width_channels(self):
         predictor = _Predictor(_Page([]))
         assert OnnxtrEngine(predictor).read(IMAGE) == []

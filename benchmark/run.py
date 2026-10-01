@@ -69,7 +69,7 @@ def run(
         The results, as written to `results.json`.
     """
     specs = specs if specs is not None else load_documents()
-    factories = _factories(systems, resource_root)
+    factories = detector_factories(systems, resource_root)
     (output / "pdf").mkdir(parents=True, exist_ok=True)
     (output / "images").mkdir(parents=True, exist_ok=True)
 
@@ -86,9 +86,9 @@ def run(
         "schema": RESULTS_SCHEMA,
         "created": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
         "tool_version": anonymizer.core.__version__,
-        "git_commit": _git_commit(),
+        "git_commit": git_commit(),
         "models": _model_versions(systems),
-        "machine": _machine(),
+        "machine": machine(),
         "systems": list(factories),
         "documents": documents,
         "totals": _totals(documents, list(factories)),
@@ -161,7 +161,12 @@ def _draw(
     )
 
 
-def _factories(systems: tuple[str, ...], resource_root: Path) -> dict[str, DetectorFactory]:
+def detector_factories(systems: tuple[str, ...], resource_root: Path) -> dict[str, DetectorFactory]:
+    """Return a detector factory per system name, loading GLiNER once if needed.
+
+    Raises:
+        ValueError: If a system name is unknown.
+    """
     unknown = set(systems) - set(SYSTEMS)
     if unknown:
         msg = f"unknown systems {sorted(unknown)}; choose from {list(SYSTEMS)}"
@@ -206,7 +211,8 @@ def _model_versions(systems: tuple[str, ...]) -> dict[str, str]:
     }
 
 
-def _machine() -> dict[str, str]:
+def machine() -> dict[str, str]:
+    """Describe the machine a run is made on."""
     return {
         "system": platform.system(),
         "machine": platform.machine(),
@@ -215,7 +221,8 @@ def _machine() -> dict[str, str]:
     }
 
 
-def _git_commit() -> str | None:
+def git_commit() -> str | None:
+    """Return the commit the benchmark runs from, or `None` outside a checkout."""
     try:
         completed = subprocess.run(
             ["git", "rev-parse", "HEAD"],

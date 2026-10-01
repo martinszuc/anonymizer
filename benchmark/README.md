@@ -10,6 +10,34 @@ uv run python -m benchmark run --out benchmark-results --systems rules   # no mo
 uv run python -m benchmark history run-a/results.json run-b/results.json --out charts
 ```
 
+## Scanned variants (OCR)
+
+```sh
+uv run python -m benchmark ocr --out ocr-results                    # every level, the oracle
+uv run python -m benchmark ocr --out ocr-results --levels clean,blur-2,skew-3
+```
+
+Each document is rendered to a greyscale picture, degraded one factor at a
+time (resolution, blur, noise, JPEG quality, skew; noise is seeded), and
+written as a picture-only PDF. The original's text layer is the ground
+truth, its boxes moved with the ink under skew. Only items on the page are
+scored: a scan carries no links or metadata. Scores, per engine and level:
+
+- **CER** — character error rate against the original's text; **diacritics**
+  — the share of letters with a diacritic not read exactly.
+- **boxed** — ground-truth words matched by an OCR box (IoU ≥ 0.5);
+  **coverage** — the share of each word's area under OCR boxes. Below one, a
+  box drawn from OCR leaves part of the word in the picture.
+- **found** — as below, on the OCR text.
+- **readable / partly after** — ink left in each item's ground-truth boxes in
+  the redacted picture: half a word or more, or more than a trace. Counted in
+  pixels, so it does not depend on the engine being scored.
+
+The `oracle` engine reads the ground truth (and, when the leak check re-reads
+a redacted page, only the words still printed), so it bounds what OCR can
+give the rest of the pipeline. Real engines are added beside it. Output:
+`ocr-results.json`, `ocr-results.md`, `pdf/`, and `scans/<doc>.<level>[.<engine>].pdf`.
+
 ## Output
 
 | Path | What |

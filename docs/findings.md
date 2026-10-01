@@ -213,6 +213,28 @@ ink counted in the stored image data (`tests/redact/test_scanned_pages.py`).
   Pillow splits a G4 TIFF into several strips unless told otherwise. Each
   was caught by checking the fixture before redacting.
 
+### 2026-10-01 · Scanned benchmark with a perfect reader (synthetic)
+
+`python -m benchmark ocr --engines oracle`, six documents, 16 levels; the
+oracle reads the ground truth, so every error is the pipeline's, not OCR's.
+Rules only.
+
+- **The first OCR leak layer refused correct redaction on skewed scans:**
+  2 of 6 documents failed at 1° of skew, 5 at 3° and all 6 at 5°. An
+  axis-aligned box around a tilted value clips the corners of the words on
+  the lines around it, and the layer counted any overlap as a word under a
+  box. Fixed: a word counts when half its box or more is inside. Real scans
+  are often skewed by a degree or more, so export would have been refused.
+- **Skew costs over-redaction:** the same boxes black out parts of
+  neighbouring labels; at 5° one item detection had missed became partly
+  covered by a neighbour's box.
+- With perfect reading, the rules find the same 23 of 41 on-page items at
+  every level, and every found item leaves no ink. The other 18 (names,
+  mostly) are detection misses, not OCR losses; GLiNER was not run here.
+- The oracle's first version decided "still printed" by a fixed ink
+  threshold and missed 7 % of words at blur radius 3, where ink turns light
+  grey; it now compares each word with its first reading.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

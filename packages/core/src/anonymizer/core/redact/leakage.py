@@ -32,8 +32,10 @@ Eight layers, because each misses something the others catch:
 8. **OCR.** A page OCR read keeps its content in pixels, which no layer above
    reads. Its text layer must be empty, and the engine that read it re-reads
    the redacted page at the same resolution: no redacted text may be found
-   beyond the copies review kept, and no word may lie inside a redacted box
-   or region. This shows only that *this engine* can no longer read the
+   beyond the copies review kept, and no word may lie mostly (half its box or
+   more) inside a redacted box or region: on a skewed scan an axis-aligned
+   box clips the corners of neighbouring words, which are not leaks. This
+   shows only that *this engine* can no longer read the
    value. It cannot prove the pixels are gone (that is verified by the test
    suite); it does not report a fragment beside a box that no longer spells
    the detected text, such as the end of an address a narrow box missed; and
@@ -62,6 +64,8 @@ from anonymizer.core.types import BBox, Document, Entity
 
 # A word or drawing merely touching a region's edge is not inside it.
 _EDGE_TOLERANCE = 1.0
+# A word re-read by OCR is under a redacted box when this share of it is.
+_MOSTLY = 0.5
 _BLACK = (0.0, 0.0, 0.0)
 
 
@@ -315,9 +319,16 @@ def _ocr_leaks(
             Leak(LeakLayer.OCR, f"{where} under a box", f"word {word.text!r}", entity_id)
             for entity_id, box in boxes.get(page.index, [])
             for word in reread.words
-            if _overlaps_inside(word.bbox, box)
+            if _mostly_inside(word.bbox, box)
         )
     return leaks
+
+
+def _mostly_inside(word_box: BBox, box: BBox) -> bool:
+    """Whether at least half of a word's box lies inside another box."""
+    word = pymupdf.Rect(*word_box.to_list())
+    shared = word & pymupdf.Rect(*box.to_list())
+    return not shared.is_empty and shared.get_area() >= _MOSTLY * word.get_area()
 
 
 def _redacted_boxes(document: Document) -> dict[int, list[tuple[str, BBox]]]:

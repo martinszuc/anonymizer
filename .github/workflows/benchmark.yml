@@ -59,6 +59,11 @@ jobs:
           TRANSFORMERS_OFFLINE: "1"
         run: uv run python -m benchmark run --out "$OUT"
 
+      # No engine is downloaded yet: the oracle reads the ground truth and
+      # bounds what OCR can give detection and redaction on scans.
+      - name: Run the scanned benchmark (oracle)
+        run: uv run python -m benchmark ocr --out "$OUT/ocr" --engines oracle
+
       # Earlier releases' results, so the charts show the change over versions.
       - name: Collect earlier results
         if: inputs.tag != ''
@@ -79,7 +84,7 @@ jobs:
             --out "$OUT/charts"
 
       - name: Summary
-        run: cat "$OUT/results.md" >> "$GITHUB_STEP_SUMMARY"
+        run: cat "$OUT/results.md" "$OUT/ocr/ocr-results.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload as artifact
         uses: actions/upload-artifact@v4
@@ -95,6 +100,9 @@ jobs:
         run: |
           cp "$OUT/results.json" benchmark-results.json
           cp "$OUT/results.md" benchmark-results.md
+          cp "$OUT/ocr/ocr-results.json" benchmark-ocr-results.json
+          cp "$OUT/ocr/ocr-results.md" benchmark-ocr-results.md
           (cd "$OUT" && zip -qr ../benchmark-pictures.zip images charts)
           gh release upload "$TAG" benchmark-results.json benchmark-results.md \
+            benchmark-ocr-results.json benchmark-ocr-results.md \
             benchmark-pictures.zip "$OUT"/charts/*.png --clobber

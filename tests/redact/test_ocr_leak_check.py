@@ -100,6 +100,15 @@ class TestLeaks:
             "word 'osobniho'",
         }
 
+    def test_word_merely_clipped_by_a_box_is_not_a_leak(self, scan: Path, engine: InkReadingEngine):
+        # On a skewed scan an axis-aligned box clips a neighbouring line's corner:
+        # here a region over only the top fifth of the last line's words.
+        document = detected(scan, engine)
+        for entity in document.entities:
+            entity.review = ReviewState.REJECTED
+        document.add_region(0, BBox(LAST_LINE.x0, LAST_LINE.y0 - 2, LAST_LINE.x1, LAST_LINE.y0 + 2))
+        assert find_leaks(scan, document, ocr=engine) == []
+
     def test_word_written_into_the_text_layer_is_found(
         self, scan: Path, engine: InkReadingEngine, tmp_path: Path
     ):

@@ -21,6 +21,9 @@ dev = [
     # Screen capture and WebP encoding for scripts/ui_tour.py; CCITT and CMYK
     # scan fixtures in the tests.
     "pillow>=11",
+    # The scanned benchmark: seeded noise and edit distance (character error rate).
+    "numpy>=2",
+    "rapidfuzz>=3",
 ]
 ner = ["anonymizer-core[ner]"]
 benchmark = ["matplotlib>=3.9"]

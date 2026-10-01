@@ -11,6 +11,7 @@ import pymupdf
 import pytest
 from anonymizer.core.ingest import (
     DEFAULT_OCR_DPI,
+    OCR_BOX_MARGIN,
     OcrWord,
     PageImage,
     load_document,
@@ -36,6 +37,24 @@ def original(tmp_path: Path, rotation: int = 0) -> Document:
 
 def boxes(document: Document) -> list[list[float]]:
     return [word.bbox.to_list() for word in document.pages[0].words]
+
+
+def grown(document: Document) -> list[list[float]]:
+    """The document's word boxes grown as OCR boxes are: a share of the height on each side."""
+    page = document.pages[0]
+    result = []
+    for word in page.words:
+        box = word.bbox
+        margin = OCR_BOX_MARGIN * box.height
+        result.append(
+            [
+                max(box.x0 - margin, 0),
+                max(box.y0 - margin, 0),
+                min(box.x1 + margin, page.width),
+                min(box.y1 + margin, page.height),
+            ]
+        )
+    return result
 
 
 @pytest.fixture
@@ -85,7 +104,7 @@ class TestScannedPage:
         expected = original(tmp_path)
         document = load_document(scan, ocr=ScriptedEngine.reading(expected), ocr_dpi=dpi)
         assert document.pages[0].raster_dpi == dpi
-        assert boxes(document) == [pytest.approx(box) for box in boxes(expected)]
+        assert boxes(document) == [pytest.approx(box) for box in grown(expected)]
 
     def test_engine_receives_the_page_rendered_at_the_resolution(self, scan: Path, tmp_path: Path):
         expected = original(tmp_path)
@@ -131,7 +150,7 @@ class TestRotatedScan:
     def test_boxes_are_in_rotated_page_space(self, rotated: tuple[Path, Document]):
         scan, expected = rotated
         document = load_document(scan, ocr=ScriptedEngine.reading(expected))
-        assert boxes(document) == [pytest.approx(box) for box in boxes(expected)]
+        assert boxes(document) == [pytest.approx(box) for box in grown(expected)]
 
     def test_redaction_boxes_land_on_the_ink(self, rotated: tuple[Path, Document], tmp_path: Path):
         scan, expected = rotated
@@ -202,6 +221,13 @@ class TestEngineOutput:
         assert page.text == "Jan Novak"
         assert len(page.words) == 2
 
+    def test_boxes_are_grown_by_a_share_of_their_height_on_each_side(self, blank_scan: Path):
+        page = read_with(blank_scan, [ScriptedWord("Novák", BBox(100, 200, 160, 210))]).pages[0]
+        margin = OCR_BOX_MARGIN * 10
+        assert page.words[0].bbox.to_list() == pytest.approx(
+            [100 - margin, 200 - margin, 160 + margin, 210 + margin]
+        )
+
     def test_boxes_are_clipped_to_the_page_and_their_corners_ordered(self, blank_scan: Path):
         class SwappedCorners:
             """Reports one word with its corners swapped, reaching past the bottom right."""
@@ -212,9 +238,11 @@ class TestEngineOutput:
                 return [OcrWord("edge", box, 0.9, block=0, line=0)]
 
         page = load_document(blank_scan, ocr=SwappedCorners(), ocr_dpi=300).pages[0]
-        # The picture is 2480 x 3509 pixels at 300 DPI (3508.3 rounded up).
+        # The picture is 2480 x 3509 pixels at 300 DPI (3508.3 rounded up); the box
+        # is 39 pixels tall before clipping.
+        margin = OCR_BOX_MARGIN * 39 * 72 / 300
         assert page.words[0].bbox.to_list() == pytest.approx(
-            [2380 * 72 / 300, 3479 * 72 / 300, 595, 842], abs=0.01
+            [2380 * 72 / 300 - margin, 3479 * 72 / 300 - margin, 595, 842], abs=0.01
         )
 
 

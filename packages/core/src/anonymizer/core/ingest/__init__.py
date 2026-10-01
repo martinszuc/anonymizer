@@ -4,6 +4,7 @@ from anonymizer.core.ingest.engines import OCR_ENGINE_RESOURCES, OCR_ENGINES, lo
 from anonymizer.core.ingest.normalize import normalize_text
 from anonymizer.core.ingest.ocr import (
     DEFAULT_OCR_DPI,
+    OCR_BOX_MARGIN,
     OcrEngine,
     OcrWord,
     PageImage,
@@ -23,6 +24,7 @@ from anonymizer.core.ingest.surfaces import extract_surfaces
 
 __all__ = [
     "DEFAULT_OCR_DPI",
+    "OCR_BOX_MARGIN",
     "OCR_ENGINES",
     "OCR_ENGINE_RESOURCES",
     "OcrEngine",

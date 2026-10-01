@@ -9,7 +9,8 @@ of the whole text.
 Opening a session verifies that it belongs to the given PDF and that every
 entity still covers the same text at the same place. A mismatch means the file
 or its extraction changed, and a review applied to different text cannot be
-trusted, so the session is refused instead.
+trusted, so the session is refused instead. Pages OCR read must therefore be
+read again by the same engine at the same resolution.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from anonymizer.core.ingest import load_document
+from anonymizer.core.ingest import DEFAULT_OCR_DPI, OcrEngine, load_document
 from anonymizer.core.types import SCHEMA_VERSION, Document, Entity
 
 SESSION_FORMAT = "anonymizer-session"
@@ -63,12 +64,20 @@ def save_session(document: Document, path: Path | str) -> None:
     Path(path).write_text(content, encoding="utf-8")
 
 
-def load_session(session_path: Path | str, pdf_path: Path | str) -> Document:
+def load_session(
+    session_path: Path | str,
+    pdf_path: Path | str,
+    *,
+    ocr: OcrEngine | None = None,
+    ocr_dpi: int = DEFAULT_OCR_DPI,
+) -> Document:
     """Reopen a saved review against its original PDF.
 
     Args:
         session_path: Session file written by `save_session`.
         pdf_path: The original PDF the review was made on.
+        ocr: The engine that read the pages needing OCR when the review was made.
+        ocr_dpi: The resolution it read them at.
 
     Returns:
         The document read again from the PDF, with the session's entities.
@@ -78,7 +87,7 @@ def load_session(session_path: Path | str, pdf_path: Path | str) -> Document:
             belongs to a different PDF, an entity refers to a missing page or
             surface, or an entity no longer covers the text it recorded.
     """
-    return apply_session(load_document(pdf_path), session_path)
+    return apply_session(load_document(pdf_path, ocr=ocr, ocr_dpi=ocr_dpi), session_path)
 
 
 def apply_session(document: Document, session_path: Path | str) -> Document:

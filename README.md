@@ -108,8 +108,12 @@ dates of birth, postal addresses), names with the GLiNER model (optional,
 session files or the review window (a home screen with the detection options
 and the name model, open or drop a PDF, toggle each item, draw regions, save the
 session, export), blackbox redaction and a leak check on the output.
-Not yet: measured NER quality, scanned documents (OCR), adding a missed word in
-the review window.
+Scanned pages: ingest reads pages without a text layer through an OCR engine
+interface, but no engine is included yet, so the CLI refuses such pages and the
+review window warns about them. Searchable scans (a picture under an invisible
+text layer) are redacted through that layer; see `docs/findings.md`.
+Not yet: measured NER quality, an OCR engine, adding a missed word in the review
+window.
 
 ## License
 

@@ -4,8 +4,14 @@ PyMuPDF reports word boxes in the page's **unrotated** coordinate system while
 `page.rect` reflects the rotation, so boxes on a rotated page are mapped through
 `page.rotation_matrix` before they enter the data contract (see `normalize`).
 
-Pages whose text layer yields no words are marked `has_text_layer=False`. They
-need OCR; this module does not attempt it. Strings outside the text layer are
+Pages whose text layer yields no words are marked `has_text_layer=False`, and
+so are pages mostly covered by pictures with only a few visible words over
+them: a scan with a page number or a scanner's stamp, whose content is in the
+picture. Invisible text over a picture is a producer's OCR layer (a
+searchable scan) and is used as the text layer.
+Such pages need OCR: given an engine, they are read through it (see `ocr`);
+without one they keep only what the text layer had. The thresholds are a
+heuristic, not yet checked on real scans. Strings outside the text layer are
 listed by `surfaces`.
 """
 
@@ -13,21 +19,26 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from typing import Any
 
 import pymupdf
-from anonymizer.core.ingest.normalize import normalize_text, unrotated_rect_to_bbox
+from anonymizer.core.ingest.layout import PlacedWord, assemble
+from anonymizer.core.ingest.normalize import unrotated_rect_to_bbox
+from anonymizer.core.ingest.ocr import DEFAULT_OCR_DPI, OcrEngine, read_page
 from anonymizer.core.ingest.surfaces import extract_surfaces
-from anonymizer.core.types import Document, Page, Word
-
-# Reading order is reconstructed from PyMuPDF's block, line and word numbering.
-_WORD_SEPARATOR = " "
-_LINE_SEPARATOR = "\n"
-_BLOCK_SEPARATOR = "\n\n"
+from anonymizer.core.types import Document, Page
 
 # Field positions in PyMuPDF's "words" tuples.
 _BLOCK_INDEX = 5
 _LINE_INDEX = 6
 _WORD_INDEX = 7
+
+# A page at least this much covered by pictures, with fewer words than this
+# over them, is a scan: a stamp or a page number is not its content.
+_SCAN_PICTURE_SHARE = 0.5
+_STAMP_WORDS = 20
+# PyMuPDF's trace type for invisible text (render mode 3), as OCR layers use.
+_INVISIBLE_TEXT = 3
 
 
 def extract_page(pdf_page: pymupdf.Page, index: int) -> Page:
@@ -45,63 +56,60 @@ def extract_page(pdf_page: pymupdf.Page, index: int) -> Page:
         pdf_page.get_text("words"),
         key=lambda word: (word[_BLOCK_INDEX], word[_LINE_INDEX], word[_WORD_INDEX]),
     )
-
-    parts: list[str] = []
-    words: list[Word] = []
-    cursor = 0
-    previous_block: int | None = None
-    previous_line: int | None = None
-
-    for raw in raw_words:
-        x0, y0, x1, y1, raw_text, block_no, line_no, _word_no = raw
-        text = normalize_text(str(raw_text))
-        if not text:
-            continue
-        separator = _separator_before(int(block_no), int(line_no), previous_block, previous_line)
-        if separator:
-            parts.append(separator)
-            cursor += len(separator)
-        start = cursor
-        parts.append(text)
-        cursor += len(text)
-        bbox = unrotated_rect_to_bbox(pymupdf.Rect(x0, y0, x1, y1), pdf_page)
-        words.append(Word(text=text, bbox=bbox, start=start, end=cursor))
-        previous_block = int(block_no)
-        previous_line = int(line_no)
-
+    text, words = assemble(
+        PlacedWord(
+            text=str(raw_text),
+            bbox=unrotated_rect_to_bbox(pymupdf.Rect(x0, y0, x1, y1), pdf_page),
+            block=int(block_no),
+            line=int(line_no),
+        )
+        for x0, y0, x1, y1, raw_text, block_no, line_no, _word_no in raw_words
+    )
     return Page(
         index=index,
         width=pdf_page.rect.width,
         height=pdf_page.rect.height,
-        text="".join(parts),
+        text=text,
         words=words,
-        has_text_layer=bool(words),
+        has_text_layer=bool(words) and not _is_stamped_scan(pdf_page, raw_words),
     )
 
 
-def _separator_before(
-    block_no: int,
-    line_no: int,
-    previous_block: int | None,
-    previous_line: int | None,
-) -> str:
-    """Whitespace to insert before a word, given the previous word's position."""
-    if previous_block is None:
-        return ""
-    if block_no != previous_block:
-        return _BLOCK_SEPARATOR
-    if line_no != previous_line:
-        return _LINE_SEPARATOR
-    return _WORD_SEPARATOR
+def _is_stamped_scan(pdf_page: pymupdf.Page, raw_words: list[Any]) -> bool:
+    """Whether pictures cover most of the page with only a few visible words over them.
+
+    Pictures and words are compared in the page's unrotated space, where
+    PyMuPDF reports both.
+    """
+    page_area = pdf_page.rect.width * pdf_page.rect.height
+    unrotated = pdf_page.rect * pdf_page.derotation_matrix
+    pictures = [pymupdf.Rect(info["bbox"]) & unrotated for info in pdf_page.get_image_info()]
+    pictures = [picture for picture in pictures if not picture.is_empty]
+    if sum(picture.get_area() for picture in pictures) < _SCAN_PICTURE_SHARE * page_area:
+        return False
+    if any(span["type"] == _INVISIBLE_TEXT for span in pdf_page.get_texttrace()):
+        return False
+    centres = (pymupdf.Point((raw[0] + raw[2]) / 2, (raw[1] + raw[3]) / 2) for raw in raw_words)
+    over_pictures = sum(1 for centre in centres if any(centre in picture for picture in pictures))
+    return over_pictures < _STAMP_WORDS
 
 
-def load_document(path: Path | str, *, language: str | None = None) -> Document:
+def load_document(
+    path: Path | str,
+    *,
+    language: str | None = None,
+    ocr: OcrEngine | None = None,
+    ocr_dpi: int = DEFAULT_OCR_DPI,
+) -> Document:
     """Read a PDF into a `Document`.
 
     Args:
         path: Path to the PDF file.
         language: BCP 47 tag the detectors will be configured for, recorded on
             the document.
+        ocr: Engine that reads the pages needing OCR; without one they stay
+            empty.
+        ocr_dpi: Resolution those pages are rendered at for the engine.
 
     Returns:
         The document, as `document_from_bytes` describes it.
@@ -110,10 +118,16 @@ def load_document(path: Path | str, *, language: str | None = None) -> Document:
         FileNotFoundError: If `path` does not exist.
         pymupdf.FileDataError: If the file is not a readable PDF.
     """
-    return document_from_bytes(read_pdf(path), language=language)
+    return document_from_bytes(read_pdf(path), language=language, ocr=ocr, ocr_dpi=ocr_dpi)
 
 
-def document_from_bytes(data: bytes, *, language: str | None = None) -> Document:
+def document_from_bytes(
+    data: bytes,
+    *,
+    language: str | None = None,
+    ocr: OcrEngine | None = None,
+    ocr_dpi: int = DEFAULT_OCR_DPI,
+) -> Document:
     """Read a PDF held in memory into a `Document`.
 
     A caller that needs the file again (to render or redact it) keeps these
@@ -124,6 +138,11 @@ def document_from_bytes(data: bytes, *, language: str | None = None) -> Document
         data: The PDF file's bytes.
         language: BCP 47 tag the detectors will be configured for, recorded on
             the document.
+        ocr: Engine that reads the pages needing OCR; without one they stay
+            empty. A session saved for the document can only be reopened with
+            the same engine and resolution, since its offsets refer to what
+            OCR read.
+        ocr_dpi: Resolution those pages are rendered at for the engine.
 
     Returns:
         A document with one page per PDF page, every string found outside the
@@ -135,6 +154,13 @@ def document_from_bytes(data: bytes, *, language: str | None = None) -> Document
     """
     with pymupdf.open(stream=data, filetype="pdf") as pdf:
         pages = [extract_page(pdf.load_page(index), index) for index in range(pdf.page_count)]
+        if ocr is not None:
+            pages = [
+                page
+                if page.has_text_layer
+                else read_page(pdf.load_page(page.index), page.index, ocr, ocr_dpi)
+                for page in pages
+            ]
         surfaces = extract_surfaces(pdf)
     return Document(
         pages=pages,
@@ -206,12 +232,17 @@ def fingerprint(data: bytes) -> str:
 
 
 def pages_needing_ocr(document: Document) -> list[int]:
-    """Return the indices of pages that yielded no text layer.
+    """Return the indices of pages without a usable text layer that OCR has not read.
+
+    Nothing on such a page is detected, so it would reach a redacted copy
+    unchanged while the leak check still passes.
 
     Args:
         document: Document to inspect.
 
     Returns:
-        Page indices, in document order, that require OCR.
+        Page indices, in document order, that still require OCR.
     """
-    return [page.index for page in document.pages if not page.has_text_layer]
+    return [
+        page.index for page in document.pages if not page.has_text_layer and page.raster_dpi is None
+    ]

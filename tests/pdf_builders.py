@@ -17,10 +17,69 @@ def write_pdf(path: Path, pages: list[list[str]], rotation: int = 0) -> Path:
     document = pymupdf.open()
     for lines in pages:
         page = document.new_page()
-        for offset, line in enumerate(lines):
-            page.insert_text((72, 100 + offset * 30), line, fontname="helv", fontsize=11)
+        write_lines(page, lines)
         if rotation:
             page.set_rotation(rotation)
+    document.save(path)
+    document.close()
+    return path
+
+
+def write_lines(
+    page: pymupdf.Page, lines: list[str], *, font_size: float = 11, **options: Any
+) -> None:
+    """Write one line of text every 30 points, from the top left of the page."""
+    for offset, line in enumerate(lines):
+        page.insert_text(
+            (72, 100 + offset * 30), line, fontname="helv", fontsize=font_size, **options
+        )
+
+
+SCAN_DPI = 150
+# Pixels darker than this are ink; the scans are black text on white.
+INK_LEVEL = 100
+
+
+def scan_of(lines: list[str], dpi: int = SCAN_DPI) -> pymupdf.Pixmap:
+    """Render lines as `write_lines` places them into a greyscale A4 picture: a scan."""
+    document = pymupdf.open()
+    page = document.new_page()
+    write_lines(page, lines)
+    picture = page.get_pixmap(dpi=dpi, colorspace=pymupdf.csGRAY)
+    document.close()
+    return picture
+
+
+def write_searchable_scan(
+    path: Path,
+    lines: list[str],
+    *,
+    jpeg: bool = False,
+    in_form_xobject: bool = False,
+    rotation: int = 0,
+    layer_font_size: float = 11,
+) -> Path:
+    """Write a scan with an OCR text layer: a page-sized picture under invisible text.
+
+    The invisible text (render mode 3) lies where `write_lines` puts it, over
+    the ink when `layer_font_size` is the scan's own 11 points. A smaller
+    size gives narrower word boxes than the printed words, as a producer's
+    OCR layer with poor geometry would.
+    """
+    document = pymupdf.open()
+    page = document.new_page()
+    picture = scan_of(lines)
+    if in_form_xobject:
+        holder = pymupdf.open()
+        holder.new_page().insert_image(page.rect, pixmap=picture)
+        page.show_pdf_page(page.rect, holder, 0)
+    elif jpeg:
+        page.insert_image(page.rect, stream=picture.tobytes("jpeg"))
+    else:
+        page.insert_image(page.rect, pixmap=picture)
+    write_lines(page, lines, font_size=layer_font_size, render_mode=3)
+    if rotation:
+        page.set_rotation(rotation)
     document.save(path)
     document.close()
     return path
@@ -145,3 +204,26 @@ def add_structure_tree(document: pymupdf.Document, page_xref: int, link_xref: in
     catalog = document.pdf_catalog()
     document.xref_set_key(catalog, "StructTreeRoot", f"{root} 0 R")
     document.xref_set_key(catalog, "MarkInfo", "<< /Marked true >>")
+
+
+def write_scanned_pdf(
+    path: Path, pages: list[list[str]], rotation: int = 0, stamp: str | None = None
+) -> Path:
+    """Write the pages `write_pdf` would, but each as a picture only: a scan without text.
+
+    `write_pdf` with the same pages and rotation gives the born-digital
+    original, whose words are the ground truth of what OCR should read. A
+    `stamp` is written as visible text at the foot of every page, as a
+    scanner's page stamp would be.
+    """
+    document = pymupdf.open()
+    for lines in pages:
+        page = document.new_page()
+        page.insert_image(page.rect, pixmap=scan_of(lines))
+        if stamp:
+            page.insert_text((72, 820), stamp, fontname="helv", fontsize=8)
+        if rotation:
+            page.set_rotation(rotation)
+    document.save(path)
+    document.close()
+    return path

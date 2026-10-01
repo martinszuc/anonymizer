@@ -73,16 +73,18 @@ uv run anonymize redact data/samples/mixed-synthetic.pdf -o redacted.pdf --lang 
 | Page | Content | Today |
 | --- | --- | --- |
 | 1 | typed form, link, form field, bookmarks, metadata, attachment | detected and redacted, hidden items cleared |
-| 2 | scanned form (skewed, speckled, no text layer) | not read; needs OCR |
-| 3 | handwriting-font values, scanned | not read; needs OCR |
+| 2 | scanned form (skewed, speckled, no text layer) | not read until an OCR engine is installed |
+| 3 | handwriting-font values, scanned | not read until an OCR engine is installed |
 | 4 | typed text beside a scanned stamp | typed text redacted; the stamp needs a drawn region |
 
 Without `--allow-pages-without-text` the redaction stops at pages 2 and 3 on purpose:
 their content could not be redacted, so the tool refuses rather than hand back a
-copy that looks safe. The handwriting font is a macOS system font; on another
-system set `HANDWRITING_FONT` in the script to any TTF. A font only imitates
-handwriting and tests the plumbing, not recognition quality. A real handwritten scan
+copy that looks safe. The handwriting font is a macOS system font; elsewhere page 3 falls back to an
+italic serif, which is not handwriting at all. A font only imitates handwriting
+and tests the plumbing, not recognition quality. A real handwritten scan
 belongs in `data/samples/` and is never committed or used as a fixture.
+`tests/test_mixed_sample.py` builds the same sample and runs these steps on every push,
+so the refusal and the clearing of hidden items cannot regress unnoticed.
 
 ## What it produces
 

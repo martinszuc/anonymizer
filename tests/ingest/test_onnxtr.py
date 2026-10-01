@@ -152,3 +152,19 @@ def test_real_engine_reads_czech_offline(tmp_path: Path):
     assert "Jiří Dvořák" in read.text
     assert "Šumavská" in read.text
     assert all(word.bbox.y0 < 110 for word in read.words)
+
+
+@pytest.mark.model
+def test_onnxtr_cannot_download_once_the_engine_is_loaded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """OnnxTR fetches any model it is not handed; the loader must have disabled that."""
+    onnxtr_models = pytest.importorskip("onnxtr.models")
+    monkeypatch.setenv("ONNXTR_CACHE_DIR", str(tmp_path / "cache"))
+    try:
+        load_onnxtr_engine(REPOSITORY)
+    except FileNotFoundError:
+        pytest.skip("OnnxTR models not fetched")
+    with pytest.raises(RuntimeError, match="tried to download"):
+        onnxtr_models.fast_tiny()
+    assert not (tmp_path / "cache").exists()

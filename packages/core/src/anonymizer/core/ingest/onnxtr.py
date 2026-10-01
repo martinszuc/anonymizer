@@ -3,13 +3,19 @@
 OnnxTR finds word boxes (FAST) and reads each word (PARSeq). Its default
 recognizer uses a French vocabulary without háček letters, so the catalog
 pins the maintainer's multilingual model, whose 195-character vocabulary
-holds every Czech and Slovak letter. Both models load from the catalog's
-local files; OnnxTR downloads only when given a URL, and it is never given
-one. Inference is pinned to onnxruntime's CPU provider: the default list
-on macOS starts with CoreML, which fails to build the recognizer, and
-includes Azure's, which runs models on remote endpoints; the CPU gives the
-same results on every machine. The page is read as straight: words come back in axis-aligned boxes,
-so a skewed scan's boxes enclose its tilted words.
+holds every Czech and Slovak letter.
+
+Both models load from the catalog's local files. OnnxTR downloads any model
+it is not handed (its orientation classifiers, for instance, when it reads
+skewed pages), so the loader turns those classifiers off and replaces its
+download function with one that refuses: a model missing from the catalog
+is an error, never a fetch. Inference is pinned to onnxruntime's CPU
+provider: the default list on macOS starts with CoreML, which fails to
+build the recognizer, and includes Azure's, which runs models on remote
+endpoints; the CPU gives the same results on every machine.
+
+The page is read as straight: words come back in axis-aligned boxes, so a
+skewed scan's boxes enclose its tilted words.
 
 The optional dependency is the `ocr-onnxtr` extra (`uv sync --group
 ocr-onnxtr`); it is imported inside the loader, as GLiNER is.
@@ -126,17 +132,18 @@ def load_onnxtr_engine(root: Path) -> OnnxtrEngine:
     for variable in _OFFLINE_VARIABLES:
         os.environ[variable] = "1"
     try:
+        from onnxtr.models import engine as onnxtr_engine  # pyright: ignore[reportMissingImports]
         from onnxtr.models import (  # pyright: ignore[reportMissingImports]
             fast_base,
             ocr_predictor,
             parseq,
         )
-        from onnxtr.models.engine import EngineConfig  # pyright: ignore[reportMissingImports]
     except ImportError as error:
         msg = "OCR needs the optional 'ocr-onnxtr' dependencies: uv sync --group ocr-onnxtr"
         raise ImportError(msg) from error
     vocab = json.loads((recognition / _CONFIG_FILE).read_text(encoding="utf-8"))["vocab"]
-    cpu = EngineConfig(providers=[_CPU_PROVIDER])
+    onnxtr_engine.download_from_url = _refuse_download  # pyright: ignore[reportPrivateImportUsage]
+    cpu = onnxtr_engine.EngineConfig(providers=[_CPU_PROVIDER])
     predictor = ocr_predictor(
         det_arch=fast_base(str(detection / _MODEL_FILE), engine_cfg=cpu),
         reco_arch=parseq(str(recognition / _MODEL_FILE), engine_cfg=cpu, vocab=vocab),
@@ -144,5 +151,14 @@ def load_onnxtr_engine(root: Path) -> OnnxtrEngine:
         detect_orientation=False,
         straighten_pages=False,
         detect_language=False,
+        disable_page_orientation=True,
+        disable_crop_orientation=True,
     )
     return OnnxtrEngine(predictor)
+
+
+def _refuse_download(url: str, *args: Any, **kwargs: Any) -> str:
+    """Stand in for OnnxTR's downloader, which must never run."""
+    del args, kwargs
+    msg = f"OnnxTR tried to download {url}; every model must come from the resource catalog"
+    raise RuntimeError(msg)

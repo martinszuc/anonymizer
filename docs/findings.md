@@ -271,7 +271,10 @@ rules only; OnnxTR with FAST base and PARSeq multilingual v1 on the CPU.
   to build the recognizer, and include Azure's remote provider; the engine
   runs on the CPU provider only.
 - Missed items are detection misses (mostly names: rules only), not OCR
-  losses: the oracle finds just one more.
+  losses: the oracle finds just one more. That one is an email on the clean
+  CS CV: OnnxTR read its `@example` as `(mexampie`, so no rule matched and
+  the address stayed readable while the leak check passed. A misread
+  separator hides a structured value from the rules entirely.
 
 ### Toolchain findings: redaction
 

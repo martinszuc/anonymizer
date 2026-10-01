@@ -6,10 +6,13 @@ text is Latin-1 only, because the base-14 Helvetica font cannot encode `č` or
 `ř`; strings outside the page text (metadata) have no such limit.
 """
 
+import io
+import zlib
 from pathlib import Path
 from typing import Any
 
 import pymupdf
+from PIL import Image, TiffImagePlugin
 
 
 def write_pdf(path: Path, pages: list[list[str]], rotation: int = 0) -> Path:
@@ -207,19 +210,24 @@ def add_structure_tree(document: pymupdf.Document, page_xref: int, link_xref: in
 
 
 def write_scanned_pdf(
-    path: Path, pages: list[list[str]], rotation: int = 0, stamp: str | None = None
+    path: Path,
+    pages: list[list[str]],
+    rotation: int = 0,
+    stamp: str | None = None,
+    picture: str = "flate",
 ) -> Path:
     """Write the pages `write_pdf` would, but each as a picture only: a scan without text.
 
     `write_pdf` with the same pages and rotation gives the born-digital
     original, whose words are the ground truth of what OCR should read. A
     `stamp` is written as visible text at the foot of every page, as a
-    scanner's page stamp would be.
+    scanner's page stamp would be. `picture` picks how the scan is stored
+    (see `SCAN_PICTURES`).
     """
     document = pymupdf.open()
     for lines in pages:
         page = document.new_page()
-        page.insert_image(page.rect, pixmap=scan_of(lines))
+        SCAN_PICTURES[picture](document, page, scan_of(lines))
         if stamp:
             page.insert_text((72, 820), stamp, fontname="helv", fontsize=8)
         if rotation:
@@ -227,3 +235,123 @@ def write_scanned_pdf(
     document.save(path)
     document.close()
     return path
+
+
+def _flate(document: pymupdf.Document, page: pymupdf.Page, scan: pymupdf.Pixmap) -> None:
+    del document
+    page.insert_image(page.rect, pixmap=scan)
+
+
+def _jpeg(document: pymupdf.Document, page: pymupdf.Page, scan: pymupdf.Pixmap) -> None:
+    del document
+    page.insert_image(page.rect, stream=scan.tobytes("jpeg"))
+
+
+def _cmyk_jpeg(document: pymupdf.Document, page: pymupdf.Page, scan: pymupdf.Pixmap) -> None:
+    del document
+    encoded = io.BytesIO()
+    _pillow(scan).convert("CMYK").save(encoded, format="JPEG")
+    page.insert_image(page.rect, stream=encoded.getvalue())
+
+
+def _ccitt(document: pymupdf.Document, page: pymupdf.Page, scan: pymupdf.Pixmap) -> None:
+    """Store the scan as a black-and-white CCITT G4 picture, as office scanners do."""
+    encoded = io.BytesIO()
+    # One strip for the whole picture: that strip is the raw G4 data a PDF image holds.
+    _black_and_white(scan).save(encoded, format="TIFF", compression="group4", strip_size=1 << 30)
+    tiff = Image.open(io.BytesIO(encoded.getvalue()))
+    assert isinstance(tiff, TiffImagePlugin.TiffImageFile)
+    (offset,), (length,) = tiff.tag_v2[273], tiff.tag_v2[279]
+    strip = encoded.getvalue()[offset : offset + length]
+    _write_raw_picture(
+        document,
+        page,
+        f"<< /Type /XObject /Subtype /Image /Width {scan.width} /Height {scan.height}"
+        " /ColorSpace /DeviceGray /BitsPerComponent 1 >>",
+        strip,
+        "/CCITTFaxDecode",
+        f"<< /K -1 /Columns {scan.width} /Rows {scan.height} /BlackIs1 true >>",
+    )
+
+
+def _stencil(document: pymupdf.Document, page: pymupdf.Page, scan: pymupdf.Pixmap) -> None:
+    """Store the ink as a 1-bit stencil mask over a plain background photo.
+
+    Compressed searchable scans (mixed raster content) separate the page this
+    way: the background as a JPEG, the text as a mask painted in black.
+    """
+    background = io.BytesIO()
+    Image.new("RGB", (scan.width, scan.height), (235, 230, 220)).save(background, format="JPEG")
+    page.insert_image(page.rect, stream=background.getvalue())
+    _write_raw_picture(
+        document,
+        page,
+        f"<< /Type /XObject /Subtype /Image /Width {scan.width} /Height {scan.height}"
+        " /ImageMask true /BitsPerComponent 1 >>",
+        zlib.compress(_black_and_white(scan).tobytes()),
+        "/FlateDecode",
+    )
+
+
+# Row 198 of a 150 DPI scan lies at 95 points, inside the first line's words.
+_STRIP_ROW = 198
+
+
+def _strips(document: pymupdf.Document, page: pymupdf.Page, scan: pymupdf.Pixmap) -> None:
+    """Store the scan as two pictures, split across a line of text, as some scanners do."""
+    del document
+    whole = _pillow(scan)
+    split = _STRIP_ROW * 72 / SCAN_DPI
+    for band, crop in (
+        (pymupdf.Rect(0, 0, page.rect.width, split), (0, 0, scan.width, _STRIP_ROW)),
+        (
+            pymupdf.Rect(0, split, page.rect.width, page.rect.height),
+            (0, _STRIP_ROW, scan.width, scan.height),
+        ),
+    ):
+        encoded = io.BytesIO()
+        whole.crop(crop).save(encoded, format="PNG")
+        page.insert_image(band, stream=encoded.getvalue(), keep_proportion=False)
+
+
+SCAN_PICTURES = {
+    "flate": _flate,
+    "jpeg": _jpeg,
+    "cmyk_jpeg": _cmyk_jpeg,
+    "ccitt": _ccitt,
+    "stencil": _stencil,
+    "strips": _strips,
+}
+"""How a scan's picture can be stored, by name."""
+
+
+def _pillow(scan: pymupdf.Pixmap) -> Image.Image:
+    return Image.frombytes("L", (scan.width, scan.height), scan.samples)
+
+
+def _black_and_white(scan: pymupdf.Pixmap) -> Image.Image:
+    """Threshold the scan to 1 bit per pixel, white as 1."""
+    return _pillow(scan).point([0] * 129 + [255] * 127).convert("1")
+
+
+def _write_raw_picture(
+    document: pymupdf.Document,
+    page: pymupdf.Page,
+    dictionary: str,
+    data: bytes,
+    image_filter: str,
+    decode_parms: str | None = None,
+) -> None:
+    """Place a page-sized picture whose stream is written exactly as given.
+
+    PyMuPDF re-encodes what `insert_image` receives, so a placeholder is
+    inserted and its object replaced. Writing the stream drops the filter,
+    which is set again afterwards.
+    """
+    placeholder = pymupdf.Pixmap(pymupdf.csGRAY, pymupdf.IRect(0, 0, 1, 1), False)
+    xref = page.insert_image(page.rect, pixmap=placeholder)
+    document.update_object(xref, dictionary)
+    document.update_stream(xref, data, compress=False)
+    document.xref_set_key(xref, "Filter", image_filter)
+    if decode_parms:
+        document.xref_set_key(xref, "DecodeParms", decode_parms)

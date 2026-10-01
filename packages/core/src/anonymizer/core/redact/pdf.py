@@ -5,7 +5,11 @@ annotations, which delete what lies under each box instead of drawing over it.
 A region also removes every vector drawing it touches: with PyMuPDF's normal
 setting a drawing fully under the box, such as a signature, stays in the file.
 Text boxes keep the normal setting, because the strict one would delete
-backgrounds and table lines behind the words. Everything drawn
+backgrounds and table lines behind the words. On a page OCR read, the boxes
+come from the picture, and the pixels under them are overwritten in the image
+data. Such a page also loses its whole text layer: detection read its pixels,
+so whatever text the file carried there (a stamp, text hidden under the
+picture or drawn in white) was never checked. Everything drawn
 outside a page's visible area is removed next (see `redact.canvas`), then every
 non-text surface is cleared (see `redact.surfaces`). The file is written in
 full: an incremental save would keep every earlier revision of each object.
@@ -33,8 +37,9 @@ def redact_pdf(source: Path | str, document: Document, destination: Path | str) 
 
     Every page-text entity and region review did not reject is blacked out
     and what lies under it removed from the file. Content outside each page's
-    visible area and every non-text surface are removed regardless of
-    detection. The source file is not modified.
+    visible area, every non-text surface and the text layer of every page OCR
+    read are removed regardless of detection. The source file is not
+    modified.
 
     Args:
         source: PDF the document was loaded from.
@@ -62,6 +67,8 @@ def redact_pdf(source: Path | str, document: Document, destination: Path | str) 
             page = pdf.load_page(index)
             _black_out(page, text_boxes.get(index, []))
             _black_out_regions(page, region_boxes.get(index, []))
+            if document.page(index).raster_dpi is not None:
+                _remove_text_layer(page)
             remove_off_page_content(page)
         clear_surfaces(pdf)
         pdf.save(destination, garbage=4, deflate=True)
@@ -102,6 +109,17 @@ def _black_out_regions(page: pymupdf.Page, boxes: list[BBox]) -> None:
     for box in boxes:
         page.add_redact_annot(bbox_to_unrotated_rect(box, page), fill=_BLACK)
     page.apply_redactions(graphics=_REMOVE_TOUCHED_DRAWINGS)
+
+
+def _remove_text_layer(page: pymupdf.Page) -> None:
+    """Remove every word on the page, leaving pictures and drawings as they are."""
+    # False paints no fill at all; PyMuPDF's type hint leaves it out.
+    page.add_redact_annot(page.rect * page.derotation_matrix, fill=False)  # pyright: ignore[reportArgumentType]
+    page.apply_redactions(
+        images=mupdf.PDF_REDACT_IMAGE_NONE,
+        graphics=mupdf.PDF_REDACT_LINE_ART_NONE,
+        text=mupdf.PDF_REDACT_TEXT_REMOVE,
+    )
 
 
 def _black_out(page: pymupdf.Page, boxes_per_entity: list[list[BBox]]) -> None:

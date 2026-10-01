@@ -1,6 +1,6 @@
 """Checking a redacted PDF for personal data that survived.
 
-Seven layers, because each misses something the others catch:
+Eight layers, because each misses something the others catch:
 
 1. **Page text.** The output is extracted the way ingest extracts the input,
    and no redacted entity's text may remain on any page beyond the copies
@@ -29,6 +29,17 @@ Seven layers, because each misses something the others catch:
    the old ones in the file, where the object table no longer points but any
    text editor still shows them. The raw bytes are searched as well, with the
    same literal-string limit and digit rule as layer 6.
+8. **OCR.** A page OCR read keeps its content in pixels, which no layer above
+   reads. Its text layer must be empty, and the engine that read it re-reads
+   the redacted page at the same resolution: no redacted text may be found
+   beyond the copies review kept, and no word may lie inside a redacted box
+   or region. This shows only that *this engine* can no longer read the
+   value. It cannot prove the pixels are gone (that is verified by the test
+   suite); it does not report a fragment beside a box that no longer spells
+   the detected text, such as the end of an address a narrow box missed; and
+   a value the engine misread when reading the original was neither
+   detected nor can be found now, while a better reader or a person might
+   still read it.
 
 Whitespace is ignored when comparing text: a span that crossed a line break
 may be extracted with different spacing.
@@ -44,7 +55,7 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 import pymupdf
-from anonymizer.core.ingest import extract_page, extract_surfaces
+from anonymizer.core.ingest import OcrEngine, extract_page, extract_surfaces, read_page
 from anonymizer.core.ingest.normalize import bbox_to_unrotated_rect
 from anonymizer.core.redact.canvas import off_page_words
 from anonymizer.core.types import BBox, Document, Entity
@@ -72,6 +83,7 @@ class LeakLayer(StrEnum):
     THUMBNAIL = "thumbnail"
     OBJECT = "object"
     FILE_BYTES = "file_bytes"
+    OCR = "ocr"
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,17 +106,28 @@ class Leak:
     entity_id: str | None = None
 
 
-def find_leaks(redacted: Path | str, document: Document) -> list[Leak]:
+def find_leaks(
+    redacted: Path | str, document: Document, *, ocr: OcrEngine | None = None
+) -> list[Leak]:
     """Return every trace of redacted personal data in an output file.
 
     Args:
         redacted: Path of the redacted PDF.
         document: The document the redaction was made from; entities review
             rejected are not looked for.
+        ocr: The engine that read the document's scanned pages, to re-read
+            them; required when OCR read any page.
 
     Returns:
         Leaks in layer order; an empty list means the file passed.
+
+    Raises:
+        ValueError: If OCR read a page of the document and no engine is given.
     """
+    scanned = [page for page in document.pages if page.raster_dpi is not None]
+    if scanned and ocr is None:
+        msg = "OCR read pages of this document; pass its engine to re-read them"
+        raise ValueError(msg)
     redactable = [entity for entity in document.entities if entity.is_redactable]
     targets = [
         _Target(entity.entity_id, entity.text, _literal_pattern(entity.text))
@@ -124,7 +147,9 @@ def find_leaks(redacted: Path | str, document: Document) -> list[Leak]:
             *_thumbnail_leaks(pdf),
             *_object_leaks(pdf, never_kept),
         ]
-    return leaks + _file_byte_leaks(Path(redacted), never_kept)
+        file_bytes = _file_byte_leaks(Path(redacted), never_kept)
+        reread = _ocr_leaks(pdf, document, targets, kept, ocr) if ocr is not None else []
+    return leaks + file_bytes + reread
 
 
 def _compact(text: str) -> str:
@@ -258,6 +283,52 @@ def _file_byte_leaks(path: Path, targets: list[_Target]) -> list[Leak]:
         for target in targets
         if target.literal.search(content)
     ]
+
+
+def _ocr_leaks(
+    pdf: pymupdf.Document,
+    document: Document,
+    targets: list[_Target],
+    kept: dict[int, list[str]],
+    engine: OcrEngine,
+) -> list[Leak]:
+    """Find text left on pages OCR read: in the text layer, or in the pixels when re-read."""
+    boxes = _redacted_boxes(document)
+    leaks: list[Leak] = []
+    for page in document.pages:
+        if page.raster_dpi is None:
+            continue
+        pdf_page = pdf.load_page(page.index)
+        where = f"page {page.index}"
+        leaks.extend(
+            Leak(LeakLayer.OCR, where, f"text layer word {word.text!r}")
+            for word in extract_page(pdf_page, page.index).words
+        )
+        reread = read_page(pdf_page, page.index, engine, int(page.raster_dpi))
+        reread_text = _compact(reread.text)
+        leaks.extend(
+            Leak(LeakLayer.OCR, where, target.text, target.entity_id)
+            for target in targets
+            if _copies(target.text, [reread_text]) > _copies(target.text, kept.get(page.index, []))
+        )
+        leaks.extend(
+            Leak(LeakLayer.OCR, f"{where} under a box", f"word {word.text!r}", entity_id)
+            for entity_id, box in boxes.get(page.index, [])
+            for word in reread.words
+            if _overlaps_inside(word.bbox, box)
+        )
+    return leaks
+
+
+def _redacted_boxes(document: Document) -> dict[int, list[tuple[str, BBox]]]:
+    """Return every box redaction blacked out, with its entity, by page."""
+    boxes: dict[int, list[tuple[str, BBox]]] = defaultdict(list)
+    for entity in document.entities:
+        if entity.page_index is None or not entity.is_redactable:
+            continue
+        if entity.is_region or entity.in_page_text:
+            boxes[entity.page_index].extend((entity.entity_id, box) for box in entity.bboxes)
+    return boxes
 
 
 def _literal_pattern(text: str) -> re.Pattern[str]:

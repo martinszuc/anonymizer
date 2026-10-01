@@ -39,9 +39,9 @@ export function ExportSheets({ step, busy, onExportAnyway, onClose }: ExportShee
       >
         {step?.kind === "confirm-pages" && (
           <p>
-            {capitalised(pageList(step.pages))} {step.pages.length === 1 ? "has" : "have"} no text
-            layer, probably a scan. Nothing on {step.pages.length === 1 ? "it" : "them"} was detected,
-            so {step.pages.length === 1 ? "it goes" : "they go"} into the copy unredacted, and the leak
+            {capitalised(pageList(step.pages))} {step.pages.length === 1 ? "is a scan" : "are scans"}{" "}
+            OCR did not read. Nothing on {step.pages.length === 1 ? "it" : "them"} was detected, so{" "}
+            {step.pages.length === 1 ? "it goes" : "they go"} into the copy unredacted, and the leak
             check cannot see that.
           </p>
         )}
@@ -108,7 +108,8 @@ function ResultBody({ result }: { result: ExportResult }) {
       </dl>
       {result.pages_without_text.length > 0 && (
         <p className="sheet-note">
-          {capitalised(pageList(result.pages_without_text))} had no text layer and{" "}
+          {capitalised(pageList(result.pages_without_text))}{" "}
+          {result.pages_without_text.length === 1 ? "is a scan" : "are scans"} OCR did not read, and{" "}
           {result.pages_without_text.length === 1 ? "was" : "were"} not redacted.
         </p>
       )}

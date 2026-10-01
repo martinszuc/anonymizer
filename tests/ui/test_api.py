@@ -216,7 +216,7 @@ class TestExport:
         self, review: ReviewApi, pdf: Path, monkeypatch: pytest.MonkeyPatch
     ):
         leak = Leak(LeakLayer.PAGE_TEXT, "page 1", CONTACT_EMAIL, "e1")
-        monkeypatch.setattr(api, "export_redacted", lambda *_: [leak])
+        monkeypatch.setattr(api, "export_redacted", lambda *_, **__: [leak])
         result = review.export(str(pdf.with_name("cv-redacted.pdf")))
         assert result["written"] is False
         assert result["leaks"] == [{"layer": "page_text", "where": "page 1", "text": CONTACT_EMAIL}]
@@ -225,7 +225,7 @@ class TestExport:
         reviewer = ReviewApi()
         reviewer.open_pdf(str(write_pdf(tmp_path / "mixed.pdf", [LINES, []])), "cs")
         destination = tmp_path / "out.pdf"
-        with pytest.raises(ReviewError, match="page 2 has no text layer"):
+        with pytest.raises(ReviewError, match="page 2 is a scan OCR has not read"):
             reviewer.export(str(destination))
         assert not destination.exists()
         result = reviewer.export(str(destination), True)
@@ -363,6 +363,18 @@ class TestStatus:
     def test_model_not_installed(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(api, "gliner_installed", lambda: False)
         assert ReviewApi().status()["model"]["state"] == "not_installed"
+
+    def test_ocr_engine_states(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr(api, "ocr_engine_installed", lambda name: True)
+        assert ReviewApi(Path("/nowhere")).status()["ocr"] == {
+            "engine": "onnxtr",
+            "state": "files_missing",
+            "missing": ["onnxtr-fast-base", "onnxtr-parseq-multilingual-v1"],
+        }
+        monkeypatch.setattr(api, "missing_ocr_files", lambda name, root: [])
+        assert ReviewApi().status()["ocr"]["state"] == "ready"
+        monkeypatch.setattr(api, "ocr_engine_installed", lambda name: False)
+        assert ReviewApi().status()["ocr"]["state"] == "not_installed"
 
 
 class TestOpenWithModel:

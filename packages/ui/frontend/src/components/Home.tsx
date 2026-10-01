@@ -24,6 +24,7 @@ interface HomeProps {
 export function Home({ status, options, busy, dragging, onOptions, onOpen, onOpenReview }: HomeProps) {
   const languages = status?.languages ?? [];
   const modelReady = status?.model.state === "ready";
+  const ocrReady = status?.ocr.state === "ready";
   return (
     <motion.main
       className="home"
@@ -81,6 +82,15 @@ export function Home({ status, options, busy, dragging, onOptions, onOpen, onOpe
               onChange={(checked) => onOptions({ ...options, use_model: checked })}
             />
           </OptionRow>
+          <OptionRow label="Scanned pages" note={ocrNote(status)}>
+            <Switch
+              checked={options.use_ocr && ocrReady}
+              disabled={!ocrReady}
+              tone="setting"
+              label="Read scanned pages with OCR"
+              onChange={(checked) => onOptions({ ...options, use_ocr: checked })}
+            />
+          </OptionRow>
           <OptionRow
             label="Mark repeats"
             note="Also mark every other place the same text appears, such as a name found once."
@@ -117,6 +127,29 @@ function OptionRow({ label, note, children }: { label: string; note: ReactNode; 
       <div className="option-control">{children}</div>
     </div>
   );
+}
+
+/** What OCR does here, or how to make it available. */
+function ocrNote(status: AppStatus | null): ReactNode {
+  switch (status?.ocr.state) {
+    case "ready":
+      return "Reads the text of scanned pages, so they are checked and redacted too.";
+    case "not_installed":
+      return (
+        <>
+          Not installed. Install it with <code>uv sync --group ocr-{status.ocr.engine}</code>.
+        </>
+      );
+    case "files_missing":
+      return (
+        <>
+          Model files missing. Fetch them with{" "}
+          <code>uv run python scripts/download.py fetch {status.ocr.missing.at(-1)}</code>.
+        </>
+      );
+    default:
+      return "Checking…";
+  }
 }
 
 /** What the name model can do here, or how to make it available. */

@@ -506,7 +506,8 @@ kbd {
 }
 
 .notice svg,
-.page-warning svg {
+.page-warning svg,
+.page-note svg {
   flex: none;
 }
 
@@ -616,7 +617,8 @@ kbd {
   font-variant-numeric: tabular-nums;
 }
 
-.page-warning {
+.page-warning,
+.page-note {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -627,6 +629,11 @@ kbd {
   color: var(--warning);
   font-size: var(--text-footnote);
   font-weight: 500;
+}
+
+.page-note {
+  background: var(--fill);
+  color: var(--label-2);
 }
 
 .overlay {

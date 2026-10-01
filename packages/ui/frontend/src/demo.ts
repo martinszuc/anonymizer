@@ -95,15 +95,21 @@ function found(
   };
 }
 
-function demoDocument(): DocumentInfo {
+function demoDocument(readScans = false): DocumentInfo {
   const reference = PAGE_ONE[PAGE_ONE.length - 1] as Line;
   const emailLine = lineOf("jan.novak@example.com");
   return {
     name: "demo-cv.pdf",
     language: "cs",
     pages: [
-      { index: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT, has_text_layer: true },
-      { index: 1, width: PAGE_WIDTH, height: PAGE_HEIGHT, has_text_layer: false },
+      { index: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT, has_text_layer: true, raster_dpi: null },
+      {
+        index: 1,
+        width: PAGE_WIDTH,
+        height: PAGE_HEIGHT,
+        has_text_layer: false,
+        raster_dpi: readScans ? 300 : null,
+      },
     ],
     entities: [
       found("person", "Jan Novák", { source: "model", score: 0.94 }),
@@ -174,13 +180,12 @@ function progress(step: OpenStep) {
 }
 
 /**
- * The home screen's model states can be tried with `?model=not_installed` or
- * `?model=files_missing` in the address.
+ * The home screen's model and OCR states can be tried with `?model=not_installed`,
+ * `?model=files_missing`, `?ocr=not_installed` or `?ocr=files_missing` in the address.
  */
 function demoStatus(): AppStatus {
-  const requested = new URLSearchParams(window.location.search).get("model");
-  const state: ModelState =
-    requested === "not_installed" || requested === "files_missing" ? requested : "ready";
+  const state = requestedState("model");
+  const ocrState = requestedState("ocr");
   return {
     version: "demo",
     languages: [
@@ -192,13 +197,29 @@ function demoStatus(): AppStatus {
       state,
       missing: state === "files_missing" ? ["mdeberta-v3-base-tokenizer", "gliner-multi-v2.1"] : [],
     },
+    ocr: {
+      engine: "onnxtr",
+      state: ocrState,
+      missing: ocrState === "files_missing" ? ["onnxtr-fast-base", "onnxtr-parseq-multilingual-v1"] : [],
+    },
   };
+}
+
+function requestedState(parameter: string): ModelState {
+  const requested = new URLSearchParams(window.location.search).get(parameter);
+  return requested === "not_installed" || requested === "files_missing" ? requested : "ready";
 }
 
 export function demoBridge(): ReviewBridge {
   let current: DocumentInfo | null = null;
   let dropped = false;
+  let ocrLoaded = false;
   const open = async (options?: OpenOptions) => {
+    if (options?.use_ocr && !ocrLoaded) {
+      progress("loading_ocr");
+      await pause();
+      ocrLoaded = true;
+    }
     progress("reading");
     await pause();
     if (options?.use_model) {
@@ -208,7 +229,7 @@ export function demoBridge(): ReviewBridge {
     }
     progress("detecting");
     await pause();
-    current = demoDocument();
+    current = demoDocument(options?.use_ocr ?? false);
     return copied(current);
   };
 
@@ -248,9 +269,11 @@ export function demoBridge(): ReviewBridge {
     export_as: async (allowPagesWithoutText: boolean): Promise<ExportResult | null> => {
       await pause();
       if (!current) throw new Error("no document is open");
-      const unreadable = current.pages.filter((page) => !page.has_text_layer).map((page) => page.index + 1);
+      const unreadable = current.pages
+        .filter((page) => !page.has_text_layer && page.raster_dpi === null)
+        .map((page) => page.index + 1);
       if (unreadable.length > 0 && !allowPagesWithoutText) {
-        throw new Error(`page ${unreadable.join(", ")} has no text layer; nothing on it would be redacted`);
+        throw new Error(`page ${unreadable.join(", ")} is a scan OCR has not read; nothing on it would be redacted`);
       }
       const applied = current.entities.filter((entity) => entity.review !== "rejected");
       return {

@@ -85,5 +85,44 @@ export interface OpenOptions {
   use_ocr: boolean;
 }
 
+/** Which of a model's files are on disk (checked by existence, not hashed). */
+export type ModelFiles = "present" | "partial" | "absent";
+
+/** A model the window can download (`ReviewApi.models`). */
+export interface ModelInfo {
+  id: string;
+  name: string;
+  uses: string[];
+  licence: string;
+  languages: string[];
+  /** The official page the files come from. */
+  source: string;
+  version: string;
+  /** Bytes. */
+  size: number;
+  state: ModelFiles;
+}
+
+/** A feature whose models can be downloaded, with what it still needs. */
+export interface FeatureModels {
+  /** The name `download_models` takes. */
+  feature: string;
+  title: string;
+  /** Whether its Python package is installed; the window cannot install it. */
+  installed: boolean;
+  install_command: string;
+  /** Bytes still to download; 0 when every model is stored. */
+  missing_bytes: number;
+  /** Requirements first. */
+  models: ModelInfo[];
+}
+
+/** How far a download is, told by Python as it goes. */
+export interface DownloadProgress {
+  feature: string;
+  received: number;
+  total: number;
+}
+
 /** A step of opening a PDF, told by Python as it starts. */
 export type OpenStep = "loading_ocr" | "reading" | "loading_model" | "detecting";

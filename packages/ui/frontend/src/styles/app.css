@@ -1255,3 +1255,107 @@ kbd {
     transition: none !important;
   }
 }
+
+/* Models sheet: a wide sheet, one section per feature */
+
+.sheet[data-size="wide"] {
+  width: min(560px, calc(100% - 2 * var(--space-5)));
+}
+
+.model-feature {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-row);
+  background: var(--fill);
+  text-align: left;
+}
+
+.model-feature-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  width: 100%;
+}
+
+.model-feature-title {
+  color: var(--label);
+  font-weight: 600;
+}
+
+.model-feature-state {
+  font-size: var(--text-footnote);
+  color: var(--label-2);
+}
+
+.model-feature-state[data-ready="true"] {
+  color: var(--keep);
+}
+
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.model-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.model-name {
+  color: var(--label);
+}
+
+.model-meta {
+  font-size: var(--text-footnote);
+  color: var(--label-2);
+}
+
+.model-install {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--warning);
+  font-size: var(--text-footnote);
+}
+
+.model-install svg {
+  flex: none;
+  margin-top: var(--space-1);
+}
+
+.model-install code {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.model-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.model-progress-track {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-active);
+  overflow: hidden;
+}
+
+.model-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transition: width var(--duration) var(--ease-out);
+}

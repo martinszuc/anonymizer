@@ -49,6 +49,9 @@ class WindowApi:
         # A PDF dropped on the window: its path stays here, and the page only
         # learns its name, so no path ever comes from the page.
         self._dropped: Path | None = None
+        # The last whole percent told to the page, so a download of a gigabyte
+        # sends a hundred events rather than a thousand.
+        self._told_percent = -1
 
     def _attach(self, window: webview.Window) -> None:
         """Give the API the window its dialogs open over; private so the page cannot."""
@@ -57,6 +60,19 @@ class WindowApi:
     def status(self) -> dict[str, Any]:
         """Describe the installation for the home screen; see `ReviewApi.status`."""
         return self._review.status()
+
+    def models(self) -> list[dict[str, Any]]:
+        """Describe each feature's models and whether they are stored; see `ReviewApi.models`."""
+        return self._review.models()
+
+    def download_models(self, feature: str) -> list[dict[str, Any]]:
+        """Download a feature's models, telling the page how far it is.
+
+        The page names a feature; which files, from where and into which
+        folder is decided here and in the catalog (`ReviewApi.download_models`).
+        """
+        self._told_percent = -1
+        return self._review.download_models(feature, self._download_progress)
 
     def current_document(self) -> dict[str, Any] | None:
         """Describe the open document, or return None when nothing is open."""
@@ -154,6 +170,14 @@ class WindowApi:
     def _progress(self, step: str) -> None:
         """Tell the page which step of opening a PDF has started."""
         self._notify("progress", step)
+
+    def _download_progress(self, feature: str, received: int, total: int) -> None:
+        """Tell the page how far a download is, once per whole percent."""
+        percent = 100 if total == 0 else min(100, received * 100 // total)
+        if percent == self._told_percent:
+            return
+        self._told_percent = percent
+        self._notify("download", {"feature": feature, "received": received, "total": total})
 
     def _notify(self, what: str, detail: object) -> None:
         """Dispatch `anonymizer:<what>` on the page's window, with plain-data detail."""

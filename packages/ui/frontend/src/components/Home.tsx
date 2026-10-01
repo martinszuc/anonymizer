@@ -18,10 +18,20 @@ interface HomeProps {
   onOptions: (options: OpenOptions) => void;
   onOpen: () => void;
   onOpenReview: () => void;
+  onModels: () => void;
 }
 
 /** The window with no document: open one, and choose how it is scanned. */
-export function Home({ status, options, busy, dragging, onOptions, onOpen, onOpenReview }: HomeProps) {
+export function Home({
+  status,
+  options,
+  busy,
+  dragging,
+  onOptions,
+  onOpen,
+  onOpenReview,
+  onModels,
+}: HomeProps) {
   const languages = status?.languages ?? [];
   const modelReady = status?.model.state === "ready";
   const ocrReady = status?.ocr.state === "ready";
@@ -103,6 +113,9 @@ export function Home({ status, options, busy, dragging, onOptions, onOpen, onOpe
             />
           </OptionRow>
         </div>
+        <Button variant="plain" onClick={onModels}>
+          Manage models…
+        </Button>
       </section>
 
       <Button variant="plain" disabled={busy} onClick={onOpenReview}>
@@ -142,10 +155,7 @@ function ocrNote(status: AppStatus | null): ReactNode {
       );
     case "files_missing":
       return (
-        <>
-          Model files missing. Fetch them with{" "}
-          <code>uv run python scripts/download.py fetch {status.ocr.missing.at(-1)}</code>.
-        </>
+        <>Model files missing: download them in Manage models.</>
       );
     default:
       return "Checking…";
@@ -165,10 +175,7 @@ function modelNote(status: AppStatus | null): ReactNode {
       );
     case "files_missing":
       return (
-        <>
-          Model files missing. Fetch them with{" "}
-          <code>uv run python scripts/download.py fetch gliner-multi-v2.1</code>.
-        </>
+        <>Model files missing: download them in Manage models.</>
       );
     default:
       return "Checking…";

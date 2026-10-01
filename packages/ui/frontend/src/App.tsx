@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { connect, errorMessage, type ReviewBridge } from "./bridge";
 import { ExportSheets, type ExportStep } from "./components/ExportSheets";
 import { Home } from "./components/Home";
+import { ModelsSheet } from "./components/ModelsSheet";
 import { Opening } from "./components/Opening";
 import { PageView } from "./components/PageView";
 import { Sidebar, type SidebarTab } from "./components/Sidebar";
@@ -16,6 +17,8 @@ import type {
   AppStatus,
   Box,
   DocumentInfo,
+  FeatureModels,
+  DownloadProgress,
   EntityInfo,
   OpenOptions,
   OpenStep,
@@ -59,6 +62,10 @@ export function App() {
   // The region tool, or Alt held down: a drag on a page draws a region.
   const [drawTool, setDrawTool] = useState(false);
   const [altHeld, setAltHeld] = useState(false);
+  // The Models sheet: its features (null while loading) and a running download.
+  const [modelsOpen, setModelsOpen] = useState(false);
+  const [models, setModels] = useState<FeatureModels[] | null>(null);
+  const [downloading, setDownloading] = useState<DownloadProgress | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const canvasWidth = useElementWidth(canvasRef, document !== null);
 
@@ -115,6 +122,38 @@ export function App() {
       setOpening(null);
     }
   }
+  async function openModels() {
+    if (!bridge) return;
+    setModelsOpen(true);
+    try {
+      setModels(await bridge.models());
+    } catch (error) {
+      reportError(errorMessage(error));
+    }
+  }
+
+  /** Download a feature's models, then turn the feature on if it is now usable. */
+  async function downloadModels(feature: string) {
+    if (!bridge || downloading) return;
+    const missing = models?.find((item) => item.feature === feature)?.missing_bytes ?? 0;
+    setDownloading({ feature, received: 0, total: missing });
+    try {
+      setModels(await bridge.download_models(feature));
+      const installed = await bridge.status();
+      setStatus(installed);
+      setOptions((current) => ({
+        ...current,
+        use_model: current.use_model || (feature === "names" && installed.model.state === "ready"),
+        use_ocr: current.use_ocr || (feature === "ocr" && installed.ocr.state === "ready"),
+      }));
+      notify("success", "Downloaded and checked");
+    } catch (error) {
+      reportError(errorMessage(error));
+    } finally {
+      setDownloading(null);
+    }
+  }
+
   const openPdf = () => open((api) => api.choose_pdf(options));
   const openReview = () => open((api) => api.choose_session());
   const openDropped = (name: string) => open((api) => api.open_dropped(options), name);
@@ -152,11 +191,14 @@ export function App() {
       const name = (event as CustomEvent<string>).detail;
       onPythonEvent.current.reportError(`Only PDF files can be opened${name ? `, not ${name}` : ""}`);
     };
+    const onDownload = (event: Event) => setDownloading((event as CustomEvent<DownloadProgress>).detail);
     window.addEventListener("anonymizer:progress", onProgress);
+    window.addEventListener("anonymizer:download", onDownload);
     window.addEventListener("anonymizer:dropped", onDropped);
     window.addEventListener("anonymizer:drop-refused", onRefused);
     return () => {
       window.removeEventListener("anonymizer:progress", onProgress);
+      window.removeEventListener("anonymizer:download", onDownload);
       window.removeEventListener("anonymizer:dropped", onDropped);
       window.removeEventListener("anonymizer:drop-refused", onRefused);
     };
@@ -420,6 +462,7 @@ export function App() {
               onOptions={setOptions}
               onOpen={openPdf}
               onOpenReview={openReview}
+              onModels={() => void openModels()}
             />
           )
         )}
@@ -428,6 +471,13 @@ export function App() {
           busy={exporting}
           onExportAnyway={() => void runExport(true)}
           onClose={closeExport}
+        />
+        <ModelsSheet
+          open={modelsOpen}
+          features={models}
+          downloading={downloading}
+          onDownload={(feature) => void downloadModels(feature)}
+          onClose={() => setModelsOpen(false)}
         />
         <Toasts toasts={toasts} />
       </div>

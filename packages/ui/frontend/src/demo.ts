@@ -10,6 +10,7 @@ import type {
   EntityInfo,
   ExportResult,
   ModelState,
+  FeatureModels,
   OpenOptions,
   OpenStep,
   ReviewState,
@@ -183,9 +184,12 @@ function progress(step: OpenStep) {
  * The home screen's model and OCR states can be tried with `?model=not_installed`,
  * `?model=files_missing`, `?ocr=not_installed` or `?ocr=files_missing` in the address.
  */
+/** What the demo has "downloaded" this session. */
+const downloaded = new Set<string>();
+
 function demoStatus(): AppStatus {
-  const state = requestedState("model");
-  const ocrState = requestedState("ocr");
+  const state = downloaded.has("names") ? "ready" : requestedState("model");
+  const ocrState = downloaded.has("ocr") ? "ready" : requestedState("ocr");
   return {
     version: "demo",
     languages: [
@@ -203,6 +207,51 @@ function demoStatus(): AppStatus {
       missing: ocrState === "files_missing" ? ["onnxtr-fast-base", "onnxtr-parseq-multilingual-v1"] : [],
     },
   };
+}
+
+const DEMO_MODELS: Record<string, { title: string; group: string; models: [string, string, number][] }> = {
+  names: {
+    title: "Names and addresses",
+    group: "ner",
+    models: [
+      ["mdeberta-v3-base-tokenizer", "mDeBERTa-v3 base: config and tokenizer", 4_309_802],
+      ["gliner-multi-v2.1", "GLiNER multilingual v2.1", 1_155_830_112],
+    ],
+  },
+  ocr: {
+    title: "Scanned pages",
+    group: "ocr-onnxtr",
+    models: [
+      ["onnxtr-fast-base", "OnnxTR FAST base: text detection", 42_343_230],
+      ["onnxtr-parseq-multilingual-v1", "OnnxTR PARSeq multilingual v1: text recognition", 96_713_181],
+    ],
+  },
+};
+
+function demoModels(): FeatureModels[] {
+  const status = demoStatus();
+  return Object.entries(DEMO_MODELS).map(([feature, entry]) => {
+    const state = feature === "names" ? status.model.state : status.ocr.state;
+    const stored = state !== "files_missing";
+    return {
+      feature,
+      title: entry.title,
+      installed: state !== "not_installed",
+      install_command: `uv sync --group ${entry.group}`,
+      missing_bytes: stored ? 0 : entry.models.reduce((sum, [, , size]) => sum + size, 0),
+      models: entry.models.map(([id, name, size]) => ({
+        id,
+        name,
+        uses: [],
+        licence: "Apache-2.0",
+        languages: ["mul"],
+        source: `https://huggingface.co/${id}`,
+        version: "demo",
+        size,
+        state: stored ? "present" : "absent",
+      })),
+    };
+  });
 }
 
 function requestedState(parameter: string): ModelState {
@@ -247,6 +296,17 @@ export function demoBridge(): ReviewBridge {
 
   return {
     status: async () => demoStatus(),
+    models: async () => demoModels(),
+    download_models: async (feature: string) => {
+      const total = demoModels().find((item) => item.feature === feature)?.missing_bytes ?? 0;
+      for (let step = 0; step <= 20; step += 1) {
+        const detail = { feature, received: Math.round((total * step) / 20), total };
+        window.dispatchEvent(new CustomEvent("anonymizer:download", { detail }));
+        await pause();
+      }
+      downloaded.add(feature);
+      return demoModels();
+    },
     current_document: async () => copied(current),
     choose_pdf: open,
     open_dropped: async (options: OpenOptions) => {

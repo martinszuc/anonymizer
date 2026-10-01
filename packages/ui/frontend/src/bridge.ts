@@ -5,6 +5,7 @@ import type {
   DocumentInfo,
   EntityInfo,
   ExportResult,
+  FeatureModels,
   OpenOptions,
   ReviewState,
 } from "./types";
@@ -12,6 +13,10 @@ import type {
 /** The methods of `anonymizer.ui.app.WindowApi`; every call returns a promise. */
 export interface ReviewBridge {
   status(): Promise<AppStatus>;
+  /** Each feature's models and whether they are stored. */
+  models(): Promise<FeatureModels[]>;
+  /** Downloads a feature's models from their official sources, verified; progress as events. */
+  download_models(feature: string): Promise<FeatureModels[]>;
   current_document(): Promise<DocumentInfo | null>;
   /** Null when the reviewer cancelled the open dialog. */
   choose_pdf(options: OpenOptions): Promise<DocumentInfo | null>;

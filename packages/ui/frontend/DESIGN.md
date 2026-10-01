@@ -63,6 +63,15 @@ hidden data (a link, metadata) shows a locked pill *Always removed* (`--fill`,
 `--label-2`) instead, and no review dot: export clears it with the hidden item,
 so there is nothing to decide.
 
+**Models sheet.** A wide sheet (560 px) from *Manage models…* on the home
+screen: one section per feature (`--fill` card), its state on the right
+(*Ready* in `--keep`, otherwise `--label-2`), each model as a name over a
+footnote line (size · licence · languages · source host). A missing Python
+package shows a `--warning` line with the install command in `--font-mono`.
+*Download <size>* is the primary button; while it runs, a progress bar
+(6 px track in `--fill-active`, fill in `--accent`, pill radius) with
+"received of total, then checked" replaces it. Other downloads are disabled.
+
 **Page notices.** Above a page: a warning (`--warning` at 16 %, triangle icon)
 for a scan OCR did not read, since nothing on it was detected; a quiet note
 (`--fill`, `--label-2`, scan icon) for a page OCR read, reminding that OCR can

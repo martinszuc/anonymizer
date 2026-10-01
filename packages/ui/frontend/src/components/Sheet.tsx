@@ -8,6 +8,8 @@ interface SheetProps {
   title: string;
   icon?: ReactNode;
   tone?: "neutral" | "success" | "warning" | "danger";
+  /** Wide for lists, such as the models. */
+  size?: "regular" | "wide";
   children: ReactNode;
   actions: ReactNode;
   onClose: () => void;
@@ -18,7 +20,16 @@ interface SheetProps {
  * closes it. On open, focus goes to the action marked `data-default`, or the
  * last one; mark Cancel when the other choice carries a risk.
  */
-export function Sheet({ open, title, icon, tone = "neutral", children, actions, onClose }: SheetProps) {
+export function Sheet({
+  open,
+  title,
+  icon,
+  tone = "neutral",
+  size = "regular",
+  children,
+  actions,
+  onClose,
+}: SheetProps) {
   const titleId = useId();
   const actionsRef = useRef<HTMLDivElement>(null);
 
@@ -54,6 +65,7 @@ export function Sheet({ open, title, icon, tone = "neutral", children, actions, 
             aria-modal="true"
             aria-labelledby={titleId}
             data-tone={tone}
+            data-size={size}
             initial={{ y: -24, opacity: 0, scale: 0.98 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: -16, opacity: 0, transition: { duration: 0.14 } }}

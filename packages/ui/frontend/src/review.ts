@@ -137,6 +137,19 @@ export function pagesWithoutText(document: DocumentInfo): number[] {
   return document.pages.filter(isUnreadScan).map((page) => page.index + 1);
 }
 
+/** A size for people: "980 B", "42.3 MB", "1.16 GB" (decimal units, as downloads show). */
+export function formatBytes(bytes: number): string {
+  const units = ["B", "kB", "MB", "GB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1000 && unit < units.length - 1) {
+    value /= 1000;
+    unit += 1;
+  }
+  const digits = unit === 0 ? 0 : value < 10 ? 2 : 1;
+  return `${value.toFixed(digits)} ${units[unit]}`;
+}
+
 /** "page 3", "pages 2 and 5", "pages 1, 2 and 4". */
 export function pageList(pages: number[]): string {
   if (pages.length === 1) return `page ${pages[0]}`;

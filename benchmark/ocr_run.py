@@ -163,7 +163,7 @@ def _run_one(
         "pages": len(truth),
         "seconds": round(seconds, 3),
         "text": text_errors(truth, document.pages),
-        "boxes": box_scores(truth, document.pages),
+        "boxes": box_scores(scan, truth, document.pages),
         "items": {
             "gold": len(on_page.gold),
             "found": found["found"],
@@ -199,7 +199,8 @@ def _totals(documents: dict[str, Any]) -> dict[str, Any]:
         "character_error_rate": _rate(text["character_errors"], text["characters"]),
         "diacritic_error_rate": _rate(text["diacritic_errors"], text["diacritics"]),
         "boxed": _rate(boxes["boxed"], boxes["words"]),
-        "coverage": _rate(boxes["coverage"], boxes["words"]),
+        "ink_under_boxes": _rate(boxes["ink_covered"], boxes["ink"]),
+        "words_partly_outside": boxes["partly_outside"],
         "items": dict(items),
         "safe_documents": sum(result["safe"] for result in results),
         "leak_check_passed": sum(result["leak_check_passed"] for result in results),
@@ -228,7 +229,8 @@ def ocr_markdown(results: dict[str, Any]) -> str:
         "CER",
         "diacritics",
         "boxed",
-        "coverage",
+        "ink under boxes",
+        "partly outside",
         "found",
         "readable after",
         "partly after",
@@ -248,7 +250,8 @@ def ocr_markdown(results: dict[str, Any]) -> str:
                         _percent(total["character_error_rate"]),
                         _percent(total["diacritic_error_rate"]),
                         _percent(total["boxed"]),
-                        _percent(total["coverage"]),
+                        _percent(total["ink_under_boxes"]),
+                        f"{total['words_partly_outside']}/{_words_in(run)}",
                         f"{items['found']}/{items['gold']}",
                         str(items["readable_after"]),
                         str(items["partly_after"]),
@@ -259,6 +262,11 @@ def ocr_markdown(results: dict[str, Any]) -> str:
                 )
             )
     return "\n".join(lines) + "\n"
+
+
+def _words_in(run: dict[str, Any]) -> int:
+    """Count the ground-truth words of a level's run."""
+    return sum(document["boxes"]["words"] for document in run["documents"].values())
 
 
 def _row(cells: list[str]) -> str:

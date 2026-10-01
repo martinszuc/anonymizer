@@ -26,8 +26,9 @@ scored: a scan carries no links or metadata. Scores, per engine and level:
 - **CER** — character error rate against the original's text; **diacritics**
   — the share of letters with a diacritic not read exactly.
 - **boxed** — ground-truth words matched by an OCR box (IoU ≥ 0.5);
-  **coverage** — the share of each word's area under OCR boxes. Below one, a
-  box drawn from OCR leaves part of the word in the picture.
+  **ink under boxes** — the share of the words' printed pixels inside OCR
+  boxes; **partly outside** — words with ink outside every box, which a
+  redaction drawn from OCR boxes would leave partly in the picture.
 - **found** — as below, on the OCR text.
 - **readable / partly after** — ink left in each item's ground-truth boxes in
   the redacted picture: half a word or more, or more than a trace. Counted in

@@ -126,27 +126,40 @@ class TestTextErrors:
 
 
 class TestBoxScores:
-    TRUTH = BBox(100, 100, 160, 112)
+    @pytest.fixture
+    def scanned(self, tmp_path: Path) -> tuple[Path, TruthPage]:
+        original = render(SPEC, tmp_path / "tiny.pdf")
+        (truth,) = scan_document(original, level_named("clean"), tmp_path / "scan.pdf")
+        return tmp_path / "scan.pdf", truth
 
-    @pytest.mark.parametrize(
-        ("read", "boxed", "coverage"),
-        [
-            (BBox(100, 100, 160, 112), 1, 1.0),
-            (BBox(100, 100, 130, 112), 1, 0.5),
-            (BBox(100, 100, 120, 112), 0, 1 / 3),
-        ],
-        ids=["exact", "half", "third"],
-    )
-    def test_boxed_and_coverage(self, read: BBox, boxed: int, coverage: float):
-        scores = box_scores([_truth("Novák", [self.TRUTH])], [_page("Novák", [read])])
-        assert scores["words"] == 1
-        assert scores["boxed"] == boxed
-        assert scores["coverage"] == pytest.approx(coverage)
+    def _read(self, truth: TruthPage, shrink: float = 0.0) -> Page:
+        """OCR output with the ground-truth words, each box cut from the right by a share."""
+        words = []
+        for word, start in zip(truth.words, truth.starts, strict=True):
+            box = word.bbox
+            cut = BBox(box.x0, box.y0, box.x1 - shrink * box.width, box.y1)
+            words.append(Word(word.text, cut, start, start + len(word.text)))
+        return Page(0, 595, 842, truth.text, words, has_text_layer=False, raster_dpi=300)
 
-    def test_a_word_read_as_two_boxes_is_covered_whole(self):
-        halves = [BBox(100, 100, 130, 112), BBox(130, 100, 160, 112)]
-        scores = box_scores([_truth("Novák", [self.TRUTH])], [_page("No vák", halves)])
-        assert scores["coverage"] == pytest.approx(1.0)
+    def test_boxes_as_large_as_the_words_cover_all_ink(self, scanned: tuple[Path, TruthPage]):
+        scan, truth = scanned
+        scores = box_scores(scan, [truth], [self._read(truth)])
+        assert scores["words"] == scores["boxed"] == len(truth.words)
+        assert scores["ink_covered"] == scores["ink"] > 0
+        assert scores["partly_outside"] == 0
+
+    def test_narrow_boxes_leave_ink_outside(self, scanned: tuple[Path, TruthPage]):
+        scan, truth = scanned
+        scores = box_scores(scan, [truth], [self._read(truth, shrink=0.4)])
+        assert scores["boxed"] == len(truth.words)
+        assert scores["ink_covered"] < scores["ink"]
+        assert scores["partly_outside"] == len(truth.words)
+
+    def test_no_boxes_cover_nothing(self, scanned: tuple[Path, TruthPage]):
+        scan, truth = scanned
+        empty = Page(0, 595, 842, "", [], has_text_layer=False, raster_dpi=300)
+        scores = box_scores(scan, [truth], [empty])
+        assert (scores["boxed"], scores["ink_covered"]) == (0, 0)
 
 
 class TestScan:
@@ -197,6 +210,8 @@ def test_oracle_run_end_to_end(tmp_path: Path):
         total = results["runs"]["oracle"][level]["totals"]
         assert total["character_error_rate"] == 0
         assert total["boxed"] == 1
+        assert total["ink_under_boxes"] == 1
+        assert total["words_partly_outside"] == 0
         # The metadata copy is not on a scan; both page items are found and removed.
         assert total["items"] == {
             "gold": 2,

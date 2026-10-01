@@ -1,6 +1,12 @@
 """PDF text-layer extraction, non-text surfaces and OCR engine adapters."""
 
-from anonymizer.core.ingest.engines import OCR_ENGINE_RESOURCES, OCR_ENGINES, load_ocr_engine
+from anonymizer.core.ingest.engines import (
+    OCR_ENGINE_RESOURCES,
+    OCR_ENGINES,
+    load_ocr_engine,
+    missing_ocr_files,
+    ocr_engine_installed,
+)
 from anonymizer.core.ingest.normalize import normalize_text
 from anonymizer.core.ingest.ocr import (
     DEFAULT_OCR_DPI,
@@ -36,7 +42,9 @@ __all__ = [
     "fingerprint",
     "load_document",
     "load_ocr_engine",
+    "missing_ocr_files",
     "normalize_text",
+    "ocr_engine_installed",
     "pages_needing_ocr",
     "read_page",
     "read_pdf",

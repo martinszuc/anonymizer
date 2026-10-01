@@ -13,6 +13,7 @@ Every value is invented. The output is git-ignored; only this script is committe
 
 Pages 2 and 3 cannot be read until OCR exists; that is what they are for.
 A handwriting font only imitates handwriting: it tests the plumbing, not recognition quality.
+Without the macOS font the page uses an italic serif, which is not handwriting at all.
 """
 
 from __future__ import annotations
@@ -27,7 +28,9 @@ PAGE = pymupdf.paper_rect("a4")
 MARGIN = 56.0
 SCAN_DPI = 200
 SKEW_DEGREES = 1.2
-HANDWRITING_FONT = Path("/System/Library/Fonts/Supplemental/Bradley Hand Bold.ttf")
+HANDWRITING_FONTS = [Path("/System/Library/Fonts/Supplemental/Bradley Hand Bold.ttf")]
+# MuPDF's bundled italic serif, used when no handwriting font is installed.
+FALLBACK_FONT = "tiit"
 SEED = 20260930
 
 FORM_LINES = [
@@ -81,10 +84,11 @@ def write_sample(destination: Path) -> None:
 
 
 def _handwriting_font() -> pymupdf.Font:
-    if not HANDWRITING_FONT.exists():
-        msg = f"handwriting font not found: {HANDWRITING_FONT}; set HANDWRITING_FONT to a TTF"
-        raise SystemExit(msg)
-    return pymupdf.Font(fontfile=str(HANDWRITING_FONT))
+    """Return the first installed handwriting font, else an italic that only stands in for one."""
+    for path in HANDWRITING_FONTS:
+        if path.exists():
+            return pymupdf.Font(fontfile=str(path))
+    return pymupdf.Font(FALLBACK_FONT)
 
 
 def _typed_page(pdf: pymupdf.Document) -> None:

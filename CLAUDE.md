@@ -40,7 +40,7 @@ packages/ui/     review window: api.py (ReviewApi, plain data), app.py
                  (pywebview window), frontend/ (React, Vite, DESIGN.md)
 benchmark/       synthetic documents as data, generator, scorer, pictures, charts
 experiments/     evaluation scripts (planned, not created yet)
-scripts/         model and dataset download
+scripts/         model and dataset download, synthetic mixed-format sample generator
 data/            local corpora, git-ignored, never committed
 ```
 

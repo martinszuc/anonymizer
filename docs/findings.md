@@ -321,4 +321,18 @@ Verified on saved files, one probe per kind of content under a box:
   no checksum at all. Detector precision is therefore not uniform across entity
   types, and the evaluation must report per-type, not aggregate.
 
+### 2026-09-30 · Mixed synthetic sample (`scripts/make_mixed_sample.py`)
+
+Four pages, all values invented: typed form with hidden items, scanned form,
+handwriting-font scan, typed text beside a scanned stamp.
+
+- Page 1 and the typed text on page 4: 8 entities (birth number, IBAN, email,
+  2 phones, address, date, link URL) and 14 hidden items; the export passes the
+  leak check and clears links, metadata, bookmarks, the attachment and the form field.
+- Pages 2 and 3 have no text layer; `redact` stops unless
+  `--allow-pages-without-text` is given, and then warns that they are not redacted.
+- First attempt used a rodné číslo that failed its own mod-11 check, and the
+  detector rightly skipped it: a fixture value is computed, not guessed.
+- Handwriting here is a font, so it says nothing about recognition quality.
+
 ---

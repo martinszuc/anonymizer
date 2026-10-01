@@ -10,6 +10,11 @@ anonymize check cv-redacted.pdf --source cv.pdf --session review.json
 anonymize inspect cv.pdf -o cv.html [--session review.json]  # see what was found
 ```
 
+To try the commands without a real document, generate the synthetic sample
+(`uv run python scripts/make_mixed_sample.py`, see the root README, *Try it on a
+sample*). Keep `review.json` with its PDF: a session only applies to the file it
+was made from, and `check` rejects a session from a different PDF.
+
 **Names and addresses.** The rules find identifiers; names need the GLiNER model.
 Install its dependencies (PyTorch; kept optional) and fetch the model once, then
 add `--ner`:

@@ -5,7 +5,10 @@ recognizer uses a French vocabulary without háček letters, so the catalog
 pins the maintainer's multilingual model, whose 195-character vocabulary
 holds every Czech and Slovak letter. Both models load from the catalog's
 local files; OnnxTR downloads only when given a URL, and it is never given
-one. The page is read as straight: words come back in axis-aligned boxes,
+one. Inference is pinned to onnxruntime's CPU provider: the default list
+on macOS starts with CoreML, which fails to build the recognizer, and
+includes Azure's, which runs models on remote endpoints; the CPU gives the
+same results on every machine. The page is read as straight: words come back in axis-aligned boxes,
 so a skewed scan's boxes enclose its tilted words.
 
 The optional dependency is the `ocr-onnxtr` extra (`uv sync --group
@@ -27,6 +30,7 @@ RECOGNITION_RESOURCE = "onnxtr-parseq-multilingual-v1"
 _MODEL_FILE = "model.onnx"
 _CONFIG_FILE = "config.json"
 _CHANNELS = 3
+_CPU_PROVIDER = "CPUExecutionProvider"
 # OnnxTR imports huggingface_hub; this keeps it from reaching the network.
 _OFFLINE_VARIABLES = ("HF_HUB_OFFLINE",)
 
@@ -127,13 +131,15 @@ def load_onnxtr_engine(root: Path) -> OnnxtrEngine:
             ocr_predictor,
             parseq,
         )
+        from onnxtr.models.engine import EngineConfig  # pyright: ignore[reportMissingImports]
     except ImportError as error:
         msg = "OCR needs the optional 'ocr-onnxtr' dependencies: uv sync --group ocr-onnxtr"
         raise ImportError(msg) from error
     vocab = json.loads((recognition / _CONFIG_FILE).read_text(encoding="utf-8"))["vocab"]
+    cpu = EngineConfig(providers=[_CPU_PROVIDER])
     predictor = ocr_predictor(
-        det_arch=fast_base(str(detection / _MODEL_FILE)),
-        reco_arch=parseq(str(recognition / _MODEL_FILE), vocab=vocab),
+        det_arch=fast_base(str(detection / _MODEL_FILE), engine_cfg=cpu),
+        reco_arch=parseq(str(recognition / _MODEL_FILE), engine_cfg=cpu, vocab=vocab),
         assume_straight_pages=True,
         detect_orientation=False,
         straighten_pages=False,

@@ -133,6 +133,7 @@ PARSeq fine-tuned by the docTR maintainer on a multilingual vocabulary of 195 ch
 path = "config.json"
 url = "https://huggingface.co/Felix92/onnxtr-parseq-multilingual-v1/resolve/7d7329948dbcff02637a3eb9c14ae0c4440c5ed0/config.json"
 size = 727
+sha256 = "c89846a1022925eab2c5470ec028c6729a993c869c0066578fa44e47a03ee639"
 source_digest = "git-sha1:d2af81589126973d747786ba0349e94043e5b803"
 
 [[resource.files]]

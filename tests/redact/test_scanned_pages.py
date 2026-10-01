@@ -17,7 +17,7 @@ from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import export_redacted, redact_pdf
 from anonymizer.core.types import BBox, Document, EntityType, ReviewState
 
-from tests.ocr_stand_in import ScriptedEngine
+from tests.ocr_stand_in import InkReadingEngine, ScriptedEngine
 from tests.pdf_builders import (
     CONTACT_EMAIL,
     SCAN_PICTURES,
@@ -173,14 +173,19 @@ class TestTextLayer:
 
 
 def test_export_with_mixed_decisions_on_a_scanned_page(tmp_path: Path):
-    """A kept phone, a redacted email and a drawn region, through the leak-checked export."""
+    """A kept phone, a redacted email and a drawn region, through the leak-checked export.
+
+    The leak check re-reads the page, so the engine must react to the pixels.
+    """
     path = write_scanned_pdf(tmp_path / "scan.pdf", [LINES])
-    document = read_by_ocr(path, tmp_path)
+    engine = InkReadingEngine.reading(load_document(write_pdf(tmp_path / "original.pdf", [LINES])))
+    document = load_document(path, language="cs", ocr=engine)
+    run_detection(document, build_detector("cs"))
     phone = next(entity for entity in document.entities if entity.type is EntityType.PHONE)
     phone.review = ReviewState.REJECTED
     region = document.add_region(0, BBox(*UNTOUCHED_AREA))
     output = tmp_path / "out.pdf"
-    assert export_redacted(path, document, output) == []
+    assert export_redacted(path, document, output, ocr=engine) == []
     with pymupdf.open(path) as before, pymupdf.open(output) as after:
         page = after[0]
         email = next(entity for entity in document.entities if entity.type is EntityType.EMAIL)

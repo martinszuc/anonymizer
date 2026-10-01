@@ -10,12 +10,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from anonymizer.core.ingest import OcrEngine
 from anonymizer.core.redact.leakage import Leak, find_leaks
 from anonymizer.core.redact.pdf import redact_pdf
 from anonymizer.core.types import Document
 
 
-def export_redacted(source: Path | str, document: Document, destination: Path | str) -> list[Leak]:
+def export_redacted(
+    source: Path | str,
+    document: Document,
+    destination: Path | str,
+    *,
+    ocr: OcrEngine | None = None,
+) -> list[Leak]:
     """Redact a PDF into `destination`, keeping the result only if it has no leaks.
 
     An existing file at `destination` is replaced when the check passes and
@@ -25,14 +32,16 @@ def export_redacted(source: Path | str, document: Document, destination: Path | 
         source: PDF the document was loaded from.
         document: The loaded document with its reviewed entities.
         destination: Path of the redacted copy.
+        ocr: The engine that read the document's scanned pages; the leak
+            check re-reads them with it.
 
     Returns:
         The leaks found. Empty means the copy was written; otherwise nothing
         was.
 
     Raises:
-        ValueError: If `destination` is `source`, or `redact_pdf` refuses the
-            document (see there).
+        ValueError: If `destination` is `source`, `redact_pdf` refuses the
+            document (see there), or OCR read pages and no engine is given.
     """
     source, destination = Path(source), Path(destination)
     if destination.resolve() == source.resolve():
@@ -41,7 +50,7 @@ def export_redacted(source: Path | str, document: Document, destination: Path | 
     partial = destination.with_name(f".{destination.name}.partial")
     try:
         redact_pdf(source, document, partial)
-        leaks = find_leaks(partial, document)
+        leaks = find_leaks(partial, document, ocr=ocr)
     except BaseException:
         partial.unlink(missing_ok=True)
         raise

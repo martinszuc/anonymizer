@@ -52,7 +52,7 @@ def test_a_failed_check_writes_nothing_and_keeps_an_existing_file(
     pdf: Path, document: Document, monkeypatch: pytest.MonkeyPatch
 ):
     leak = Leak(LeakLayer.PAGE_TEXT, "page 1", CONTACT_EMAIL, "e1")
-    monkeypatch.setattr(export_module, "find_leaks", lambda *_: [leak])
+    monkeypatch.setattr(export_module, "find_leaks", lambda *_, **__: [leak])
     destination = pdf.with_name("cv-redacted.pdf")
     destination.write_bytes(b"old export")
     assert export_redacted(pdf, document, destination) == [leak]
@@ -63,7 +63,7 @@ def test_a_failed_check_writes_nothing_and_keeps_an_existing_file(
 def test_the_temporary_copy_is_removed_when_the_check_crashes(
     pdf: Path, document: Document, monkeypatch: pytest.MonkeyPatch
 ):
-    def broken_check(*_: object) -> list[Leak]:
+    def broken_check(*_: object, **__: object) -> list[Leak]:
         raise RuntimeError("check crashed")
 
     monkeypatch.setattr(export_module, "find_leaks", broken_check)

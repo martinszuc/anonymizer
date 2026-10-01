@@ -591,6 +591,9 @@ class Document:
             The file's name is not kept: names such as
             `<first>-<last>-<id>.pdf` are personal data themselves.
         language: BCP 47 tag the detectors are configured for, e.g. `"en"`.
+        ocr_engine: Name of the OCR engine that read the document's scanned
+            pages, or `None` if OCR read none. Offsets on those pages refer
+            to what that engine read.
         schema_version: Version of the serialized format.
     """
 
@@ -599,6 +602,7 @@ class Document:
     entities: list[Entity] = field(default_factory=list)
     fingerprint: str | None = None
     language: str | None = None
+    ocr_engine: str | None = None
     schema_version: int = SCHEMA_VERSION
 
     def page(self, index: int) -> Page:
@@ -842,6 +846,7 @@ class Document:
             "schema_version": self.schema_version,
             "fingerprint": self.fingerprint,
             "language": self.language,
+            "ocr_engine": self.ocr_engine,
             "pages": [page.to_dict() for page in self.pages],
             "surfaces": [surface.to_dict() for surface in self.surfaces],
             "entities": [entity.to_dict() for entity in self.entities],
@@ -870,6 +875,7 @@ class Document:
             surfaces=[Surface.from_dict(surface) for surface in data.get("surfaces", [])],
             entities=[Entity.from_dict(entity) for entity in data.get("entities", [])],
             fingerprint=data.get("fingerprint"),
+            ocr_engine=data.get("ocr_engine"),
             language=data.get("language"),
             schema_version=version,
         )

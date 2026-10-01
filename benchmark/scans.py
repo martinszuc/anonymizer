@@ -143,6 +143,8 @@ class OracleEngine:
     in turn and then from the start again.
     """
 
+    name = "oracle"
+
     def __init__(self, truth: list[TruthPage]) -> None:
         self.truth = truth
         self.calls = 0

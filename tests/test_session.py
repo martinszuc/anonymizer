@@ -87,7 +87,14 @@ class TestRoundTrip:
 class TestSlimFile:
     def test_session_holds_decisions_not_the_document(self, session: Path):
         content = json.loads(session.read_text(encoding="utf-8"))
-        assert set(content) == {"format", "schema_version", "fingerprint", "language", "entities"}
+        assert set(content) == {
+            "format",
+            "schema_version",
+            "fingerprint",
+            "language",
+            "ocr_engine",
+            "entities",
+        }
         assert "KEEP this line" not in session.read_text(encoding="utf-8")
 
     def test_session_holds_neither_path_nor_file_name(self, pdf: Path, session: Path):

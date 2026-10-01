@@ -76,7 +76,14 @@ class OcrWord:
 
 
 class OcrEngine(Protocol):
-    """Reads the words in a picture of a page."""
+    """Reads the words in a picture of a page.
+
+    Attributes:
+        name: The engine's name, recorded on the documents it reads, so a
+            review of them reopens only with the same engine.
+    """
+
+    name: str
 
     def read(self, image: PageImage) -> list[OcrWord]:
         """Return the words in the picture.

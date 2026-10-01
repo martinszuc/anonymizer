@@ -5,6 +5,7 @@ original (`tests.ocr_stand_in`), so every expected box and text is known
 independently of the code under test.
 """
 
+import json
 from pathlib import Path
 
 import pymupdf
@@ -20,7 +21,7 @@ from anonymizer.core.ingest import (
 from anonymizer.core.ingest.normalize import bbox_to_unrotated_rect
 from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import redact_pdf
-from anonymizer.core.session import load_session, save_session
+from anonymizer.core.session import load_session, save_session, session_ocr_engine
 from anonymizer.core.types import BBox, Document, EntityType
 
 from tests.ocr_stand_in import ScriptedEngine, ScriptedWord
@@ -232,6 +233,8 @@ class TestEngineOutput:
         class SwappedCorners:
             """Reports one word with its corners swapped, reaching past the bottom right."""
 
+            name = "swapped"
+
             def read(self, image: PageImage) -> list[OcrWord]:
                 right, bottom = image.width, image.height
                 box = (right + 50, bottom + 9, right - 100, bottom - 30)
@@ -265,5 +268,50 @@ class TestSession:
         )
         run_detection(document, build_detector("cs"))
         save_session(document, tmp_path / "review.json")
-        with pytest.raises(ValueError, match="no longer cover"):
+        with pytest.raises(ValueError, match="made with OCR engine 'stand-in'; read the PDF"):
             load_session(tmp_path / "review.json", scan)
+
+    def test_engine_is_recorded_on_the_document_and_in_the_review(self, scan: Path, tmp_path: Path):
+        document = load_document(scan, ocr=ScriptedEngine.reading(original(tmp_path)))
+        assert document.ocr_engine == "stand-in"
+        save_session(document, tmp_path / "review.json")
+        assert session_ocr_engine(tmp_path / "review.json") == "stand-in"
+
+    def test_no_engine_is_recorded_when_no_page_needed_ocr(self, tmp_path: Path):
+        path = write_pdf(tmp_path / "text.pdf", [LINES])
+        document = load_document(path, ocr=ScriptedEngine([]))
+        assert document.ocr_engine is None
+        save_session(document, tmp_path / "review.json")
+        assert session_ocr_engine(tmp_path / "review.json") is None
+
+    def test_review_made_without_ocr_is_refused_when_read_with_ocr(
+        self, scan: Path, tmp_path: Path
+    ):
+        save_session(load_document(scan), tmp_path / "review.json")
+        with pytest.raises(ValueError, match="made without OCR"):
+            load_session(
+                tmp_path / "review.json", scan, ocr=ScriptedEngine.reading(original(tmp_path))
+            )
+
+    def test_review_made_with_another_engine_is_refused(self, scan: Path, tmp_path: Path):
+        save_session(
+            load_document(scan, ocr=ScriptedEngine.reading(original(tmp_path))),
+            tmp_path / "review.json",
+        )
+        other = ScriptedEngine.reading(original(tmp_path))
+        other.name = "other"
+        with pytest.raises(ValueError, match="'stand-in', not 'other'"):
+            load_session(tmp_path / "review.json", scan, ocr=other)
+
+    def test_review_saved_before_engines_were_recorded_reopens(self, tmp_path: Path):
+        path = write_pdf(tmp_path / "text.pdf", [LINES])
+        save_session(load_document(path), tmp_path / "review.json")
+        content = json.loads((tmp_path / "review.json").read_text(encoding="utf-8"))
+        del content["ocr_engine"]
+        (tmp_path / "review.json").write_text(json.dumps(content), encoding="utf-8")
+        assert load_session(tmp_path / "review.json", path).ocr_engine is None
+
+    def test_a_file_that_is_not_a_review_is_refused(self, tmp_path: Path):
+        (tmp_path / "other.json").write_text("[]", encoding="utf-8")
+        with pytest.raises(ValueError, match="not a session"):
+            session_ocr_engine(tmp_path / "other.json")

@@ -33,6 +33,8 @@ class ScriptedEngine:
     leak check re-reads the pages ingest read in the same turn.
     """
 
+    name = "stand-in"
+
     def __init__(self, pages: list[list[ScriptedWord]]) -> None:
         self.pages = pages
         self.images: list[PageImage] = []

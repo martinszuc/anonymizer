@@ -162,11 +162,13 @@ def document_from_bytes(
                 for page in pages
             ]
         surfaces = extract_surfaces(pdf)
+    read_by_ocr = any(page.raster_dpi is not None for page in pages)
     return Document(
         pages=pages,
         surfaces=surfaces,
         fingerprint=fingerprint(data),
         language=language,
+        ocr_engine=ocr.name if ocr is not None and read_by_ocr else None,
     )
 
 

@@ -10,7 +10,11 @@ Opening a session verifies that it belongs to the given PDF and that every
 entity still covers the same text at the same place. A mismatch means the file
 or its extraction changed, and a review applied to different text cannot be
 trusted, so the session is refused instead. Pages OCR read must therefore be
-read again by the same engine at the same resolution.
+read again by the same engine at the same resolution; the session records the
+engine, and a document read otherwise is refused with a message naming it.
+A review made without OCR is refused too when the document is now read with
+OCR: its scanned pages would count as read although nothing on them was ever
+detected, and export would no longer warn about them.
 """
 
 from __future__ import annotations
@@ -46,6 +50,7 @@ def session_to_dict(document: Document) -> dict[str, Any]:
         "schema_version": SCHEMA_VERSION,
         "fingerprint": document.fingerprint,
         "language": document.language,
+        "ocr_engine": document.ocr_engine,
         "entities": [entity.to_dict() for entity in document.entities],
     }
 
@@ -115,11 +120,48 @@ def apply_session(document: Document, session_path: Path | str) -> Document:
     if document.fingerprint != data.get("fingerprint"):
         msg = "session belongs to a different PDF"
         raise ValueError(msg)
+    _check_ocr_engine(data.get("ocr_engine"), document.ocr_engine)
     document.language = data.get("language")
     document.entities = [Entity.from_dict(entity) for entity in data.get("entities", [])]
     document.check_references()
     _check_covered_text(document)
     return document
+
+
+def session_ocr_engine(session_path: Path | str) -> str | None:
+    """Return the OCR engine a saved review was made with, to read its PDF again.
+
+    Args:
+        session_path: Session file written by `save_session`.
+
+    Returns:
+        The engine's name, or `None` if the review was made without OCR.
+
+    Raises:
+        ValueError: If the file is not a session.
+    """
+    data = json.loads(Path(session_path).read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or data.get("format") != SESSION_FORMAT:
+        msg = "not a session file"
+        raise ValueError(msg)
+    engine = data.get("ocr_engine")
+    return str(engine) if engine is not None else None
+
+
+def _check_ocr_engine(recorded: str | None, used: str | None) -> None:
+    """Refuse a document whose scanned pages were read otherwise than in the review."""
+    if recorded == used:
+        return
+    if used is None:
+        msg = f"the review was made with OCR engine {recorded!r}; read the PDF with it"
+    elif recorded is None:
+        msg = (
+            "the review was made without OCR, so nothing on the scanned pages was "
+            "detected; detect again with OCR instead of reopening it"
+        )
+    else:
+        msg = f"the review was made with OCR engine {recorded!r}, not {used!r}"
+    raise ValueError(msg)
 
 
 def _check_covered_text(document: Document) -> None:

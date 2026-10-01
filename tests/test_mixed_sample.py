@@ -83,7 +83,7 @@ class TestRedaction:
     ):
         output = tmp_path / "out.pdf"
         assert main(["redact", str(sample), "-o", str(output), "--lang", "cs"]) == 1
-        assert "page 2, 3 has no text layer" in capsys.readouterr().err
+        assert "page 2, 3 is a scan OCR has not read" in capsys.readouterr().err
         assert not output.exists()
 
     def test_allowed_run_removes_every_typed_and_hidden_value(
@@ -92,7 +92,7 @@ class TestRedaction:
         output = tmp_path / "out.pdf"
         arguments = ["redact", str(sample), "-o", str(output), "--lang", "cs"]
         assert main([*arguments, "--allow-pages-without-text"]) == 0
-        assert "page 2, 3 has no text layer and is NOT redacted" in capsys.readouterr().err
+        assert "page 2, 3 is a scan OCR has not read and is NOT redacted" in capsys.readouterr().err
 
         stored = everything_stored(output)
         for value in TYPED_VALUES:

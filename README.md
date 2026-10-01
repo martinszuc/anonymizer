@@ -151,9 +151,10 @@ Working for PDFs with a text layer: text and hidden-data extraction, rule-based
 detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL, labelled
 dates of birth, postal addresses), names with the GLiNER model (optional,
 `--ner`), review through
-session files or the review window (a home screen with the detection options
-and the name model, open or drop a PDF, toggle each item, draw regions, save the
-session, export), blackbox redaction and a leak check on the output.
+session files or the review window (a home screen with the detection options,
+models downloaded from the window and checked against their checksums, open or
+drop a PDF, toggle each item, draw regions, save the session, export), blackbox
+redaction and a leak check on the output.
 Scanned pages: ingest reads pages without a text layer through an OCR engine
 interface, redaction overwrites the pixels under each box and removes the page's
 text layer, and the leak check re-reads the redacted page with the same engine.

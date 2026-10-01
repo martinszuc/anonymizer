@@ -5,11 +5,13 @@ from pathlib import Path
 
 import pytest
 from anonymizer.core.resources import (
+    Catalog,
     ChecksumError,
     PinRequiredError,
     Resource,
     ResourceFile,
     fetch_resource,
+    fetch_with_requirements,
     resource_status,
     verify_resource,
 )
@@ -206,3 +208,27 @@ def test_status_and_verify_report_missing_files(tmp_path):
     fetch_resource(_resource(_hello()), tmp_path, opener=FakeServer({URL: HELLO}))
     assert resource_status(resource, tmp_path) == "partial"
     assert verify_resource(resource, tmp_path) == {"second.txt": "missing"}
+
+
+def _catalog_with_requirement(base_file: ResourceFile) -> Catalog:
+    base = _resource(base_file, kind="model")
+    needed = Resource(**{**base.__dict__, "id": "needed", "files": (_hello(path="needed.txt"),)})
+    top = Resource(**{**base.__dict__, "id": "top", "requires": ("needed",)})
+    return Catalog({"needed": needed, "top": top})
+
+
+def test_requirements_are_fetched_first_and_verified(tmp_path: Path):
+    catalog = _catalog_with_requirement(_hello())
+    server = FakeServer({URL: HELLO})
+    results = fetch_with_requirements(catalog, "top", tmp_path, opener=server)
+    assert [result.downloaded for result in results] == [("needed.txt",), ("hello.txt",)]
+    assert (tmp_path / "models" / "needed" / "needed.txt").read_bytes() == HELLO
+    assert (tmp_path / "models" / "top" / "hello.txt").read_bytes() == HELLO
+
+
+def test_an_unpinned_file_refuses_before_any_download(tmp_path: Path):
+    catalog = _catalog_with_requirement(_hello(sha256=None, source_digest=("md5", MD5_HELLO)))
+    server = FakeServer({URL: HELLO})
+    with pytest.raises(PinRequiredError, match="top"):
+        fetch_with_requirements(catalog, "top", tmp_path, opener=server)
+    assert server.requests == []

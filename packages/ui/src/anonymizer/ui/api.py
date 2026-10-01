@@ -17,6 +17,7 @@ fingerprint.
 from __future__ import annotations
 
 import base64
+import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -30,7 +31,9 @@ from anonymizer.core.detect import (
     load_gliner_detector,
     missing_gliner_files,
 )
+from anonymizer.core.detect.gliner import GLINER_RESOURCE
 from anonymizer.core.ingest import (
+    OCR_ENGINE_RESOURCES,
     OcrEngine,
     document_from_bytes,
     load_ocr_engine,
@@ -41,6 +44,16 @@ from anonymizer.core.ingest import (
 )
 from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import Leak, export_redacted
+from anonymizer.core.resources import (
+    Catalog,
+    ChecksumError,
+    Opener,
+    PinRequiredError,
+    ResourceFile,
+    fetch_with_requirements,
+    load_catalog,
+    resource_status,
+)
 from anonymizer.core.session import apply_session, save_session, session_ocr_engine
 from anonymizer.core.types import (
     BBox,
@@ -68,6 +81,32 @@ Progress = Callable[[str], None]
 """Told each step of opening a PDF: `loading_ocr`, `reading`, `loading_model`, `detecting`."""
 
 
+Downloaded = Callable[[str, int, int], None]
+"""Told a download's progress: the feature, bytes received so far, bytes in all."""
+
+
+@dataclass(frozen=True)
+class _Feature:
+    """Something the window can do once its models are stored and its package installed."""
+
+    title: str
+    resource_id: str
+    group: str
+    installed: Callable[[], bool]
+
+
+FEATURES = {
+    "names": _Feature("Names and addresses", GLINER_RESOURCE, "ner", lambda: gliner_installed()),
+    "ocr": _Feature(
+        "Scanned pages",
+        OCR_ENGINE_RESOURCES[OCR_ENGINE][-1],
+        f"ocr-{OCR_ENGINE}",
+        lambda: ocr_engine_installed(OCR_ENGINE),
+    ),
+}
+"""The features whose models the window can download, by the name the page uses."""
+
+
 class ReviewError(Exception):
     """A request the window cannot carry out; its message is shown to the reviewer."""
 
@@ -88,15 +127,28 @@ class ReviewApi:
     `ReviewError` when none is.
     """
 
-    def __init__(self, resource_root: Path | None = None) -> None:
+    def __init__(
+        self,
+        resource_root: Path | None = None,
+        *,
+        catalog: Catalog | None = None,
+        opener: Opener | None = None,
+    ) -> None:
         """Initialize the API.
 
         Args:
             resource_root: Directory holding `models/`, as for the CLI's
                 `--resource-root`; the working directory when omitted.
+            catalog: The resource catalog; the one shipped with the core when
+                omitted.
+            opener: Opens a download URL; the default opens the network.
         """
         self._open: _OpenDocument | None = None
         self._resource_root = resource_root or Path()
+        self._catalog = catalog or load_catalog()
+        self._opener = opener
+        # Two downloads into the same folder would write the same files.
+        self._downloading = threading.Lock()
         # Loaded on first use and kept: loading takes seconds, detecting does not.
         self._model: Detector | None = None
         self._ocr: dict[str, OcrEngine] = {}
@@ -127,6 +179,107 @@ class ReviewApi:
                 "state": _state(ocr_engine_installed(OCR_ENGINE), ocr_missing),
                 "missing": ocr_missing,
             },
+        }
+
+    def models(self) -> list[dict[str, Any]]:
+        """Describe the models each feature needs and whether they are stored.
+
+        Returns:
+            Per feature: its key and title, whether its package is installed
+            and the command that installs it, the bytes still to download, and
+            each model (requirements first) with what it is, its licence,
+            languages, source, version, size and state (`present`, `partial`
+            or `absent`, from the files on disk).
+        """
+        return [self._feature_payload(key, feature) for key, feature in FEATURES.items()]
+
+    def download_models(
+        self, feature: str, progress: Downloaded | None = None
+    ) -> list[dict[str, Any]]:
+        """Download the models a feature needs from their official sources, each verified.
+
+        Only the catalog's files for a known feature can be fetched: the page
+        names a feature, never a URL or a catalog id.
+
+        Args:
+            feature: A key of `FEATURES`.
+            progress: Told the bytes received and the bytes in all, as they arrive.
+
+        Returns:
+            The models of every feature, as `models()` describes them.
+
+        Raises:
+            ReviewError: If the feature is unknown, a download is already
+                running, or a download fails or does not match its checksum
+                (the file is then removed).
+        """
+        if feature not in FEATURES:
+            msg = f"unknown feature {feature!r}"
+            raise ReviewError(msg)
+        if not self._downloading.acquire(blocking=False):
+            msg = "a download is already running"
+            raise ReviewError(msg)
+        try:
+            self._download(feature, progress or (lambda _feature, _received, _total: None))
+        finally:
+            self._downloading.release()
+        return self.models()
+
+    def _download(self, feature: str, progress: Downloaded) -> None:
+        resource_id = FEATURES[feature].resource_id
+        # Stored files are verified, not downloaded, so only missing ones count.
+        total = sum(
+            item.size
+            for resource in self._catalog.with_requirements(resource_id)
+            for item in resource.files
+            if not (resource.directory(self._resource_root) / item.path).exists()
+        )
+        received_by_file: dict[str, int] = {}
+
+        def report(item: ResourceFile, received: int) -> None:
+            received_by_file[item.url] = received
+            progress(feature, sum(received_by_file.values()), total)
+
+        try:
+            fetch_with_requirements(
+                self._catalog,
+                resource_id,
+                self._resource_root,
+                opener=self._opener,
+                progress=report,
+            )
+        except (PinRequiredError, ChecksumError, OSError) as error:
+            msg = f"the download failed: {error}"
+            raise ReviewError(msg) from error
+        progress(feature, total, total)
+
+    def _feature_payload(self, key: str, feature: _Feature) -> dict[str, Any]:
+        resources = self._catalog.with_requirements(feature.resource_id)
+        states = {
+            resource.id: resource_status(resource, self._resource_root) for resource in resources
+        }
+        return {
+            "feature": key,
+            "title": feature.title,
+            "installed": feature.installed(),
+            "install_command": f"uv sync --group {feature.group}",
+            "missing_bytes": sum(
+                resource.size for resource in resources if states[resource.id] != "present"
+            ),
+            "models": [
+                {
+                    "id": resource.id,
+                    "name": resource.name,
+                    "uses": list(resource.uses),
+                    "licence": resource.licence,
+                    "languages": list(resource.languages),
+                    "source": resource.source,
+                    "version": resource.version,
+                    "size": resource.size,
+                    "state": states[resource.id],
+                }
+                for resource in resources
+            ],
         }
 
     def open_pdf(

@@ -11,9 +11,11 @@ anonymize-ui [cv.pdf] [--lang cs] [--ner] [--ocr]
 ```
 
 Scanned pages are read with OCR when the home screen's *Scanned pages* switch is
-on (`--ocr` for a PDF given on the command line): install `uv sync --group
-ocr-onnxtr` and fetch the models with
-`uv run python scripts/download.py fetch onnxtr-parseq-multilingual-v1`.
+on (`--ocr` for a PDF given on the command line). The packages come from
+`uv sync --group ner --group ocr-onnxtr`; the models are downloaded from the window
+(*Manage models…*, each file checked against the catalog's checksum) or with
+`uv run python scripts/download.py fetch <id>`. Models go to `models/` under
+`--resource-root` (the current directory by default).
 
 Working on the window: start with [`docs/ui.md`](../../docs/ui.md) (status, contract,
 rules, how to add a feature, backlog).

@@ -11,6 +11,7 @@ import {
   isRemoved,
   leakLayerLabel,
   pageList,
+  formatBytes,
   isUnreadScan,
   pagesWithoutText,
   renderDpi,
@@ -168,6 +169,13 @@ describe("export helpers", () => {
     };
     expect(pagesWithoutText(document)).toEqual([2]);
     expect(document.pages.map(isUnreadScan)).toEqual([false, true, false]);
+  });
+
+  it("formats sizes in decimal units", () => {
+    expect(formatBytes(980)).toBe("980 B");
+    expect(formatBytes(42_342_927)).toBe("42.3 MB");
+    expect(formatBytes(1_155_830_112)).toBe("1.16 GB");
+    expect(formatBytes(4_819_576)).toBe("4.82 MB");
   });
 
   it("summarizes what was exported", () => {

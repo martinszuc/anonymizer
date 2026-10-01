@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from anonymizer.core.resources.catalog import Resource, ResourceFile
+from anonymizer.core.resources.catalog import Catalog, Resource, ResourceFile
 
 CHUNK_SIZE = 1 << 20
 TIMEOUT_SECONDS = 60
@@ -113,6 +113,52 @@ def fetch_resource(
         if item.unpack == "zip" and not _unpacked_directory(target).exists():
             _extract_zip(target, _unpacked_directory(target))
     return FetchResult(tuple(downloaded), tuple(present), pinned)
+
+
+def fetch_with_requirements(
+    catalog: Catalog,
+    resource_id: str,
+    root: Path,
+    *,
+    opener: Opener | None = None,
+    progress: Progress | None = None,
+) -> list[FetchResult]:
+    """Download a resource and everything it requires, each file verified.
+
+    Pinning a new file is a maintainer's step (`scripts/download.py fetch
+    --pin`), so a resource with any file lacking a recorded SHA-256 is refused
+    before anything is downloaded.
+
+    Args:
+        catalog: The catalog holding the resource.
+        resource_id: The resource to fetch.
+        root: Storage root; files go to `models/<id>/` or `data/<id>/` under it.
+        opener: Opens a URL; `urllib.request.urlopen` with a timeout by default.
+        progress: Receives progress while a file downloads.
+
+    Returns:
+        One result per resource, requirements first.
+
+    Raises:
+        KeyError: If the catalog has no such resource.
+        PinRequiredError: If a file has no recorded SHA-256. Nothing is
+            downloaded in that case.
+        ChecksumError: If a file differs from the catalog. The file is removed.
+        OSError: If a download or a write fails.
+    """
+    resources = catalog.with_requirements(resource_id)
+    unpinned = [
+        resource.id for resource in resources if any(item.sha256 is None for item in resource.files)
+    ]
+    if unpinned:
+        msg = (
+            f"{', '.join(unpinned)}: no SHA-256 recorded for every file; "
+            "pin it with the download script"
+        )
+        raise PinRequiredError(msg)
+    return [
+        fetch_resource(resource, root, opener=opener, progress=progress) for resource in resources
+    ]
 
 
 def verify_resource(resource: Resource, root: Path) -> dict[str, str]:

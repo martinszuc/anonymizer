@@ -49,6 +49,15 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   preview; a click selects it, Delete (or × in its sidebar row) removes it. It
   is saved in the session and removed with everything under it on export
   (text, the drawings it touches, image pixels).
+- **Models** (*Manage models…* on the home screen): a sheet listing what
+  each feature needs (names and addresses: GLiNER and its tokenizer; scanned
+  pages: OnnxTR's two models) with size, licence, languages, source and
+  whether the files are stored, and a *Download* per feature. Files come from
+  the catalog's official URLs, stream with a progress bar and are kept only
+  if their checksums match (`resources.fetch_with_requirements`); one download
+  runs at a time. When it finishes, the feature's switch turns on. A missing
+  Python package is shown with its `uv sync --group …` command: the window
+  never installs packages, as nothing but a model download may use the network.
 - **Scanned pages**: the home screen's *Scanned pages* switch (on when the
   OCR engine is ready, with the same three states as the model) reads pages
   without a usable text layer with OnnxTR on open. Such a page shows a quiet
@@ -104,6 +113,9 @@ frontend/src/components  Toolbar, Sidebar, PageView, EmptyState, Toasts, control
 
 ```
 DocumentInfo { name, language, pages: PageInfo[], entities: EntityInfo[], surfaces: SurfaceInfo[] }
+FeatureModels { feature, title, installed, install_command, missing_bytes,
+                models: { id, name, uses, licence, languages, source, version, size,
+                          state: present | partial | absent }[] }   # requirements first
 PageInfo     { index, width, height, has_text_layer, raster_dpi }  # points; raster_dpi null unless OCR read it
 EntityInfo   { id, type, source, score, review, page_index, surface_id,
                text, is_region, boxes: [x0, y0, x1, y1][] }        # points, top-left origin
@@ -119,6 +131,8 @@ Methods the page calls (all return promises in JS):
 | Method | Returns | Notes |
 |---|---|---|
 | `status()` | `AppStatus` | version, languages with their own rules, the states of the model and of OCR (`ocr: {engine, state, missing}`); loads neither |
+| `models()` | `FeatureModels[]` | each feature's models and whether they are stored; nothing is hashed |
+| `download_models(feature)` | `FeatureModels[]` | `names` or `ocr`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while another download runs or when a checksum fails |
 | `current_document()` | `DocumentInfo \| null` | on start: a PDF given on the command line |
 | `choose_pdf(options)` | `DocumentInfo \| null` | options `{language, propagate, use_model, use_ocr}`, checked in Python; null = cancelled |
 | `open_dropped(options)` | `DocumentInfo \| null` | opens the PDF Python kept from the last drop; null if none |
@@ -140,6 +154,7 @@ Python tells the page about what it did not ask for with DOM events on
 | Event | Detail | When |
 |---|---|---|
 | `anonymizer:progress` | `loading_ocr` / `reading` / `loading_model` / `detecting` | a step of opening a PDF (or a saved review) starts |
+| `anonymizer:download` | `{feature, received, total}` (bytes) | a download progresses, at most once per whole percent |
 | `anonymizer:dropped` | the file's name | a PDF was dropped; the page calls `open_dropped` |
 | `anonymizer:drop-refused` | the file's name | something other than a PDF was dropped |
 
@@ -304,7 +319,7 @@ display (the script in a Linux container), not your desktop.
 | `ingest.load_ocr_engine`, `ocr_engine_installed`, `missing_ocr_files` | OCR on open, loaded once per session; its state on the home screen without loading it |
 | `ingest.pages_needing_ocr`, `Page.raster_dpi` | the page warning and export consent for scans OCR did not read; the "read by OCR" note |
 | `session.session_ocr_engine` | reopening a review of scans with the engine that read them |
-| `resources.load_catalog`, `fetch_resource`, `resource_status` | **not wired**: the model setup page (M9) |
+| `resources.load_catalog`, `fetch_with_requirements`, `resource_status` | the Models sheet: listing, verified download, stored state |
 | CLI `inspect` (HTML report) | independent; same box geometry, useful to compare against |
 
 ## Backlog
@@ -327,9 +342,9 @@ In suggested order. Each item names where it plugs in.
    event tied to the `dirty` flag; today only opening another document asks.
 5. **Undo / redo** of decisions (Cmd/Ctrl+Z), kept in the frontend as a
    stack of `set_review` calls.
-6. **Model setup page (M9):** catalog entries with task, languages, size,
-   licence; download only on an explicit click, from the official source,
-   verified by SHA-256 (`fetch_resource`), progress shown.
+6. **Models sheet, next steps:** cancel a running download; verify stored
+   files on request (`verify_resource`, hashing takes seconds per GB); choose
+   between OCR engines once a second one is in the catalog.
 7. **OCR quality in review:** show OCR's confidence per word and flag
     low-confidence words (an `@` read as `(m` hides an email from the rules),
     and offer a second engine once RapidOCR or EasyOCR is in the catalog.

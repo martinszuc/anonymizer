@@ -106,6 +106,12 @@ STRUCTURE_ACTUAL_TEXT = f"write to {CONTACT_EMAIL}"
 ATTACHMENT_KEY = "Kratochvíl"
 ATTACHMENT_NAME = "Kratochvíl-doklad.pdf"
 ATTACHMENT_DESCRIPTION = "Doklad paní Kratochvílové"
+# Keyed by name-tree key; the files' labels and their content.
+TREE_ATTACHMENTS = {
+    "jnovak-cv": ("jnovak-cv.txt", "CV of Jan Novak"),
+    "jnovak-photo": ("jnovak-photo.txt", "Photo of Jan Novak"),
+}
+TREE_ATTACHMENT_CONTENT = b"Jan Novak, born 1 January 1985"
 # PyMuPDF creates its widget type constants at runtime.
 TEXT_FIELD = pymupdf.PDF_WIDGET_TYPE_TEXT  # pyright: ignore[reportAttributeAccessIssue]
 # Encloses ROTATED_WORD as inserted at (500, 800), in unrotated coordinates.
@@ -209,6 +215,36 @@ def write_attachments_pdf(path: Path) -> Path:
     document[0].add_file_annot(
         (400, 400), b"attached", ATTACHMENT_NAME, desc=ATTACHMENT_DESCRIPTION
     )
+    document.save(path)
+    document.close()
+    return path
+
+
+def write_attachment_tree_pdf(path: Path, *, split: bool) -> Path:
+    """Write a PDF with the two `TREE_ATTACHMENTS`, listed in one name-tree node or in two.
+
+    `split` puts each attachment in a leaf of its own under an indirect root
+    with `Kids` (PDF 32000-1, 7.9.6); otherwise both stay in the root's `Names`
+    array, the only shape PyMuPDF's attachment functions read.
+    """
+    document = pymupdf.open()
+    document.new_page()
+    catalog = document.pdf_catalog()
+    leaves = []
+    for key, (filename, description) in TREE_ATTACHMENTS.items():
+        document.embfile_add(key, TREE_ATTACHMENT_CONTENT, filename=filename, desc=description)
+        if split:
+            # Move the one pair embfile_add just listed into a leaf of its own.
+            pair = document.xref_get_key(catalog, "Names/EmbeddedFiles/Names")[1]
+            leaf = document.get_new_xref()
+            limits = pymupdf.get_pdf_str(key)
+            document.update_object(leaf, f"<< /Names {pair} /Limits [{limits} {limits}] >>")
+            document.xref_set_key(catalog, "Names/EmbeddedFiles/Names", "[]")
+            leaves.append(f"{leaf} 0 R")
+    if split:
+        root = document.get_new_xref()
+        document.update_object(root, f"<< /Kids [{' '.join(leaves)}] >>")
+        document.xref_set_key(catalog, "Names/EmbeddedFiles", f"{root} 0 R")
     document.save(path)
     document.close()
     return path

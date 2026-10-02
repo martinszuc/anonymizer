@@ -12,6 +12,9 @@ from anonymizer.core.types import DetectionSource, Document, Entity, EntityType,
 
 from tests.pdf_builders import (
     CONTACT_EMAIL,
+    TREE_ATTACHMENT_CONTENT,
+    TREE_ATTACHMENTS,
+    write_attachment_tree_pdf,
     write_attachments_pdf,
     write_pdf,
     write_surfaces_pdf,
@@ -19,6 +22,7 @@ from tests.pdf_builders import (
 
 PHONE = "+420 603 123 456"
 LINES = ["Jan Novak", f"e-mail {CONTACT_EMAIL}", f"tel. {PHONE}", "KEEP this line"]
+TREE_LABELS = [label for key, labels in TREE_ATTACHMENTS.items() for label in (key, *labels)]
 
 
 def detected(path: Path) -> Document:
@@ -33,6 +37,15 @@ def output_text(path: Path) -> str:
 
 def layers(leaks: list) -> set[LeakLayer]:
     return {leak.layer for leak in leaks}
+
+
+def streams(pdf: pymupdf.Document) -> list[bytes]:
+    xrefs = range(1, pdf.xref_length())
+    return [pdf.xref_stream(xref) or b"" for xref in xrefs if pdf.xref_is_stream(xref)]
+
+
+def objects(pdf: pymupdf.Document) -> str:
+    return "".join(pdf.xref_object(xref) for xref in range(1, pdf.xref_length()))
 
 
 @pytest.fixture(params=[0, 90], ids=["upright", "rotated"])
@@ -156,8 +169,7 @@ class TestSurfaces:
             assert extract_surfaces(pdf) == []
 
     def test_attachments_named_with_diacritics_are_removed(self, tmp_path: Path):
-        # Redaction deletes attachments by the names PyMuPDF reports, which
-        # garble diacritics; the garbled name must still find the attachment.
+        # PyMuPDF reports these names garbled; no name may keep an attachment.
         source = write_attachments_pdf(tmp_path / "attachments.pdf")
         output = tmp_path / "out.pdf"
         redact_pdf(source, load_document(source), output)
@@ -191,6 +203,29 @@ class TestSurfaces:
         before = surfaces_pdf.read_bytes()
         redact_pdf(surfaces_pdf, load_document(surfaces_pdf), surfaces_pdf.with_name("out.pdf"))
         assert surfaces_pdf.read_bytes() == before
+
+
+class TestAttachmentTree:
+    """Attachments are removed whether their name tree is one node or split over `Kids`."""
+
+    @pytest.fixture(params=[False, True], ids=["one-node", "split"])
+    def attachments_pdf(self, request: pytest.FixtureRequest, tmp_path: Path) -> Path:
+        return write_attachment_tree_pdf(tmp_path / "attachments.pdf", split=request.param)
+
+    def test_content_and_labels_are_removed(self, attachments_pdf: Path):
+        with pymupdf.open(attachments_pdf) as pdf:
+            assert sum(TREE_ATTACHMENT_CONTENT in stream for stream in streams(pdf)) == 2
+            assert all(label in objects(pdf) for label in TREE_LABELS)
+        output = attachments_pdf.with_name("out.pdf")
+        redact_pdf(attachments_pdf, load_document(attachments_pdf), output)
+        with pymupdf.open(output) as pdf:
+            assert not any(TREE_ATTACHMENT_CONTENT in stream for stream in streams(pdf))
+            assert not any(label in objects(pdf) for label in TREE_LABELS)
+            assert extract_surfaces(pdf) == []
+
+    def test_the_surface_layer_reports_attachments_left_in_the_file(self, attachments_pdf: Path):
+        leaks = find_leaks(attachments_pdf, load_document(attachments_pdf))
+        assert layers(leaks) == {LeakLayer.SURFACE}
 
 
 class TestLeakCheck:

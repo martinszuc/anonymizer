@@ -12,7 +12,7 @@ LINK           `<object number>/uri` or `<object number>/file`
 ANNOTATION     `<object number>/content`, `/title` (the author) or `/subject`
 FORM_FIELD     `<object number>/value` of the widget
 BOOKMARK       `<position in the outline>/title`, `/uri` or `/file`
-EMBEDDED_FILE  `<position in the attachment list>/<field>` for the document,
+EMBEDDED_FILE  `<position in the attachment tree>/<field>` for the document,
                `<object number>/<field>` for an attachment annotation on a page
 STRUCTURE      `<object number>/Alt`, `/ActualText`, `/T` or `/E` of a
                structure element
@@ -20,9 +20,13 @@ STRUCTURE      `<object number>/Alt`, `/ActualText`, `/T` or `/E` of a
 
 Attachment *contents* are never read, only their names and descriptions. An
 attached file can hold anything, so redaction has to drop attachments whatever
-this module or a detector finds in their labels. The labels are read from the
-file specification itself: PyMuPDF's `embfile_info` and `Annot.file_info`
-return a name with diacritics as UTF-8 bytes taken for Latin-1.
+this module or a detector finds in their labels.
+
+The labels are read from the file specifications themselves, found by walking
+the document's attachment name tree: PyMuPDF's `embfile_info` and
+`Annot.file_info` return a name with diacritics as UTF-8 bytes taken for
+Latin-1, and `embfile_count` reads only the tree's root node, so it reports no
+attachment in a tree a producer split over child nodes (`Kids`).
 """
 
 from __future__ import annotations
@@ -53,8 +57,8 @@ _STRUCTURE_TEXT_KEYS = ("Alt", "ActualText", "T", "E")
 # is created at runtime and invisible to the type checker.
 _FILE_ATTACHMENT_SUBTYPE = "FileAttachment"
 
-# The flat name/file specification array PyMuPDF numbers attachments by.
-_EMBEDDED_FILES_PATH = "Root/Names/EmbeddedFiles/Names"
+# Root of the name tree that lists the files attached to the document.
+_EMBEDDED_FILES_PATH = "Root/Names/EmbeddedFiles"
 
 
 def extract_surfaces(pdf: pymupdf.Document) -> list[Surface]:
@@ -170,22 +174,44 @@ def _bookmark_surfaces(pdf: pymupdf.Document) -> Iterator[Surface]:
 
 
 def _embedded_file_surfaces(pdf: pymupdf.Document) -> Iterator[Surface]:
-    """Yield the labels of files attached to the document as a whole.
-
-    Positions follow PyMuPDF's attachment list, which redaction empties.
-    """
+    """Yield the labels of files attached to the document as a whole."""
     trailer = mupdf.pdf_trailer(mupdf.pdf_document_from_fz_document(pdf.this))
-    names = mupdf.pdf_dict_getp(trailer, _EMBEDDED_FILES_PATH)
-    for position, key_index in enumerate(range(0, mupdf.pdf_array_len(names), 2)):
-        file_spec = mupdf.pdf_array_get(names, key_index + 1)
+    tree = mupdf.pdf_dict_getp(trailer, _EMBEDDED_FILES_PATH)
+    for position, (key, file_spec) in enumerate(_name_tree_entries(tree)):
         yield from _text_surfaces(
             SurfaceKind.EMBEDDED_FILE,
             {
-                f"{position}/name": _pdf_text(mupdf.pdf_array_get(names, key_index)),
+                f"{position}/name": _pdf_text(key),
                 f"{position}/filename": _file_spec_text(file_spec, "F"),
                 f"{position}/ufilename": _file_spec_text(file_spec, "UF"),
                 f"{position}/description": _file_spec_text(file_spec, "Desc"),
             },
+        )
+
+
+def _name_tree_entries(root: mupdf.PdfObj) -> Iterator[tuple[mupdf.PdfObj, mupdf.PdfObj]]:
+    """Yield a name tree's key and value pairs in tree order.
+
+    A node lists pairs in `Names` and child nodes in `Kids` (PDF 32000-1,
+    7.9.6). A node reached a second time is skipped, so a malformed tree that
+    refers back to itself cannot loop; the walk keeps its own stack, so a deep
+    tree cannot exhaust Python's recursion limit.
+    """
+    visited: set[int] = set()
+    pending = [root]
+    while pending:
+        node = pending.pop()
+        if mupdf.pdf_is_indirect(node):
+            number = mupdf.pdf_to_num(node)
+            if number in visited:
+                continue
+            visited.add(number)
+        names = mupdf.pdf_dict_gets(node, "Names")
+        for index in range(0, mupdf.pdf_array_len(names) - 1, 2):
+            yield mupdf.pdf_array_get(names, index), mupdf.pdf_array_get(names, index + 1)
+        kids = mupdf.pdf_dict_gets(node, "Kids")
+        pending.extend(
+            mupdf.pdf_array_get(kids, index) for index in reversed(range(mupdf.pdf_array_len(kids)))
         )
 
 

@@ -53,8 +53,10 @@ from anonymizer.core.resources import (
     Opener,
     PinRequiredError,
     ResourceFile,
+    choose_resource_root,
     fetch_with_requirements,
     load_catalog,
+    resolve_resource_root,
     resource_status,
 )
 from anonymizer.core.session import apply_session, save_session, session_ocr_engine
@@ -82,8 +84,10 @@ LANGUAGES = {"cs": "Czech", "sk": "Slovak", "en": "English"}
 OCR_ENGINE = "onnxtr"
 """The OCR engine the window offers (see `ingest.OCR_ENGINES`)."""
 
-Progress = Callable[[str], None]
-"""Told each step of opening a PDF: `loading_ocr`, `reading`, `loading_model`, `detecting`."""
+Progress = Callable[[str, int, int], None]
+"""Told each step of opening a PDF as it starts and, page by page, as it goes: the
+step (`loading_ocr`, `reading`, `ocr`, `loading_model`, `detecting`), then the pages
+done and the pages in all (both 0 for a step without pages)."""
 
 
 Downloaded = Callable[[str, int, int], None]
@@ -143,13 +147,16 @@ class ReviewApi:
 
         Args:
             resource_root: Directory holding `models/`, as for the CLI's
-                `--resource-root`; the working directory when omitted.
+                `--resource-root`; `resources.resolve_resource_root` picks it
+                when omitted.
             catalog: The resource catalog; the one shipped with the core when
                 omitted.
             opener: Opens a download URL; the default opens the network.
         """
         self._open: _OpenDocument | None = None
-        self._resource_root = resource_root or Path()
+        self._resource_root = (
+            resource_root if resource_root is not None else resolve_resource_root()
+        )
         self._catalog = catalog or load_catalog()
         self._opener = opener
         # Catalog ids being downloaded: two downloads of one model would write
@@ -167,16 +174,17 @@ class ReviewApi:
         once.
 
         Returns:
-            The version, the languages with their own rules, and the states of
-            the name model and of the OCR engine: `ready`, `not_installed`
-            (the optional dependencies are missing) or `files_missing` (with
-            the catalog ids to fetch).
+            The version, the languages with their own rules, the folder models
+            are stored in, and the states of the name model and of the OCR
+            engine: `ready`, `not_installed` (the optional dependencies are
+            missing) or `files_missing` (with the catalog ids to fetch).
         """
         model_missing = missing_gliner_files(self._resource_root)
         ocr_missing = missing_ocr_files(OCR_ENGINE, self._resource_root)
         return {
             "version": __version__,
             "languages": [{"code": code, "name": name} for code, name in LANGUAGES.items()],
+            "models_folder": str(self._resource_root / "models"),
             "model": {
                 "state": _state(gliner_installed(), model_missing),
                 "missing": model_missing,
@@ -239,6 +247,34 @@ class ReviewApi:
             with self._downloads_lock:
                 self._downloading -= ids
         return self.models()
+
+    def choose_models_folder(self, path: str) -> dict[str, Any]:
+        """Store models under another folder, in this run and every later one.
+
+        Models already stored elsewhere are not moved, and models loaded from
+        the old folder are dropped, so the next document opens with the
+        models of the new one.
+
+        Args:
+            path: The folder to hold `models/`, chosen in a dialog.
+
+        Returns:
+            The installation as `status()` describes it, for the new folder.
+
+        Raises:
+            ReviewError: If a download is running, or the choice cannot be saved.
+        """
+        with self._downloads_lock:
+            if self._downloading:
+                msg = "wait for the download to finish before changing the folder"
+                raise ReviewError(msg)
+            root = Path(path).resolve()
+            with _as_review_error():
+                choose_resource_root(root)
+            self._resource_root = root
+            self._model = None
+            self._ocr.clear()
+        return self.status()
 
     def _download(self, feature: str, progress: Downloaded) -> None:
         resource_id = FEATURES[feature].resource_id
@@ -327,15 +363,24 @@ class ReviewApi:
             "open pdf:%s",
             fields(language=language, propagate=propagate, model=use_model, ocr=use_ocr),
         )
-        report = progress or (lambda _step: None)
+        report = progress or (lambda _step, _done, _total: None)
         ocr = self._loaded_ocr(OCR_ENGINE, report) if use_ocr else None
-        report("reading")
+        report("reading", 0, 0)
         with _as_review_error():
             pdf_bytes = read_pdf(path)
-            document = document_from_bytes(pdf_bytes, language=language, ocr=ocr)
+            document = document_from_bytes(
+                pdf_bytes,
+                language=language,
+                ocr=ocr,
+                ocr_progress=lambda done, total: report("ocr", done, total),
+            )
         model = self._loaded_model(report) if use_model else None
-        report("detecting")
-        run_detection(document, build_detector(language, model=model), propagate=propagate)
+        run_detection(
+            document,
+            build_detector(language, model=model),
+            propagate=propagate,
+            progress=lambda done, total: report("detecting", done, total),
+        )
         self._open = _OpenDocument(Path(path), document, pdf_bytes)
         return self.document()
 
@@ -344,7 +389,7 @@ class ReviewApi:
         if self._model is not None:
             log.debug("name model already loaded")
         else:
-            report("loading_model")
+            report("loading_model", 0, 0)
             try:
                 self._model = load_gliner_detector(self._resource_root)
             except (ImportError, FileNotFoundError) as error:
@@ -358,7 +403,7 @@ class ReviewApi:
         if name in self._ocr:
             log.debug("OCR engine %s already loaded", name)
         else:
-            report("loading_ocr")
+            report("loading_ocr", 0, 0)
             try:
                 self._ocr[name] = load_ocr_engine(name, self._resource_root)
             except (ImportError, FileNotFoundError, ValueError) as error:
@@ -389,14 +434,17 @@ class ReviewApi:
                 matches it, either file cannot be read, or the review's OCR
                 engine cannot be loaded.
         """
-        report = progress or (lambda _step: None)
+        report = progress or (lambda _step, _done, _total: None)
         with _as_review_error():
             engine = session_ocr_engine(session_path)
         ocr = self._loaded_ocr(engine, report) if engine is not None else None
-        report("reading")
+        report("reading", 0, 0)
         with _as_review_error():
             pdf_bytes = read_pdf(pdf_path)
-            document = apply_session(document_from_bytes(pdf_bytes, ocr=ocr), session_path)
+            scanned = document_from_bytes(
+                pdf_bytes, ocr=ocr, ocr_progress=lambda done, total: report("ocr", done, total)
+            )
+            document = apply_session(scanned, session_path)
         self._open = _OpenDocument(Path(pdf_path), document, pdf_bytes)
         return self.document()
 

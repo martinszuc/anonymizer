@@ -15,6 +15,7 @@ from anonymizer.core.ingest import (
     OCR_BOX_MARGIN,
     OcrWord,
     PageImage,
+    document_from_bytes,
     load_document,
     pages_needing_ocr,
 )
@@ -183,6 +184,18 @@ def test_only_pages_without_a_text_layer_are_read(tmp_path: Path):
     assert len(engine.images) == 1
     assert (first.has_text_layer, first.raster_dpi, first.text) == (True, None, "Strana jedna")
     assert "Telefon" in second.text
+
+
+def test_ocr_tells_its_progress_per_scanned_page(tmp_path: Path):
+    mixed = pymupdf.open(write_pdf(tmp_path / "text.pdf", [["Strana jedna"]]))
+    with pymupdf.open(write_scanned_pdf(tmp_path / "scan.pdf", [LINES, LINES])) as scanned:
+        mixed.insert_pdf(scanned)
+    told: list[tuple[int, int]] = []
+    engine = ScriptedEngine.reading(original(tmp_path))
+    document_from_bytes(mixed.tobytes(), ocr=engine, ocr_progress=lambda *step: told.append(step))
+    mixed.close()
+    # The text page is not OCR's: two scans, told before the first and after each.
+    assert told == [(0, 2), (1, 2), (2, 2)]
 
 
 class TestEngineOutput:

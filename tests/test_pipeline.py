@@ -48,6 +48,12 @@ class FirstOccurrence:
 
 
 class TestRunDetection:
+    def test_tells_its_progress_per_page(self, tmp_path: Path):
+        document = load_document(write_pdf(tmp_path / "three.pdf", [["a"], ["b"], ["c"]]))
+        told: list[tuple[int, int]] = []
+        run_detection(document, build_detector("cs"), progress=lambda *step: told.append(step))
+        assert told == [(0, 3), (1, 3), (2, 3), (3, 3)]
+
     @pytest.fixture
     def named(self, tmp_path: Path) -> Document:
         return load_document(

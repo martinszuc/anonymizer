@@ -49,7 +49,8 @@ brown, dates mint, other grey. Only a hue: text on a type colour is never used.
 ## Components
 
 **Toolbar** (52 px). Document name and language; page position; zoom group (−, fit,
-+); a back chevron at the far left closes the document; region tool (R, pressed = accent fill; holding Alt draws without it); preview
++); a back chevron at the far left closes the document; region tool (R, pressed = accent fill; holding Alt draws without it); locate
+toggle (L, crosshair icon, pressed = a click on a box only selects it); preview
 toggle (eye); open; *Save Review* (secondary);
 primary *Export…* (Cmd/Ctrl+E), the final step. Controls are 28 px high.
 
@@ -73,13 +74,16 @@ its click redacts every member. Open, the occurrences follow indented by
 occurrence on the page; → and ← open and close it from the keyboard.
 
 **Models sheet.** A wide sheet (560 px) from *Manage models…* on the home
-screen: one section per feature (`--fill` card), its state on the right
+screen. Under the intro, a folder row (`--fill`, folder icon, the models folder
+in `--font-mono` footnote cut off with an ellipsis, full path on hover,
+*Change…* on the right, disabled while a download runs). Then one section per
+feature (`--fill` card), its state on the right
 (*Ready* in `--keep`, otherwise `--label-2`), each model as a name over a
 footnote line (size · licence · languages · source host). A missing Python
 package shows a `--warning` line with the install command in `--font-mono`.
 *Download <size>* is the primary button; while it runs, a progress bar
 (6 px track in `--fill-active`, fill in `--accent`, pill radius) with
-"received of total, then checked" replaces it. Other downloads are disabled.
+"received of total, then checked" replaces it. Features download side by side.
 
 **Page notices.** Above a page: a warning (`--warning` at 16 %, triangle icon)
 for a scan OCR did not read, since nothing on it was detected; a quiet note
@@ -122,10 +126,15 @@ control, setting switches); *Continue a saved review…* as a plain button; a
 footer "Everything stays on this computer · version". The model's row says why
 its switch is disabled and what to run.
 
-**Opening.** A step list in an `--elevated` card: done (check, `--keep`),
-current (spinning loader, `--accent`, label in `--label`), pending (circle,
-`--label-3`). Shown from Python's first progress event until the document
-opens; a model step appears only when the model is used.
+**Opening.** An `--elevated` card (360 px): a status line (what is running
+now, weight 500; "3 of 12 pages" in `--label-2` on the right when the step
+counts pages), a 6 px bar (`--accent` on `--fill-active`, the same as a
+download's; while a model loads, a segment sweeps across instead, or a still
+dimmed bar under reduced motion), then the step list under a hairline: done
+(check, `--keep`), current (spinning loader, `--accent`, label in `--label`),
+pending (circle, `--label-3`). Shown from Python's first progress event until
+the document opens; a model step appears only when the model is used, and OCR
+runs inside *Reading the pages*.
 
 **Drop overlay.** Over an open document while a file is dragged: dashed
 `--accent` border on `--accent-fill` below the toolbar, a pill "Drop to open

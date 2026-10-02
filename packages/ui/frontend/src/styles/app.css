@@ -1056,15 +1056,37 @@ kbd {
   text-align: center;
 }
 
+.opening-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: min(360px, 100%);
+  padding: var(--space-5) var(--space-6);
+  border-radius: var(--radius-card);
+  background: var(--elevated);
+  box-shadow: var(--shadow-control);
+}
+
+.opening-status {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-weight: 500;
+}
+
+.opening-count {
+  color: var(--label-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .opening-steps {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   margin: 0;
-  padding: var(--space-5) var(--space-6);
-  border-radius: var(--radius-card);
-  background: var(--elevated);
-  box-shadow: var(--shadow-control);
+  padding: var(--space-4) 0 0;
+  border-top: var(--hairline) solid var(--separator);
   list-style: none;
 }
 
@@ -1383,6 +1405,31 @@ kbd {
   color: var(--label-2);
 }
 
+/* Where models are stored, with the button that changes it. */
+.model-folder {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-row);
+  background: var(--fill);
+  color: var(--label-2);
+  font-size: var(--text-footnote);
+}
+
+.model-folder svg {
+  flex: none;
+}
+
+.model-folder-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .model-install {
   display: flex;
   align-items: flex-start;
@@ -1411,16 +1458,41 @@ kbd {
   width: 100%;
 }
 
-.model-progress-track {
+.model-progress-track,
+.progress-track {
   height: 6px;
   border-radius: var(--radius-pill);
   background: var(--fill-active);
   overflow: hidden;
 }
 
-.model-progress-fill {
+.model-progress-fill,
+.progress-fill {
   height: 100%;
   border-radius: var(--radius-pill);
   background: var(--accent);
   transition: width var(--duration) var(--ease-out);
+}
+
+/* A step that cannot count (a model loading): a segment sweeping across. */
+.progress-track[data-indeterminate="true"] .progress-fill {
+  width: 30%;
+  animation: sweep 1.2s var(--ease-out) infinite;
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-track[data-indeterminate="true"] .progress-fill {
+    width: 100%;
+    opacity: 0.4;
+    animation: none;
+  }
 }

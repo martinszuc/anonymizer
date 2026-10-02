@@ -28,7 +28,7 @@ import type {
   DownloadProgress,
   EntityInfo,
   OpenOptions,
-  OpenStep,
+  OpenProgress,
   SurfaceInfo,
 } from "./types";
 
@@ -48,7 +48,7 @@ export function App() {
     use_ocr: false,
   });
   // Set by Python's progress events once a file is chosen; null otherwise.
-  const [opening, setOpening] = useState<{ name: string | null; step: OpenStep } | null>(null);
+  const [opening, setOpening] = useState<{ name: string | null; progress: OpenProgress } | null>(null);
   const openingName = useRef<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [document, setDocument] = useState<DocumentInfo | null>(null);
@@ -69,6 +69,8 @@ export function App() {
   // The region tool, or Alt held down: a drag on a page draws a region.
   const [drawTool, setDrawTool] = useState(false);
   const [altHeld, setAltHeld] = useState(false);
+  // A click on a box only finds it in the list; off by default, so a click decides.
+  const [locating, setLocating] = useState(false);
   // Regions drawn since this document opened, oldest first: Cmd/Ctrl+Z removes the last.
   const drawnRegions = useRef<string[]>([]);
   // The Models sheet: its features (null while loading) and the running downloads, by feature.
@@ -164,6 +166,24 @@ export function App() {
     }
   }
 
+  /** Store models in another folder; a feature whose models are not there turns off. */
+  async function chooseModelsFolder() {
+    if (!bridge) return;
+    try {
+      const installed = await bridge.choose_models_folder();
+      if (!installed) return;
+      setStatus(installed);
+      setOptions((current) => ({
+        ...current,
+        use_model: current.use_model && installed.model.state === "ready",
+        use_ocr: current.use_ocr && installed.ocr.state === "ready",
+      }));
+      setModels(await bridge.models());
+    } catch (error) {
+      reportError(errorMessage(error));
+    }
+  }
+
   const openPdf = () => open((api) => api.choose_pdf(options));
   const openReview = () => open((api) => api.choose_session());
   const openDropped = (name: string) => open((api) => api.open_dropped(options), name);
@@ -189,8 +209,8 @@ export function App() {
 
   useEffect(() => {
     const onProgress = (event: Event) => {
-      const step = (event as CustomEvent<OpenStep>).detail;
-      setOpening({ name: openingName.current, step });
+      const progress = (event as CustomEvent<OpenProgress>).detail;
+      setOpening({ name: openingName.current, progress });
     };
     const onDropped = (event: Event) => {
       setDragging(false);
@@ -423,11 +443,12 @@ export function App() {
     if (region) void removeEntity(region);
   }
 
-  /** Keys without a modifier: R for the region tool, Escape, Delete on a selected region. */
+  /** Keys without a modifier: R for the region tool, L for locating, Escape, Delete on a selected region. */
   function onPlainKey(event: KeyboardEvent) {
     if (!document || event.altKey || event.ctrlKey || event.metaKey) return;
     const selected = document.entities.find((entity) => entity.id === selectedId);
     if (event.key === "r" || event.key === "R") setDrawTool((value) => !value);
+    else if (event.key === "l" || event.key === "L") setLocating((value) => !value);
     else if (event.key === "Escape" && drawTool) setDrawTool(false);
     else if (event.key === "Escape") setSelectedId(null);
     else if ((event.key === "Delete" || event.key === "Backspace") && selected?.is_region) {
@@ -442,7 +463,7 @@ export function App() {
         {opening ? (
           <Opening
             name={opening.name}
-            step={opening.step}
+            progress={opening.progress}
             usesModel={options.use_model}
             usesOcr={options.use_ocr}
           />
@@ -459,6 +480,7 @@ export function App() {
               previewing={previewing}
               exporting={exporting}
               drawing={drawTool}
+              locating={locating}
               onOpen={openPdf}
               onZoom={zoomBy}
               onFit={() => setZoom("fit")}
@@ -466,6 +488,7 @@ export function App() {
               onPreview={() => setPreviewing((value) => !value)}
               onExport={startExport}
               onDrawTool={() => setDrawTool((value) => !value)}
+              onLocate={() => setLocating((value) => !value)}
               onClose={() => void closeDocument()}
             />
             <div className="workspace">
@@ -491,6 +514,7 @@ export function App() {
                 showHidden={tab === "hidden"}
                 previewing={previewing}
                 drawing={drawTool || altHeld}
+                locating={locating}
                 onSelect={(entity) => setSelectedId(entity.id)}
                 onDrawRegion={(pageIndex, box) => void addRegion(pageIndex, box)}
                 onToggle={toggle}
@@ -528,6 +552,8 @@ export function App() {
           open={modelsOpen}
           features={models}
           downloads={downloads}
+          folder={status?.models_folder ?? null}
+          onChangeFolder={() => void chooseModelsFolder()}
           onDownload={(feature) => void downloadModels(feature)}
           onClose={() => setModelsOpen(false)}
         />

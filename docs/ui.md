@@ -21,9 +21,10 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   is on by default when it is ready.
 - Open a PDF from the dialog, by **dropping it on the window** (on the home
   screen or over an open document), or `anonymize-ui file.pdf --lang cs
-  [--ner]`. An **Opening screen** shows each step as Python starts it
-  (reading, loading the model once per session, detecting); the model's
-  first load takes about ten seconds.
+  [--ner]`. An **Opening screen** shows what is running now above a progress
+  bar, page by page for OCR and detection ("3 of 12 pages"), and a sweeping
+  bar while a model loads (the names model's first load takes about ten
+  seconds; models stay loaded for the session), with the steps below.
 - **Close the document** (the back chevron in the toolbar) returns home,
   asking first if decisions are unsaved.
 - Reopen a saved review: pick the session file, then the original PDF (a
@@ -32,6 +33,8 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   (default) keeps the covered text readable; **preview mode** (eye button,
   Cmd/Ctrl+Y) draws the output's opaque black boxes.
 - Click a box or a row switch to toggle redact / keep; hover shows a popover.
+  The locate toggle in the toolbar (L) makes a click on a box only select it and
+  find its row in the list, so the row's switch is the one way to decide.
 - Sidebar: counts, findings grouped by type, a dot on items not yet reviewed,
   arrow keys and Space. Identical findings of a type (case and spacing ignored)
   are one row with a count and one switch for all of them (`set_reviews`);
@@ -63,7 +66,11 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   the catalog's official URLs, stream with a progress bar and are kept only
   if their checksums match (`resources.fetch_with_requirements`); both features
   can download at once, since they share no model. When one finishes, its
-  feature's switch turns on. A missing
+  feature's switch turns on. The sheet shows the folder models are stored in;
+  *Change…* picks another in a folder dialog, kept in a settings file for later
+  runs (`resources.location`, which the CLI and the benchmark follow too); files
+  already there are not moved, models loaded from the old folder are dropped, and
+  a feature whose models the new folder lacks turns off. A missing
   Python package is shown with its `uv sync --group …` command: the window
   never installs packages, as nothing but a model download may use the network.
 - **Scanned pages**: the home screen's *Scanned pages* switch (on when the
@@ -139,7 +146,8 @@ Methods the page calls (all return promises in JS):
 
 | Method | Returns | Notes |
 |---|---|---|
-| `status()` | `AppStatus` | version, languages with their own rules, the states of the model and of OCR (`ocr: {engine, state, missing}`); loads neither |
+| `status()` | `AppStatus` | version, languages with their own rules, `models_folder`, the states of the model and of OCR (`ocr: {engine, state, missing}`); loads neither |
+| `choose_models_folder()` | `AppStatus \| null` | folder dialog; stores models there from now on (settings file); null = cancelled; rejects while a download runs |
 | `models()` | `FeatureModels[]` | each feature's models and whether they are stored; nothing is hashed |
 | `download_models(feature)` | `FeatureModels[]` | `names` or `ocr`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while one of its models is already downloading or when a checksum fails |
 | `current_document()` | `DocumentInfo \| null` | on start: a PDF given on the command line |
@@ -163,7 +171,7 @@ Python tells the page about what it did not ask for with DOM events on
 
 | Event | Detail | When |
 |---|---|---|
-| `anonymizer:progress` | `loading_ocr` / `reading` / `loading_model` / `detecting` | a step of opening a PDF (or a saved review) starts |
+| `anonymizer:progress` | `{step, done, total}`: step `loading_ocr` / `reading` / `ocr` / `loading_model` / `detecting`; pages done and in all, both 0 for a step without pages | a step of opening a PDF (or a saved review) starts, and after each page OCR reads or detection scans |
 | `anonymizer:download` | `{feature, received, total}` (bytes) | a download progresses, at most once per whole percent |
 | `anonymizer:dropped` | the file's name | a PDF was dropped; the page calls `open_dropped` |
 | `anonymizer:drop-refused` | the file's name | something other than a PDF was dropped |
@@ -185,6 +193,8 @@ page's own drag listeners only draw the highlight.
   `data:` URLs); the window runs with `private_mode=True`; a session file is
   written only on the reviewer's Save. Do not add "recent files" or caches
   that persist paths or content: a file name can itself be personal data.
+  The one file the window keeps between runs is the settings file, holding
+  the models folder the reviewer chose and nothing about any document.
 - **Logs hold no file names, paths or exception messages**, and document text
   only at DEBUG (`docs/logging.md`). A new `ReviewApi` method logs counts and
   ids; a new `WindowApi` method gets `@_logged`.
@@ -397,36 +407,35 @@ the repository, a test, a fixture or a commit message.
 ### Loading a document
 
 1. **Done.** ~~Remove the once-per-session hint strings~~ shown while a PDF loads.
-2. **Progress bar for detection.** Detection currently shows no progress.
-   **Explain:** is detection and OCR run page by page? If so, "page N of M" is the
-   natural unit; say which stages (OCR, rules, names) report progress and which cannot.
-3. **Status line above the progress bar** saying what is happening right now (reading
-   the text layer, running OCR, loading a model, finding names), including while models
-   load.
+2. **Done.** ~~Progress bar for detection.~~ OCR and detection run page by page and
+   report "N of M pages" (`PageProgress` in the core); loading a model is one call and
+   shows an indeterminate bar.
+3. **Done.** ~~Status line above the progress bar.~~
 
 ### Models and storage
 
 4. **Done.** ~~Download several models at once.~~ Features that share no model download
    side by side; a second download of the same models is refused.
-5. **Choose where models are stored** in the packaged app, and have the app load them
-   from that place afterwards (today they live under `models/` of the resource root).
-   Applies once packaging (*Backlog* item 10) exists.
+5. **Done.** ~~Choose where models are stored.~~ *Manage models… → Change…*; the
+   choice is kept in a settings file. Without one, models live in `./models` when the
+   working directory has it, else in a per-user folder; the CLI and the benchmark
+   resolve the same way (`resources.resolve_resource_root`).
 
 ### Formats
 
-6. **Support document types beyond PDF** (images, Office and text formats). **Decide**
-   which formats, and whether each is converted to a PDF first or ingested natively;
-   every path needs the same leak-check guarantee and the same hidden-data cover
-   (metadata, attachments) that PDFs get.
+6. **Support document types beyond PDF** (images, Office and text formats). **Decided
+   (2026-10-02): PDF only for now**; other formats are left for a later semester. When
+   taken up: images are the cheapest (wrapped in a PDF, they take the OCR path and its
+   leak check), Office files the most expensive (a converter or a native reader with its
+   own hidden-data cover: comments, tracked changes, metadata).
 
 ### Review window behaviour
 
 7. **Done.** ~~The detail popup does not update live.~~ It reads the entity by id on every
    render.
-8. **Clicking a box both selects and toggles it.** Clicking a highlight finds the item in
-   the left list (wanted) but also flips it to kept straight away. **Decide:** make the
-   click only locate the item, with an explicit control for changing the decision, or
-   keep the current behaviour.
+8. **Done.** ~~Clicking a box both selects and toggles it.~~ Decided: a click still
+   toggles by default; the toolbar's locate toggle (L) makes it only select and find
+   the item.
 9. **Done** for regions: Cmd/Ctrl+Z removes the last region drawn since the document
    opened. Undo of decisions stays in *Backlog*.
 10. **Done.** ~~Number the drawn regions.~~ Numbered in drawing order on the page and in

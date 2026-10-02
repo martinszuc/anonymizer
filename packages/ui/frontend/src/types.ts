@@ -73,6 +73,8 @@ export type ModelState = "ready" | "not_installed" | "files_missing";
 export interface AppStatus {
   version: string;
   languages: { code: string; name: string }[];
+  /** Where models are stored and looked for; the reviewer can choose another folder. */
+  models_folder: string;
   model: { state: ModelState; missing: string[] };
   ocr: { engine: string; state: ModelState; missing: string[] };
 }
@@ -127,4 +129,12 @@ export interface DownloadProgress {
 }
 
 /** A step of opening a PDF, told by Python as it starts. */
-export type OpenStep = "loading_ocr" | "reading" | "loading_model" | "detecting";
+export type OpenStep = "loading_ocr" | "reading" | "ocr" | "loading_model" | "detecting";
+
+/** How far opening a PDF is, told by Python as it goes. */
+export interface OpenProgress {
+  step: OpenStep;
+  /** Pages done so far, of `total`; both 0 for a step that has no pages (loading a model). */
+  done: number;
+  total: number;
+}

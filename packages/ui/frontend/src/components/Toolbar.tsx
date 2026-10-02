@@ -5,6 +5,7 @@ import {
   FileOutput,
   FileText,
   FolderOpen,
+  LocateFixed,
   Maximize2,
   Minus,
   Plus,
@@ -25,6 +26,8 @@ interface ToolbarProps {
   previewing: boolean;
   exporting: boolean;
   drawing: boolean;
+  /** A click on a box only finds it in the list instead of also changing its decision. */
+  locating: boolean;
   onOpen: () => void;
   onZoom: (direction: 1 | -1) => void;
   onFit: () => void;
@@ -32,6 +35,7 @@ interface ToolbarProps {
   onPreview: () => void;
   onExport: () => void;
   onDrawTool: () => void;
+  onLocate: () => void;
   onClose: () => void;
 }
 
@@ -94,6 +98,19 @@ export function Toolbar(props: ToolbarProps) {
           aria-label="Draw a region"
           title={`Draw a region over a photo, signature or stamp (R, or hold ${isMac ? "⌥" : "Alt"} and drag)`}
           onClick={props.onDrawTool}
+        />
+        <Button
+          variant="plain"
+          className="toggle"
+          aria-pressed={props.locating}
+          icon={<LocateFixed size={16} />}
+          aria-label="Clicking a box only finds it"
+          title={
+            props.locating
+              ? "Clicking a box only finds it in the list; its switch there changes it (L)"
+              : "Clicking a box keeps or redacts it; turn on to only find it in the list (L)"
+          }
+          onClick={props.onLocate}
         />
         <Button
           variant="plain"

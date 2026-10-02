@@ -21,7 +21,7 @@ from anonymizer.core.detect import (
     propagate_occurrences,
 )
 from anonymizer.core.log import counts, short_fingerprint, step
-from anonymizer.core.types import Document
+from anonymizer.core.types import Document, PageProgress
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +42,13 @@ def build_detector(language: str | None, *, model: Detector | None = None) -> De
     return detector
 
 
-def run_detection(document: Document, detector: Detector, *, propagate: bool = True) -> None:
+def run_detection(
+    document: Document,
+    detector: Detector,
+    *,
+    propagate: bool = True,
+    progress: PageProgress | None = None,
+) -> None:
     """Replace a document's entities with what a detector finds in its pages and surfaces.
 
     Person spans are widened over the academic titles beside them last, so a
@@ -52,6 +58,7 @@ def run_detection(document: Document, detector: Detector, *, propagate: bool = T
         document: Document to scan, in place.
         detector: Detector to run (see `build_detector`).
         propagate: Also mark every further occurrence of the texts found.
+        progress: Told how many pages are scanned (see `PageProgress`).
     """
     with step(
         log,
@@ -63,7 +70,7 @@ def run_detection(document: Document, detector: Detector, *, propagate: bool = T
         pages=len(document.pages),
         hidden_items=len(document.surfaces),
     ) as outcome:
-        document.entities = detect_document(detector, document)
+        document.entities = detect_document(detector, document, progress)
         outcome["found"] = len(document.entities)
         if propagate:
             propagated = propagate_occurrences(document)

@@ -1,4 +1,4 @@
-import { Download, PackageX } from "lucide-react";
+import { Download, FolderCog, PackageX } from "lucide-react";
 
 import { formatBytes } from "../review";
 import type { DownloadProgress, FeatureModels } from "../types";
@@ -11,6 +11,9 @@ interface ModelsSheetProps {
   features: FeatureModels[] | null;
   /** Running downloads by feature; features sharing no model download side by side. */
   downloads: Record<string, DownloadProgress>;
+  /** Where models are stored; null until the status is known. */
+  folder: string | null;
+  onChangeFolder: () => void;
   onDownload: (feature: string) => void;
   onClose: () => void;
 }
@@ -20,7 +23,16 @@ interface ModelsSheetProps {
  * a download per feature. Files come from each model's official source and are
  * checked against the catalog's checksum before they are kept.
  */
-export function ModelsSheet({ open, features, downloads, onDownload, onClose }: ModelsSheetProps) {
+export function ModelsSheet({
+  open,
+  features,
+  downloads,
+  folder,
+  onChangeFolder,
+  onDownload,
+  onClose,
+}: ModelsSheetProps) {
+  const downloading = Object.keys(downloads).length > 0;
   return (
     <Sheet
       open={open}
@@ -38,6 +50,25 @@ export function ModelsSheet({ open, features, downloads, onDownload, onClose }: 
         Downloaded only when you ask, from each model&apos;s official source, and checked against a
         stored checksum. After that everything runs on this computer.
       </p>
+      {folder && (
+        <div className="model-folder">
+          <FolderCog size={14} aria-hidden />
+          <span className="model-folder-path" title={folder}>
+            {folder}
+          </span>
+          <Button
+            disabled={downloading}
+            title={
+              downloading
+                ? "Wait for the download to finish"
+                : "Store models in another folder from now on; files already downloaded are not moved"
+            }
+            onClick={onChangeFolder}
+          >
+            Change…
+          </Button>
+        </div>
+      )}
       {features === null ? (
         <p>Checking…</p>
       ) : (

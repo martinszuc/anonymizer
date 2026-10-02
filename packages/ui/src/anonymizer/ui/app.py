@@ -23,6 +23,7 @@ from typing import Any
 
 import webview
 from anonymizer.core.log import LEVEL_NAMES, configure_logging, resolve_level, step
+from anonymizer.core.resources import resolve_resource_root
 from anonymizer.ui import __version__
 from anonymizer.ui.api import LANGUAGES, ReviewApi, ReviewError
 from webview.dom import DOMEventHandler
@@ -109,6 +110,17 @@ class WindowApi:
         """
         self._told_percent[feature] = -1
         return self._review.download_models(feature, self._download_progress)
+
+    @_logged
+    def choose_models_folder(self) -> dict[str, Any] | None:
+        """Ask for a folder to store models in from now on; None if the reviewer cancelled.
+
+        Returns the installation as `status()` describes it, for the new folder.
+        """
+        path = self._ask(webview.FileDialog.FOLDER, ())
+        if path is None:
+            return None
+        return self._review.choose_models_folder(path)
 
     @_logged
     def current_document(self) -> dict[str, Any] | None:
@@ -219,9 +231,9 @@ class WindowApi:
         )
         return self._titled(payload)
 
-    def _progress(self, step: str) -> None:
-        """Tell the page which step of opening a PDF has started."""
-        self._notify("progress", step)
+    def _progress(self, step: str, done: int, total: int) -> None:
+        """Tell the page which step of opening a PDF is running, and on which page."""
+        self._notify("progress", {"step": step, "done": done, "total": total})
 
     def _download_progress(self, feature: str, received: int, total: int) -> None:
         """Tell the page how far a download is, once per whole percent."""
@@ -331,8 +343,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--resource-root",
         type=Path,
-        default=Path(),
-        help="directory holding models/ (default: the current directory)",
+        help="directory holding models/ (default: the folder chosen in the review window, "
+        "else ./models if it exists, else a per-user folder)",
     )
     parser.add_argument(
         "--dev-server",
@@ -377,7 +389,7 @@ def main(argv: list[str] | None = None) -> int:
         platform.python_version(),
         platform.system(),
     )
-    review = ReviewApi(args.resource_root)
+    review = ReviewApi(resolve_resource_root(args.resource_root))
     title = "Anonymizer"
     if args.input is not None:
         try:

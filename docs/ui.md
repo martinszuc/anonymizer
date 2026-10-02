@@ -409,10 +409,11 @@ the repository, a test, a fixture or a commit message.
 
 ### Formats
 
-6. **Support document types beyond PDF** (images, Office and text formats). **Decide**
-   which formats, and whether each is converted to a PDF first or ingested natively;
-   every path needs the same leak-check guarantee and the same hidden-data cover
-   (metadata, attachments) that PDFs get.
+6. **Support document types beyond PDF** (images, Office and text formats). **Decided
+   (2026-10-02): PDF only for now**; other formats are left for a later semester. When
+   taken up: images are the cheapest (wrapped in a PDF, they take the OCR path and its
+   leak check), Office files the most expensive (a converter or a native reader with its
+   own hidden-data cover: comments, tracked changes, metadata).
 
 ### Review window behaviour
 

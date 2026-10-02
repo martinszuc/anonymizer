@@ -315,7 +315,8 @@ npm run build && uv run anonymize-ui some.pdf --lang cs          # real window, 
 uv run anonymize-ui some.pdf --log-level info --log-file run.log # milestones, kept in a file
 ```
 
-`--debug` is the web inspector and debug logging together: every step of
+`--debug` is the web inspector (right-click → Inspect Element, or F12 where the
+platform has it; it does not open on its own) and debug logging together: every step of
 opening, detecting and exporting, and every word found with its rule or model,
 on stderr. The log holds document text; INFO and above never do, and no file
 exists unless `--log-file` names one. Every page call is logged by `_logged` in

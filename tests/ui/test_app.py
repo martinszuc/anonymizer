@@ -155,6 +155,14 @@ class TestMain:
         assert stand_in.created["url"] == "http://localhost:5173"
         assert stand_in.started == {"debug": True, "private_mode": True}
 
+    def test_debug_enables_the_inspector_without_opening_it(
+        self, stand_in: StandInWebview, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setitem(webview.settings, "OPEN_DEVTOOLS_IN_DEBUG", True)
+        main(["--debug"])
+        assert stand_in.started == {"debug": True, "private_mode": True}
+        assert webview.settings["OPEN_DEVTOOLS_IN_DEBUG"] is False
+
     def test_loads_the_built_frontend(
         self, stand_in: StandInWebview, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ):

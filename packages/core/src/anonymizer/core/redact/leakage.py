@@ -226,6 +226,10 @@ def _page_text_leaks(
 
 def _region_leaks(pdf: pymupdf.Document, regions: list[Entity]) -> list[Leak]:
     """Report words and drawings left inside a region's box."""
+    boxes: dict[int, list[BBox]] = defaultdict(list)
+    for region in regions:
+        if region.page_index is not None:
+            boxes[region.page_index].extend(region.bboxes)
     leaks: list[Leak] = []
     for region in regions:
         if region.page_index is None:
@@ -240,10 +244,12 @@ def _region_leaks(pdf: pymupdf.Document, regions: list[Entity]) -> list[Leak]:
             if _overlaps_inside(word.bbox, box)
         )
         inside = _shrunk(bbox_to_unrotated_rect(box, page))
+        # Overlapping regions each paint their own fill, which reaches into the other.
+        fills = [bbox_to_unrotated_rect(other, page) for other in boxes[region.page_index]]
         leaks.extend(
             Leak(LeakLayer.REGION, where, "drawing", region.entity_id)
             for drawing in page.get_drawings()
-            if drawing["rect"].intersects(inside) and not _is_region_fill(drawing, inside)
+            if drawing["rect"].intersects(inside) and not _is_region_fill(drawing, fills)
         )
     return leaks
 
@@ -254,15 +260,24 @@ def _shrunk(rect: pymupdf.Rect) -> pymupdf.Rect:
     return pymupdf.Rect(rect.x0 + t, rect.y0 + t, rect.x1 - t, rect.y1 - t)
 
 
+def _grown(rect: pymupdf.Rect) -> pymupdf.Rect:
+    """Return the rectangle with a thin margin added along its edges."""
+    t = _EDGE_TOLERANCE
+    return pymupdf.Rect(rect.x0 - t, rect.y0 - t, rect.x1 + t, rect.y1 + t)
+
+
 def _overlaps_inside(word_box: BBox, region_box: BBox) -> bool:
     """Whether a word box reaches past the region's edge margin into it."""
     word = pymupdf.Rect(*word_box.to_list())
     return word.intersects(_shrunk(pymupdf.Rect(*region_box.to_list())))
 
 
-def _is_region_fill(drawing: dict[str, Any], inside: pymupdf.Rect) -> bool:
-    """Whether a drawing is the black fill redaction painted over the region."""
-    return drawing.get("fill") == _BLACK and drawing["rect"].contains(inside)
+def _is_region_fill(drawing: dict[str, Any], fills: list[pymupdf.Rect]) -> bool:
+    """Whether a drawing is the black fill redaction painted over one of the page's regions."""
+    if drawing.get("fill") != _BLACK:
+        return False
+    rect = drawing["rect"]
+    return any(rect.contains(_shrunk(fill)) and _grown(fill).contains(rect) for fill in fills)
 
 
 def _off_page_leaks(pdf: pymupdf.Document) -> list[Leak]:

@@ -159,3 +159,30 @@ class TestRegionLeakCheck:
         output = redacted(source, document)
         assert "SECRET" in load_document(output).pages[0].text
         assert find_leaks(output, document) == []
+
+    def test_overlapping_regions_pass(self, source: Path):
+        # Each region's fill reaches into the other; neither is a leak.
+        document = load_document(source)
+        document.entities = [region(TEXT_REGION), region(BBox(150, 80, 260, 130))]
+        output = redacted(source, document)
+        assert "SECRET" not in load_document(output).pages[0].text
+        assert find_leaks(output, document) == []
+
+    def test_region_inside_another_passes(self, source: Path):
+        document = load_document(source)
+        document.entities = [region(BBox(60, 80, 240, 130)), region(TEXT_REGION)]
+        output = redacted(source, document)
+        assert find_leaks(output, document) == []
+
+    def test_black_drawing_that_is_no_regions_fill_is_reported(self, tmp_path: Path):
+        planted = tmp_path / "black.pdf"
+        with pymupdf.open() as pdf:
+            shape = pdf.new_page().new_shape()
+            shape.draw_rect(pymupdf.Rect(100, 100, 120, 120))
+            shape.finish(fill=(0, 0, 0), color=None)
+            shape.commit()
+            pdf.save(planted)
+        document = load_document(planted)
+        document.entities = [region(BBox(90, 90, 140, 140)), region(BBox(110, 90, 160, 140))]
+        leaks = [leak for leak in find_leaks(planted, document) if leak.layer is LeakLayer.REGION]
+        assert [leak.text for leak in leaks] == ["drawing", "drawing"]

@@ -8,6 +8,7 @@ import type {
   FeatureModels,
   OpenOptions,
   ReviewState,
+  WordInfo,
 } from "./types";
 
 /** The methods of `anonymizer.ui.app.WindowApi`; every call returns a promise. */
@@ -35,8 +36,16 @@ export interface ReviewBridge {
   set_reviews(entityIds: string[], state: ReviewState): Promise<EntityInfo[]>;
   /** A drawn rectangle in page points; Python clips it to the page. */
   add_region(pageIndex: number, x0: number, y0: number, x1: number, y1: number): Promise<EntityInfo>;
-  /** Only for items the reviewer added; a detected one is rejected instead. */
-  remove_entity(entityId: string): Promise<void>;
+  /** A page's words in reading order, to select text detection missed. */
+  page_words(index: number): Promise<WordInfo[]>;
+  /**
+   * Adds the text between two word offsets as a finding of a type; Python widens it to
+   * whole words. Returns the finding first, then its repeats.
+   */
+  add_finding(pageIndex: number, start: number, end: number, type: string): Promise<EntityInfo[]>;
+  /** Only for items the reviewer added; a detected one is rejected instead. Returns the ids
+   * removed: the item's, then those of repeats only it explained. */
+  remove_entity(entityId: string): Promise<string[]>;
 }
 
 declare global {

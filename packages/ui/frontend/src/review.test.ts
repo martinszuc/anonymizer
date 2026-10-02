@@ -22,7 +22,7 @@ import {
   filterFindings,
   findingSections,
   keepable,
-  lastDrawnRegion,
+  lastAdded,
   lowConfidence,
   scoreRange,
   sortedBy,
@@ -163,21 +163,26 @@ describe("region numbers", () => {
   });
 });
 
-describe("lastDrawnRegion", () => {
+describe("lastAdded", () => {
   const first = drawn("first", [72, 100, 200, 200]);
   const second = drawn("second", [72, 300, 200, 400]);
 
   it("finds the region drawn last", () => {
-    expect(lastDrawnRegion(["first", "second"], [first, second])?.id).toBe("second");
+    expect(lastAdded(["first", "second"], [first, second])?.id).toBe("second");
   });
 
   it("skips regions already removed", () => {
-    expect(lastDrawnRegion(["first", "second"], [first])?.id).toBe("first");
+    expect(lastAdded(["first", "second"], [first])?.id).toBe("first");
   });
 
-  it("finds nothing when no drawn region is left", () => {
-    expect(lastDrawnRegion(["first"], [entity({ id: "first" })])).toBeNull();
-    expect(lastDrawnRegion([], [first])).toBeNull();
+  it("finds added text as well as regions", () => {
+    const word = entity({ id: "word", source: "manual", review: "confirmed" });
+    expect(lastAdded(["first", "word"], [first, word])?.id).toBe("word");
+  });
+
+  it("finds nothing when nothing added is left", () => {
+    expect(lastAdded(["first"], [entity({ id: "first" })])).toBeNull();
+    expect(lastAdded([], [first])).toBeNull();
   });
 });
 

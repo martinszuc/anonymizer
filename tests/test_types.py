@@ -245,6 +245,92 @@ class TestAddRegion:
         assert restored.regions_on_page(0) == document.regions_on_page(0)
 
 
+def bare_document() -> Document:
+    """The sample page without any finding on it."""
+    return Document(pages=[sample_page()], fingerprint="0" * 64)
+
+
+class TestAddSpan:
+    def test_adds_a_confirmed_manual_entity_widened_to_whole_words(self):
+        document = bare_document()
+        page = document.pages[0]
+        # From inside "Jméno:" to inside "Jan": both words are taken whole.
+        added = document.add_span(0, 2, NAME_START + 1, EntityType.OTHER)
+        assert added in document.entities
+        assert (added.start, added.text) == (0, "Jméno: Jan")
+        assert added.bboxes == [page.words[0].bbox, page.words[1].bbox]
+        assert added.source is DetectionSource.MANUAL
+        assert added.review is ReviewState.CONFIRMED
+
+    def test_punctuation_at_the_edges_is_left_out_of_the_text_not_the_boxes(self):
+        document = bare_document()
+        novak = document.pages[0].words[2]
+        added = document.add_span(0, novak.start, novak.end, EntityType.PERSON)
+        assert added.text == "Novák"
+        assert added.bboxes == [novak.bbox]
+
+    def test_a_span_across_a_line_break_has_a_box_per_word(self):
+        added = bare_document().add_span(0, NAME_START, NAME_END, EntityType.PERSON)
+        assert added.text == "Jan\nNovák"
+        assert len(added.bboxes) == 2
+
+    def test_a_word_of_punctuation_alone_is_kept_whole(self):
+        page = Page(0, 595, 842, text="a -- b", words=[Word("--", BBox(10, 10, 20, 20), 2, 4)])
+        added = Document(pages=[page]).add_span(0, 2, 4, EntityType.OTHER)
+        assert added.text == "--"
+
+    def test_text_already_marked_for_redaction_is_refused(self):
+        document = sample_document()
+        with pytest.raises(ValueError, match="already marked"):
+            document.add_span(0, NAME_START, NAME_START + 3, EntityType.PERSON)
+        assert len(document.entities) == 4
+
+    def test_text_inside_a_kept_finding_can_be_added(self):
+        document = sample_document()
+        document.entities[0].review = ReviewState.REJECTED
+        added = document.add_span(0, NAME_START, NAME_START + 3, EntityType.PERSON)
+        assert added.text == "Jan"
+
+    def test_a_partial_overlap_keeps_both_findings(self):
+        document = sample_document()
+        # "Novák, r." reaches past the detected name; neither may be dropped.
+        added = document.add_span(
+            0, PAGE_TEXT.index("Novák"), PAGE_TEXT.index("r.") + 2, EntityType.OTHER
+        )
+        assert added.text == "Novák, r"
+        assert [entity.text for entity in document.entities_on_page(0)] == [
+            "Jan\nNovák",
+            "Novák, r",
+            "900101/0009",
+        ]
+
+    @pytest.mark.parametrize(
+        ("start", "end", "message"),
+        [
+            (5, 5, "empty or outside"),
+            (0, len(PAGE_TEXT) + 1, "empty or outside"),
+            (NAME_START - 1, NAME_START, "covers no word"),
+        ],
+    )
+    def test_invalid_spans_are_refused(self, start: int, end: int, message: str):
+        with pytest.raises(ValueError, match=message):
+            bare_document().add_span(0, start, end, EntityType.PERSON)
+
+    def test_a_region_is_not_selected_from_text(self):
+        with pytest.raises(ValueError, match="region is drawn"):
+            bare_document().add_span(0, 0, 5, EntityType.REGION)
+
+    def test_unknown_page(self):
+        with pytest.raises(KeyError, match="no page with index 2"):
+            bare_document().add_span(2, 0, 5, EntityType.PERSON)
+
+    def test_an_added_span_survives_a_json_round_trip(self):
+        document = bare_document()
+        added = document.add_span(0, 0, 6, EntityType.OTHER)
+        restored = Document.from_json(document.to_json())
+        assert restored.entity(added.entity_id) == added
+
+
 class TestRemoveEntity:
     def test_removes_and_returns_it(self):
         document = sample_document()

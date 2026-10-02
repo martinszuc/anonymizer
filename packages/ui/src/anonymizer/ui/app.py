@@ -221,9 +221,21 @@ class WindowApi:
         return self._review.add_region(page_index, x0, y0, x1, y1)
 
     @_logged
-    def remove_entity(self, entity_id: str) -> None:
+    def page_words(self, index: int) -> list[dict[str, Any]]:
+        """List a page's words with their offsets and boxes; see `ReviewApi.page_words`."""
+        return self._review.page_words(index)
+
+    @_logged
+    def add_finding(
+        self, page_index: int, start: int, end: int, entity_type: str
+    ) -> list[dict[str, Any]]:
+        """Add text the reviewer selected, with its repeats; see `ReviewApi.add_finding`."""
+        return self._review.add_finding(page_index, start, end, entity_type)
+
+    @_logged
+    def remove_entity(self, entity_id: str) -> list[str]:
         """Remove an item the reviewer added; see `ReviewApi.remove_entity`."""
-        self._review.remove_entity(entity_id)
+        return self._review.remove_entity(entity_id)
 
     def _open(self, path: str, options: Any) -> dict[str, Any]:
         language, propagate, use_model, use_ocr = _open_options(options)

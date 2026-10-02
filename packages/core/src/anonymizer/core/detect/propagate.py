@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 
 from anonymizer.core.detect.base import describe
 from anonymizer.core.types import DetectionSource, Document, Entity, EntityType, Page
@@ -23,7 +23,9 @@ from anonymizer.core.types import DetectionSource, Document, Entity, EntityType,
 log = logging.getLogger(__name__)
 
 
-def propagate_occurrences(document: Document) -> list[Entity]:
+def propagate_occurrences(
+    document: Document, marked: Iterable[Entity] | None = None
+) -> list[Entity]:
     """Return entities for further occurrences of marked text in the page text.
 
     The texts come from every entity review has not rejected, on a page or on
@@ -33,13 +35,15 @@ def propagate_occurrences(document: Document) -> list[Entity]:
 
     Args:
         document: Document whose entities mark the texts to look for.
+        marked: Look only for the texts of these entities, such as one a
+            reviewer just added; every entity of the document when omitted.
 
     Returns:
         New pending entities, in page and offset order. The caller adds them to
         the document.
     """
     types_by_text: dict[str, EntityType] = {}
-    for entity in document.entities:
+    for entity in document.entities if marked is None else marked:
         if entity.is_redactable and entity.text and entity.text not in types_by_text:
             types_by_text[entity.text] = entity.type
     texts = sorted(types_by_text, key=len, reverse=True)

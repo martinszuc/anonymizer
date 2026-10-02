@@ -113,3 +113,10 @@ def test_regions_are_ignored():
     region = Entity(type=EntityType.REGION, page_index=0, bboxes=[BBox(0, 0, 10, 10)])
     document = Document(pages=[page], entities=[region])
     assert propagate_occurrences(document) == []
+
+
+def test_only_the_texts_of_the_given_entities_are_looked_for():
+    page = Page(0, 595, 842, text="Jan Novak and Petr Dvorak, again Jan Novak and Petr Dvorak")
+    jan, petr = marked(page, "Jan Novak"), marked(page, "Petr Dvorak")
+    document = Document(pages=[page], entities=[jan, petr])
+    assert texts(propagate_occurrences(document, [petr])) == [(0, "Petr Dvorak")]

@@ -342,6 +342,100 @@ class TestRegions:
         assert "KEEP this line" not in output_text(destination)
 
 
+class TestAddedFindings:
+    """Text the reviewer selects because detection missed it ("Jan Novak" here)."""
+
+    @pytest.fixture
+    def twice(self, tmp_path: Path) -> Path:
+        return write_pdf(tmp_path / "twice.pdf", [["Jan Novak wrote", "to Jan Novak"]])
+
+    def words(self, review: ReviewApi, *texts: str) -> list[dict]:
+        return [word for word in review.page_words(0) if word["text"] in texts]
+
+    def test_lists_a_pages_words_with_offsets_and_boxes(self, review: ReviewApi, pdf: Path):
+        page = load_document(pdf).page(0)
+        words = review.page_words(0)
+        assert [word["text"] for word in words] == [word.text for word in page.words]
+        first = words[0]
+        assert page.text[first["start"] : first["end"]] == first["text"]
+        assert first["box"] == page.words[0].bbox.to_list()
+
+    def test_words_of_an_unknown_page(self, review: ReviewApi):
+        with pytest.raises(ReviewError, match="no page with index 3"):
+            review.page_words(3)
+
+    def test_adds_the_selection_with_its_repeats(self, twice: Path):
+        review = ReviewApi()
+        review.open_pdf(str(twice), "cs")
+        jan, novak = self.words(review, "Jan", "Novak")[:2]
+        added = review.add_finding(0, jan["start"], novak["end"], "person")
+        assert [(item["text"], item["source"], item["review"]) for item in added] == [
+            ("Jan Novak", "manual", "confirmed"),
+            ("Jan Novak", "propagated", "pending"),
+        ]
+        assert added[0]["boxes"] == [jan["box"], novak["box"]]
+        assert all(item in review.document()["entities"] for item in added)
+
+    def test_repeats_follow_the_open_option(self, twice: Path):
+        review = ReviewApi()
+        review.open_pdf(str(twice), "cs", propagate=False)
+        jan, novak = self.words(review, "Jan", "Novak")[:2]
+        assert len(review.add_finding(0, jan["start"], novak["end"], "person")) == 1
+
+    @pytest.mark.parametrize(
+        ("arguments", "message"),
+        [
+            ((0, 0, 3, "nickname"), "'nickname' is not a valid EntityType"),
+            ((0, 0, 3, "region"), "region is drawn"),
+            ((0, 0.5, 3, "person"), "whole numbers"),
+            ((True, 0, 3, "person"), "whole numbers"),
+            ((2, 0, 3, "person"), "no page with index 2"),
+            ((0, 3, 3, "person"), "empty or outside"),
+        ],
+    )
+    def test_refuses_what_it_cannot_add(self, review: ReviewApi, arguments: tuple, message: str):
+        before = review.document()["entities"]
+        with pytest.raises(ReviewError, match=message):
+            review.add_finding(*arguments)
+        assert review.document()["entities"] == before
+
+    def test_refuses_text_already_marked(self, review: ReviewApi):
+        (email,) = self.words(review, CONTACT_EMAIL)
+        with pytest.raises(ReviewError, match="already marked"):
+            review.add_finding(0, email["start"], email["end"], "email")
+
+    def test_removing_it_removes_its_repeats(self, twice: Path):
+        review = ReviewApi()
+        review.open_pdf(str(twice), "cs")
+        jan, novak = self.words(review, "Jan", "Novak")[:2]
+        finding, repeat = review.add_finding(0, jan["start"], novak["end"], "person")
+        assert review.remove_entity(finding["id"]) == [finding["id"], repeat["id"]]
+        assert review.document()["entities"] == []
+
+    def test_a_repeat_cannot_be_removed_on_its_own(self, twice: Path):
+        review = ReviewApi()
+        review.open_pdf(str(twice), "cs")
+        jan, novak = self.words(review, "Jan", "Novak")[:2]
+        _, repeat = review.add_finding(0, jan["start"], novak["end"], "person")
+        with pytest.raises(ReviewError, match="only items you added"):
+            review.remove_entity(repeat["id"])
+
+    def test_added_text_is_saved_and_exported(self, review: ReviewApi, pdf: Path):
+        jan, novak = self.words(review, "Jan", "Novak")
+        added = review.add_finding(0, jan["start"], novak["end"], "person")
+        session = pdf.with_name("review.json")
+        review.save_session(str(session))
+        reopened = ReviewApi()
+        reopened.open_session(str(pdf), str(session))
+        assert added[0] in reopened.document()["entities"]
+
+        destination = pdf.with_name("cv-redacted.pdf")
+        result = reopened.export(str(destination))
+        assert result["written"] is True
+        assert "Jan Novak" not in output_text(destination)
+        assert "KEEP this line" in output_text(destination)
+
+
 def test_a_finding_in_hidden_data_counts_as_removed_even_if_rejected(tmp_path: Path):
     reviewer = ReviewApi()
     payload = reviewer.open_pdf(str(write_surfaces_pdf(tmp_path / "hidden.pdf")), "cs")

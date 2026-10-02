@@ -212,6 +212,14 @@ class TestDialogs:
         assert api.save_session_as() is False
         assert not list(pdf.parent.glob("*.json"))
 
+    def test_words_and_added_text_are_forwarded(self, pdf: Path):
+        api = attached(StandInWindow(answers=[(str(pdf),)]))
+        api.choose_pdf({"language": "cs"})
+        jan, novak = api.page_words(0)[:2]
+        finding, *_ = api.add_finding(0, jan["start"], novak["end"], "person")
+        assert finding["text"] == "Jan Novak"
+        assert api.remove_entity(finding["id"]) == [finding["id"]]
+
     def test_dialogs_need_the_window(self):
         with pytest.raises(ReviewError, match="window is not ready"):
             WindowApi(ReviewApi()).choose_pdf()

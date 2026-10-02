@@ -452,8 +452,13 @@ the repository, a test, a fixture or a commit message.
     **Done** for the list: grouped by default, decided together, expandable. What the
     local log shows (one 2-page document, `language` All): 31 findings, about 21 from the
     names model scoring mostly 0.34–0.54 against a 0.3 threshold, 8 from rules, 2
-    repeats. Still open: a log of the run on the unrelated documents, then tuning the
-    threshold on the benchmark rather than by eye.
+    repeats. **Measured and reduced (2026-10-02):** the benchmark now has documents
+    without personal data; nearly all false alarms there were capitalised role nouns
+    ("Kupující", "Žadatel"), which no threshold removes without losing names. The name
+    model is now also asked for organizations, and its person spans pass
+    `detect.NamesOnly`: false alarms 33 → 4 with every name still found
+    (`docs/findings.md` → *False alarms from the name model*). Still open: a run on the
+    unrelated documents to confirm it there.
 12. **Names, titles and degrees.** **Explain:** which model finds Czech names (GLiNER via
     `--ner`, see the catalog) and what label set it is asked for. Academic titles and
     degrees (Ing., Mgr., doc., Ph.D., prof.) are often left unredacted; list the options
@@ -474,7 +479,10 @@ the repository, a test, a fixture or a commit message.
     export sheet.
     **Partly done:** overlapping or nested regions no longer fail the region layer (each
     region's fill was reported as a drawing left inside the other), and the sheet numbers
-    pages from 1 (`page` in the leak payload). Advice per layer is still open.
+    pages from 1 (`page` in the leak payload). Advice per layer is still open. Another
+    cause found on the benchmark: a detected word whose inflected form was not detected
+    ("Žadatel" found, "Žadatelem" not) is still in the page text, so the page-text layer
+    refuses. Right for a surname; for a role noun, rejecting the finding clears it.
 
 ## Known gotchas
 

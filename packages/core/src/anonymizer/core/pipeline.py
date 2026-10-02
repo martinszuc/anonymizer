@@ -15,6 +15,7 @@ from collections import Counter
 from anonymizer.core.detect import (
     CombinedDetector,
     Detector,
+    NamesOnly,
     detect_document,
     detector_for,
     extend_with_titles,
@@ -29,15 +30,19 @@ log = logging.getLogger(__name__)
 def build_detector(language: str | None, *, model: Detector | None = None) -> Detector:
     """Return the rules for a language, combined with a model detector if one is given.
 
+    The model's person spans are cut back to the name (`detect.NamesOnly`), with
+    the role words of the same language.
+
     Args:
-        language: BCP 47 tag selecting the rules; every rule runs for `None`.
+        language: BCP 47 tag selecting the rules and role words; every list
+            applies for `None`.
         model: A loaded model detector (see `detect.load_gliner_detector`).
 
     Returns:
         The detector to run over a document.
     """
     rules = detector_for(language)
-    detector = rules if model is None else CombinedDetector([rules, model])
+    detector = rules if model is None else CombinedDetector([rules, NamesOnly(model, language)])
     log.debug("detector built: %s (%d rules)", detector.name, len(rules.finders))
     return detector
 

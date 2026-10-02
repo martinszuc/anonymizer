@@ -276,6 +276,55 @@ rules only; OnnxTR with FAST base and PARSeq multilingual v1 on the CPU.
   the address stayed readable while the leak check passed. A misread
   separator hides a structured value from the rules entirely.
 
+### 2026-10-02 · False alarms from the name model
+
+Three benchmark documents with no personal data at all (Czech terms and
+conditions, Czech official instructions, Slovak complaints policy) next to
+the six earlier ones; GLiNER at threshold 0.3. Development sets: CNEC 2.0
+dtest (cs, 524 person spans) and UNER Slovak-SNK dev (276), scored with
+partial match; only counts and scores were printed, never corpus text.
+
+| | false alarms | per 1,000 words | items found | leak check |
+|---|---|---|---|---|
+| before | 33 | 17.2 | 50/51 | 8/9 |
+| + "organization" label | 31 | 16.1 | 50/51 | 7/9 |
+| + name filter (shipped) | 4 | 2.1 | 50/51 | 9/9 |
+
+| person spans | CNEC P | CNEC R | UNER-SK P | UNER-SK R |
+|---|---|---|---|---|
+| before | 0.846 | 0.796 | 0.722 | 0.634 |
+| + "organization" label | 0.862 | 0.821 | 0.738 | 0.667 |
+| + name filter (shipped) | 0.916 | 0.821 | 0.789 | 0.667 |
+
+- **Role nouns were the false alarms.** 30 of 33 lay in the documents
+  without personal data, nearly all capitalised role nouns in every case:
+  "Kupující", "Kupujícímu", "Žadatele", "Vedoucí odboru …", "Zákonný
+  zástupce žáka". The six earlier documents, dense with planted items,
+  showed 3 and hid the problem.
+- **More labels did not move them.** Offered "job title", "role" or
+  "location" as well, the model kept the role nouns as persons and lost
+  precision on the corpora. "Organization" alone raised precision and
+  recall on both corpora, and is kept.
+- **A higher threshold costs recall first.** On CNEC, 0.3 → 0.5 raised
+  precision 0.85 → 0.89 and dropped recall 0.80 → 0.67; on the benchmark it
+  removed 4 of 33 false alarms. The role nouns score high.
+- **The name filter** (`detect.NamesOnly`) trims lowercase words from the
+  edges of a model's person span and drops a span whose capitalised words
+  are all role nouns of the document's language. On the corpora it dropped
+  29 (CNEC) and 16 (UNER-SK) person spans, **none of them a gold name**, and
+  trimmed 21 and 14 to the name, which raised strict-match precision too.
+  The role lists were written with the benchmark documents in view; the
+  corpora were not used to write them and are the independent check.
+- **A role noun failed the leak check.** With "Žadatel" detected and the
+  inflected "Žadatelem" not, the redacted page still contained the detected
+  text inside the longer word, and the page-text layer refused the copy. For
+  a surname (Novák found, Nováka missed) that refusal is correct: the
+  inflected form still names the person. Fewer false alarms made all 9
+  documents pass.
+- Left: two street names without a number tagged as addresses, "Starosta"
+  (a surname as well as a mayor, left off the role lists on purpose) and a
+  labelled company IČO (rules, by design).
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

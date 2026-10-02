@@ -85,6 +85,11 @@ docstrings, not here; they go stale in two places.
   scans a page in overlapping windows and widens spans to whole words. Its
   dependencies are the optional `ner` extra (`uv sync --group ner`); tests use a
   stand-in model, and the real one only runs under `@pytest.mark.model`.
+- A model's person spans pass `detect.NamesOnly` (`roles.py`, applied by
+  `build_detector`): lowercase edge words trimmed, spans of role nouns only
+  ("Kupující", "Žadatel") dropped. Role nouns that are also surnames (Starosta,
+  Žák) stay off its lists; measure any change on the benchmark's documents
+  without personal data and on the development corpora (`docs/findings.md`).
 
 - Every model and dataset is an entry in `core/resources/catalog.toml`: official
   source, immutable version, licence, languages, and per file a URL, size and

@@ -190,6 +190,17 @@ class TestLeakCheck:
         page_leaks = [leak for leak in find_leaks(source, document) if leak.layer == "page_text"]
         assert {leak.text for leak in page_leaks} == {CONTACT_EMAIL, PHONE}
 
+    def test_a_leak_names_the_page_it_lies_on(self, tmp_path: Path):
+        source = write_surfaces_pdf(tmp_path / "surfaces.pdf")
+        document = detected(source)
+        leaks = find_leaks(source, document)
+        on_page = [leak for leak in leaks if leak.layer == "page_text"]
+        off_page = [leak for leak in leaks if leak.layer in {"surface", "object", "file_bytes"}]
+        assert on_page
+        assert off_page
+        assert {leak.page_index for leak in on_page} == {0}
+        assert {leak.page_index for leak in off_page} == {None}
+
     def test_object_layer_catches_a_carrier_the_surface_scan_does_not_list(self, tmp_path: Path):
         source = write_pdf(tmp_path / "contact.pdf", [LINES])
         document = detected(source)

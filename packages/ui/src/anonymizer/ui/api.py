@@ -152,8 +152,10 @@ class ReviewApi:
         self._resource_root = resource_root or Path()
         self._catalog = catalog or load_catalog()
         self._opener = opener
-        # Two downloads into the same folder would write the same files.
-        self._downloading = threading.Lock()
+        # Catalog ids being downloaded: two downloads of one model would write
+        # the same files, while features sharing no model download side by side.
+        self._downloads_lock = threading.Lock()
+        self._downloading: set[str] = set()
         # Loaded on first use and kept: loading takes seconds, detecting does not.
         self._model: Detector | None = None
         self._ocr: dict[str, OcrEngine] = {}
@@ -204,7 +206,8 @@ class ReviewApi:
         """Download the models a feature needs from their official sources, each verified.
 
         Only the catalog's files for a known feature can be fetched: the page
-        names a feature, never a URL or a catalog id.
+        names a feature, never a URL or a catalog id. Features that share no
+        model download at the same time.
 
         Args:
             feature: A key of `FEATURES`.
@@ -214,22 +217,27 @@ class ReviewApi:
             The models of every feature, as `models()` describes them.
 
         Raises:
-            ReviewError: If the feature is unknown, a download is already
-                running, or a download fails or does not match its checksum
-                (the file is then removed).
+            ReviewError: If the feature is unknown, one of its models is
+                already downloading, or a download fails or does not match
+                its checksum (the file is then removed).
         """
         if feature not in FEATURES:
             msg = f"unknown feature {feature!r}"
             raise ReviewError(msg)
         log.info("download requested: feature=%s", feature)
-        if not self._downloading.acquire(blocking=False):
-            log.warning("download refused: another one is running")
-            msg = "a download is already running"
-            raise ReviewError(msg)
+        resources = self._catalog.with_requirements(FEATURES[feature].resource_id)
+        ids = {resource.id for resource in resources}
+        with self._downloads_lock:
+            if ids & self._downloading:
+                log.warning("download refused: one of its models is already downloading")
+                msg = "this download is already running"
+                raise ReviewError(msg)
+            self._downloading |= ids
         try:
             self._download(feature, progress or (lambda _feature, _received, _total: None))
         finally:
-            self._downloading.release()
+            with self._downloads_lock:
+                self._downloading -= ids
         return self.models()
 
     def _download(self, feature: str, progress: Downloaded) -> None:
@@ -644,7 +652,14 @@ def _export_payload(
         "hidden_removed": len(document.surfaces),
         "pages_without_text": unreadable,
         "leaks": [
-            {"layer": leak.layer.value, "where": leak.where, "text": leak.text} for leak in leaks
+            {
+                "layer": leak.layer.value,
+                "where": leak.where,
+                # 1-based, as the window numbers pages; the core counts from 0.
+                "page": None if leak.page_index is None else leak.page_index + 1,
+                "text": leak.text,
+            }
+            for leak in leaks
         ],
     }
 

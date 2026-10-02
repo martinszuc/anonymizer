@@ -75,10 +75,13 @@ export interface EntityGroup {
   entities: EntityInfo[];
 }
 
-/** Entities grouped by type in a fixed order, each group in reading order. */
+/**
+ * Entities grouped by type in a fixed order, each group in reading order,
+ * except drawn regions, which keep the order they were drawn in, as their numbers do.
+ */
 export function groupByType(entities: EntityInfo[]): EntityGroup[] {
   const groups = new Map<string, EntityInfo[]>();
-  for (const entity of [...entities].sort(byReadingOrder)) {
+  for (const entity of entities) {
     groups.set(entity.type, [...(groups.get(entity.type) ?? []), entity]);
   }
   const rank = (type: string) => {
@@ -87,7 +90,20 @@ export function groupByType(entities: EntityInfo[]): EntityGroup[] {
   };
   return [...groups.entries()]
     .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
-    .map(([type, members]) => ({ type, label: typeLabel(type), entities: members }));
+    .map(([type, members]) => ({
+      type,
+      label: typeLabel(type),
+      entities: type === "region" ? members : members.sort(byReadingOrder),
+    }));
+}
+
+/** Drawn regions numbered 1, 2, … in the order they were drawn, as the page and the list show them. */
+export function regionNumbers(entities: EntityInfo[]): Map<string, number> {
+  const numbers = new Map<string, number>();
+  for (const entity of entities) {
+    if (entity.is_region) numbers.set(entity.id, numbers.size + 1);
+  }
+  return numbers;
 }
 
 function byReadingOrder(a: EntityInfo, b: EntityInfo): number {
@@ -99,10 +115,19 @@ function byReadingOrder(a: EntityInfo, b: EntityInfo): number {
   return pageA - pageB || topA - topB || leftA - leftB;
 }
 
-/** What a row or popover shows for an entity. */
-export function covers(entity: EntityInfo): string {
-  if (entity.is_region) return "Drawn region";
+/** What a row or popover shows for an entity; a region by its number when it has one. */
+export function covers(entity: EntityInfo, regionNumber?: number): string {
+  if (entity.is_region) return regionNumber === undefined ? "Drawn region" : `Region ${regionNumber}`;
   return (entity.text ?? "").replace(/\s+/g, " ").trim();
+}
+
+/** The last region drawn that is still in the document, for Cmd/Ctrl+Z; ids are in drawing order. */
+export function lastDrawnRegion(drawnIds: string[], entities: EntityInfo[]): EntityInfo | null {
+  for (const id of [...drawnIds].reverse()) {
+    const region = entities.find((entity) => entity.id === id && entity.is_region);
+    if (region) return region;
+  }
+  return null;
 }
 
 const MIN_DPI = 72;

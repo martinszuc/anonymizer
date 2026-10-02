@@ -6,6 +6,7 @@ but each file is a few bytes served from memory: nothing touches the network.
 
 import hashlib
 import io
+import threading
 from pathlib import Path
 
 import pytest
@@ -141,8 +142,8 @@ def test_a_file_that_does_not_match_its_checksum_is_refused_and_removed(tmp_path
         review.download_models("ocr")
     assert not any((tmp_path / "models").rglob("*.bin"))
     assert not any((tmp_path / "models").rglob("*.part"))
-    # The failed download released the lock: another may start.
-    assert review._downloading.acquire(blocking=False)
+    # The failed download let go of its models: another may start.
+    assert review._downloading == set()
 
 
 def test_an_unknown_feature_is_refused(review: ReviewApi, server: FakeServer):
@@ -151,14 +152,36 @@ def test_an_unknown_feature_is_refused(review: ReviewApi, server: FakeServer):
     assert server.requests == []
 
 
-def test_a_second_download_while_one_runs_is_refused(review: ReviewApi, server: FakeServer):
-    review._downloading.acquire()
+class HeldServer(FakeServer):
+    """Holds the name model's download open until released, so another can run meanwhile."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.holding = threading.Event()
+        self.release = threading.Event()
+
+    def __call__(self, url: str) -> io.BytesIO:
+        if "gliner" in url:
+            self.holding.set()
+            assert self.release.wait(timeout=10)
+        return super().__call__(url)
+
+
+def test_features_sharing_no_model_download_side_by_side(tmp_path: Path):
+    server = HeldServer()
+    review = ReviewApi(tmp_path, catalog=CATALOG, opener=server)
+    names = threading.Thread(target=review.download_models, args=("names",))
+    names.start()
     try:
+        assert server.holding.wait(timeout=10)
+        assert _feature(review.download_models("ocr"), "ocr")["missing_bytes"] == 0
         with pytest.raises(ReviewError, match="already running"):
-            review.download_models("ocr")
+            review.download_models("names")
     finally:
-        review._downloading.release()
-    assert server.requests == []
+        server.release.set()
+        names.join(timeout=10)
+    assert _feature(review.models(), "names")["missing_bytes"] == 0
+    assert review._downloading == set()
 
 
 def test_the_window_tells_the_page_once_per_percent(tmp_path: Path, server: FakeServer):

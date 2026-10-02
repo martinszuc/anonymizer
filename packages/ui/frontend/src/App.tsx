@@ -12,7 +12,7 @@ import { Toasts, type Toast } from "./components/Toasts";
 import { Toolbar } from "./components/Toolbar";
 import { PageImages } from "./pageImages";
 import { hasCommand } from "./platform";
-import { isDecidable, pagesWithoutText, steppedZoom, toggled } from "./review";
+import { isDecidable, lastDrawnRegion, pagesWithoutText, steppedZoom, toggled } from "./review";
 import type {
   AppStatus,
   Box,
@@ -62,10 +62,12 @@ export function App() {
   // The region tool, or Alt held down: a drag on a page draws a region.
   const [drawTool, setDrawTool] = useState(false);
   const [altHeld, setAltHeld] = useState(false);
-  // The Models sheet: its features (null while loading) and a running download.
+  // Regions drawn since this document opened, oldest first: Cmd/Ctrl+Z removes the last.
+  const drawnRegions = useRef<string[]>([]);
+  // The Models sheet: its features (null while loading) and the running downloads, by feature.
   const [modelsOpen, setModelsOpen] = useState(false);
   const [models, setModels] = useState<FeatureModels[] | null>(null);
-  const [downloading, setDownloading] = useState<DownloadProgress | null>(null);
+  const [downloads, setDownloads] = useState<Record<string, DownloadProgress>>({});
   const canvasRef = useRef<HTMLDivElement>(null);
   const canvasWidth = useElementWidth(canvasRef, document !== null);
 
@@ -99,6 +101,7 @@ export function App() {
     setDirty(false);
     setSelectedId(null);
     setSelectedSurfaceId(null);
+    drawnRegions.current = [];
     setCurrentPage(0);
     setZoom("fit");
     canvasRef.current?.scrollTo({ top: 0 });
@@ -134,9 +137,9 @@ export function App() {
 
   /** Download a feature's models, then turn the feature on if it is now usable. */
   async function downloadModels(feature: string) {
-    if (!bridge || downloading) return;
+    if (!bridge || downloads[feature]) return;
     const missing = models?.find((item) => item.feature === feature)?.missing_bytes ?? 0;
-    setDownloading({ feature, received: 0, total: missing });
+    setDownloads((current) => ({ ...current, [feature]: { feature, received: 0, total: missing } }));
     try {
       setModels(await bridge.download_models(feature));
       const installed = await bridge.status();
@@ -150,7 +153,7 @@ export function App() {
     } catch (error) {
       reportError(errorMessage(error));
     } finally {
-      setDownloading(null);
+      setDownloads(({ [feature]: _finished, ...running }) => running);
     }
   }
 
@@ -191,7 +194,13 @@ export function App() {
       const name = (event as CustomEvent<string>).detail;
       onPythonEvent.current.reportError(`Only PDF files can be opened${name ? `, not ${name}` : ""}`);
     };
-    const onDownload = (event: Event) => setDownloading((event as CustomEvent<DownloadProgress>).detail);
+    const onDownload = (event: Event) => {
+      const progress = (event as CustomEvent<DownloadProgress>).detail;
+      // A late event must not bring back a download that has finished.
+      setDownloads((current) =>
+        progress.feature in current ? { ...current, [progress.feature]: progress } : current,
+      );
+    };
     window.addEventListener("anonymizer:progress", onProgress);
     window.addEventListener("anonymizer:download", onDownload);
     window.addEventListener("anonymizer:dropped", onDropped);
@@ -273,6 +282,7 @@ export function App() {
     try {
       const region = await bridge.add_region(pageIndex, ...box);
       setDocument((current) => current && { ...current, entities: [...current.entities, region] });
+      drawnRegions.current.push(region.id);
       setSelectedId(region.id);
       setDirty(true);
     } catch (error) {
@@ -355,6 +365,7 @@ export function App() {
       else if (key === "0" && document) setZoom("fit");
       else if (key === "y" && document) setPreviewing((value) => !value);
       else if (key === "e" && document) startExport();
+      else if (key === "z" && !event.shiftKey && document) undoRegion();
       else return;
       event.preventDefault();
     };
@@ -371,6 +382,14 @@ export function App() {
       window.removeEventListener("blur", onBlur);
     };
   });
+
+  /** Remove the last region drawn that is still there; there is no undo for decisions yet. */
+  function undoRegion() {
+    if (!document) return;
+    const region = lastDrawnRegion(drawnRegions.current, document.entities);
+    drawnRegions.current = drawnRegions.current.filter((id) => id !== region?.id);
+    if (region) void removeEntity(region);
+  }
 
   /** Keys without a modifier: R for the region tool, Escape, Delete on a selected region. */
   function onPlainKey(event: KeyboardEvent) {
@@ -475,7 +494,7 @@ export function App() {
         <ModelsSheet
           open={modelsOpen}
           features={models}
-          downloading={downloading}
+          downloads={downloads}
           onDownload={(feature) => void downloadModels(feature)}
           onClose={() => setModelsOpen(false)}
         />

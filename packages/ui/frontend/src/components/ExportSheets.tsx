@@ -82,7 +82,7 @@ function ResultBody({ result }: { result: ExportResult }) {
           {result.leaks.map((leak, index) => (
             <li key={index}>
               <span className="sheet-leak-where">
-                {leakLayerLabel(leak.layer)} · {leak.where}
+                {leakLayerLabel(leak.layer)} · {leak.page === null ? leak.where : `Page ${leak.page}`}
               </span>
               <span className="mono">{leak.text}</span>
             </li>

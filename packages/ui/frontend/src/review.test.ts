@@ -13,7 +13,9 @@ import {
   pageList,
   formatBytes,
   isUnreadScan,
+  lastDrawnRegion,
   pagesWithoutText,
+  regionNumbers,
   renderDpi,
   steppedZoom,
   summarize,
@@ -108,6 +110,58 @@ describe("covers", () => {
 
   it("names a drawn region", () => {
     expect(covers(entity({ is_region: true, text: null }))).toBe("Drawn region");
+    expect(covers(entity({ is_region: true, text: null }), 3)).toBe("Region 3");
+  });
+});
+
+function drawn(id: string, box: [number, number, number, number]): EntityInfo {
+  return entity({ id, type: "region", source: "manual", is_region: true, text: null, boxes: [box] });
+}
+
+describe("region numbers", () => {
+  // Drawn bottom first, then top: numbers follow the drawing, not the page.
+  const lower = drawn("lower", [72, 500, 200, 600]);
+  const upper = drawn("upper", [72, 100, 200, 200]);
+  const email = entity({ id: "email" });
+
+  it("counts regions in the order they were drawn, skipping other findings", () => {
+    const numbers = regionNumbers([lower, email, upper]);
+    expect([...numbers.entries()]).toEqual([
+      ["lower", 1],
+      ["upper", 2],
+    ]);
+  });
+
+  it("closes the gap when a region is removed", () => {
+    const third = drawn("third", [72, 300, 200, 400]);
+    expect(regionNumbers([lower, third]).get("third")).toBe(2);
+  });
+
+  it("lists regions in drawing order, other findings in reading order", () => {
+    const later = entity({ id: "later", boxes: [[72, 700, 200, 712]] });
+    const groups = groupByType([later, lower, email, upper]);
+    expect(groups.map((group) => group.entities.map((item) => item.id))).toEqual([
+      ["email", "later"],
+      ["lower", "upper"],
+    ]);
+  });
+});
+
+describe("lastDrawnRegion", () => {
+  const first = drawn("first", [72, 100, 200, 200]);
+  const second = drawn("second", [72, 300, 200, 400]);
+
+  it("finds the region drawn last", () => {
+    expect(lastDrawnRegion(["first", "second"], [first, second])?.id).toBe("second");
+  });
+
+  it("skips regions already removed", () => {
+    expect(lastDrawnRegion(["first", "second"], [first])?.id).toBe("first");
+  });
+
+  it("finds nothing when no drawn region is left", () => {
+    expect(lastDrawnRegion(["first"], [entity({ id: "first" })])).toBeNull();
+    expect(lastDrawnRegion([], [first])).toBeNull();
   });
 });
 

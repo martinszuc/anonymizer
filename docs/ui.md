@@ -46,16 +46,20 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   check: Passed", or "Nothing was written" with the leaks.
 - **Draw a region** over a photo, signature or stamp: the region tool (R) or
   holding Alt, then drag. The region is hatched in review mode, black in
-  preview; a click selects it, Delete (or × in its sidebar row) removes it. It
-  is saved in the session and removed with everything under it on export
-  (text, the drawings it touches, image pixels).
+  preview; a click selects it, Delete (or × in its sidebar row) removes it,
+  Cmd/Ctrl+Z removes the last one drawn since the document opened. Regions are
+  numbered in drawing order on the page and in the sidebar ("Region 2"), and
+  renumbered when one is removed. A region is saved in the session and removed
+  with everything under it on export (text, the drawings it touches, image
+  pixels); overlapping regions are fine.
 - **Models** (*Manage models…* on the home screen): a sheet listing what
   each feature needs (names and addresses: GLiNER and its tokenizer; scanned
   pages: OnnxTR's two models) with size, licence, languages, source and
   whether the files are stored, and a *Download* per feature. Files come from
   the catalog's official URLs, stream with a progress bar and are kept only
-  if their checksums match (`resources.fetch_with_requirements`); one download
-  runs at a time. When it finishes, the feature's switch turns on. A missing
+  if their checksums match (`resources.fetch_with_requirements`); both features
+  can download at once, since they share no model. When one finishes, its
+  feature's switch turns on. A missing
   Python package is shown with its `uv sync --group …` command: the window
   never installs packages, as nothing but a model download may use the network.
 - **Scanned pages**: the home screen's *Scanned pages* switch (on when the
@@ -124,7 +128,8 @@ SurfaceInfo  { id, kind, value, page_index, box | null }
 
 `ReviewApi.export()` returns `ExportResult { written, name, redacted, regions,
 kept, not_reviewed, hidden_removed, pages_without_text: number[] (1-based scans OCR did not read),
-leaks: { layer, where, text }[] }`; nothing was written unless `written`.
+leaks: { layer, where, page: number | null (1-based), text }[] }`; nothing was
+written unless `written`.
 
 Methods the page calls (all return promises in JS):
 
@@ -132,7 +137,7 @@ Methods the page calls (all return promises in JS):
 |---|---|---|
 | `status()` | `AppStatus` | version, languages with their own rules, the states of the model and of OCR (`ocr: {engine, state, missing}`); loads neither |
 | `models()` | `FeatureModels[]` | each feature's models and whether they are stored; nothing is hashed |
-| `download_models(feature)` | `FeatureModels[]` | `names` or `ocr`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while another download runs or when a checksum fails |
+| `download_models(feature)` | `FeatureModels[]` | `names` or `ocr`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while one of its models is already downloading or when a checksum fails |
 | `current_document()` | `DocumentInfo \| null` | on start: a PDF given on the command line |
 | `choose_pdf(options)` | `DocumentInfo \| null` | options `{language, propagate, use_model, use_ocr}`, checked in Python; null = cancelled |
 | `open_dropped(options)` | `DocumentInfo \| null` | opens the PDF Python kept from the last drop; null if none |
@@ -371,8 +376,8 @@ In suggested order. Each item names where it plugs in.
 ## Open issues from manual testing (2026-10-02)
 
 Found by hand in the review window on real documents and on a set of unrelated
-Czech documents (kept outside the repository). Nothing here is solved or designed
-yet. Items marked **Explain** need an explanation for the maintainer before any
+Czech documents (kept outside the repository). Items marked **Done** are fixed and
+stay listed so the numbering holds; the rest are open. Items marked **Explain** need an explanation for the maintainer before any
 change; **Decide** items need a product decision first. Related older items are in
 *Backlog* (undo/redo, models sheet, packaging, OCR quality).
 
@@ -386,8 +391,7 @@ the repository, a test, a fixture or a commit message.
 
 ### Loading a document
 
-1. **Remove the once-per-session hint strings** shown while a PDF loads. They read as
-   unprofessional and are annoying.
+1. **Done.** ~~Remove the once-per-session hint strings~~ shown while a PDF loads.
 2. **Progress bar for detection.** Detection currently shows no progress.
    **Explain:** is detection and OCR run page by page? If so, "page N of M" is the
    natural unit; say which stages (OCR, rules, names) report progress and which cannot.
@@ -397,8 +401,8 @@ the repository, a test, a fixture or a commit message.
 
 ### Models and storage
 
-4. **Download several models at once.** The two model groups can only be downloaded one
-   after the other; both buttons should work at the same time and run in parallel.
+4. **Done.** ~~Download several models at once.~~ Features that share no model download
+   side by side; a second download of the same models is refused.
 5. **Choose where models are stored** in the packaged app, and have the app load them
    from that place afterwards (today they live under `models/` of the resource root).
    Applies once packaging (*Backlog* item 10) exists.
@@ -412,17 +416,16 @@ the repository, a test, a fixture or a commit message.
 
 ### Review window behaviour
 
-7. **The detail popup does not update live.** After clicking a highlighted redaction, the
-   popup showing its details keeps the old "will be redacted" / "kept" state when the
-   decision changes; it must follow the state immediately.
+7. **Done.** ~~The detail popup does not update live.~~ It reads the entity by id on every
+   render.
 8. **Clicking a box both selects and toggles it.** Clicking a highlight finds the item in
    the left list (wanted) but also flips it to kept straight away. **Decide:** make the
    click only locate the item, with an explicit control for changing the decision, or
    keep the current behaviour.
-9. **Undo for drawn regions.** Cmd/Ctrl+Z should remove the last region drawn. Part of the
-   wider undo/redo item in *Backlog*.
-10. **Number the drawn regions.** Each region gets a number shown next to its box,
-    increasing by one per region drawn, matching the list in the left panel.
+9. **Done** for regions: Cmd/Ctrl+Z removes the last region drawn since the document
+   opened. Undo of decisions stays in *Backlog*.
+10. **Done.** ~~Number the drawn regions.~~ Numbered in drawing order on the page and in
+    the list; removing one closes the gap.
 
 ### Too many harmless detections
 
@@ -447,6 +450,9 @@ the repository, a test, a fixture or a commit message.
     name what was found (page, the text, which layer) and what to do about it, instead of
     a general failure. Today's behaviour on the leak result is in `ReviewApi` and the
     export sheet.
+    **Partly done:** overlapping or nested regions no longer fail the region layer (each
+    region's fill was reported as a drawing left inside the other), and the sheet numbers
+    pages from 1 (`page` in the leak payload). Advice per layer is still open.
 
 ## Known gotchas
 

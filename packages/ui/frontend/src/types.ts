@@ -48,6 +48,8 @@ export interface DocumentInfo {
 export interface LeakInfo {
   layer: string;
   where: string;
+  /** 1-based page the leak lies on; null outside the pages (hidden data, objects, file bytes). */
+  page: number | null;
   text: string;
 }
 

@@ -82,9 +82,9 @@ class WindowApi:
         # A PDF dropped on the window: its path stays here, and the page only
         # learns its name, so no path ever comes from the page.
         self._dropped: Path | None = None
-        # The last whole percent told to the page, so a download of a gigabyte
-        # sends a hundred events rather than a thousand.
-        self._told_percent = -1
+        # The last whole percent told to the page per feature, so a download of
+        # a gigabyte sends a hundred events rather than a thousand.
+        self._told_percent: dict[str, int] = {}
 
     def _attach(self, window: webview.Window) -> None:
         """Give the API the window its dialogs open over; private so the page cannot."""
@@ -107,7 +107,7 @@ class WindowApi:
         The page names a feature; which files, from where and into which
         folder is decided here and in the catalog (`ReviewApi.download_models`).
         """
-        self._told_percent = -1
+        self._told_percent[feature] = -1
         return self._review.download_models(feature, self._download_progress)
 
     @_logged
@@ -221,9 +221,9 @@ class WindowApi:
     def _download_progress(self, feature: str, received: int, total: int) -> None:
         """Tell the page how far a download is, once per whole percent."""
         percent = 100 if total == 0 else min(100, received * 100 // total)
-        if percent == self._told_percent:
+        if percent == self._told_percent.get(feature):
             return
-        self._told_percent = percent
+        self._told_percent[feature] = percent
         self._notify("download", {"feature": feature, "received": received, "total": total})
 
     def _notify(self, what: str, detail: object) -> None:

@@ -66,6 +66,19 @@ class TestPassing:
         assert export_redacted(scan, detected(scan, engine), output, ocr=engine) == []
         assert output.exists()
 
+    def test_progress_counts_the_pages_re_read(
+        self, scan: Path, engine: InkReadingEngine, tmp_path: Path
+    ):
+        told: list[tuple[str, int, int]] = []
+        export_redacted(
+            scan,
+            detected(scan, engine),
+            tmp_path / "out.pdf",
+            ocr=engine,
+            progress=lambda *step: told.append(step),
+        )
+        assert [step for step in told if step[0] == LeakLayer.OCR] == [("ocr", 0, 1), ("ocr", 1, 1)]
+
     def test_kept_value_is_not_reported(self, scan: Path, engine: InkReadingEngine, tmp_path: Path):
         document = detected(scan, engine)
         for entity in document.entities:

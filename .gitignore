@@ -1,6 +1,9 @@
 # Local planning document, intentionally untracked
 PLAN.md
 
+# Debug logs can hold text from real documents
+*.log
+
 # Data, models and generated documents must never be committed
 data/
 models/

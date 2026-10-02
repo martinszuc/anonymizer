@@ -368,6 +368,86 @@ In suggested order. Each item names where it plugs in.
 11. **Large documents:** virtualize the page list and the sidebar beyond a
     few hundred pages or entities.
 
+## Open issues from manual testing (2026-10-02)
+
+Found by hand in the review window on real documents and on a set of unrelated
+Czech documents (kept outside the repository). Nothing here is solved or designed
+yet. Items marked **Explain** need an explanation for the maintainer before any
+change; **Decide** items need a product decision first. Related older items are in
+*Backlog* (undo/redo, models sheet, packaging, OCR quality).
+
+**Evidence.** A local log, `debug-log.log` in the repository root, records a run on
+documents with names and Czech text: the repeated occurrences and the ordinary Czech
+words marked as personal data (items 11 and 12). It is git-ignored (`*.log`) and may
+hold text from real documents. A session that works on those items reads it from disk
+to find which detector produced each hit, and reports counts, detector sources and
+entity types, never the words, names or sentences themselves. It is not copied into
+the repository, a test, a fixture or a commit message.
+
+### Loading a document
+
+1. **Remove the once-per-session hint strings** shown while a PDF loads. They read as
+   unprofessional and are annoying.
+2. **Progress bar for detection.** Detection currently shows no progress.
+   **Explain:** is detection and OCR run page by page? If so, "page N of M" is the
+   natural unit; say which stages (OCR, rules, names) report progress and which cannot.
+3. **Status line above the progress bar** saying what is happening right now (reading
+   the text layer, running OCR, loading a model, finding names), including while models
+   load.
+
+### Models and storage
+
+4. **Download several models at once.** The two model groups can only be downloaded one
+   after the other; both buttons should work at the same time and run in parallel.
+5. **Choose where models are stored** in the packaged app, and have the app load them
+   from that place afterwards (today they live under `models/` of the resource root).
+   Applies once packaging (*Backlog* item 10) exists.
+
+### Formats
+
+6. **Support document types beyond PDF** (images, Office and text formats). **Decide**
+   which formats, and whether each is converted to a PDF first or ingested natively;
+   every path needs the same leak-check guarantee and the same hidden-data cover
+   (metadata, attachments) that PDFs get.
+
+### Review window behaviour
+
+7. **The detail popup does not update live.** After clicking a highlighted redaction, the
+   popup showing its details keeps the old "will be redacted" / "kept" state when the
+   decision changes; it must follow the state immediately.
+8. **Clicking a box both selects and toggles it.** Clicking a highlight finds the item in
+   the left list (wanted) but also flips it to kept straight away. **Decide:** make the
+   click only locate the item, with an explicit control for changing the decision, or
+   keep the current behaviour.
+9. **Undo for drawn regions.** Cmd/Ctrl+Z should remove the last region drawn. Part of the
+   wider undo/redo item in *Backlog*.
+10. **Number the drawn regions.** Each region gets a number shown next to its box,
+    increasing by one per region drawn, matching the list in the left panel.
+
+### Too many harmless detections
+
+11. **Many ordinary Czech words are marked as personal data** in unrelated documents, and
+    the same word is repeated many times in the list. If a word is rejected and occurs 30
+    times, rejecting it 30 times is not acceptable. Needed: identical occurrences grouped
+    in the left panel (one row with a count, decided together, expandable), or a switch
+    between grouped and individual view. Find out first which detector produces the
+    false positives (rules, names model, or OCR text) and in which documents.
+12. **Names, titles and degrees.** **Explain:** which model finds Czech names (GLiNER via
+    `--ner`, see the catalog) and what label set it is asked for. Academic titles and
+    degrees (Ing., Mgr., doc., Ph.D., prof.) are often left unredacted; list the options
+    (a label for titles, a rule next to a detected name, a prompt change) and what each
+    costs in false positives. The OCR models also need more work: OCR errors turn up in
+    the false positives above.
+
+### Export
+
+13. **Export refuses a copy because text is still readable, without saying where.**
+    **Explain:** how the leak check decides this, which layers it has, and why a
+    hand-drawn region on a text page can leave readable text behind. Then the window must
+    name what was found (page, the text, which layer) and what to do about it, instead of
+    a general failure. Today's behaviour on the leak result is in `ReviewApi` and the
+    export sheet.
+
 ## Known gotchas
 
 - pywebview exposes every public method and attribute of the `js_api`

@@ -127,6 +127,20 @@ def test_span_cut_inside_a_word_is_widened():
     assert _texts(entities) == ["Novák"]
 
 
+@pytest.mark.parametrize("lone", ["V", "5", "J."], ids=["preposition", "digit", "initial-with-dot"])
+def test_a_span_of_one_character_is_dropped(lone: str):
+    # On a badly read scan the model tags lone letters, which propagation
+    # then marks wherever the letter stands alone.
+    model = StandInModel({lone: "street address", "Li": "person"})
+    page = _page(f"{lone} Brně bydlí pan Li.")
+    assert _texts(GlinerDetector(model).detect(page)) == ["Li"]
+
+
+def test_one_character_inside_a_word_is_widened_and_kept():
+    model = StandInModel({"N": "person"})
+    assert _texts(GlinerDetector(model).detect(_page("volal N.Novák"))) == ["N.Novák"]
+
+
 @pytest.mark.parametrize("threshold", [-0.1, 1.5])
 def test_invalid_threshold_is_refused(threshold):
     with pytest.raises(ValueError, match="threshold"):

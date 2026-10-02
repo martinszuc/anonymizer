@@ -1,0 +1,43 @@
+name = "gliner-sweep"
+description = """
+Reproduces the 2026-10-02 measurement behind PR #55 (docs/findings.md, *False alarms
+from the name model*): GLiNER person spans before and after the "organization"
+distractor and the name filter, and the threshold raised to 0.5. Development data only."""
+stage = "dev"
+seed = 20261002
+resamples = 1000
+types = ["person"]
+compare = [["before", "+ organization"], ["+ organization", "+ name filter"]]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+# The 2026-10-02 script joined UNER's tokens with spaces and cut pages across
+# document boundaries; built the same way, its numbers are reproduced.
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+text = "tokens"
+
+[systems.before]
+model = "gliner"
+distractors = []
+names_only = false
+propagate = false
+
+[systems."before, threshold 0.5"]
+model = "gliner"
+threshold = 0.5
+distractors = []
+names_only = false
+propagate = false
+
+[systems."+ organization"]
+model = "gliner"
+names_only = false
+propagate = false
+
+[systems."+ name filter"]
+model = "gliner"
+propagate = false

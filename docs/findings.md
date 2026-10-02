@@ -404,6 +404,63 @@ word count grew from 1,921 to 1,928 because link anchors are now counted.
   under *Scanned benchmark with a perfect reader* is not enough for
   two- and three-letter words.
 
+### 2026-10-02 · First RQ1 tables from the harness (development data)
+
+`python -m experiments run` with `experiments/configs/{gliner-sweep,rq1-dev,rq1-ablations-dev}.toml`;
+results in `experiments/results/` (commit `a753245`, seed 20261002, 1,000 document-level
+resamples, 95 % intervals). Only counts and scores were printed; no test split was read.
+
+**The 2026-10-02 sweep reproduces** from one command (partial match, person):
+
+| | CNEC P | CNEC R | UNER-SK P | UNER-SK R |
+|---|---|---|---|---|
+| before | 0.843 (was 0.846) | 0.794 (0.796) | 0.724 (0.722) | 0.634 (0.634) |
+| + "organization" label | 0.858 (0.862) | 0.821 (0.821) | 0.740 (0.738) | 0.667 (0.667) |
+| + name filter (shipped) | 0.909 (0.916) | 0.821 (0.821) | 0.788 (0.789) | 0.667 (0.667) |
+
+UNER matches once its text is built the way the throwaway script built it (tokens joined
+by spaces, pages cut across documents: `text = "tokens"`). The CNEC gap (≤ 0.007, about
+three predicted spans) was not traced; the script is gone, and running the detector alone
+instead of the pipeline moves precision by 0.002 only.
+
+**RQ1, rules vs rules + GLiNER as shipped** (partial match; strict in the results files):
+
+| corpus | system | person P | person R | person F2 | any type R | any type F2 |
+|---|---|---|---|---|---|---|
+| CNEC dtest (cs) | rules | – | 0.000 | 0.000 | 0.094 [0.05, 0.15] | 0.115 |
+| | rules+gliner | 0.909 [0.86, 0.94] | 0.821 [0.77, 0.87] | 0.837 [0.79, 0.88] | 0.830 [0.78, 0.87] | 0.840 [0.80, 0.87] |
+| UNER-SK dev (sk) | rules+gliner | 0.828 [0.73, 0.91] | 0.670 [0.59, 0.75] | 0.697 [0.62, 0.77] | | |
+| REDACT sample (cs) | rules | – | 0.000 | 0.000 | 0.301 [0.26, 0.34] | 0.346 |
+| | rules+gliner | 0.647 [0.51, 0.84] | 0.913 [0.86, 0.96] | 0.844 [0.76, 0.91] | 0.858 [0.80, 0.90] | 0.825 [0.77, 0.87] |
+
+- **Slovak names are found less often than Czech ones**: recall 0.67 on UNER-SK against
+  0.82 on CNEC, intervals apart. The corpora differ in genre too, so this is not yet a
+  language effect.
+- **Strict match costs 0.06–0.30**: CNEC person P 0.849, R 0.752 strict; REDACT person
+  strict P 0.454, R 0.612. Span boundaries, not missed names, are most of REDACT's gap.
+- **The rules find what they look for where it is written plainly**: e-mail recall 1.0
+  on both Czech corpora, phone 26/27 on REDACT but 23/37 on CNEC, whose tokenisation
+  splits some numbers (`99 / 99 99 99`); which ones were missed was not inspected.
+- **REDACT's birth numbers are not valid**: 1 of 20 found. Checked independently, 12 of
+  the 13 values with a slash fail the mod-11 check (the other 7 are 8–9 digit numbers no
+  rule knows). The rule requires the checksum by design, so this measures the corpus's
+  generator, not the detector; REDACT cannot score birth numbers.
+- **GLiNER's "street address" over-reaches**: address recall 1.0 with precision 0.62
+  (CNEC) and 0.54 (REDACT); street names without a number are flagged.
+
+**Ablations** (one option away from shipped; paired difference in F2, any type, partial):
+
+- **The name filter costs no recall on any corpus** and raises person precision by 0.05
+  (CNEC), 0.06 (UNER-SK) and 0.07 (REDACT); F2 +0.008 to +0.012, every interval above 0.
+- **Without the distractor label** F2 drops 0.010–0.028 on all three, intervals below 0.
+- **Threshold 0.2 instead of 0.3** raises CNEC F2 by 0.010 [0.002, 0.020]; on UNER-SK and
+  REDACT the interval includes 0. 0.4 lowers it on CNEC and UNER-SK. A candidate for
+  tuning on development data, not changed here.
+- **Propagation** changes nothing on CNEC (its pages are unrelated sentences), and raises
+  person recall on UNER-SK by 0.015 and REDACT by 0.032, where names repeat.
+- **Recognising the language** instead of giving it changed no CNEC or UNER-SK document;
+  5 of the 40 REDACT records (code-switched) were recognised as another language or none.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

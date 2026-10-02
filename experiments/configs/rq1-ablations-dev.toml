@@ -1,0 +1,62 @@
+name = "rq1-ablations-dev"
+description = """
+RQ1 ablations on development data, each one option away from the shipped rules+gliner:
+the name model's threshold, the "organization" distractor, the name filter, occurrence
+propagation and the language (recognised from the text instead of the corpus's own)."""
+stage = "dev"
+seed = 20261002
+resamples = 1000
+compare = [
+  ["rules+gliner", "threshold 0.2"],
+  ["rules+gliner", "threshold 0.4"],
+  ["rules+gliner", "no distractor"],
+  ["rules+gliner", "no name filter"],
+  ["rules+gliner", "no propagation"],
+]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[systems."rules+gliner"]
+model = "gliner"
+
+[systems."threshold 0.2"]
+model = "gliner"
+threshold = 0.2
+
+[systems."threshold 0.4"]
+model = "gliner"
+threshold = 0.4
+
+[systems."threshold 0.5"]
+model = "gliner"
+threshold = 0.5
+
+[systems."threshold 0.6"]
+model = "gliner"
+threshold = 0.6
+
+[systems."no distractor"]
+model = "gliner"
+distractors = []
+
+[systems."no name filter"]
+model = "gliner"
+names_only = false
+
+[systems."no propagation"]
+model = "gliner"
+propagate = false
+
+[systems."language recognised"]
+model = "gliner"
+language = "auto"

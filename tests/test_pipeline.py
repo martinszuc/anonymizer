@@ -42,6 +42,12 @@ class TestBuildDetector:
         assert wrapped.detector is model
         assert wrapped.role_words == role_words_for("cs")
 
+    def test_model_unfiltered_when_names_only_is_off(self):
+        model = GlinerDetector(StandInModel({}))
+        detector = build_detector("cs", model=model, names_only=False)
+        assert isinstance(detector, CombinedDetector)
+        assert detector.detectors[1] is model
+
 
 class FirstOccurrence:
     """Finds only the first occurrence of a name, as a detector often does."""

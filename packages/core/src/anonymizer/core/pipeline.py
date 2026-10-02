@@ -59,7 +59,9 @@ def resolve_language(document: Document, requested: str | None) -> str | None:
     return language
 
 
-def build_detector(language: str | None, *, model: Detector | None = None) -> Detector:
+def build_detector(
+    language: str | None, *, model: Detector | None = None, names_only: bool = True
+) -> Detector:
     """Return the rules for a language, combined with a model detector if one is given.
 
     The model's person spans are cut back to the name (`detect.NamesOnly`), with
@@ -69,12 +71,19 @@ def build_detector(language: str | None, *, model: Detector | None = None) -> De
         language: BCP 47 tag selecting the rules and role words; every list
             applies for `None`.
         model: A loaded model detector (see `detect.load_gliner_detector`).
+        names_only: Cut the model's person spans back to the name. Every
+            client keeps the default; the evaluation turns it off to measure
+            what the filter is worth.
 
     Returns:
         The detector to run over a document.
     """
     rules = detector_for(language)
-    detector = rules if model is None else CombinedDetector([rules, NamesOnly(model, language)])
+    if model is None:
+        detector = rules
+    else:
+        filtered = NamesOnly(model, language) if names_only else model
+        detector = CombinedDetector([rules, filtered])
     log.debug("detector built: %s (%d rules)", detector.name, len(rules.finders))
     return detector
 

@@ -1,0 +1,26 @@
+name = "rq1-dev"
+description = """
+RQ1, development data: the rules alone against the rules with the name model as shipped,
+on Czech (CNEC 2.0 dtest, REDACT sample) and Slovak (UNER Slovak-SNK dev)."""
+stage = "dev"
+seed = 20261002
+resamples = 1000
+compare = [["rules", "rules+gliner"]]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[systems.rules]
+model = "none"
+
+[systems."rules+gliner"]
+model = "gliner"

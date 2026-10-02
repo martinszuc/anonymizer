@@ -43,7 +43,6 @@ anonymizer-ui = { workspace = true }
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-extend-exclude = ["experiments"]
 
 [tool.ruff.lint]
 select = [
@@ -82,11 +81,12 @@ convention = "google"
 "packages/cli/**" = ["T20"]
 "packages/ui/**" = ["T20"]
 "benchmark/**" = ["T20"]
+"experiments/**" = ["T20"]
 "scripts/**" = ["T20"]
 
 [tool.pyright]
-include = ["packages", "scripts", "tests", "benchmark"]
-exclude = ["**/.venv", "experiments"]
+include = ["packages", "scripts", "tests", "benchmark", "experiments"]
+exclude = ["**/.venv"]
 typeCheckingMode = "standard"
 pythonVersion = "3.12"
 reportMissingTypeStubs = false

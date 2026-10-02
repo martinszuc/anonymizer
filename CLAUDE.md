@@ -44,7 +44,8 @@ packages/cli/    thin command-line client
 packages/ui/     review window: api.py (ReviewApi, plain data), app.py
                  (pywebview window), frontend/ (React, Vite, DESIGN.md)
 benchmark/       synthetic documents as data, generator, scorer, pictures, charts
-experiments/     evaluation scripts (planned, not created yet)
+experiments/     evaluation harness: corpus loaders, systems via pipeline.py, cached
+                 model output, scores with bootstrap CIs, results tables
 scripts/         model and dataset download, synthetic mixed-format sample generator
 data/            local corpora, git-ignored, never committed
 ```
@@ -68,7 +69,7 @@ docstrings, not here; they go stale in two places.
   page in points, so nothing converts coordinates in the browser. Keep
   `'unsafe-eval'` in the CSP: pywebview returns API results through `eval()`.
 
-- Clients (CLI, review window, benchmark) never chain core steps themselves: they
+- Clients (CLI, review window, benchmark, experiments) never chain core steps themselves: they
   call `core/pipeline.py` (`build_detector`, `run_detection`) and export through
   `redact.export_redacted`, which leaves a copy only if the leak check passed. A
   step or option added there reaches all of them, and the benchmark measures
@@ -143,7 +144,7 @@ Ruff runs from `uv.lock` everywhere; pre-commit does not pin its own ruff versio
 - Tests needing a downloaded model are marked `@pytest.mark.model` and skipped when the model is absent.
 - Tests needing a downloaded corpus are marked `@pytest.mark.dataset` and skipped when the corpus is absent. The unmarked suite must pass with no network and no `data/` directory, because that is all CI has.
 - The benchmark (`benchmark/`, `python -m benchmark run`) scores the pipeline on synthetic documents whose personal items are marked inline (`[[person:Jan Novák]]`). Add documents there, not PDFs; every value is invented, and checksum-bearing ones are computed independently. Its GitHub workflow is the one place CI fetches a model: started by hand or by a release, from the official source, checked against the catalog checksum.
-- Datasets are never test fixtures, and a dataset containing real personal data is never used in tests at all. Measurement belongs in `experiments/` (not created yet), not in `pytest`.
+- Datasets are never test fixtures, and a dataset containing real personal data is never used in tests at all. Measurement belongs in `experiments/` (`python -m experiments run --config …`), not in `pytest`.
 
 ## Lessons from earlier mistakes
 

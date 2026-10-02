@@ -1,0 +1,23 @@
+name = "rq1-test"
+description = """
+RQ1, test data, for the final table only: run once the systems and their settings are
+fixed on development data (rq1-dev, rq1-ablations-dev). REDACT's test data will be the
+full file; the local 1,000-record sample is development data."""
+stage = "final"
+seed = 20261002
+resamples = 1000
+compare = [["rules", "rules+gliner"]]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "etest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "test"
+
+[systems.rules]
+model = "none"
+
+[systems."rules+gliner"]
+model = "gliner"

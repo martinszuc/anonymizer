@@ -143,29 +143,201 @@ export function groupToggled(members: EntityInfo[]): ReviewState {
   return groupDecision(members) === "redacted" ? "rejected" : "confirmed";
 }
 
-/** Score steps offered for keeping the model's least certain findings. */
-export const KEEP_BELOW_STEPS = [0.4, 0.5, 0.6, 0.7] as const;
+/** Score steps offered for finding the model's least certain findings. */
+export const SCORE_STEPS = [0.4, 0.5, 0.6, 0.7] as const;
+
+/** Identical findings share a text key: type and text, ignoring case and spacing. */
+function textKey(entity: EntityInfo): string {
+  return `${entity.type}:${covers(entity).toLocaleLowerCase()}`;
+}
+
+/**
+ * The model's score for each text, by its best evidence: the highest score among
+ * its identical findings. A text a rule or the reviewer also found has no score
+ * (null): that evidence outranks any score. Repeats and hidden data add nothing.
+ */
+export function textScores(entities: EntityInfo[]): Map<string, number | null> {
+  const scores = new Map<string, number | null>();
+  for (const entity of entities) {
+    if (!isDecidable(entity) || entity.source === "propagated") continue;
+    const key = textKey(entity);
+    if (entity.source !== "model" || entity.score === null) {
+      scores.set(key, null);
+    } else if (scores.get(key) !== null) {
+      scores.set(key, Math.max(scores.get(key) ?? 0, entity.score));
+    }
+  }
+  return scores;
+}
+
+/** A decidable finding's score by its text (see `textScores`); null for anything else. */
+function scoreOf(entity: EntityInfo, scores: Map<string, number | null>): number | null {
+  return isDecidable(entity) ? (scores.get(textKey(entity)) ?? null) : null;
+}
 
 /**
  * Undecided findings the model scored below a threshold, with their repeats, so a
- * group of identical findings is kept whole. A text counts by its best evidence:
- * the highest score among its identical findings, and a rule or the reviewer's own
- * finding outranks every score. Nothing already decided is included.
+ * group of identical findings is kept whole. Nothing already decided is included.
  */
 export function lowConfidence(entities: EntityInfo[], threshold: number): EntityInfo[] {
-  const key = (entity: EntityInfo) => `${entity.type}:${covers(entity).toLocaleLowerCase()}`;
-  const best = new Map<string, number>();
-  for (const entity of entities) {
-    if (!isDecidable(entity) || entity.source === "propagated") continue;
-    const score = entity.source === "model" && entity.score !== null ? entity.score : 1;
-    best.set(key(entity), Math.max(best.get(key(entity)) ?? 0, score));
+  const scores = textScores(entities);
+  return entities.filter((entity) => {
+    const score = scoreOf(entity, scores);
+    return entity.review === "pending" && score !== null && score < threshold;
+  });
+}
+
+export type SortOrder = "type" | "score-asc" | "score-desc" | "occurrences" | "page" | "text";
+
+export const SORT_ORDERS: { value: SortOrder; label: string }[] = [
+  { value: "type", label: "Type" },
+  { value: "score-asc", label: "Least certain first" },
+  { value: "score-desc", label: "Most certain first" },
+  { value: "occurrences", label: "Most repeated first" },
+  { value: "page", label: "Page order" },
+  { value: "text", label: "A–Z" },
+];
+
+export type DecisionFilter = "all" | "undecided" | "redacted" | "kept";
+export type SourceFilter = "rule" | "model" | "propagated" | "manual";
+
+export interface FindingFilter {
+  decision: DecisionFilter;
+  /** Empty: every source. */
+  sources: SourceFilter[];
+  /** Only findings the model scored below this; null for any. */
+  scoreBelow: number | null;
+  /** Found text containing this, ignoring case and diacritics ("novak" finds "Novák"). */
+  text: string;
+}
+
+export const NO_FILTER: FindingFilter = { decision: "all", sources: [], scoreBelow: null, text: "" };
+
+/** How the findings list is shown: its order, its sections and what it leaves out. */
+export interface ListView {
+  sort: SortOrder;
+  /** Sections per type; always for the "type" order. */
+  byType: boolean;
+  filter: FindingFilter;
+}
+
+export const DEFAULT_VIEW: ListView = { sort: "type", byType: true, filter: NO_FILTER };
+
+/** The view after choosing an order: sections by type for "type", one list otherwise. */
+export function sortedBy(view: ListView, sort: SortOrder): ListView {
+  return { ...view, sort, byType: sort === "type" };
+}
+
+/** How many filter settings are active, the search included. */
+export function activeFilters(filter: FindingFilter): number {
+  return (
+    Number(filter.decision !== "all") +
+    Number(filter.sources.length > 0) +
+    Number(filter.scoreBelow !== null) +
+    Number(filter.text.trim() !== "")
+  );
+}
+
+function folded(text: string): string {
+  return text.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase();
+}
+
+function matches(
+  entity: EntityInfo,
+  filter: FindingFilter,
+  scores: Map<string, number | null>,
+  numbers: Map<string, number>,
+): boolean {
+  if (filter.decision === "undecided" && !(isDecidable(entity) && entity.review === "pending")) return false;
+  if (filter.decision === "redacted" && !isRemoved(entity)) return false;
+  if (filter.decision === "kept" && isRemoved(entity)) return false;
+  if (filter.sources.length > 0 && !filter.sources.includes(entity.source as SourceFilter)) return false;
+  if (filter.scoreBelow !== null) {
+    const score = scoreOf(entity, scores);
+    if (score === null || score >= filter.scoreBelow) return false;
   }
-  return entities.filter(
-    (entity) =>
-      isDecidable(entity) &&
-      entity.review === "pending" &&
-      (entity.source === "model" || entity.source === "propagated") &&
-      (best.get(key(entity)) ?? 1) < threshold,
+  const query = folded(filter.text.trim());
+  return query === "" || folded(covers(entity, numbers.get(entity.id))).includes(query);
+}
+
+/** The findings a filter lets through. */
+export function filterFindings(entities: EntityInfo[], filter: FindingFilter): EntityInfo[] {
+  const scores = textScores(entities);
+  const numbers = regionNumbers(entities);
+  return entities.filter((entity) => matches(entity, filter, scores, numbers));
+}
+
+/** A row of the list: one finding, or several identical ones decided together. */
+export interface FindingRow {
+  key: string;
+  /** In reading order. */
+  members: EntityInfo[];
+  /** The model's score for the text (see `textScores`); null without one. */
+  score: number | null;
+}
+
+/** A section of the list: one type, or (type null) every finding in one list. */
+export interface FindingSection {
+  type: string | null;
+  label: string;
+  rows: FindingRow[];
+}
+
+/**
+ * The findings list as a view shows it: filtered, grouped into rows of identical
+ * findings, in sections by type or one list, in the chosen order. Rows without a
+ * score (rules, regions, hidden data) come after scored ones in either score order;
+ * ties keep page order.
+ */
+export function findingSections(entities: EntityInfo[], view: ListView): FindingSection[] {
+  const scores = textScores(entities);
+  const shown = filterFindings(entities, view.filter);
+  const rows = (members: EntityInfo[]): FindingRow[] =>
+    sortRows(
+      groupOccurrences(members).map((found) => ({
+        key: found.key,
+        members: found.members,
+        score: scoreOf(found.members[0] as EntityInfo, scores),
+      })),
+      view.sort,
+    );
+  if (view.byType || view.sort === "type") {
+    return groupByType(shown).map((group) => ({ type: group.type, label: group.label, rows: rows(group.entities) }));
+  }
+  return [{ type: null, label: "Findings", rows: rows([...shown].sort(byReadingOrder)) }];
+}
+
+function sortRows(rows: FindingRow[], sort: SortOrder): FindingRow[] {
+  const first = (row: FindingRow) => row.members[0] as EntityInfo;
+  const page = (a: FindingRow, b: FindingRow) => byReadingOrder(first(a), first(b));
+  const byScore = (direction: 1 | -1) => (a: FindingRow, b: FindingRow) => {
+    if (a.score === null || b.score === null) return Number(a.score === null) - Number(b.score === null) || page(a, b);
+    return direction * (a.score - b.score) || page(a, b);
+  };
+  const compare: Record<SortOrder, ((a: FindingRow, b: FindingRow) => number) | null> = {
+    type: null, // reading order, and drawing order for regions, as grouped
+    "score-asc": byScore(1),
+    "score-desc": byScore(-1),
+    occurrences: (a, b) => b.members.length - a.members.length || page(a, b),
+    page,
+    text: (a, b) => covers(first(a)).localeCompare(covers(first(b)), undefined, { sensitivity: "base" }) || page(a, b),
+  };
+  const order = compare[sort];
+  return order ? [...rows].sort(order) : rows;
+}
+
+/** The scores of a group as a reader sees them: "38 %" or "38–46 %"; null without any. */
+export function scoreRange(members: EntityInfo[]): string | null {
+  const scores = members.flatMap((member) => (member.score === null ? [] : [Math.round(member.score * 100)]));
+  if (scores.length === 0) return null;
+  const [low, high] = [Math.min(...scores), Math.max(...scores)];
+  return low === high ? `${low} %` : `${low}–${high} %`;
+}
+
+/** What "Keep" acts on: the undecided findings a list shows; decisions already made stay. */
+export function keepable(sections: FindingSection[]): EntityInfo[] {
+  return sections.flatMap((section) =>
+    section.rows.flatMap((row) => row.members.filter((member) => isDecidable(member) && member.review === "pending")),
   );
 }
 

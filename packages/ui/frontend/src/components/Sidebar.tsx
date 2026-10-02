@@ -1,24 +1,35 @@
-import { ChevronRight, EyeOff, Info, Lock, Paperclip, X } from "lucide-react";
+import { ArrowDownUp, ChevronDown, ChevronRight, EyeOff, Info, ListFilter, Lock, Paperclip, Search, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { gentle } from "../motion";
 import {
-  KEEP_BELOW_STEPS,
+  NO_FILTER,
+  SCORE_STEPS,
+  SORT_ORDERS,
+  activeFilters,
   covers,
-  groupByType,
+  findingSections,
   groupDecision,
-  groupOccurrences,
   isDecidable,
   isIdentifier,
   isRemoved,
+  keepable,
   lowConfidence,
   pageList,
   regionNumbers,
+  scoreRange,
+  sortedBy,
   summarize,
   typeLabel,
+  type DecisionFilter,
+  type FindingFilter,
+  type FindingRow,
+  type FindingSection,
   type GroupDecision,
-  type Occurrences,
+  type ListView,
+  type SortOrder,
+  type SourceFilter,
 } from "../review";
 import type { DocumentInfo, EntityInfo, SurfaceInfo } from "../types";
 import { Button } from "./Button";
@@ -36,8 +47,11 @@ interface SidebarProps {
   onToggle: (entity: EntityInfo) => void;
   /** One decision for every member of a group of identical findings. */
   onToggleGroup: (members: EntityInfo[]) => void;
-  /** Keep every finding given: the model's uncertain ones, from the bar above the list. */
+  /** Keep every finding given: the undecided ones the list shows. */
   onKeep: (entities: EntityInfo[]) => void;
+  /** Order, sections and filter of the findings list. */
+  view: ListView;
+  onView: (view: ListView) => void;
   onRemove: (entity: EntityInfo) => void;
   selectedSurfaceId: string | null;
   onSelectSurface: (surface: SurfaceInfo) => void;
@@ -55,8 +69,11 @@ export function Sidebar({
   onRemove,
   selectedSurfaceId,
   onSelectSurface,
+  view,
+  onView,
 }: SidebarProps) {
   const summary = summarize(document);
+  const sections = useMemo(() => findingSections(document.entities, view), [document.entities, view]);
   return (
     <aside className="sidebar" aria-label="Review">
       <div className="summary" aria-live="polite">
@@ -73,10 +90,15 @@ export function Sidebar({
           { value: "hidden", label: "Hidden", count: document.surfaces.length },
         ]}
       />
-      {tab === "findings" && <KeepUncertain entities={document.entities} onKeep={onKeep} />}
+      {tab === "findings" && (
+        <ListTools entities={document.entities} sections={sections} view={view} onView={onView} onKeep={onKeep} />
+      )}
       {tab === "findings" ? (
         <Findings
           document={document}
+          sections={sections}
+          filtering={activeFilters(view.filter) > 0}
+          onClearFilters={() => onView({ ...view, filter: NO_FILTER })}
           selectedId={selectedId}
           onSelect={onSelect}
           onToggle={onToggle}
@@ -115,48 +137,199 @@ function SummaryFigure({ value, label, tone }: { value: number; label: string; t
   );
 }
 
-type Step = `${(typeof KEEP_BELOW_STEPS)[number]}`;
+/** The score step the hint above the list offers when nothing is filtered. */
+const HINT_SCORE = 0.5;
+
+const DECISIONS: { value: DecisionFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "undecided", label: "Undecided" },
+  { value: "redacted", label: "Redacted" },
+  { value: "kept", label: "Kept" },
+];
+
+const SOURCES: { value: SourceFilter; label: string }[] = [
+  { value: "rule", label: "Rules" },
+  { value: "model", label: "Model" },
+  { value: "propagated", label: "Repeats" },
+  { value: "manual", label: "Drawn" },
+];
+
+type ScoreStep = "any" | `${(typeof SCORE_STEPS)[number]}`;
+
+interface ListToolsProps {
+  entities: EntityInfo[];
+  sections: FindingSection[];
+  view: ListView;
+  onView: (view: ListView) => void;
+  onKeep: (entities: EntityInfo[]) => void;
+}
 
 /**
- * Keeps the model's least certain findings in one go: names it scored under the
- * chosen step, with their repeats. Shown while the model left any of them undecided.
+ * Search, order and filter for the findings list. While anything is filtered, a
+ * strip keeps the undecided findings shown in one go, so a bulk decision covers
+ * exactly what the reviewer sees.
  */
-function KeepUncertain({ entities, onKeep }: { entities: EntityInfo[]; onKeep: (entities: EntityInfo[]) => void }) {
-  const [step, setStep] = useState<Step>("0.5");
-  const highest = KEEP_BELOW_STEPS[KEEP_BELOW_STEPS.length - 1] as number;
-  const offered = useMemo(() => lowConfidence(entities, highest).length > 0, [entities, highest]);
-  const matching = useMemo(() => lowConfidence(entities, Number(step)), [entities, step]);
-  if (!offered) return null;
+function ListTools({ entities, sections, view, onView, onKeep }: ListToolsProps) {
+  const [open, setOpen] = useState(false);
+  const { filter } = view;
+  const active = activeFilters(filter);
+  const shown = sections.reduce((count, section) => count + section.rows.reduce((n, row) => n + row.members.length, 0), 0);
+  const keep = keepable(sections);
+  const uncertain = useMemo(() => lowConfidence(entities, HINT_SCORE).length, [entities]);
+  const setFilter = (changes: Partial<FindingFilter>) => onView({ ...view, filter: { ...filter, ...changes } });
+  const toggleSource = (source: SourceFilter) =>
+    setFilter({
+      sources: filter.sources.includes(source)
+        ? filter.sources.filter((item) => item !== source)
+        : [...filter.sources, source],
+    });
+
   return (
-    <section className="keep-uncertain" aria-label="Keep uncertain findings">
-      <div className="keep-uncertain-line">
-        <span title="Scored by the names model; rules and your own decisions are left alone">
-          <span className="keep-uncertain-count">{matching.length}</span>{" "}
-          {matching.length === 1 ? "finding" : "findings"} scored below
-        </span>
-        <Button
-          disabled={matching.length === 0}
-          title="Keep them in the output; each can still be redacted again"
-          onClick={() => onKeep(matching)}
+    <section className="list-tools" aria-label="Search, sort and filter findings">
+      <label className="search-field">
+        <Search size={14} aria-hidden />
+        <input
+          type="search"
+          placeholder="Search findings"
+          aria-label="Search findings"
+          value={filter.text}
+          onChange={(event) => setFilter({ text: event.target.value })}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && filter.text) {
+              event.stopPropagation();
+              setFilter({ text: "" });
+            }
+          }}
+        />
+        {filter.text && (
+          <button type="button" className="search-clear" aria-label="Clear the search" onClick={() => setFilter({ text: "" })}>
+            <X size={12} />
+          </button>
+        )}
+      </label>
+      <div className="list-tools-line">
+        <label className="sort-field" title="Order of the list">
+          <ArrowDownUp size={14} aria-hidden />
+          <select
+            aria-label="Sort findings"
+            value={view.sort}
+            onChange={(event) => onView(sortedBy(view, event.target.value as SortOrder))}
+          >
+            {SORT_ORDERS.map((order) => (
+              <option key={order.value} value={order.value}>
+                {order.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={12} aria-hidden />
+        </label>
+        <button
+          type="button"
+          className="filter-toggle"
+          aria-expanded={open}
+          aria-controls="finding-filters"
+          data-active={active > 0}
+          onClick={() => setOpen((value) => !value)}
         >
-          Keep
-        </Button>
+          <ListFilter size={14} aria-hidden />
+          Filter
+          {active > 0 && <span className="filter-count">{active}</span>}
+        </button>
+        <span className="list-tools-count" aria-live="polite">
+          {active > 0 ? `${shown} of ${entities.length}` : entities.length}
+        </span>
       </div>
-      <SegmentedControl
-        name="keep-below"
-        value={step}
-        onChange={setStep}
-        segments={KEEP_BELOW_STEPS.map((value) => ({
-          value: `${value}` as Step,
-          label: `${Math.round(value * 100)} %`,
-        }))}
-      />
+      {open && (
+        <div id="finding-filters" className="filter-panel">
+          <FilterGroup label="Decision">
+            <SegmentedControl
+              name="decision"
+              value={filter.decision}
+              onChange={(decision) => setFilter({ decision })}
+              segments={DECISIONS}
+            />
+          </FilterGroup>
+          <FilterGroup label="Found by">
+            <div className="chips">
+              {SOURCES.map((source) => (
+                <button
+                  key={source.value}
+                  type="button"
+                  className="chip"
+                  aria-pressed={filter.sources.includes(source.value)}
+                  onClick={() => toggleSource(source.value)}
+                >
+                  {source.label}
+                </button>
+              ))}
+            </div>
+          </FilterGroup>
+          <FilterGroup label="Model score below">
+            <SegmentedControl
+              name="score-below"
+              value={(filter.scoreBelow === null ? "any" : `${filter.scoreBelow}`) as ScoreStep}
+              onChange={(step) => setFilter({ scoreBelow: step === "any" ? null : Number(step) })}
+              segments={[
+                { value: "any" as ScoreStep, label: "Any" },
+                ...SCORE_STEPS.map((step) => ({ value: `${step}` as ScoreStep, label: `${Math.round(step * 100)} %` })),
+              ]}
+            />
+          </FilterGroup>
+          <label className="check-row" data-disabled={view.sort === "type"}>
+            <input
+              type="checkbox"
+              checked={view.byType || view.sort === "type"}
+              disabled={view.sort === "type"}
+              onChange={(event) => onView({ ...view, byType: event.target.checked })}
+            />
+            Sections by type
+          </label>
+        </div>
+      )}
+      {active === 0 && uncertain > 0 && (
+        <p className="list-hint">
+          <span>
+            <span className="list-hint-count">{uncertain}</span> {uncertain === 1 ? "finding" : "findings"} scored
+            below {Math.round(HINT_SCORE * 100)} %
+          </span>
+          <button type="button" className="link-button" onClick={() => setFilter({ scoreBelow: HINT_SCORE })}>
+            Show them
+          </button>
+        </p>
+      )}
+      {active > 0 && (
+        <div className="list-actions">
+          <Button
+            disabled={keep.length === 0}
+            title="Keep the undecided findings shown; decisions you made stay as they are"
+            onClick={() => onKeep(keep)}
+          >
+            {keep.length > 0 ? `Keep ${keep.length}` : "Nothing to keep"}
+          </Button>
+          <Button variant="plain" onClick={() => onView({ ...view, filter: NO_FILTER })}>
+            Clear filters
+          </Button>
+        </div>
+      )}
     </section>
+  );
+}
+
+function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="filter-group" role="group" aria-label={label}>
+      <span className="filter-label">{label}</span>
+      {children}
+    </div>
   );
 }
 
 interface FindingsProps {
   document: DocumentInfo;
+  /** The list as the view shows it (see `findingSections`). */
+  sections: FindingSection[];
+  filtering: boolean;
+  onClearFilters: () => void;
   selectedId: string | null;
   onSelect: (entity: EntityInfo) => void;
   onToggle: (entity: EntityInfo) => void;
@@ -165,21 +338,26 @@ interface FindingsProps {
 }
 
 /** A row of the list: one finding, or the head of a group of identical ones. */
-type ListRow = { kind: "entity"; entity: EntityInfo } | { kind: "group"; group: Occurrences };
+type ListRow = { kind: "entity"; entity: EntityInfo } | { kind: "group"; group: FindingRow };
 
-function Findings({ document, selectedId, onSelect, onToggle, onToggleGroup, onRemove }: FindingsProps) {
-  const groups = useMemo(() => groupByType(document.entities), [document.entities]);
+function Findings({
+  document,
+  sections,
+  filtering,
+  onClearFilters,
+  selectedId,
+  onSelect,
+  onToggle,
+  onToggleGroup,
+  onRemove,
+}: FindingsProps) {
   const numbers = useMemo(() => regionNumbers(document.entities), [document.entities]);
-  const occurrences = useMemo(
-    () => new Map(groups.map((group) => [group.type, groupOccurrences(group.entities)])),
-    [groups],
-  );
   // Groups of repeats are collapsed until opened, so a word found 30 times is one row.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const listRef = useRef<HTMLDivElement>(null);
 
-  const rows: ListRow[] = groups.flatMap((group) =>
-    (occurrences.get(group.type) ?? []).flatMap((found): ListRow[] => {
+  const rows: ListRow[] = sections.flatMap((section) =>
+    section.rows.flatMap((found): ListRow[] => {
       const [only] = found.members;
       if (found.members.length === 1 && only) return [{ kind: "entity", entity: only }];
       const head: ListRow = { kind: "group", group: found };
@@ -203,7 +381,14 @@ function Findings({ document, selectedId, onSelect, onToggle, onToggleGroup, onR
   }, [selectedId]);
 
   if (rows.length === 0) {
-    return (
+    return filtering ? (
+      <div className="sidebar-empty">
+        <p>No findings match.</p>
+        <Button variant="plain" onClick={onClearFilters}>
+          Clear filters
+        </Button>
+      </div>
+    ) : (
       <div className="sidebar-empty">
         <p>Nothing was found in the text.</p>
         <p className="muted">Hidden items are still removed on export.</p>
@@ -260,14 +445,21 @@ function Findings({ document, selectedId, onSelect, onToggle, onToggleGroup, onR
         <span>Found</span>
         <span>Redact</span>
       </div>
-      {groups.map((group) => (
-        <section key={group.type} className="group" data-type={group.type} aria-label={group.label}>
-          <h2 className="group-header">
-            <span className="dot" aria-hidden />
-            {group.label}
-            <span className="group-count">{group.entities.length}</span>
-          </h2>
-          {(occurrences.get(group.type) ?? []).map((found) => {
+      {sections.map((section) => (
+        <section
+          key={section.type ?? "all"}
+          className="group"
+          data-type={section.type ?? undefined}
+          aria-label={section.label}
+        >
+          {section.type !== null && (
+            <h2 className="group-header">
+              <span className="dot" aria-hidden />
+              {section.label}
+              <span className="group-count">{section.rows.reduce((count, row) => count + row.members.length, 0)}</span>
+            </h2>
+          )}
+          {section.rows.map((found) => {
             const [only] = found.members;
             if (found.members.length === 1 && only) {
               return (
@@ -275,6 +467,7 @@ function Findings({ document, selectedId, onSelect, onToggle, onToggleGroup, onR
                   key={only.id}
                   entity={only}
                   regionNumber={numbers.get(only.id)}
+                  showType={section.type === null}
                   selected={only.id === selectedId}
                   onSelect={onSelect}
                   onToggle={onToggle}
@@ -288,6 +481,7 @@ function Findings({ document, selectedId, onSelect, onToggle, onToggleGroup, onR
                 <GroupRow
                   group={found}
                   open={open}
+                  showType={section.type === null}
                   selected={holds({ kind: "group", group: found })}
                   selectedId={selectedId}
                   onOpen={(value) => setOpen(found.key, value)}
@@ -300,6 +494,7 @@ function Findings({ document, selectedId, onSelect, onToggle, onToggleGroup, onR
                       key={entity.id}
                       entity={entity}
                       regionNumber={undefined}
+                      showType={false}
                       selected={entity.id === selectedId}
                       onSelect={onSelect}
                       onToggle={onToggle}
@@ -316,8 +511,10 @@ function Findings({ document, selectedId, onSelect, onToggle, onToggleGroup, onR
 }
 
 interface GroupRowProps {
-  group: Occurrences;
+  group: FindingRow;
   open: boolean;
+  /** In a list without sections by type, the meta line names the type. */
+  showType: boolean;
   selected: boolean;
   selectedId: string | null;
   onOpen: (open: boolean) => void;
@@ -326,7 +523,7 @@ interface GroupRowProps {
 }
 
 /** Identical findings in one row: how often and where, one switch for all of them. */
-function GroupRow({ group, open, selected, selectedId, onOpen, onSelect, onToggleGroup }: GroupRowProps) {
+function GroupRow({ group, open, showType, selected, selectedId, onOpen, onSelect, onToggleGroup }: GroupRowProps) {
   const { members } = group;
   const first = members[0] as EntityInfo;
   const decision = groupDecision(members);
@@ -373,7 +570,7 @@ function GroupRow({ group, open, selected, selectedId, onOpen, onSelect, onToggl
           {text}
           <span className="row-times">×{members.length}</span>
         </span>
-        <span className="row-meta">{groupMeta(members, decision)}</span>
+        <span className="row-meta">{groupMeta(members, decision, showType)}</span>
       </div>
       {decidable ? (
         <Switch
@@ -396,10 +593,12 @@ function GroupRow({ group, open, selected, selectedId, onOpen, onSelect, onToggl
   );
 }
 
-function groupMeta(members: EntityInfo[], decision: GroupDecision): string {
+function groupMeta(members: EntityInfo[], decision: GroupDecision, showType: boolean): string {
   const pages = [...new Set(members.flatMap((member) => (member.page_index === null ? [] : [member.page_index + 1])))];
   const places = pages.length > 0 ? capitalised(pageList(pages.sort((a, b) => a - b))) : "Document info";
-  const parts = [places];
+  const parts = showType ? [typeLabel((members[0] as EntityInfo).type), places] : [places];
+  const scores = scoreRange(members);
+  if (scores) parts.push(scores);
   if (decision === "mixed") {
     const kept = members.filter((member) => !isRemoved(member)).length;
     parts.push(`${kept} kept`);
@@ -414,13 +613,15 @@ function capitalised(text: string): string {
 interface EntityRowProps {
   entity: EntityInfo;
   regionNumber: number | undefined;
+  /** In a list without sections by type, the meta line names the type. */
+  showType: boolean;
   selected: boolean;
   onSelect: (entity: EntityInfo) => void;
   onToggle: (entity: EntityInfo) => void;
   onRemove: (entity: EntityInfo) => void;
 }
 
-function EntityRow({ entity, regionNumber, selected, onSelect, onToggle, onRemove }: EntityRowProps) {
+function EntityRow({ entity, regionNumber, showType, selected, onSelect, onToggle, onRemove }: EntityRowProps) {
   const redacted = isRemoved(entity);
   // Only something the reviewer can decide on waits for review.
   const unreviewed = entity.review === "pending" && isDecidable(entity);
@@ -447,7 +648,7 @@ function EntityRow({ entity, regionNumber, selected, onSelect, onToggle, onRemov
         <span className={isIdentifier(entity.type) ? "row-text mono" : "row-text"} title={text}>
           {text}
         </span>
-        <span className="row-meta">{rowMeta(entity)}</span>
+        <span className="row-meta">{rowMeta(entity, showType)}</span>
       </div>
       {entity.surface_id !== null ? (
         <span
@@ -489,9 +690,10 @@ const SOURCE_LABELS: Record<string, string> = {
   propagated: "Repeat",
 };
 
-function rowMeta(entity: EntityInfo): string {
+function rowMeta(entity: EntityInfo, showType: boolean): string {
   const place = entity.page_index === null ? "Document info" : `Page ${entity.page_index + 1}`;
   const parts = [place, SOURCE_LABELS[entity.source] ?? entity.source];
+  if (showType) parts.unshift(typeLabel(entity.type));
   if (entity.score !== null) parts.push(`${Math.round(entity.score * 100)} %`);
   if (entity.surface_id) parts.push("hidden");
   return parts.join(" · ");

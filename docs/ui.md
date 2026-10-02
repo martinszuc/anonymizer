@@ -42,11 +42,23 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   are one row with a count and one switch for all of them (`set_reviews`);
   opened (chevron or →), each occurrence has its own switch, and a group decided
   both ways shows a mixed switch whose click redacts everything. Clicking a group
-  row steps through its occurrences on the page. Above the list, while the
-  names model left findings undecided, a bar keeps those it scored below a
-  chosen step (40–70 %) in one click, with their repeats (`review.lowConfidence`:
-  a text counts by its best score, a rule's finding by none); the toast offers
-  Undo, which makes them undecided again. A finding in hidden data (a link, metadata) is locked,
+  row steps through its occurrences on the page.
+- **Search, sort and filter** above the list (`review.findingSections`, one
+  pure function the list, the keyboard and *Keep* share). Search matches the
+  found text ignoring case and diacritics ("novak" finds "Novák"). Sort: Type
+  (sections by type, reading order; the default), least or most certain first,
+  most repeated first, page order, A–Z; any order but Type is one list unless
+  *Sections by type* is ticked, and its rows name their type. A group of repeats
+  is one row in every order, scored by its text's best evidence (the highest
+  model score among identical findings; a rule's or the reviewer's finding has
+  no score and sorts last). Filter: decision (undecided, redacted, kept), found
+  by (rules, model, repeats, drawn), model score below 40–70 %. While anything is
+  filtered, boxes outside the filter are dimmed on the page (review mode only),
+  the count reads "N of M", and *Keep N* keeps the undecided findings shown,
+  with Undo on the toast; decisions already made are left alone. With nothing
+  filtered, a hint offers *Show them* for findings scored below 50 %. The order
+  lasts the session; the filter is cleared when another document opens.
+- A finding in hidden data (a link, metadata) is locked,
   *Always removed*: export clears it with the hidden item, so there is nothing
   to decide. The *Hidden* tab lists every hidden item with what it is, what
   export does with it and the findings it contains; selecting one outlines it

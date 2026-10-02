@@ -15,6 +15,10 @@ Part of a diploma thesis at FEKT VUT Brno. Roadmap and open decisions: `PLAN.md`
 - **Offline only.** No code path may send document content or call a remote service for OCR or inference. Models load from local cache (`HF_HUB_OFFLINE=1`). Tests run with network access blocked. The only network access ever allowed is a model download the user starts explicitly, from the model's official source, verified against a stored checksum.
 - **No real personal data.** Test fixtures, examples and training data are synthetic or from public benchmarks. Never commit datasets, model weights or generated documents.
 - **True redaction.** Redacted content must be removed from the output file, not covered. Every redaction path needs a leakage test (re-extract the output, assert target strings are absent).
+- **Logs are not a side channel.** INFO and above hold no document text, file names or
+  paths; DEBUG may hold detected words, never names or paths; exception messages are never
+  written; no log file exists unless `--log-file` names one. Rules for adding a record:
+  `docs/logging.md`.
 - **Unicode.** UTF-8 everywhere; normalize text to NFC at ingest. Czech/Slovak diacritics must survive round-trips.
 
 ## Architecture
@@ -22,6 +26,7 @@ Part of a diploma thesis at FEKT VUT Brno. Roadmap and open decisions: `PLAN.md`
 ```
 packages/core/   library, no UI or CLI dependencies
   types.py       shared data contract (the data format every component exchanges)
+  log.py         logging setup, safe formatter, `step` (see docs/logging.md)
   session.py     slim session files: a saved review
   pipeline.py    detection as every client runs it: build the detector, run it,
                  propagate occurrences

@@ -59,6 +59,11 @@ uv run anonymize-ui cv.pdf --lang cs
 
 See [`packages/ui/README.md`](packages/ui/README.md) for frontend development.
 
+Both commands take `--debug` (every step and detection to stderr, with the word
+found and the rule or model that found it), `--log-level` and `--log-file`;
+nothing is written to a file unless `--log-file` names one. A debug log holds
+document text. See [`docs/logging.md`](docs/logging.md).
+
 ## Try it on a sample
 
 No real document is needed. The generator writes a four-page synthetic PDF (every

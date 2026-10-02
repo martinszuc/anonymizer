@@ -1,0 +1,24 @@
+# Czech e-mail printout with a quoted reply: header lines, a vocative
+# ("pane Navrátile"), a nickname in the vocative ("Báro"), a first name alone
+# as a signature, and a shared mailbox that belongs to no one.
+language = "cs"
+kind = "email"
+lines = [
+  "Od: [[person:Barbora Čermáková]] <[[email:barbora.cermakova@example.com]]>",
+  "Komu: [[person:Filip Navrátil]] <[[email:f.navratil@example.org]]>",
+  "Kopie: recepce@example.org",
+  "Datum: pondělí 21. září 2026 9:14",
+  "Předmět: Re: Termín kontroly kotle",
+  "Dobrý den, pane [[person:Navrátile]],",
+  "děkuji za rychlou odpověď. Technik [[person:Roman Bartoš]] může přijet ve čtvrtek mezi osmou a desátou hodinou. Kdyby Vám termín nevyhovoval, zavolejte mu prosím přímo na číslo [[phone:732 905 118]].",
+  "Kontrolu provedeme na adrese [[address:Lipová 377, 763 15 Slušovice]], kterou jste uvedl v objednávce. Prosím zajistěte přístup ke kotli a k revizní knize. Platbu můžete provést na místě kartou nebo předem převodem s variabilním symbolem 2609211.",
+  "S pozdravem",
+  "[[person:Barbora Čermáková]]",
+  "zákaznické oddělení, Topení Zlín s.r.o.",
+  "-----Původní zpráva-----",
+  "Od: [[person:Filip Navrátil]]",
+  "Ahoj [[person:Báro]], potřeboval bych domluvit pravidelnou kontrolu kotle. Minule ji dělal pan [[person:Bartoš]] a byl jsem spokojený. Díky, [[person:Filip]]",
+]
+links = [{ anchor = "Odpovědět", target = "mailto:[[email:barbora.cermakova@example.com]]" }]
+metadata = { Title = "Re: Termín kontroly kotle", Author = "[[person:Barbora Čermáková]]" }
+decoys = ["recepce@example.org", "Topení Zlín s.r.o.", "2609211", "21. září 2026"]

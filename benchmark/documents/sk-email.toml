@@ -1,0 +1,18 @@
+# Slovak complaint e-mail: an IBAN for the refund, a courier and a neighbour
+# named by surname after "pani", and a support mailbox that is no one's.
+language = "sk"
+kind = "email"
+lines = [
+  "Od: [[person:Michal Gregor]] <[[email:michal.gregor@example.org]]>",
+  "Komu: zakaznicka.podpora@example.com",
+  "Dátum: 3. 9. 2026 14:22",
+  "Predmet: Reklamácia objednávky 77120458",
+  "Dobrý deň,",
+  "dňa 28. 8. 2026 som si objednal práčku, ktorá bola doručená poškodená. Kuriér, pán [[person:Šimon Varga]], škodu potvrdil v preberacom protokole. Žiadam o výmenu tovaru alebo o vrátenie peňazí na účet [[iban:SK89 1100 0000 0010 7654 3217]].",
+  "Poškodený tovar si môžete vyzdvihnúť na adrese [[address:Kollárova 9, 917 01 Trnava]], doma som po 16. hodine. Ak by som nebol k dispozícii, tovar odovzdá suseda pani [[person:Lukáčová]].",
+  "S pozdravom",
+  "[[person:Michal Gregor]]",
+  "tel. [[phone:+421 948 207 663]]",
+]
+metadata = { Title = "Reklamácia – [[person:Michal Gregor]]" }
+decoys = ["zakaznicka.podpora@example.com", "77120458", "28. 8. 2026"]

@@ -1,0 +1,28 @@
+# Slovak CV: a domestic mobile number, a referee named in the dative and in
+# the nominative, a profile link, and the author in metadata and XMP.
+language = "sk"
+kind = "cv"
+lines = [
+  "[[person:Zuzana Kováčová]]",
+  "Dátum narodenia: [[date:17. 2. 1985]]",
+  "Adresa: [[address:Mierová 1453/22, 821 05 Bratislava]]",
+  "Mobil: [[phone:0918 552 714]]",
+  "E-mail: [[email:zuzana.kovacova@example.net]]",
+  "Profil",
+  "Mzdová účtovníčka s desaťročnou praxou v spracovaní miezd a personalistike. Ovládam SAP a Microsoft Excel na pokročilej úrovni.",
+  "Pracovné skúsenosti",
+  "2018 – súčasnosť: mzdová účtovníčka, Tatranská mliekareň a. s., Kežmarok. Spracovanie miezd pre 240 zamestnancov, komunikácia so Sociálnou poisťovňou a so zdravotnými poisťovňami.",
+  "2012 – 2018: asistentka personálneho oddelenia, Hotel Lomnica, Tatranská Lomnica. Priamo podriadená riaditeľke hotela Ing. [[person:Gabriele Šoltésovej]].",
+  "Vzdelanie: Ekonomická univerzita v Bratislave, Fakulta podnikového manažmentu, 2007 – 2012.",
+  "Referencie: Ing. [[person:Gabriela Šoltésová]], tel. [[phone:+421 905 774 210]]",
+]
+links = [{ anchor = "LinkedIn", target = "[[url:https://www.linkedin.com/in/zuzana-kovacova-demo]]" }]
+metadata = { Title = "Životopis – [[person:Zuzana Kováčová]]", Author = "[[person:Zuzana Kováčová]]" }
+xmp = { creator = "[[person:Zuzana Kováčová]]" }
+decoys = [
+  "Tatranská mliekareň a. s.",
+  "Hotel Lomnica",
+  "Ekonomická univerzita v Bratislave",
+  "Sociálnou poisťovňou",
+  "mzdová účtovníčka",
+]

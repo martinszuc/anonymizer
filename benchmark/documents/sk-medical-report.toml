@@ -1,0 +1,25 @@
+# Slovak hospital discharge report: patient, relative and three doctors, a
+# doctor in the genitive whose first name also reads as a woman's ("Petra"),
+# and a doctor's note naming the patient in the instrumental.
+language = "sk"
+kind = "report"
+lines = [
+  "Nemocnica Poprad, a. s.",
+  "Interné oddelenie",
+  "Prepúšťacia správa",
+  "Pacient: [[person:Ladislav Hudák]]",
+  "Rodné číslo: [[birth_number:580214/9265]]",
+  "Bydlisko: [[address:Nám. SNP 14, 058 01 Poprad]]",
+  "Zdravotná poisťovňa: Všeobecná zdravotná poisťovňa, číslo poistenca je totožné s rodným číslom.",
+  "Hospitalizovaný od 14. 9. 2026 do 21. 9. 2026.",
+  "Anamnéza: Pacient [[person:Hudák]] bol prijatý pre bolesti na hrudníku trvajúce od rána. Rodinná anamnéza: otec liečený pre hypertenziu. Pacienta priviezla manželka [[person:Anna Hudáková]], kontakt [[phone:0907 441 236]].",
+  "Priebeh hospitalizácie: Po stabilizácii bolo vykonané koronarografické vyšetrenie, ktoré nepotvrdilo akútny koronárny syndróm. Pacient bol poučený o režimových opatreniach a o užívaní liekov.",
+  "Odporúčanie: kontrola u všeobecného lekára MUDr. [[person:Petra Lacka]] do 7 dní, v kardiologickej ambulancii o 3 mesiace.",
+  "Ošetrujúci lekár: MUDr. [[person:Katarína Bieliková]]",
+  "Primár oddelenia: MUDr. [[person:Juraj Fekete]], PhD.",
+]
+annotations = [
+  { author = "MUDr. [[person:Katarína Bieliková]]", text = "Prebrať lieky s pacientom [[person:Hudákom]] pred prepustením." },
+]
+metadata = { Title = "Prepúšťacia správa", Author = "MUDr. [[person:Katarína Bieliková]]" }
+decoys = ["Nemocnica Poprad, a. s.", "Všeobecná zdravotná poisťovňa", "Interné oddelenie", "14. 9. 2026"]

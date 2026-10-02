@@ -1,0 +1,29 @@
+# Czech school application form filled in on screen. Every answer is a text
+# field: stored in the field and drawn into its appearance, which text
+# extraction returns after the printed labels, away from them. The address is
+# split over two fields, as forms ask for it. A note from the teacher who
+# received the form names her as its author. Values with Czech letters carry
+# no punctuation: text extraction drops it from MuPDF's field appearances.
+language = "cs"
+kind = "form"
+lines = [
+  "Základní umělecká škola Rožnov pod Radhoštěm",
+  "Přihláška ke studiu ve školním roce 2026/2027",
+  "Obor: hudební, nástroj: klavír. Přihlášku vyplní zákonný zástupce uchazeče a odevzdá ji v kanceláři školy nejpozději do 15. června. Talentová zkouška se koná ve škole, termín sdělí škola e-mailem.",
+  "Prohlašuji, že údaje uvedené v přihlášce jsou pravdivé, a souhlasím se zpracováním osobních údajů uchazeče pro účely přijímacího řízení a vedení školní matriky.",
+]
+fields = [
+  { label = "Jméno a příjmení uchazeče:", value = "[[person:Tobiáš Kučera]]" },
+  { label = "Datum narození:", value = "[[date:15. 7. 2017]]" },
+  { label = "Rodné číslo:", value = "[[birth_number:170715/4416]]" },
+  { label = "Ulice a číslo domu:", value = "[[address:Bezručova 1680]]" },
+  { label = "PSČ a obec:", value = "[[address:756 61 Rožnov pod Radhoštěm]]" },
+  { label = "Zákonný zástupce:", value = "[[person:Markéta Kučerová]]" },
+  { label = "Telefon:", value = "[[phone:+420 739 104 552]]" },
+  { label = "E-mail:", value = "[[email:marketa.kucerova@example.net]]" },
+]
+annotations = [
+  { author = "Mgr. [[person:Ivana Pospíšilová]]", text = "Talentová zkouška 3. 6. v 15:00, učebna 12." },
+]
+metadata = { Title = "Přihláška ZUŠ – [[person:Tobiáš Kučera]]" }
+decoys = ["Základní umělecká škola Rožnov pod Radhoštěm", "2026/2027", "15. června"]

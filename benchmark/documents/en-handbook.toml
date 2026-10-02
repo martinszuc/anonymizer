@@ -1,0 +1,25 @@
+# English employee handbook section: no personal data. Roles (the Employee,
+# Line Manager, Head of People, Data Protection Officer), the company and its
+# offices, a shared mailbox, and periods and amounts that are not dates of birth.
+language = "en"
+kind = "policy"
+lines = [
+  "Employee Handbook, Section 7: Leave and Absence",
+  "Harrow & Finch Ltd",
+  "7.1 Annual leave",
+  "Every Employee is entitled to 25 days of paid annual leave in addition to public holidays. The leave year runs from 1 January to 31 December. Leave is requested through the HR system at least two weeks in advance and approved by the Line Manager. Up to five unused days may be carried over to the following year with the approval of the Head of People.",
+  "7.2 Sickness absence",
+  "An Employee who is unable to work because of illness must inform their Line Manager before 10:00 on the first day of absence. For absences longer than seven calendar days a fit note from a Doctor is required. The Line Manager records every absence and, after three absences in six months, arranges a return-to-work meeting with the Employee and, where needed, a referral to Occupational Health.",
+  "7.3 Parental and carer's leave",
+  "Employees with at least 26 weeks of service receive enhanced maternity and paternity pay as set out in Appendix C. Carer's leave of up to five days a year is available to any Employee caring for a dependant. Requests are sent to the People Team at people@example.org.",
+  "7.4 Records",
+  "Absence records are processed by the Company under its privacy notice and kept for six years after employment ends. Questions about these records go to the Data Protection Officer. The Manchester and Bristol offices follow this policy without local variations.",
+]
+decoys = [
+  "Harrow & Finch Ltd",
+  "Line Manager",
+  "Head of People",
+  "Occupational Health",
+  "Data Protection Officer",
+  "people@example.org",
+]

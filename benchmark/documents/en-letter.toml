@@ -1,0 +1,27 @@
+# English letter disputing a card payment: a full card number, a date of
+# birth written with the month name, the bank's own address (not personal),
+# and the writer in metadata and XMP.
+language = "en"
+kind = "letter"
+lines = [
+  "Dr. [[person:Olivia Carter]]",
+  "[[address:58 Maple Avenue, Apt 4B, Madison, WI 53703]]",
+  "October 1, 2026",
+  "Customer Disputes Department, Lakeshore Federal Bank, PO Box 7720, Chicago, IL 60680",
+  "Re: Disputed charge",
+  "Dear Sir or Madam,",
+  "I am writing to dispute a charge of $1,249.00 that appeared on my statement dated September 15, 2026, for my credit card number [[credit_card:4528 0391 7264 5015]]. I did not authorize this transaction, and the merchant, Brightline Electronics, has not answered my requests for a refund.",
+  "Please contact me at [[phone:(608) 555-0193]] or [[email:olivia.carter@example.com]]. For verification, my date of birth is [[date:March 12, 1990]].",
+  "My husband, [[person:Daniel Carter]], is a joint account holder and supports this dispute. Enclosed are copies of the statement and of my correspondence with the merchant's representative, [[person:Kevin Doyle]].",
+  "Sincerely,",
+  "[[person:Olivia Carter]]",
+]
+metadata = { Title = "Dispute letter", Author = "[[person:Olivia Carter]]" }
+xmp = { creator = "[[person:Olivia Carter]]", title = "Dispute letter" }
+decoys = [
+  "Lakeshore Federal Bank",
+  "PO Box 7720, Chicago, IL 60680",
+  "Brightline Electronics",
+  "$1,249.00",
+  "September 15, 2026",
+]

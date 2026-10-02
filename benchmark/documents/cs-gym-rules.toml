@@ -1,0 +1,33 @@
+# Czech operating rules of an invented sports hall: no personal data.
+# Written without looking at the name filter's lists: capitalised roles in
+# every case (Uživatel, Správce haly, Vedoucí skupiny, Trenér, Návštěvník),
+# the operator and emergency services, opening hours and fees.
+language = "cs"
+kind = "rules"
+lines = [
+  "Provozní řád sportovní haly",
+  "Sportovní hala Na Lukách, Vsetín",
+  "Čl. 1 Provozovatel",
+  "Provozovatelem haly jsou Technické služby města Vsetína, příspěvková organizace. Provozovatel odpovídá za technický stav haly, za úklid a za dodržování tohoto řádu. Jeho jménem jedná Správce haly, kterého v době nepřítomnosti zastupuje službu konající Údržbář.",
+  "Čl. 2 Uživatelé haly",
+  "Uživatelem haly je sportovní oddíl, škola nebo jiná organizace, která má s Provozovatelem uzavřenou smlouvu o pronájmu, a také jednotlivec, který si zakoupil jednorázovou vstupenku. Za skupinu odpovídá po celou dobu pronájmu Vedoucí skupiny, který musí být starší osmnácti let. Vedoucímu skupiny vydá Správce haly klíč od šaten a po skončení pronájmu jej od něj převezme zpět.",
+  "Čl. 3 Vstup do haly",
+  "Návštěvník vstupuje do haly pouze v čisté sportovní obuvi se světlou podrážkou. Do sportovního prostoru je zakázáno vnášet skleněné nádoby a jídlo. Děti mladší deseti let mohou halu navštívit jen v doprovodu Dospělé osoby nebo pod vedením Trenéra. Návštěvníkům, kteří porušují tento řád, může Správce haly vstup odepřít.",
+  "Čl. 4 Bezpečnost",
+  "Trenér nebo Vedoucí skupiny před zahájením cvičení zkontroluje stav nářadí a zjištěné závady ohlásí Správci haly. Lékárnička je umístěna v kanceláři správce. Při úrazu poskytne první pomoc Zdravotník oddílu nebo kdokoli z přítomných a podle potřeby přivolá Zdravotnickou záchrannou službu na čísle 155. Při požáru se hala opouští nouzovými východy a ohlásí se Hasičskému záchrannému sboru na čísle 150.",
+  "Čl. 5 Provozní doba a ceny",
+  "Hala je otevřena v pracovní dny od 7:00 do 22:00, o víkendu od 8:00 do 20:00. Hodinový pronájem celé hrací plochy stojí 900 Kč, třetiny plochy 350 Kč. Jednorázové vstupné do posilovny činí 80 Kč. Ceník schvaluje Rada města a je vyvěšen u vchodu.",
+  "Čl. 6 Závěrečná ustanovení",
+  "Tento provozní řád nabývá účinnosti dnem 1. září 2026. Stížnosti a podněty přijímá Správce haly nebo Ředitel technických služeb. Kontrolu dodržování řádu provádí Městská policie Vsetín.",
+]
+decoys = [
+  "Sportovní hala Na Lukách, Vsetín",
+  "Technické služby města Vsetína",
+  "Správce haly",
+  "Vedoucí skupiny",
+  "Údržbář",
+  "Trenéra",
+  "Zdravotník oddílu",
+  "Hasičskému záchrannému sboru",
+  "Městská policie Vsetín",
+]

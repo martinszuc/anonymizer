@@ -49,7 +49,8 @@ See [`packages/cli/README.md`](packages/cli/README.md) for reviewing without a U
 
 The review window needs its frontend built once (Node 22). It opens on a home
 screen: drop a PDF or open one, with the language and the name model chosen
-there (`--resource-root` says where `models/` is, as for the CLI):
+there (`--resource-root` says where `models/` is, as for the CLI; see *Models and
+datasets* for the default):
 
 ```sh
 npm --prefix packages/ui/frontend ci
@@ -122,7 +123,12 @@ uv run python scripts/download.py fetch gliner-multi-v2.1
 uv run python scripts/download.py verify
 ```
 
-Files land in `models/<id>/` or `data/<id>/` (both git-ignored). A file whose
+Files land in `models/<id>/` or `data/<id>/` of the repository (both git-ignored;
+`--root` names another place). The CLI, the review window and the benchmark read
+models from `models/` under `--resource-root`, by default the folder chosen in the review window (*Manage models… → Change…*), else
+`./models` if the working directory has one (a checkout of this repository),
+else a per-user folder (`~/Library/Application Support/anonymizer` on macOS,
+`%LOCALAPPDATA%/anonymizer` on Windows, `~/.local/share/anonymizer` on Linux). A file whose
 size or checksum differs from the catalog is deleted and the run fails. Where the
 source publishes only an MD5 or a git blob SHA-1, `fetch --pin` verifies that
 digest and prints the SHA-256 to record in the catalog.

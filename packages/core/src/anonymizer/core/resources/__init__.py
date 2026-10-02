@@ -17,6 +17,13 @@ from anonymizer.core.resources.fetch import (
     resource_status,
     verify_resource,
 )
+from anonymizer.core.resources.location import (
+    choose_resource_root,
+    chosen_resource_root,
+    resolve_resource_root,
+    settings_file,
+    user_resource_root,
+)
 
 __all__ = [
     "Catalog",
@@ -27,9 +34,14 @@ __all__ = [
     "Progress",
     "Resource",
     "ResourceFile",
+    "choose_resource_root",
+    "chosen_resource_root",
     "fetch_resource",
     "fetch_with_requirements",
     "load_catalog",
+    "resolve_resource_root",
     "resource_status",
+    "settings_file",
+    "user_resource_root",
     "verify_resource",
 ]

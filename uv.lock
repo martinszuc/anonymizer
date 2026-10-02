@@ -33,6 +33,7 @@ requires-dist = [{ name = "anonymizer-core", editable = "packages/core" }]
 name = "anonymizer-core"
 source = { editable = "packages/core" }
 dependencies = [
+    { name = "platformdirs" },
     { name = "pymupdf" },
 ]
 
@@ -49,6 +50,7 @@ ocr-onnxtr = [
 requires-dist = [
     { name = "gliner", marker = "extra == 'ner'", specifier = ">=0.2.29,<0.3" },
     { name = "onnxtr", extras = ["cpu-headless"], marker = "extra == 'ocr-onnxtr'", specifier = ">=0.9,<0.10" },
+    { name = "platformdirs", specifier = ">=4" },
     { name = "protobuf", marker = "extra == 'ner'", specifier = ">=4" },
     { name = "pymupdf", specifier = ">=1.24" },
 ]

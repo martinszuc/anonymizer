@@ -31,6 +31,7 @@ Surfaces:
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -740,6 +741,67 @@ class Document:
         self.entities.append(region)
         return region
 
+    def add_span(self, page_index: int, start: int, end: int, entity_type: EntityType) -> Entity:
+        """Add text a reviewer marked because detection missed it.
+
+        The span is widened to the whole words it touches, so a selection
+        ending inside a word cannot leave the word's remainder readable, and
+        then trimmed of punctuation at its edges (`Novák,` is marked as
+        `Novák`): the text is what repeats are looked for by, while the boxes
+        still cover every word touched. Marking is an explicit decision, so
+        the entity is added confirmed.
+
+        Overlapping an existing finding is allowed, as between detectors: the
+        union of their boxes is removed. Text lying wholly inside a finding
+        that is already to be redacted is refused, since adding it changes
+        nothing.
+
+        Args:
+            page_index: Page the text is on.
+            start: First offset of the selection in `Page.text`.
+            end: Offset one past the selection.
+            entity_type: What the text is; not `EntityType.REGION`.
+
+        Returns:
+            The new entity, already in `entities`.
+
+        Raises:
+            KeyError: If no page carries that index.
+            ValueError: If the type is a region, the span is empty, reaches
+                outside the page text or covers no word, or the text is
+                already marked for redaction.
+        """
+        if entity_type is EntityType.REGION:
+            msg = "a region is drawn, not selected from the text"
+            raise ValueError(msg)
+        page = self.page(page_index)
+        if not 0 <= start < end <= len(page.text):
+            msg = f"span [{start}, {end}) is empty or outside the text of page {page_index}"
+            raise ValueError(msg)
+        words = list(page.words_in_span(start, end))
+        if not words:
+            msg = "the selection covers no word"
+            raise ValueError(msg)
+        start, end = _trimmed(page.text, words[0].start, words[-1].end)
+        if any(
+            entity.is_redactable and entity.span[0] <= start and end <= entity.span[1]
+            for entity in self.entities_on_page(page_index)
+        ):
+            msg = "this text is already marked for redaction"
+            raise ValueError(msg)
+        finding = Entity(
+            type=entity_type,
+            page_index=page_index,
+            start=start,
+            end=end,
+            text=page.text[start:end],
+            bboxes=page.bboxes_for_span(start, end),
+            source=DetectionSource.MANUAL,
+            review=ReviewState.CONFIRMED,
+        )
+        self.entities.append(finding)
+        return finding
+
     def remove_entity(self, entity_id: str) -> Entity:
         """Take an entity out of the document, e.g. a region drawn by mistake.
 
@@ -910,3 +972,14 @@ class Document:
             The document.
         """
         return cls.from_dict(json.loads(text))
+
+
+_EDGE_PUNCTUATION = re.compile(r"\W*(.*?)\W*$", re.DOTALL)
+
+
+def _trimmed(text: str, start: int, end: int) -> tuple[int, int]:
+    """Narrow a span past the punctuation at its edges, unless nothing else would be left."""
+    match = _EDGE_PUNCTUATION.match(text, start, end)
+    if match is None or match.start(1) == match.end(1):
+        return start, end
+    return match.start(1), match.end(1)

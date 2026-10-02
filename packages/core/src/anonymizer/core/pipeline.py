@@ -2,7 +2,8 @@
 
 The command line, the review window and the benchmark all settle the language
 (recognising it from the text when asked to), build a detector for it, run it
-over a loaded document and mark further occurrences.
+over a loaded document and mark further occurrences; text a reviewer adds is
+marked again the same way.
 Keeping those steps here means a client cannot drift from the others: an option
 one of them forgets is a bug in one place, and the benchmark measures exactly
 what the tools ship. Writing the redacted copy is `redact.export_redacted`.
@@ -24,7 +25,14 @@ from anonymizer.core.detect import (
 )
 from anonymizer.core.language import AUTO, detect_language
 from anonymizer.core.log import counts, short_fingerprint, step
-from anonymizer.core.types import Document, PageProgress
+from anonymizer.core.types import (
+    DetectionSource,
+    Document,
+    Entity,
+    EntityType,
+    PageProgress,
+    ReviewState,
+)
 
 log = logging.getLogger(__name__)
 
@@ -107,3 +115,86 @@ def run_detection(
             outcome["propagated"] = len(propagated)
         outcome["titles"] = extend_with_titles(document)
         outcome["types"] = counts(Counter(entity.type for entity in document.entities))
+
+
+def add_finding(
+    document: Document,
+    page_index: int,
+    start: int,
+    end: int,
+    entity_type: EntityType,
+    *,
+    propagate: bool = True,
+) -> list[Entity]:
+    """Add text a reviewer marked because detection missed it, with its other occurrences.
+
+    The span is widened to whole words (`Document.add_span`). Further
+    occurrences are found as detection finds them (`propagate_occurrences`):
+    exact text, whole words, any spacing; inflected forms are not found.
+
+    Args:
+        document: The document under review, in place.
+        page_index: Page the text is on.
+        start: First offset of the selection in the page text.
+        end: Offset one past the selection.
+        entity_type: What the text is; not a region.
+        propagate: Also mark the text's further occurrences, as detection did.
+
+    Returns:
+        The added entity first, then its further occurrences (pending, marked
+        propagated), all already in the document.
+
+    Raises:
+        KeyError: If no page carries that index.
+        ValueError: As `Document.add_span`.
+    """
+    finding = document.add_span(page_index, start, end, entity_type)
+    repeats = propagate_occurrences(document, [finding]) if propagate else []
+    document.entities += repeats
+    log.debug(
+        "finding added: entity=%s page=%d repeats=%d", finding.entity_id, page_index, len(repeats)
+    )
+    return [finding, *repeats]
+
+
+def remove_finding(document: Document, entity_id: str) -> list[Entity]:
+    """Take out what a reviewer added, with the repeats nothing else explains any more.
+
+    A repeat (`DetectionSource.PROPAGATED`) of the removed text goes too,
+    unless the reviewer confirmed it or another finding still marks the same
+    text: it was proposed only because the text was marked.
+
+    Args:
+        document: The document under review, in place.
+        entity_id: The entity to remove.
+
+    Returns:
+        The removed entity first, then the repeats removed with it.
+
+    Raises:
+        KeyError: If no entity carries that id.
+    """
+    removed = document.remove_entity(entity_id)
+    text = _spaced(removed.text)
+    if text is None or any(
+        _spaced(entity.text) == text
+        for entity in document.entities
+        if entity.is_redactable and entity.source is not DetectionSource.PROPAGATED
+    ):
+        return [removed]
+    orphans = [
+        entity
+        for entity in document.entities
+        if entity.source is DetectionSource.PROPAGATED
+        and entity.review is not ReviewState.CONFIRMED
+        and _spaced(entity.text) == text
+    ]
+    for orphan in orphans:
+        document.remove_entity(orphan.entity_id)
+    log.debug("finding removed: entity=%s repeats=%d", entity_id, len(orphans))
+    return [removed, *orphans]
+
+
+def _spaced(text: str | None) -> str | None:
+    """A text with its spacing made uniform, as repeats are matched with any spacing."""
+    return None if text is None else " ".join(text.split())

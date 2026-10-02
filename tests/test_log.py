@@ -28,6 +28,10 @@ def configured(level: int) -> io.StringIO:
     return stream
 
 
+def logger_state(logger: logging.Logger) -> tuple[int, list[logging.Handler], bool]:
+    return logger.level, list(logger.handlers), logger.propagate
+
+
 class TestResolveLevel:
     def test_defaults_to_warning(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.delenv(LEVEL_VARIABLE, raising=False)
@@ -110,8 +114,12 @@ class TestConfigure:
         assert "private to the project" not in caplog.text
 
     def test_library_loggers_are_left_alone(self):
+        # Compared with the state before, not with NOTSET: importing transformers
+        # (through GLiNER, in an earlier test) sets its logger to WARNING itself.
+        library_loggers = [logging.getLogger("transformers"), logging.getLogger()]
+        before = [logger_state(logger) for logger in library_loggers]
         configured(logging.DEBUG)
-        assert logging.getLogger("transformers").level == logging.NOTSET
+        assert [logger_state(logger) for logger in library_loggers] == before
 
 
 class TestExceptions:

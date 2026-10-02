@@ -55,6 +55,13 @@ Eight layers, because each misses something the others catch:
    detected nor can be found now, while a better reader or a person might
    still read it.
 
+A leak says what it means (`LeakKind`), whichever layer found it: a text
+marked for redaction found again (perhaps an occurrence review missed,
+perhaps the same characters by chance), something left under a box or a
+region (the redaction itself failed), or something removed whatever detection
+found that is still there. Only the reviewer can judge the first; the other
+two are a fault of redaction.
+
 Whitespace is ignored when comparing text: a span that crossed a line break
 may be extracted with different spacing. Entities sharing a text (a name and
 its repeats) are searched for once, so each place it is left is one leak.
@@ -117,6 +124,21 @@ class LeakLayer(StrEnum):
     OCR = "ocr"
 
 
+class LeakKind(StrEnum):
+    """What a leak means, whichever layer found it."""
+
+    TEXT = "text"
+    """A text marked for redaction, found again: where nothing marks it, in
+    the file's data, or re-read by OCR. Possibly a missed occurrence, possibly
+    the same characters by chance."""
+    UNDER_BOX = "under_box"
+    """A word or drawing left under a redaction box or a region: the redaction
+    itself did not remove it."""
+    LEFTOVER = "leftover"
+    """Something redaction removes whatever detection found (a hidden item, a
+    thumbnail, text outside the page or in a scan's text layer) is still there."""
+
+
 _UNLOGGED_LOCATIONS = frozenset({LeakLayer.SURFACE, LeakLayer.FILE_BYTES})
 _LAYER_NAMES = {
     LeakLayer.PAGE_TEXT: "page text",
@@ -144,6 +166,7 @@ class Leak:
             tied to an entity (an uncleared surface, off-page text, a thumbnail).
         page_index: Zero-based page the leak lies on, or `None` when it lies
             in no page (a surface, an object, the file's bytes).
+        kind: What the leak means (see `LeakKind`).
     """
 
     layer: LeakLayer
@@ -151,6 +174,7 @@ class Leak:
     text: str
     entity_id: str | None = None
     page_index: int | None = None
+    kind: LeakKind = LeakKind.TEXT
 
 
 def find_leaks(
@@ -312,7 +336,12 @@ def _region_leaks(pdf: pymupdf.Document, regions: list[Entity]) -> list[Leak]:
         words = extract_page(page, region.page_index).words
         leaks.extend(
             Leak(
-                LeakLayer.REGION, where, f"word {word.text!r}", region.entity_id, region.page_index
+                LeakLayer.REGION,
+                where,
+                f"word {word.text!r}",
+                region.entity_id,
+                region.page_index,
+                LeakKind.UNDER_BOX,
             )
             for word in words
             if _overlaps_inside(word.bbox, box)
@@ -321,7 +350,14 @@ def _region_leaks(pdf: pymupdf.Document, regions: list[Entity]) -> list[Leak]:
         # Overlapping regions each paint their own fill, which reaches into the other.
         fills = [bbox_to_unrotated_rect(other, page) for other in boxes[region.page_index]]
         leaks.extend(
-            Leak(LeakLayer.REGION, where, "drawing", region.entity_id, region.page_index)
+            Leak(
+                LeakLayer.REGION,
+                where,
+                "drawing",
+                region.entity_id,
+                region.page_index,
+                LeakKind.UNDER_BOX,
+            )
             for drawing in page.get_drawings()
             if drawing["rect"].intersects(inside) and not _is_region_fill(drawing, fills)
         )
@@ -357,7 +393,9 @@ def _is_region_fill(drawing: dict[str, Any], fills: list[pymupdf.Rect]) -> bool:
 def _off_page_leaks(pdf: pymupdf.Document) -> list[Leak]:
     """Report every word drawn outside a page's visible area."""
     return [
-        Leak(LeakLayer.OFF_PAGE_TEXT, f"page {index}", word, page_index=index)
+        Leak(
+            LeakLayer.OFF_PAGE_TEXT, f"page {index}", word, page_index=index, kind=LeakKind.LEFTOVER
+        )
         for index in range(pdf.page_count)
         for word in off_page_words(pdf.load_page(index))
     ]
@@ -366,7 +404,13 @@ def _off_page_leaks(pdf: pymupdf.Document) -> list[Leak]:
 def _thumbnail_leaks(pdf: pymupdf.Document) -> list[Leak]:
     """Report every page that still carries a thumbnail."""
     return [
-        Leak(LeakLayer.THUMBNAIL, f"page {index}", "page thumbnail", page_index=index)
+        Leak(
+            LeakLayer.THUMBNAIL,
+            f"page {index}",
+            "page thumbnail",
+            page_index=index,
+            kind=LeakKind.LEFTOVER,
+        )
         for index in range(pdf.page_count)
         if pdf.xref_get_key(pdf.load_page(index).xref, "Thumb")[0] != "null"
     ]
@@ -376,15 +420,25 @@ def _surface_leaks(pdf: pymupdf.Document) -> list[Leak]:
     """Report every surface still present and every file still embedded."""
     return [
         *(
-            Leak(LeakLayer.SURFACE, f"{surface.kind} {surface.ref}", surface.value)
+            Leak(
+                LeakLayer.SURFACE,
+                f"{surface.kind} {surface.ref}",
+                surface.value,
+                kind=LeakKind.LEFTOVER,
+            )
             for surface in extract_surfaces(pdf)
         ),
         *(
-            Leak(LeakLayer.SURFACE, f"object {xref}", "file specification embedding a file")
+            Leak(
+                LeakLayer.SURFACE,
+                f"object {xref}",
+                "file specification embedding a file",
+                kind=LeakKind.LEFTOVER,
+            )
             for xref, _file_spec in dictionaries_with_key(pdf, "EF")
         ),
         *(
-            Leak(LeakLayer.SURFACE, f"object {xref}", "embedded file")
+            Leak(LeakLayer.SURFACE, f"object {xref}", "embedded file", kind=LeakKind.LEFTOVER)
             for xref in embedded_file_streams(pdf)
             if pdf.xref_stream(xref)
         ),
@@ -465,7 +519,13 @@ def _scanned_page_leaks(
     pdf_page = pdf.load_page(page.index)
     where = f"page {page.index}"
     leaks = [
-        Leak(LeakLayer.OCR, where, f"text layer word {word.text!r}", page_index=page.index)
+        Leak(
+            LeakLayer.OCR,
+            where,
+            f"text layer word {word.text!r}",
+            page_index=page.index,
+            kind=LeakKind.LEFTOVER,
+        )
         for word in extract_page(pdf_page, page.index).words
     ]
     reread = read_page(pdf_page, page.index, engine, int(page.raster_dpi or 0))
@@ -487,7 +547,12 @@ def _scanned_page_leaks(
         if under is not None:
             leaks.append(
                 Leak(
-                    LeakLayer.OCR, f"{where} under a box", f"word {word.text!r}", under, page.index
+                    LeakLayer.OCR,
+                    f"{where} under a box",
+                    f"word {word.text!r}",
+                    under,
+                    page.index,
+                    LeakKind.UNDER_BOX,
                 )
             )
     return leaks

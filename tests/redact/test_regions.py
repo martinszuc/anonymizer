@@ -6,7 +6,7 @@ import pymupdf
 import pytest
 from anonymizer.core.detect import detect_document, structured_detector
 from anonymizer.core.ingest import load_document
-from anonymizer.core.redact import LeakLayer, find_leaks, redact_pdf
+from anonymizer.core.redact import LeakKind, LeakLayer, find_leaks, redact_pdf
 from anonymizer.core.types import BBox, DetectionSource, Document, Entity, EntityType, ReviewState
 
 from tests.pdf_builders import CONTACT_EMAIL
@@ -153,6 +153,7 @@ class TestRegionLeakCheck:
         leaks = [leak for leak in find_leaks(source, document) if leak.layer is LeakLayer.REGION]
         assert {leak.text for leak in leaks} == {"word 'SECRET'", "word 'TEXT'", "drawing"}
         assert {leak.page_index for leak in leaks} == {0}
+        assert {leak.kind for leak in leaks} == {LeakKind.UNDER_BOX}
 
     def test_rejected_region_is_kept_and_not_reported(self, source: Path):
         document = load_document(source)

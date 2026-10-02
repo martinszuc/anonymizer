@@ -8,7 +8,7 @@ import pymupdf
 import pytest
 from anonymizer.core.detect import detect_document, structured_detector
 from anonymizer.core.ingest import extract_surfaces, load_document
-from anonymizer.core.redact import Leak, LeakLayer, find_leaks, redact_pdf
+from anonymizer.core.redact import Leak, LeakKind, LeakLayer, find_leaks, redact_pdf
 from anonymizer.core.types import DetectionSource, Document, Entity, EntityType, ReviewState
 
 from tests.pdf_builders import (
@@ -319,6 +319,13 @@ class TestLeakCheck:
         assert off_page
         assert {leak.page_index for leak in on_page} == {0}
         assert {leak.page_index for leak in off_page} == {None}
+
+    def test_a_leak_says_what_it_means(self, tmp_path: Path):
+        source = write_surfaces_pdf(tmp_path / "surfaces.pdf")
+        kinds = {(leak.layer, leak.kind) for leak in find_leaks(source, detected(source))}
+        assert (LeakLayer.PAGE_TEXT, LeakKind.TEXT) in kinds
+        assert (LeakLayer.OBJECT, LeakKind.TEXT) in kinds
+        assert (LeakLayer.SURFACE, LeakKind.LEFTOVER) in kinds
 
     def test_object_layer_catches_a_carrier_the_surface_scan_does_not_list(self, tmp_path: Path):
         source = write_pdf(tmp_path / "contact.pdf", [LINES])

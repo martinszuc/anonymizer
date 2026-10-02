@@ -376,8 +376,8 @@ In suggested order. Each item names where it plugs in.
 ## Open issues from manual testing (2026-10-02)
 
 Found by hand in the review window on real documents and on a set of unrelated
-Czech documents (kept outside the repository). Nothing here is solved or designed
-yet. Items marked **Explain** need an explanation for the maintainer before any
+Czech documents (kept outside the repository). Items marked **Done** are fixed and
+stay listed so the numbering holds; the rest are open. Items marked **Explain** need an explanation for the maintainer before any
 change; **Decide** items need a product decision first. Related older items are in
 *Backlog* (undo/redo, models sheet, packaging, OCR quality).
 
@@ -391,8 +391,7 @@ the repository, a test, a fixture or a commit message.
 
 ### Loading a document
 
-1. **Remove the once-per-session hint strings** shown while a PDF loads. They read as
-   unprofessional and are annoying.
+1. **Done.** ~~Remove the once-per-session hint strings~~ shown while a PDF loads.
 2. **Progress bar for detection.** Detection currently shows no progress.
    **Explain:** is detection and OCR run page by page? If so, "page N of M" is the
    natural unit; say which stages (OCR, rules, names) report progress and which cannot.
@@ -402,8 +401,8 @@ the repository, a test, a fixture or a commit message.
 
 ### Models and storage
 
-4. **Download several models at once.** The two model groups can only be downloaded one
-   after the other; both buttons should work at the same time and run in parallel.
+4. **Done.** ~~Download several models at once.~~ Features that share no model download
+   side by side; a second download of the same models is refused.
 5. **Choose where models are stored** in the packaged app, and have the app load them
    from that place afterwards (today they live under `models/` of the resource root).
    Applies once packaging (*Backlog* item 10) exists.
@@ -417,17 +416,16 @@ the repository, a test, a fixture or a commit message.
 
 ### Review window behaviour
 
-7. **The detail popup does not update live.** After clicking a highlighted redaction, the
-   popup showing its details keeps the old "will be redacted" / "kept" state when the
-   decision changes; it must follow the state immediately.
+7. **Done.** ~~The detail popup does not update live.~~ It reads the entity by id on every
+   render.
 8. **Clicking a box both selects and toggles it.** Clicking a highlight finds the item in
    the left list (wanted) but also flips it to kept straight away. **Decide:** make the
    click only locate the item, with an explicit control for changing the decision, or
    keep the current behaviour.
-9. **Undo for drawn regions.** Cmd/Ctrl+Z should remove the last region drawn. Part of the
-   wider undo/redo item in *Backlog*.
-10. **Number the drawn regions.** Each region gets a number shown next to its box,
-    increasing by one per region drawn, matching the list in the left panel.
+9. **Done** for regions: Cmd/Ctrl+Z removes the last region drawn since the document
+   opened. Undo of decisions stays in *Backlog*.
+10. **Done.** ~~Number the drawn regions.~~ Numbered in drawing order on the page and in
+    the list; removing one closes the gap.
 
 ### Too many harmless detections
 
@@ -452,6 +450,9 @@ the repository, a test, a fixture or a commit message.
     name what was found (page, the text, which layer) and what to do about it, instead of
     a general failure. Today's behaviour on the leak result is in `ReviewApi` and the
     export sheet.
+    **Partly done:** overlapping or nested regions no longer fail the region layer (each
+    region's fill was reported as a drawing left inside the other), and the sheet numbers
+    pages from 1 (`page` in the leak payload). Advice per layer is still open.
 
 ## Known gotchas
 

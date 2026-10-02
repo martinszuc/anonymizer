@@ -29,6 +29,14 @@ export interface EntityInfo {
   boxes: Box[];
 }
 
+/** A word of a page's text (`ReviewApi.page_words`); offsets are into the page text. */
+export interface WordInfo {
+  start: number;
+  end: number;
+  text: string;
+  box: Box;
+}
+
 export interface SurfaceInfo {
   id: string;
   kind: string;

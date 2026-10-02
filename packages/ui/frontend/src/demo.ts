@@ -15,6 +15,7 @@ import type {
   OpenProgress,
   OpenStep,
   ReviewState,
+  WordInfo,
 } from "./types";
 
 const PAGE_WIDTH = 595;
@@ -58,14 +59,33 @@ function font(line: Line): string {
 const measure = document.createElement("canvas").getContext("2d");
 
 /** The box of `part` within a line, in points, as ingest would report it. */
-function boxOf(line: Line, part: string): Box {
-  const offset = line.text.indexOf(part);
+function boxOf(line: Line, part: string, at?: number): Box {
+  const offset = at ?? line.text.indexOf(part);
   if (!measure || offset === -1) throw new Error(`demo text not found: ${part}`);
   measure.font = font(line);
   const x0 = LEFT + measure.measureText(line.text.slice(0, offset)).width;
   const x1 = x0 + measure.measureText(part).width;
   const size = line.size ?? FONT_SIZE;
   return [x0, line.y - size * 0.8, x1, line.y + size * 0.25];
+}
+
+/** A page's text as ingest would join it, one line per line, and its words with their boxes. */
+function pageContent(lines: Line[]): { text: string; words: WordInfo[] } {
+  let text = "";
+  const words: WordInfo[] = [];
+  for (const line of lines) {
+    if (text) text += "\n";
+    for (const found of line.text.matchAll(/\S+/g)) {
+      const start = text.length + (found.index ?? 0);
+      words.push({ start, end: start + found[0].length, text: found[0], box: boxOf(line, found[0], found.index) });
+    }
+    text += line.text;
+  }
+  return { text, words };
+}
+
+function overlaps(a: Box, b: Box): boolean {
+  return a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
 }
 
 function lineOf(text: string): Line {
@@ -272,6 +292,9 @@ function requestedState(parameter: string): ModelState {
 
 export function demoBridge(): ReviewBridge {
   let current: DocumentInfo | null = null;
+  /** Page 2 is a scan: its words exist once "OCR" has read it. */
+  const contentOf = (index: number) =>
+    pageContent(index === 0 ? PAGE_ONE : current?.pages[1]?.raster_dpi ? PAGE_TWO : []);
   let dropped = false;
   let ocrLoaded = false;
   const open = async (options?: OpenOptions) => {
@@ -392,12 +415,74 @@ export function demoBridge(): ReviewBridge {
       current.entities.push(region);
       return copied(region);
     },
+    page_words: async (index: number) => copied(contentOf(index).words),
+    add_finding: async (pageIndex, start, end, type) => {
+      await pause();
+      if (!current) throw new Error("no document is open");
+      const document = current;
+      const selected = contentOf(pageIndex).words.filter((word) => word.start < end && start < word.end);
+      const first = selected[0];
+      const last = selected[selected.length - 1];
+      if (!first || !last) throw new Error("the selection covers no word");
+      const text = contentOf(pageIndex).text.slice(first.start, last.end).replace(/^\W+|\W+$/gu, "");
+      const marked = (page: number, boxes: Box[]) =>
+        document.entities.some(
+          (entity) =>
+            entity.page_index === page &&
+            entity.surface_id === null &&
+            entity.review !== "rejected" &&
+            boxes.every((box) => entity.boxes.some((other) => overlaps(box, other))),
+        );
+      if (marked(pageIndex, selected.map((word) => word.box))) throw new Error("this text is already marked for redaction");
+      const entityOf = (page: number, words: WordInfo[], source: EntityInfo["source"]): EntityInfo => {
+        nextId += 1;
+        return {
+          id: `demo-${nextId}`,
+          type,
+          source,
+          score: null,
+          review: source === "manual" ? "confirmed" : "pending",
+          page_index: page,
+          surface_id: null,
+          text,
+          is_region: false,
+          boxes: words.map((word) => word.box),
+        };
+      };
+      const added = [entityOf(pageIndex, selected, "manual")];
+      // Repeats: the same words in a row elsewhere, unless something already covers them.
+      const wanted = text.split(/\s+/);
+      for (const page of document.pages) {
+        const words = contentOf(page.index).words;
+        words.forEach((_, index) => {
+          const run = words.slice(index, index + wanted.length);
+          const same = run.length === wanted.length && run.every((word, at) => word.text.replace(/^\W+|\W+$/gu, "") === wanted[at]);
+          const boxes = run.map((word) => word.box);
+          if (!same || (page.index === pageIndex && run[0]?.start === first.start) || marked(page.index, boxes)) return;
+          if (added.some((entity) => entity.page_index === page.index && boxes.every((box) => entity.boxes.includes(box)))) return;
+          added.push(entityOf(page.index, run, "propagated"));
+        });
+      }
+      document.entities.push(...added);
+      return copied(added);
+    },
     remove_entity: async (entityId: string) => {
       if (!current) throw new Error("no document is open");
       const entity = current.entities.find((item) => item.id === entityId);
       if (!entity) throw new Error(`no entity with id ${entityId}`);
       if (entity.source !== "manual") throw new Error("only items you added can be removed");
       current.entities = current.entities.filter((item) => item.id !== entityId);
+      const stillMarked = current.entities.some((item) => item.source !== "propagated" && item.text === entity.text);
+      const repeats = current.entities.filter(
+        (item) =>
+          entity.text !== null &&
+          !stillMarked &&
+          item.source === "propagated" &&
+          item.review !== "confirmed" &&
+          item.text === entity.text,
+      );
+      current.entities = current.entities.filter((item) => !repeats.includes(item));
+      return [entityId, ...repeats.map((item) => item.id)];
     },
     set_review: async (entityId: string, state: ReviewState) => {
       const entity = current?.entities.find((item) => item.id === entityId);

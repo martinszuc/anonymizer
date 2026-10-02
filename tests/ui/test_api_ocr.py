@@ -118,3 +118,16 @@ def test_export_refuses_when_the_engine_that_read_it_is_gone(
     reviewer._ocr.clear()
     with pytest.raises(ReviewError, match="not loaded"):
         reviewer.export(str(tmp_path / "out.pdf"))
+
+
+def test_a_word_ocr_read_can_be_added_and_is_redacted(scan: Path, loads: list[str], tmp_path: Path):
+    reviewer = ReviewApi()
+    reviewer.open_pdf(str(scan), "cs", use_ocr=True)
+    # "osobniho" is no personal data; it stands for a word detection missed.
+    (word,) = [word for word in reviewer.page_words(0) if word["text"] == "osobniho"]
+    (added,) = reviewer.add_finding(0, word["start"], word["end"], "other")
+    assert added["boxes"] == [word["box"]]
+    result = reviewer.export(str(tmp_path / "out.pdf"))
+    # The leak check re-read the page with the engine and found the word gone.
+    assert result["written"] is True
+    assert result["redacted"] == 3

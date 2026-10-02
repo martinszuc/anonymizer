@@ -376,6 +376,14 @@ yet. Items marked **Explain** need an explanation for the maintainer before any
 change; **Decide** items need a product decision first. Related older items are in
 *Backlog* (undo/redo, models sheet, packaging, OCR quality).
 
+**Evidence.** A local log, `debug-log.log` in the repository root, records a run on
+documents with names and Czech text: the repeated occurrences and the ordinary Czech
+words marked as personal data (items 11 and 12). It is git-ignored (`*.log`) and may
+hold text from real documents. A session that works on those items reads it from disk
+to find which detector produced each hit, and reports counts, detector sources and
+entity types, never the words, names or sentences themselves. It is not copied into
+the repository, a test, a fixture or a commit message.
+
 ### Loading a document
 
 1. **Remove the once-per-session hint strings** shown while a PDF loads. They read as

@@ -124,7 +124,8 @@ SurfaceInfo  { id, kind, value, page_index, box | null }
 
 `ReviewApi.export()` returns `ExportResult { written, name, redacted, regions,
 kept, not_reviewed, hidden_removed, pages_without_text: number[] (1-based scans OCR did not read),
-leaks: { layer, where, text }[] }`; nothing was written unless `written`.
+leaks: { layer, where, page: number | null (1-based), text }[] }`; nothing was
+written unless `written`.
 
 Methods the page calls (all return promises in JS):
 

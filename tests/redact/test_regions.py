@@ -152,6 +152,7 @@ class TestRegionLeakCheck:
         document.entities = [region(TEXT_REGION), region(SIGNATURE_REGION)]
         leaks = [leak for leak in find_leaks(source, document) if leak.layer is LeakLayer.REGION]
         assert {leak.text for leak in leaks} == {"word 'SECRET'", "word 'TEXT'", "drawing"}
+        assert {leak.page_index for leak in leaks} == {0}
 
     def test_rejected_region_is_kept_and_not_reported(self, source: Path):
         document = load_document(source)

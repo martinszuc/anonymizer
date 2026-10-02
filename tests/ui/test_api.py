@@ -215,11 +215,15 @@ class TestExport:
     def test_a_leak_writes_nothing_and_is_reported(
         self, review: ReviewApi, pdf: Path, monkeypatch: pytest.MonkeyPatch
     ):
-        leak = Leak(LeakLayer.PAGE_TEXT, "page 1", CONTACT_EMAIL, "e1")
-        monkeypatch.setattr(api, "export_redacted", lambda *_, **__: [leak])
+        on_page = Leak(LeakLayer.PAGE_TEXT, "page 0", CONTACT_EMAIL, "e1", page_index=0)
+        in_object = Leak(LeakLayer.OBJECT, "object 7", CONTACT_EMAIL, "e1")
+        monkeypatch.setattr(api, "export_redacted", lambda *_, **__: [on_page, in_object])
         result = review.export(str(pdf.with_name("cv-redacted.pdf")))
         assert result["written"] is False
-        assert result["leaks"] == [{"layer": "page_text", "where": "page 1", "text": CONTACT_EMAIL}]
+        assert result["leaks"] == [
+            {"layer": "page_text", "where": "page 0", "page": 1, "text": CONTACT_EMAIL},
+            {"layer": "object", "where": "object 7", "page": None, "text": CONTACT_EMAIL},
+        ]
 
     def test_pages_without_text_need_consent(self, tmp_path: Path):
         reviewer = ReviewApi()

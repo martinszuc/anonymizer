@@ -111,12 +111,15 @@ class Leak:
             region or a thumbnail a description of what was found.
         entity_id: Entity whose content leaked, or `None` when the leak is not
             tied to an entity (an uncleared surface, off-page text, a thumbnail).
+        page_index: Zero-based page the leak lies on, or `None` when it lies
+            in no page (a surface, an object, the file's bytes).
     """
 
     layer: LeakLayer
     where: str
     text: str
     entity_id: str | None = None
+    page_index: int | None = None
 
 
 def find_leaks(
@@ -217,7 +220,7 @@ def _page_text_leaks(
     for index in range(pdf.page_count):
         page_text = _compact(extract_page(pdf.load_page(index), index).text)
         leaks.extend(
-            Leak(LeakLayer.PAGE_TEXT, f"page {index}", target.text, target.entity_id)
+            Leak(LeakLayer.PAGE_TEXT, f"page {index}", target.text, target.entity_id, index)
             for target in targets
             if _copies(target.text, [page_text]) > _copies(target.text, kept.get(index, []))
         )
@@ -239,7 +242,9 @@ def _region_leaks(pdf: pymupdf.Document, regions: list[Entity]) -> list[Leak]:
         where = f"page {region.page_index} region"
         words = extract_page(page, region.page_index).words
         leaks.extend(
-            Leak(LeakLayer.REGION, where, f"word {word.text!r}", region.entity_id)
+            Leak(
+                LeakLayer.REGION, where, f"word {word.text!r}", region.entity_id, region.page_index
+            )
             for word in words
             if _overlaps_inside(word.bbox, box)
         )
@@ -247,7 +252,7 @@ def _region_leaks(pdf: pymupdf.Document, regions: list[Entity]) -> list[Leak]:
         # Overlapping regions each paint their own fill, which reaches into the other.
         fills = [bbox_to_unrotated_rect(other, page) for other in boxes[region.page_index]]
         leaks.extend(
-            Leak(LeakLayer.REGION, where, "drawing", region.entity_id)
+            Leak(LeakLayer.REGION, where, "drawing", region.entity_id, region.page_index)
             for drawing in page.get_drawings()
             if drawing["rect"].intersects(inside) and not _is_region_fill(drawing, fills)
         )
@@ -283,7 +288,7 @@ def _is_region_fill(drawing: dict[str, Any], fills: list[pymupdf.Rect]) -> bool:
 def _off_page_leaks(pdf: pymupdf.Document) -> list[Leak]:
     """Report every word drawn outside a page's visible area."""
     return [
-        Leak(LeakLayer.OFF_PAGE_TEXT, f"page {index}", word)
+        Leak(LeakLayer.OFF_PAGE_TEXT, f"page {index}", word, page_index=index)
         for index in range(pdf.page_count)
         for word in off_page_words(pdf.load_page(index))
     ]
@@ -292,7 +297,7 @@ def _off_page_leaks(pdf: pymupdf.Document) -> list[Leak]:
 def _thumbnail_leaks(pdf: pymupdf.Document) -> list[Leak]:
     """Report every page that still carries a thumbnail."""
     return [
-        Leak(LeakLayer.THUMBNAIL, f"page {index}", "page thumbnail")
+        Leak(LeakLayer.THUMBNAIL, f"page {index}", "page thumbnail", page_index=index)
         for index in range(pdf.page_count)
         if pdf.xref_get_key(pdf.load_page(index).xref, "Thumb")[0] != "null"
     ]
@@ -353,18 +358,20 @@ def _ocr_leaks(
         pdf_page = pdf.load_page(page.index)
         where = f"page {page.index}"
         leaks.extend(
-            Leak(LeakLayer.OCR, where, f"text layer word {word.text!r}")
+            Leak(LeakLayer.OCR, where, f"text layer word {word.text!r}", page_index=page.index)
             for word in extract_page(pdf_page, page.index).words
         )
         reread = read_page(pdf_page, page.index, engine, int(page.raster_dpi))
         reread_text = _compact(reread.text)
         leaks.extend(
-            Leak(LeakLayer.OCR, where, target.text, target.entity_id)
+            Leak(LeakLayer.OCR, where, target.text, target.entity_id, page.index)
             for target in targets
             if _copies(target.text, [reread_text]) > _copies(target.text, kept.get(page.index, []))
         )
         leaks.extend(
-            Leak(LeakLayer.OCR, f"{where} under a box", f"word {word.text!r}", entity_id)
+            Leak(
+                LeakLayer.OCR, f"{where} under a box", f"word {word.text!r}", entity_id, page.index
+            )
             for entity_id, box in boxes.get(page.index, [])
             for word in reread.words
             if _mostly_inside(word.bbox, box)

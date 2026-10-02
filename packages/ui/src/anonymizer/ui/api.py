@@ -644,7 +644,14 @@ def _export_payload(
         "hidden_removed": len(document.surfaces),
         "pages_without_text": unreadable,
         "leaks": [
-            {"layer": leak.layer.value, "where": leak.where, "text": leak.text} for leak in leaks
+            {
+                "layer": leak.layer.value,
+                "where": leak.where,
+                # 1-based, as the window numbers pages; the core counts from 0.
+                "page": None if leak.page_index is None else leak.page_index + 1,
+                "text": leak.text,
+            }
+            for leak in leaks
         ],
     }
 

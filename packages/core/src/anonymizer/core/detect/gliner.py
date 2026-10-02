@@ -24,7 +24,7 @@ import logging
 import os
 import re
 import warnings
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -46,8 +46,16 @@ DEFAULT_LABELS: Mapping[str, EntityType] = {
     "person": EntityType.PERSON,
     "street address": EntityType.ADDRESS,
 }
-"""Prompt label → entity type. Organizations are left out: a company name is
-not personal data, and a sole trader's name is caught by the person label."""
+"""Prompt label → entity type. A company name is not personal data, and a sole
+trader's name is caught by the person label."""
+
+DEFAULT_DISTRACTORS: tuple[str, ...] = ("organization",)
+"""Labels the model is asked for whose spans are dropped. Given only "person",
+the model has nowhere else to put a company or an institution; offered
+"organization" as well, it tags more names and fewer non-names as persons
+(CNEC 2.0 development set, threshold 0.3: precision 0.85 → 0.86, recall
+0.80 → 0.82). Labels for job titles, roles and places were measured too and
+lowered precision; role nouns are handled by `roles.NamesOnly` instead."""
 
 DEFAULT_THRESHOLD = 0.3
 """Below GLiNER's own default (0.5) because detection is recall-first; a false
@@ -96,6 +104,7 @@ class GlinerDetector:
 
     Attributes:
         labels: Prompt label → entity type.
+        distractors: Labels asked for whose spans are dropped.
         threshold: Minimum score for a span to be reported.
     """
 
@@ -105,6 +114,7 @@ class GlinerDetector:
         labels: Mapping[str, EntityType] = DEFAULT_LABELS,
         threshold: float = DEFAULT_THRESHOLD,
         name: str = GLINER_RESOURCE,
+        distractors: Sequence[str] = DEFAULT_DISTRACTORS,
     ) -> None:
         """Initialize the detector.
 
@@ -113,21 +123,29 @@ class GlinerDetector:
             labels: Prompt label → entity type.
             threshold: Minimum score for a span to be reported.
             name: Identifier used in logs and evaluation reports.
+            distractors: Labels asked for whose spans are dropped (see
+                `DEFAULT_DISTRACTORS`).
 
         Raises:
-            ValueError: If no label is given or the threshold is outside `[0, 1]`.
+            ValueError: If no label is given, a distractor is also a label, or
+                the threshold is outside `[0, 1]`.
         """
         if not labels:
             msg = "at least one label is needed"
+            raise ValueError(msg)
+        if {label.lower() for label in labels} & {label.lower() for label in distractors}:
+            msg = "a label cannot also be a distractor"
             raise ValueError(msg)
         if not 0.0 <= threshold <= 1.0:
             msg = f"threshold out of range: {threshold}"
             raise ValueError(msg)
         self.model = model
         self.labels = dict(labels)
+        self.distractors = tuple(distractors)
         self.threshold = threshold
         self._name = name
         self._types_by_label = {label.lower(): kind for label, kind in self.labels.items()}
+        self._distractors = {label.lower() for label in self.distractors}
 
     @property
     def name(self) -> str:
@@ -149,7 +167,7 @@ class GlinerDetector:
         log.debug("%s: page %d: %d windows", self.name, page.index, len(windows))
         predictions = self.model.inference(
             [page.text[window.start : window.end] for window in windows],
-            list(self.labels),
+            [*self.labels, *self.distractors],
             threshold=self.threshold,
             flat_ner=True,
         )
@@ -162,7 +180,10 @@ class GlinerDetector:
         return merge_entities(entities)
 
     def _entity(self, page: Page, window: _Window, span: Mapping[str, Any]) -> Entity | None:
-        kind = self._types_by_label.get(str(span["label"]).lower())
+        label = str(span["label"]).lower()
+        if label in self._distractors:
+            return None
+        kind = self._types_by_label.get(label)
         if kind is None:
             log.debug("%s: ignored span with unknown label %s", self.name, span["label"])
             return None

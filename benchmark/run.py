@@ -38,6 +38,7 @@ from benchmark.score import (
     ItemResult,
     decoys_removed,
     false_positives,
+    left_in_carrier,
     outcome_counts,
     residue,
     score_detection,
@@ -117,6 +118,7 @@ def _run_one(
     redacted = load_document(redacted_path, language=spec.language)
     detection = score_detection(spec, document)
     after = residue(spec, document, redacted)
+    in_carrier = left_in_carrier(spec, document, redacted)
     items = tuple(
         ItemResult(
             type=str(item.type),
@@ -126,9 +128,10 @@ def _run_one(
             type_correct=type_correct,
             readable_after=readable,
             fragments_after=tuple(fragments),
+            left_in_carrier=left,
         )
-        for item, (outcome, type_correct), (readable, fragments) in zip(
-            spec.gold, detection, after, strict=True
+        for item, (outcome, type_correct), (readable, fragments), left in zip(
+            spec.gold, detection, after, in_carrier, strict=True
         )
     )
     _draw(spec, system, document.entities, source, redacted_path, output)

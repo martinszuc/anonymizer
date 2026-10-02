@@ -74,8 +74,10 @@ uv run python -m benchmark history history/*/benchmark-results.json --out charts
   of different lengths compare.
 - **decoys removed** — listed strings that look personal but are not, and
   were redacted anyway.
-- **per carrier** — found and left readable (whole or as a fragment) per
-  place an item was planted: the page or a surface kind. **Per document
+- **per carrier** — found, and left there: still readable, whole or as a
+  fragment, in the place the item was planted (the page or a surface kind).
+  A surname left on the page is not counted against the bookmark that
+  carries it too. **Per document
   kind** — the same scores over documents of one kind (cv, contract, ...).
 - **not found / false alarms** — the report lists every item not found whole
   and every false alarm, by document, for error analysis.

@@ -2,11 +2,17 @@
 
 import json
 
-from anonymizer.core.types import Document, Entity, EntityType, Page
+from anonymizer.core.types import Document, Entity, EntityType, Page, Surface, SurfaceKind
 
 from benchmark.report import markdown
 from benchmark.run import run
-from benchmark.score import decoys_removed, false_positives, residue, score_detection
+from benchmark.score import (
+    decoys_removed,
+    false_positives,
+    left_in_carrier,
+    residue,
+    score_detection,
+)
 from benchmark.spec import DocumentSpec, GoldItem
 
 TEXT = "Smlouvu podepsal Jan Novák, bytem Lidická 12, 602 00 Brno. Kupující souhlasí."
@@ -118,6 +124,15 @@ def test_residue_reports_whole_items_and_unique_fragments():
     assert readable[0] == (False, [])
     assert readable[1] == (False, ["602"])
     assert residue(SPEC, original, original)[0] == (True, [])
+
+
+def test_leaks_are_counted_against_their_own_carrier():
+    original = _document(TEXT)
+    original.surfaces.append(Surface(SurfaceKind.METADATA, "Jan Novák", "Author"))
+    # The name stays on the page; the metadata holding it was cleared.
+    redacted = _document("Smlouvu podepsal Jan Novák, bytem ███. Kupující souhlasí.")
+    assert residue(SPEC, original, redacted)[2] == (True, [])
+    assert left_in_carrier(SPEC, original, redacted) == [True, False, False]
 
 
 def test_removed_decoys_are_reported():

@@ -148,20 +148,19 @@ def markdown(results: dict[str, Any]) -> str:
 
 
 def _breakdown(results: dict[str, Any], key: str, label: str) -> list[str]:
-    """Tabulate, per group of a breakdown, items found and items left readable.
+    """Tabulate, per group of a breakdown, items found and items left in their carrier.
 
-    Left readable means whole or as a fragment, as for a safe document.
+    Left means readable there whole or as a fragment, as for a safe document.
     """
     systems: list[str] = results["systems"]
     groups = sorted({group for system in systems for group in results["totals"][system][key]})
     return _table(
-        [label, *(f"{system}: found / left readable" for system in systems)],
+        [label, *(f"{system}: found / left there" for system in systems)],
         [
             [
                 group,
                 *(
-                    f"{_ratio(counts['found'], counts['gold'])} / "
-                    f"{counts['readable_after'] + counts['with_fragments']}"
+                    f"{_ratio(counts['found'], counts['gold'])} / {counts['left_in_carrier']}"
                     if (counts := results["totals"][system][key].get(group))
                     else "-"
                     for system in systems

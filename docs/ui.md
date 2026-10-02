@@ -441,6 +441,9 @@ the repository, a test, a fixture or a commit message.
     (a label for titles, a rule next to a detected name, a prompt change) and what each
     costs in false positives. The OCR models also need more work: OCR errors turn up in
     the false positives above.
+    **Done** for titles (option b): `detect.extend_with_titles` widens every person span
+    over the titles before it and the degrees after it, as the last detection step. OCR
+    quality stays open.
 
 ### Export
 

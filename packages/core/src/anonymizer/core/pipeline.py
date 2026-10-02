@@ -17,6 +17,7 @@ from anonymizer.core.detect import (
     Detector,
     detect_document,
     detector_for,
+    extend_with_titles,
     propagate_occurrences,
 )
 from anonymizer.core.log import counts, short_fingerprint, step
@@ -44,6 +45,9 @@ def build_detector(language: str | None, *, model: Detector | None = None) -> De
 def run_detection(document: Document, detector: Detector, *, propagate: bool = True) -> None:
     """Replace a document's entities with what a detector finds in its pages and surfaces.
 
+    Person spans are widened over the academic titles beside them last, so a
+    repeat found without its title gets the one written next to it.
+
     Args:
         document: Document to scan, in place.
         detector: Detector to run (see `build_detector`).
@@ -65,4 +69,5 @@ def run_detection(document: Document, detector: Detector, *, propagate: bool = T
             propagated = propagate_occurrences(document)
             document.entities += propagated
             outcome["propagated"] = len(propagated)
+        outcome["titles"] = extend_with_titles(document)
         outcome["types"] = counts(Counter(entity.type for entity in document.entities))

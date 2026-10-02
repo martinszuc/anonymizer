@@ -69,12 +69,23 @@ uv run python -m benchmark history history/*/benchmark-results.json --out charts
 
 - **found / partial / missed** — whether one detected span covers the planted
   item, only part of it, or none of it.
-- **false alarms** — distinct detected texts overlapping no planted item.
+- **false alarms** — distinct detected texts overlapping no planted item;
+  **per 1,000 words** — the same over every document's words, so documents
+  of different lengths compare.
 - **decoys removed** — listed strings that look personal but are not, and
   were redacted anyway.
 - **safe** — after redaction, no planted item is readable, whole or as a word
   unique to it. The leak check only verifies that *detected* items are gone;
   this is the measure of what was never detected.
+
+## Documents without personal data
+
+`cs-terms`, `cs-notice` and `sk-terms` plant nothing: terms and conditions
+and official instructions, full of capitalised role nouns ("Kupující",
+"Žadatel", "Vedoucí odboru"), company and authority names. Every finding in
+them is a false alarm, which is what ordinary documents produce most of; the
+documents with planted items are too dense with personal data to show it. A
+document without items lists decoys instead.
 
 ## Adding a document
 

@@ -135,8 +135,9 @@ digest and prints the SHA-256 to record in the catalog.
 
 ## Benchmark
 
-Six synthetic documents (Czech, Slovak, English) with every personal item
-marked, scored for rules only and rules + GLiNER:
+Synthetic documents (Czech, Slovak, English) with every personal item
+marked, plus documents with none that count false alarms, scored for rules
+only and rules + GLiNER:
 
 ```sh
 uv sync --group ner --group benchmark

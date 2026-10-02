@@ -38,6 +38,7 @@ from anonymizer.core.detect.gliner import (
 )
 from anonymizer.core.detect.iban import find_ibans, is_valid_iban, normalize_iban
 from anonymizer.core.detect.propagate import propagate_occurrences
+from anonymizer.core.detect.roles import NamesOnly, cut_to_name, role_words_for
 from anonymizer.core.detect.titles import extend_with_titles
 from anonymizer.core.detect.url import find_urls
 
@@ -131,7 +132,9 @@ __all__ = [
     "Finder",
     "GlinerDetector",
     "Match",
+    "NamesOnly",
     "RuleDetector",
+    "cut_to_name",
     "detect_document",
     "detect_surface",
     "detector_for",
@@ -162,5 +165,6 @@ __all__ = [
     "normalize_iban",
     "passes_luhn",
     "propagate_occurrences",
+    "role_words_for",
     "structured_detector",
 ]

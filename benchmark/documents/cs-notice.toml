@@ -1,0 +1,35 @@
+# Czech instructions from an invented municipal office: no personal data.
+# Job and role titles written without a name (Starosta, Vedoucí odboru,
+# Žadatel, Zákonný zástupce), offices, streets named as places and dates
+# that are not dates of birth. Every finding here is a false alarm.
+language = "cs"
+kind = "notice"
+lines = [
+  "Městský úřad Horní Lhota",
+  "Odbor sociálních věcí a školství",
+  "Pokyny k podání žádosti o příspěvek na dopravu do školy",
+  "Příspěvek na dopravu žáků do základních a středních škol poskytuje město z vlastního rozpočtu. O příspěvek může požádat Zákonný zástupce žáka, který má trvalý pobyt na území města. Žádost se podává na předepsaném formuláři, který je k dispozici na podatelně městského úřadu a na webových stránkách města v sekci Dokumenty a formuláře.",
+  "Kdo může žádat",
+  "Žadatelem je Zákonný zástupce nezletilého žáka nebo zletilý student, který se soustavně připravuje na budoucí povolání. Žadatel doloží potvrzení o návštěvě školy vydané Ředitelem školy a doklad o ceně jízdného. Pokud žák dojíždí do školy mimo území kraje, připojí Žadatel také jízdní řád spoje, kterým žák pravidelně cestuje.",
+  "Lhůty a postup",
+  "Žádosti se přijímají od 1. září do 31. října příslušného školního roku. Podatelna je otevřena v pondělí a ve středu od osmi do sedmnácti hodin, v úterý a ve čtvrtek do čtrnácti hodin. O žádosti rozhoduje Vedoucí odboru sociálních věcí a školství do třiceti dnů od jejího doručení. Je-li žádost neúplná, vyzve úřad Žadatele k jejímu doplnění a stanoví mu přiměřenou lhůtu.",
+  "Výše příspěvku",
+  "Výši příspěvku stanoví Rada města usnesením vždy na jeden školní rok. Pro školní rok 2026/2027 činí příspěvek polovinu ceny měsíční jízdenky, nejvýše však pět set korun měsíčně. Příspěvek se vyplácí zpětně za ukončené pololetí převodem na účet, který Žadatel uvede v žádosti, nebo v hotovosti na pokladně úřadu.",
+  "Odvolání",
+  "Proti rozhodnutí lze podat odvolání do patnácti dnů ode dne jeho doručení. Odvolání se podává u Městského úřadu Horní Lhota a rozhoduje o něm Krajský úřad Kraje Vysočina. Starosta města může ve výjimečných případech, zejména u rodin v tíživé sociální situaci, povolit výjimku z podmínek uvedených v těchto pokynech.",
+  "Kontakty a místo podání",
+  "Podatelna sídlí v budově radnice na Masarykově náměstí, vchod z Nádražní ulice, přízemí vpravo. Informace podává Referent odboru sociálních věcí na telefonní lince podatelny. Zápis do evidence provádí Matrikářka pouze v případech, kdy je nutné ověřit údaje o trvalém pobytu. Pokyny schválila Rada města na své zasedání dne 15. června 2026 a nabývají účinnosti prvním dnem následujícího měsíce.",
+  "Starosta města",
+  "Místostarosta města",
+]
+decoys = [
+  "Městský úřad Horní Lhota",
+  "Zákonný zástupce",
+  "Ředitelem školy",
+  "Vedoucí odboru",
+  "Rada města",
+  "Krajský úřad Kraje Vysočina",
+  "Starosta města",
+  "Masarykově náměstí",
+  "Matrikářka",
+]

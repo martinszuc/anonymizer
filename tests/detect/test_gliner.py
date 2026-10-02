@@ -43,11 +43,13 @@ class StandInModel:
         self.score = score
         self.cut = cut
         self.calls: list[list[str]] = []
+        self.labels: list[str] = []
 
     def inference(
         self, texts: list[str], labels: list[str], *, threshold: float, flat_ner: bool
     ) -> list[list[dict[str, Any]]]:
         self.calls.append(texts)
+        self.labels = labels
         results = []
         for text in texts:
             spans = []
@@ -99,6 +101,18 @@ def test_label_match_ignores_case():
 def test_unrequested_labels_are_ignored():
     model = StandInModel({"Brno": "city"})
     assert GlinerDetector(model).detect(_page(TEXT)) == []
+
+
+def test_distractor_spans_are_asked_for_and_dropped():
+    model = StandInModel({"Kounicova 12": "street address", "Jan Novák": "organization"})
+    detector = GlinerDetector(model)
+    assert _texts(detector.detect(_page(TEXT))) == ["Kounicova 12"]
+    assert model.labels == ["person", "street address", "organization"]
+
+
+def test_a_label_cannot_be_a_distractor():
+    with pytest.raises(ValueError, match="distractor"):
+        GlinerDetector(StandInModel({}), distractors=("Person",))
 
 
 def test_empty_page_does_not_call_the_model():

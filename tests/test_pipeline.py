@@ -3,7 +3,13 @@
 from pathlib import Path
 
 import pytest
-from anonymizer.core.detect import CombinedDetector, GlinerDetector, RuleDetector
+from anonymizer.core.detect import (
+    CombinedDetector,
+    GlinerDetector,
+    NamesOnly,
+    RuleDetector,
+    role_words_for,
+)
 from anonymizer.core.ingest import load_document
 from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.types import DetectionSource, Document, Entity, EntityType, Page
@@ -31,7 +37,10 @@ class TestBuildDetector:
         model = GlinerDetector(StandInModel({}))
         detector = build_detector("cs", model=model)
         assert isinstance(detector, CombinedDetector)
-        assert detector.detectors[1] is model
+        wrapped = detector.detectors[1]
+        assert isinstance(wrapped, NamesOnly)
+        assert wrapped.detector is model
+        assert wrapped.role_words == role_words_for("cs")
 
 
 class FirstOccurrence:

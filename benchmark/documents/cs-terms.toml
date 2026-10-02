@@ -1,0 +1,36 @@
+# Czech terms and conditions of an invented shop: no personal data at all.
+# Capitalised role nouns (Prodávající, Kupující, Spotřebitel), company and
+# authority names, products and places, which a name model may take for
+# people or addresses. Every finding here is a false alarm.
+language = "cs"
+kind = "terms"
+lines = [
+  "Všeobecné obchodní podmínky",
+  "Domácí potřeby Vysočina s.r.o.",
+  "Článek 1. Úvodní ustanovení",
+  "Tyto všeobecné obchodní podmínky upravují vzájemná práva a povinnosti smluvních stran vzniklé v souvislosti s kupní smlouvou uzavřenou prostřednictvím internetového obchodu. Prodávajícím je společnost Domácí potřeby Vysočina s.r.o., která provozuje internetový obchod a kamennou prodejnu v Jihlavě. Kupujícím je každý, kdo s Prodávajícím uzavře kupní smlouvu. Je-li Kupující spotřebitelem, řídí se vztahy neupravené těmito podmínkami občanským zákoníkem a zákonem o ochraně spotřebitele.",
+  "Článek 2. Uzavření kupní smlouvy",
+  "Prezentace zboží v internetovém obchodě má informativní charakter a není návrhem na uzavření smlouvy. Kupující odešle objednávku vyplněním formuláře. Prodávající doručení objednávky bez zbytečného odkladu potvrdí elektronickou zprávou. Smlouva je uzavřena okamžikem, kdy Kupující obdrží závazné potvrzení objednávky. Prodávající si vyhrazuje právo objednávku odmítnout, pokud je zboží vyprodáno nebo pokud se cena zboží zjevně liší od běžné ceny na trhu.",
+  "Článek 3. Cena a platební podmínky",
+  "Ceny zboží jsou uvedeny včetně daně z přidané hodnoty a všech poplatků. Cenu lze uhradit platební kartou, bankovním převodem nebo na dobírku při převzetí zásilky. Při platbě převodem je cena splatná do sedmi dnů od uzavření smlouvy. Kávovar Aroma Plus, Mixér Turbo 600 a ostatní elektrospotřebiče se prodávají včetně recyklačního poplatku. Prodávající vystaví Kupujícímu daňový doklad, který zašle elektronicky spolu s potvrzením o odeslání.",
+  "Článek 4. Doprava a dodání zboží",
+  "Zboží doručuje Česká pošta, Zásilkovna nebo smluvní Dopravce podle volby Kupujícího. Osobní odběr je možný na prodejně v Jihlavě v pracovní dny od osmi do sedmnácti hodin. Odmítne-li Kupující zásilku převzít, je Prodávající oprávněn účtovat náklady spojené s opakovaným doručením. Kupující je povinen zkontrolovat neporušenost obalu při převzetí a případné vady neprodleně oznámit Dopravci.",
+  "Článek 5. Odstoupení od smlouvy",
+  "Spotřebitel má právo odstoupit od kupní smlouvy bez udání důvodu ve lhůtě čtrnácti dnů od převzetí zboží. Odstoupení lze učinit formulářem, který tvoří přílohu těchto podmínek, nebo jiným jednoznačným prohlášením. Prodávající vrátí Spotřebiteli všechny přijaté peněžní prostředky do čtrnácti dnů od odstoupení, nejdříve však poté, co mu bude zboží vráceno. Náklady na vrácení zboží nese Spotřebitel.",
+  "Článek 6. Práva z vadného plnění",
+  "Prodávající odpovídá Kupujícímu, že zboží při převzetí nemá vady. Reklamaci lze uplatnit na prodejně nebo písemně na adrese sídla Prodávajícího. Prodávající rozhodne o reklamaci do tří pracovních dnů a vyřídí ji nejpozději do třiceti dnů. Mimosoudní řešení sporů zajišťuje Česká obchodní inspekce, Ústřední inspektorát, oddělení ADR. Dozor nad dodržováním povinností vykonává rovněž Živnostenský úřad.",
+  "Článek 7. Ochrana osobních údajů",
+  "Správcem osobních údajů je Prodávající. Osobní údaje Kupujícího zpracovává pouze v rozsahu nezbytném pro plnění smlouvy a pro splnění zákonných povinností. Subjekt údajů má právo na přístup ke svým údajům, na jejich opravu a výmaz a právo podat stížnost u Úřadu pro ochranu osobních údajů. Zpracovatelem údajů je poskytovatel účetního systému a provozovatel platební brány.",
+  "Článek 8. Závěrečná ustanovení",
+  "Tyto obchodní podmínky nabývají účinnosti dnem 1. ledna 2026. Prodávající je oprávněn podmínky měnit; změna se nedotkne smluv uzavřených před její účinností. Příloha číslo 1: formulář pro odstoupení od smlouvy. Příloha číslo 2: reklamační řád.",
+]
+decoys = [
+  "Domácí potřeby Vysočina s.r.o.",
+  "Prodávající",
+  "Kupující",
+  "Spotřebitel",
+  "Dopravce",
+  "Kávovar Aroma Plus",
+  "Česká obchodní inspekce",
+  "Úřadu pro ochranu osobních údajů",
+]

@@ -55,7 +55,9 @@ def test_filler_expands_to_the_requested_word_count(tmp_path):
 def test_shipped_documents_load_and_plant_items():
     specs = load_documents()
     assert len(specs) >= 6
-    assert all(spec.gold for spec in specs)
+    # A document without planted items measures false alarms, so it lists decoys.
+    assert all(spec.gold or spec.decoys for spec in specs)
+    assert sum(bool(spec.gold) for spec in specs) >= 6
     assert {spec.language for spec in specs} >= {"cs", "sk", "en"}
 
 

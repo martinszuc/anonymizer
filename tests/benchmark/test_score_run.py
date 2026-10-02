@@ -155,3 +155,4 @@ def test_rules_only_run_writes_results_and_pictures(tmp_path):
     # The name is readable, and "jan" of the email address with it.
     assert "| page | 2/3 / 2 |" in report
     assert "| letter | 1 | 2/3 / 0/1 / 0 |" in report
+    assert "| rules | contact | person | page | Jan Novák | missed | yes |" in report

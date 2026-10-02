@@ -77,6 +77,8 @@ uv run python -m benchmark history history/*/benchmark-results.json --out charts
 - **per carrier** — found and left readable (whole or as a fragment) per
   place an item was planted: the page or a surface kind. **Per document
   kind** — the same scores over documents of one kind (cv, contract, ...).
+- **not found / false alarms** — the report lists every item not found whole
+  and every false alarm, by document, for error analysis.
 - **safe** — after redaction, no planted item is readable, whole or as a word
   unique to it. The leak check only verifies that *detected* items are gone;
   this is the measure of what was never detected.

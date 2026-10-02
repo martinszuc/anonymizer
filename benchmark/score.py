@@ -41,6 +41,7 @@ class ItemResult:
     """What happened to one planted item."""
 
     type: str
+    text: str
     carrier: str
     outcome: Outcome
     type_correct: bool

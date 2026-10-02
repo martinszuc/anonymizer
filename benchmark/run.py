@@ -120,6 +120,7 @@ def _run_one(
     items = tuple(
         ItemResult(
             type=str(item.type),
+            text=item.text,
             carrier=item.carrier,
             outcome=outcome,
             type_correct=type_correct,

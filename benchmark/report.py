@@ -115,6 +115,35 @@ def markdown(results: dict[str, Any]) -> str:
             for name, document in results["documents"].items()
         ],
     )
+    lines += ["", "## Not found", ""]
+    lines += _table(
+        ["system", "document", "type", "carrier", "item", "outcome", "left readable"],
+        [
+            [
+                system,
+                name,
+                item["type"],
+                item["carrier"],
+                item["text"],
+                item["outcome"],
+                "yes" if item["readable_after"] or item["fragments_after"] else "no",
+            ]
+            for system in systems
+            for name, document in results["documents"].items()
+            for item in document["systems"][system]["items"]
+            if item["outcome"] != "found"
+        ],
+    )
+    lines += ["", "## False alarms", ""]
+    lines += _table(
+        ["system", "document", "detected text"],
+        [
+            [system, name, text]
+            for system in systems
+            for name, document in results["documents"].items()
+            for text in document["systems"][system]["false_positives"]
+        ],
+    )
     return "\n".join(lines) + "\n"
 
 

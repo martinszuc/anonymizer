@@ -106,7 +106,9 @@ function Page({
   const pageRef = useRef<HTMLDivElement>(null);
   const nearby = useNearViewport(pageRef);
   const [image, setImage] = useState<string | null>(null);
-  const [hovered, setHovered] = useState<EntityInfo | null>(null);
+  // The id, not the entity: the popover must follow a decision made while it is open.
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const hovered = entities.find((entity) => entity.id === hoveredId) ?? null;
   // The drag lives in a ref: pointer events can arrive before React re-renders,
   // and a handler reading state would see the previous event's value.
   const drag = useRef<{ start: [number, number]; box: Box } | null>(null);
@@ -151,7 +153,7 @@ function Page({
     const start = toPoints(event);
     drag.current = { start, box: dragBox(start, start, page) };
     setDraft(drag.current.box);
-    setHovered(null);
+    setHoveredId(null);
   };
 
   const onPointerMove = (event: PointerEvent<SVGSVGElement>) => {
@@ -200,7 +202,7 @@ function Page({
           className="overlay"
           viewBox={`0 0 ${page.width} ${page.height}`}
           preserveAspectRatio="none"
-          onMouseLeave={() => setHovered(null)}
+          onMouseLeave={() => setHoveredId(null)}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -230,7 +232,7 @@ function Page({
               entity={entity}
               hatch={entity.is_region && !previewing ? `url(#${hatchId})` : undefined}
               selected={entity.id === selectedId}
-              onHover={setHovered}
+              onHover={setHoveredId}
               onToggle={onToggle}
               onSelect={onSelect}
             />
@@ -261,7 +263,7 @@ interface RedactionProps {
   /** Fill for a drawn region in review mode: the page's hatch pattern. */
   hatch?: string;
   selected: boolean;
-  onHover: (entity: EntityInfo | null) => void;
+  onHover: (entityId: string) => void;
   onToggle: (entity: EntityInfo) => void;
   onSelect: (entity: EntityInfo) => void;
 }
@@ -276,7 +278,7 @@ function Redaction({ entity, hatch, selected, onHover, onToggle, onSelect }: Red
       data-redacted={isRemoved(entity)}
       data-propagated={entity.source === "propagated"}
       data-selected={selected}
-      onMouseEnter={() => onHover(entity)}
+      onMouseEnter={() => onHover(entity.id)}
       onClick={() => {
         onSelect(entity);
         // A drawn region is removed and hidden data always goes: a click only selects them.

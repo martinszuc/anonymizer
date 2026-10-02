@@ -47,8 +47,12 @@ npm test           # unit tests (vitest)
 npm run build      # into ../src/anonymizer/ui/static
 ```
 
-To work on the frontend inside the real window with hot reload, keep `npm run dev`
-running and start `anonymize-ui --dev-server http://127.0.0.1:5173 --debug`.
+To work on the frontend inside the real window with hot reload, run `uv run poe dev`
+from the repository root: it installs the frontend dependencies when stale, starts
+Vite, opens the window against it with `--debug`, and stops Vite when the window
+closes. Options go to `anonymize-ui` (`uv run poe dev some.pdf --lang cs`); `--built`
+builds the page once and opens that. By hand: keep `npm run dev` running and start
+`anonymize-ui --dev-server http://127.0.0.1:5173 --debug`.
 `--debug` also turns on debug logging to stderr, which holds document text;
 `--log-level` and `--log-file` are described in [`docs/logging.md`](../../docs/logging.md).
 

@@ -17,6 +17,8 @@ export interface ReviewBridge {
   models(): Promise<FeatureModels[]>;
   /** Downloads a feature's models from their official sources, verified; progress as events. */
   download_models(feature: string): Promise<FeatureModels[]>;
+  /** Asks for a folder to store models in from now on; null when the reviewer cancelled. */
+  choose_models_folder(): Promise<AppStatus | null>;
   current_document(): Promise<DocumentInfo | null>;
   /** Null when the reviewer cancelled the open dialog. */
   choose_pdf(options: OpenOptions): Promise<DocumentInfo | null>;

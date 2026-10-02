@@ -66,7 +66,11 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   the catalog's official URLs, stream with a progress bar and are kept only
   if their checksums match (`resources.fetch_with_requirements`); both features
   can download at once, since they share no model. When one finishes, its
-  feature's switch turns on. A missing
+  feature's switch turns on. The sheet shows the folder models are stored in;
+  *Change…* picks another in a folder dialog, kept in a settings file for later
+  runs (`resources.location`, which the CLI and the benchmark follow too); files
+  already there are not moved, models loaded from the old folder are dropped, and
+  a feature whose models the new folder lacks turns off. A missing
   Python package is shown with its `uv sync --group …` command: the window
   never installs packages, as nothing but a model download may use the network.
 - **Scanned pages**: the home screen's *Scanned pages* switch (on when the
@@ -142,7 +146,8 @@ Methods the page calls (all return promises in JS):
 
 | Method | Returns | Notes |
 |---|---|---|
-| `status()` | `AppStatus` | version, languages with their own rules, the states of the model and of OCR (`ocr: {engine, state, missing}`); loads neither |
+| `status()` | `AppStatus` | version, languages with their own rules, `models_folder`, the states of the model and of OCR (`ocr: {engine, state, missing}`); loads neither |
+| `choose_models_folder()` | `AppStatus \| null` | folder dialog; stores models there from now on (settings file); null = cancelled; rejects while a download runs |
 | `models()` | `FeatureModels[]` | each feature's models and whether they are stored; nothing is hashed |
 | `download_models(feature)` | `FeatureModels[]` | `names` or `ocr`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while one of its models is already downloading or when a checksum fails |
 | `current_document()` | `DocumentInfo \| null` | on start: a PDF given on the command line |
@@ -188,6 +193,8 @@ page's own drag listeners only draw the highlight.
   `data:` URLs); the window runs with `private_mode=True`; a session file is
   written only on the reviewer's Save. Do not add "recent files" or caches
   that persist paths or content: a file name can itself be personal data.
+  The one file the window keeps between runs is the settings file, holding
+  the models folder the reviewer chose and nothing about any document.
 - **Logs hold no file names, paths or exception messages**, and document text
   only at DEBUG (`docs/logging.md`). A new `ReviewApi` method logs counts and
   ids; a new `WindowApi` method gets `@_logged`.
@@ -409,9 +416,10 @@ the repository, a test, a fixture or a commit message.
 
 4. **Done.** ~~Download several models at once.~~ Features that share no model download
    side by side; a second download of the same models is refused.
-5. **Choose where models are stored** in the packaged app, and have the app load them
-   from that place afterwards (today they live under `models/` of the resource root).
-   Applies once packaging (*Backlog* item 10) exists.
+5. **Done.** ~~Choose where models are stored.~~ *Manage models… → Change…*; the
+   choice is kept in a settings file. Without one, models live in `./models` when the
+   working directory has it, else in a per-user folder; the CLI and the benchmark
+   resolve the same way (`resources.resolve_resource_root`).
 
 ### Formats
 

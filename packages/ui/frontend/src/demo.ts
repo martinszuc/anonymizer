@@ -189,12 +189,16 @@ function progress(step: OpenStep, done = 0, total = 0) {
  */
 /** What the demo has "downloaded" this session. */
 const downloaded = new Set<string>();
+/** Set once the reviewer "chose" another folder, which starts empty. */
+let emptyFolder = false;
+let modelsFolder = "/Users/demo/Library/Application Support/anonymizer/models";
 
 function demoStatus(): AppStatus {
-  const state = downloaded.has("names") ? "ready" : requestedState("model");
-  const ocrState = downloaded.has("ocr") ? "ready" : requestedState("ocr");
+  const state = downloaded.has("names") ? "ready" : emptyFolder ? "files_missing" : requestedState("model");
+  const ocrState = downloaded.has("ocr") ? "ready" : emptyFolder ? "files_missing" : requestedState("ocr");
   return {
     version: "demo",
+    models_folder: modelsFolder,
     languages: [
       { code: "cs", name: "Czech" },
       { code: "sk", name: "Slovak" },
@@ -307,6 +311,14 @@ export function demoBridge(): ReviewBridge {
   return {
     status: async () => demoStatus(),
     models: async () => demoModels(),
+    choose_models_folder: async () => {
+      await pause();
+      // A new, empty folder: nothing is downloaded there yet.
+      modelsFolder = "/Volumes/Models/anonymizer/models";
+      emptyFolder = true;
+      downloaded.clear();
+      return demoStatus();
+    },
     download_models: async (feature: string) => {
       const total = demoModels().find((item) => item.feature === feature)?.missing_bytes ?? 0;
       for (let step = 0; step <= 20; step += 1) {

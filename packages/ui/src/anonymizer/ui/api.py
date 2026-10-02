@@ -53,8 +53,10 @@ from anonymizer.core.resources import (
     Opener,
     PinRequiredError,
     ResourceFile,
+    choose_resource_root,
     fetch_with_requirements,
     load_catalog,
+    resolve_resource_root,
     resource_status,
 )
 from anonymizer.core.session import apply_session, save_session, session_ocr_engine
@@ -145,13 +147,16 @@ class ReviewApi:
 
         Args:
             resource_root: Directory holding `models/`, as for the CLI's
-                `--resource-root`; the working directory when omitted.
+                `--resource-root`; `resources.resolve_resource_root` picks it
+                when omitted.
             catalog: The resource catalog; the one shipped with the core when
                 omitted.
             opener: Opens a download URL; the default opens the network.
         """
         self._open: _OpenDocument | None = None
-        self._resource_root = resource_root or Path()
+        self._resource_root = (
+            resource_root if resource_root is not None else resolve_resource_root()
+        )
         self._catalog = catalog or load_catalog()
         self._opener = opener
         # Catalog ids being downloaded: two downloads of one model would write
@@ -169,16 +174,17 @@ class ReviewApi:
         once.
 
         Returns:
-            The version, the languages with their own rules, and the states of
-            the name model and of the OCR engine: `ready`, `not_installed`
-            (the optional dependencies are missing) or `files_missing` (with
-            the catalog ids to fetch).
+            The version, the languages with their own rules, the folder models
+            are stored in, and the states of the name model and of the OCR
+            engine: `ready`, `not_installed` (the optional dependencies are
+            missing) or `files_missing` (with the catalog ids to fetch).
         """
         model_missing = missing_gliner_files(self._resource_root)
         ocr_missing = missing_ocr_files(OCR_ENGINE, self._resource_root)
         return {
             "version": __version__,
             "languages": [{"code": code, "name": name} for code, name in LANGUAGES.items()],
+            "models_folder": str(self._resource_root / "models"),
             "model": {
                 "state": _state(gliner_installed(), model_missing),
                 "missing": model_missing,
@@ -241,6 +247,34 @@ class ReviewApi:
             with self._downloads_lock:
                 self._downloading -= ids
         return self.models()
+
+    def choose_models_folder(self, path: str) -> dict[str, Any]:
+        """Store models under another folder, in this run and every later one.
+
+        Models already stored elsewhere are not moved, and models loaded from
+        the old folder are dropped, so the next document opens with the
+        models of the new one.
+
+        Args:
+            path: The folder to hold `models/`, chosen in a dialog.
+
+        Returns:
+            The installation as `status()` describes it, for the new folder.
+
+        Raises:
+            ReviewError: If a download is running, or the choice cannot be saved.
+        """
+        with self._downloads_lock:
+            if self._downloading:
+                msg = "wait for the download to finish before changing the folder"
+                raise ReviewError(msg)
+            root = Path(path).resolve()
+            with _as_review_error():
+                choose_resource_root(root)
+            self._resource_root = root
+            self._model = None
+            self._ocr.clear()
+        return self.status()
 
     def _download(self, feature: str, progress: Downloaded) -> None:
         resource_id = FEATURES[feature].resource_id

@@ -15,7 +15,12 @@ on (`--ocr` for a PDF given on the command line). The packages come from
 `uv sync --group ner --group ocr-onnxtr`; the models are downloaded from the window
 (*Manage models…*, each file checked against the catalog's checksum) or with
 `uv run python scripts/download.py fetch <id>`. Models go to `models/` under
-`--resource-root` (the current directory by default).
+`--resource-root`, by default the folder chosen in the review window (*Manage models… → Change…*), else
+`./models` if the working directory has one (a checkout of this repository),
+else a per-user folder (`~/Library/Application Support/anonymizer` on macOS,
+`%LOCALAPPDATA%/anonymizer` on Windows, `~/.local/share/anonymizer` on Linux). The Models sheet shows the folder and
+changes it; the choice is kept for later runs, and files already downloaded are
+not moved.
 
 Working on the window: start with [`docs/ui.md`](../../docs/ui.md) (status, contract,
 rules, how to add a feature, backlog).

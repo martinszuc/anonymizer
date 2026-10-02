@@ -57,8 +57,9 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   pages: OnnxTR's two models) with size, licence, languages, source and
   whether the files are stored, and a *Download* per feature. Files come from
   the catalog's official URLs, stream with a progress bar and are kept only
-  if their checksums match (`resources.fetch_with_requirements`); one download
-  runs at a time. When it finishes, the feature's switch turns on. A missing
+  if their checksums match (`resources.fetch_with_requirements`); both features
+  can download at once, since they share no model. When one finishes, its
+  feature's switch turns on. A missing
   Python package is shown with its `uv sync --group …` command: the window
   never installs packages, as nothing but a model download may use the network.
 - **Scanned pages**: the home screen's *Scanned pages* switch (on when the
@@ -136,7 +137,7 @@ Methods the page calls (all return promises in JS):
 |---|---|---|
 | `status()` | `AppStatus` | version, languages with their own rules, the states of the model and of OCR (`ocr: {engine, state, missing}`); loads neither |
 | `models()` | `FeatureModels[]` | each feature's models and whether they are stored; nothing is hashed |
-| `download_models(feature)` | `FeatureModels[]` | `names` or `ocr`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while another download runs or when a checksum fails |
+| `download_models(feature)` | `FeatureModels[]` | `names` or `ocr`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while one of its models is already downloading or when a checksum fails |
 | `current_document()` | `DocumentInfo \| null` | on start: a PDF given on the command line |
 | `choose_pdf(options)` | `DocumentInfo \| null` | options `{language, propagate, use_model, use_ocr}`, checked in Python; null = cancelled |
 | `open_dropped(options)` | `DocumentInfo \| null` | opens the PDF Python kept from the last drop; null if none |

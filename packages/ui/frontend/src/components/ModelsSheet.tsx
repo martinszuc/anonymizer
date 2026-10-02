@@ -9,7 +9,8 @@ interface ModelsSheetProps {
   open: boolean;
   /** Null while loading. */
   features: FeatureModels[] | null;
-  downloading: DownloadProgress | null;
+  /** Running downloads by feature; features sharing no model download side by side. */
+  downloads: Record<string, DownloadProgress>;
   onDownload: (feature: string) => void;
   onClose: () => void;
 }
@@ -19,7 +20,7 @@ interface ModelsSheetProps {
  * a download per feature. Files come from each model's official source and are
  * checked against the catalog's checksum before they are kept.
  */
-export function ModelsSheet({ open, features, downloading, onDownload, onClose }: ModelsSheetProps) {
+export function ModelsSheet({ open, features, downloads, onDownload, onClose }: ModelsSheetProps) {
   return (
     <Sheet
       open={open}
@@ -44,8 +45,7 @@ export function ModelsSheet({ open, features, downloading, onDownload, onClose }
           <FeatureSection
             key={feature.feature}
             feature={feature}
-            progress={downloading?.feature === feature.feature ? downloading : null}
-            busy={downloading !== null}
+            progress={downloads[feature.feature] ?? null}
             onDownload={() => onDownload(feature.feature)}
           />
         ))
@@ -57,12 +57,10 @@ export function ModelsSheet({ open, features, downloading, onDownload, onClose }
 function FeatureSection({
   feature,
   progress,
-  busy,
   onDownload,
 }: {
   feature: FeatureModels;
   progress: DownloadProgress | null;
-  busy: boolean;
   onDownload: () => void;
 }) {
   const stored = feature.missing_bytes === 0;
@@ -108,7 +106,7 @@ function FeatureSection({
         </div>
       ) : (
         !stored && (
-          <Button variant="primary" disabled={busy} onClick={onDownload}>
+          <Button variant="primary" onClick={onDownload}>
             Download {formatBytes(feature.missing_bytes)}
           </Button>
         )

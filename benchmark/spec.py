@@ -1,7 +1,8 @@
 """Benchmark documents written as data, with personal items marked inline.
 
-A document file (`documents/*.toml`) holds the visible lines, link targets and
-metadata values. Every personal item is written where it occurs as
+A document file (`documents/*.toml`) holds the visible lines and the strings
+written outside them: link targets, metadata, bookmarks, form fields,
+annotations, attachments and XMP properties. Every personal item is written where it occurs as
 `[[type:text]]`, so its text, type and carrier come from the markup and are
 never typed twice. `{{filler:N}}` expands to N words of neutral text, for
 documents that must be long (the model reads at most 384 words at once).
@@ -59,6 +60,10 @@ class DocumentSpec:
         links: Link targets with their visible anchor text.
         metadata: Information dictionary entries.
         bookmarks: Outline titles.
+        fields: Text form fields as (label printed before the field, value).
+        annotations: Sticky notes as (author, note text).
+        attachments: Files attached to the document as (file name, description).
+        xmp: Dublin Core properties written to the XMP packet.
         gold: Every planted item.
         decoys: Strings that look personal but are not (must stay readable).
     """
@@ -70,6 +75,10 @@ class DocumentSpec:
     links: tuple[tuple[str, str], ...] = ()
     metadata: dict[str, str] = field(default_factory=dict)
     bookmarks: tuple[str, ...] = ()
+    fields: tuple[tuple[str, str], ...] = ()
+    annotations: tuple[tuple[str, str], ...] = ()
+    attachments: tuple[tuple[str, str], ...] = ()
+    xmp: dict[str, str] = field(default_factory=dict)
     gold: tuple[GoldItem, ...] = ()
     decoys: tuple[str, ...] = ()
 
@@ -99,6 +108,24 @@ def load_document_spec(path: Path) -> DocumentSpec:
         )
         metadata = {key: plain(value, "metadata") for key, value in raw.get("metadata", {}).items()}
         bookmarks = tuple(plain(title, "bookmark") for title in raw.get("bookmarks", []))
+        # A field's value is drawn on the page as well as stored in the field:
+        # two carriers, two items.
+        fields = tuple(
+            (plain(entry["label"], "page"), _field_value(entry["value"], gold))
+            for entry in raw.get("fields", [])
+        )
+        annotations = tuple(
+            (plain(note["author"], "annotation"), plain(note["text"], "annotation"))
+            for note in raw.get("annotations", [])
+        )
+        attachments = tuple(
+            (
+                plain(entry["filename"], "embedded_file"),
+                plain(entry["description"], "embedded_file"),
+            )
+            for entry in raw.get("attachments", [])
+        )
+        xmp = {key: plain(value, "xmp") for key, value in raw.get("xmp", {}).items()}
         return DocumentSpec(
             name=path.stem,
             language=raw["language"],
@@ -107,12 +134,22 @@ def load_document_spec(path: Path) -> DocumentSpec:
             links=links,
             metadata=metadata,
             bookmarks=bookmarks,
+            fields=fields,
+            annotations=annotations,
+            attachments=attachments,
+            xmp=xmp,
             gold=tuple(gold),
             decoys=tuple(raw.get("decoys", [])),
         )
     except (KeyError, TypeError) as error:
         msg = f"{path.name}: malformed document ({error})"
         raise ValueError(msg) from error
+
+
+def _field_value(text: str, gold: list[GoldItem]) -> str:
+    value = _strip_markup(text, "page", gold)
+    _strip_markup(text, "form_field", gold)
+    return value
 
 
 def _strip_markup(text: str, carrier: str, gold: list[GoldItem]) -> str:
@@ -140,13 +177,22 @@ def _expand_filler(text: str) -> str:
     return _FILLER.sub(replace, text)
 
 
+def visible_text(spec: DocumentSpec) -> list[str]:
+    """Return every string drawn on the pages, in the order it is written."""
+    return [
+        *spec.lines,
+        *(anchor for anchor, _ in spec.links),
+        *(text for pair in spec.fields for text in pair),
+    ]
+
+
 def spec_summary(spec: DocumentSpec) -> dict[str, Any]:
     """Return counts describing a document, for reports."""
     return {
         "name": spec.name,
         "language": spec.language,
         "kind": spec.kind,
-        "words": sum(len(line.split()) for line in spec.lines),
+        "words": sum(len(line.split()) for line in visible_text(spec)),
         "gold_items": len(spec.gold),
         "hidden_items": sum(item.carrier != "page" for item in spec.gold),
     }

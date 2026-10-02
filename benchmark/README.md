@@ -101,6 +101,20 @@ bookmarks = ["Dopis"]
 decoys = ["Stavby Morava a.s."]
 ```
 
+Strings outside the page text, each a carrier redaction has to clear:
+
+```toml
+fields = [{ label = "Jméno:", value = "[[person:Jan Novák]]" }]        # text form field
+annotations = [{ author = "[[person:Eva Malá]]", text = "Ověřit." }]   # sticky note
+attachments = [{ filename = "novak-doklad.pdf", description = "Doklad" }]
+xmp = { creator = "[[person:Jan Novák]]", title = "Dopis" }           # Dublin Core
+```
+
+A field's value is drawn on the page as well as stored in the field, so it
+plants two items: one on the page, one in the field. The annotation's author
+is its title, usually a person's name. Attachment contents are fixed neutral
+text: ingest never reads them, and redaction drops attachments whole.
+
 `[[type:text]]` plants an item (types as in `EntityType`); `{{filler:N}}`
 adds N words of neutral text. Use invented names, `example.com/.org/.net`
 addresses, and checksum-bearing values computed independently of the

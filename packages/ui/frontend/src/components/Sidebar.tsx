@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 
 import { gentle } from "../motion";
 import {
+  KEEP_BELOW_STEPS,
   covers,
   groupByType,
   groupDecision,
@@ -11,6 +12,7 @@ import {
   isDecidable,
   isIdentifier,
   isRemoved,
+  lowConfidence,
   pageList,
   regionNumbers,
   summarize,
@@ -19,6 +21,7 @@ import {
   type Occurrences,
 } from "../review";
 import type { DocumentInfo, EntityInfo, SurfaceInfo } from "../types";
+import { Button } from "./Button";
 import { SegmentedControl } from "./SegmentedControl";
 import { Switch } from "./Switch";
 
@@ -33,6 +36,8 @@ interface SidebarProps {
   onToggle: (entity: EntityInfo) => void;
   /** One decision for every member of a group of identical findings. */
   onToggleGroup: (members: EntityInfo[]) => void;
+  /** Keep every finding given: the model's uncertain ones, from the bar above the list. */
+  onKeep: (entities: EntityInfo[]) => void;
   onRemove: (entity: EntityInfo) => void;
   selectedSurfaceId: string | null;
   onSelectSurface: (surface: SurfaceInfo) => void;
@@ -46,6 +51,7 @@ export function Sidebar({
   onSelect,
   onToggle,
   onToggleGroup,
+  onKeep,
   onRemove,
   selectedSurfaceId,
   onSelectSurface,
@@ -67,6 +73,7 @@ export function Sidebar({
           { value: "hidden", label: "Hidden", count: document.surfaces.length },
         ]}
       />
+      {tab === "findings" && <KeepUncertain entities={document.entities} onKeep={onKeep} />}
       {tab === "findings" ? (
         <Findings
           document={document}
@@ -105,6 +112,46 @@ function SummaryFigure({ value, label, tone }: { value: number; label: string; t
       </AnimatePresence>
       <span className="summary-label">{label}</span>
     </div>
+  );
+}
+
+type Step = `${(typeof KEEP_BELOW_STEPS)[number]}`;
+
+/**
+ * Keeps the model's least certain findings in one go: names it scored under the
+ * chosen step, with their repeats. Shown while the model left any of them undecided.
+ */
+function KeepUncertain({ entities, onKeep }: { entities: EntityInfo[]; onKeep: (entities: EntityInfo[]) => void }) {
+  const [step, setStep] = useState<Step>("0.5");
+  const highest = KEEP_BELOW_STEPS[KEEP_BELOW_STEPS.length - 1] as number;
+  const offered = useMemo(() => lowConfidence(entities, highest).length > 0, [entities, highest]);
+  const matching = useMemo(() => lowConfidence(entities, Number(step)), [entities, step]);
+  if (!offered) return null;
+  return (
+    <section className="keep-uncertain" aria-label="Keep uncertain findings">
+      <div className="keep-uncertain-line">
+        <span title="Scored by the names model; rules and your own decisions are left alone">
+          <span className="keep-uncertain-count">{matching.length}</span>{" "}
+          {matching.length === 1 ? "finding" : "findings"} scored below
+        </span>
+        <Button
+          disabled={matching.length === 0}
+          title="Keep them in the output; each can still be redacted again"
+          onClick={() => onKeep(matching)}
+        >
+          Keep
+        </Button>
+      </div>
+      <SegmentedControl
+        name="keep-below"
+        value={step}
+        onChange={setStep}
+        segments={KEEP_BELOW_STEPS.map((value) => ({
+          value: `${value}` as Step,
+          label: `${Math.round(value * 100)} %`,
+        }))}
+      />
+    </section>
   );
 }
 

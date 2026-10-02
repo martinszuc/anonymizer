@@ -73,6 +73,12 @@ its click redacts every member. Open, the occurrences follow indented by
 `--space-6`, each with its own switch. Clicking the row selects the next
 occurrence on the page; → and ← open and close it from the keyboard.
 
+**Keep uncertain findings.** A `--fill` card above the list, shown while the names
+model left findings undecided: "N findings scored below" (count weight 600 in
+`--label`, the rest `--label-2` footnote), a secondary *Keep* button on the right
+(disabled at 0), and a segmented control of score steps (40, 50, 60, 70 %). Keeping
+shows a toast with *Undo*.
+
 **Models sheet.** A wide sheet (560 px) from *Manage models…* on the home
 screen. Under the intro, a folder row (`--fill`, folder icon, the models folder
 in `--font-mono` footnote cut off with an ellipsis, full path on hover,
@@ -153,7 +159,8 @@ Used for export: consent for pages without a text layer, then the result (summar
 rows and "Leak check: Passed", or the leaks and "Nothing was written").
 
 **Toast.** Bottom centre, `--elevated` with blur, icon + one line, 4 s; errors use
-`--danger` for the icon only.
+`--danger` for the icon only. An optional action (*Undo*) follows the message as
+`--accent` text, weight 600; using it closes the toast.
 
 **Buttons.** Primary (accent fill), secondary (`--fill`), plain icon (transparent,
 hover `--fill`). 28 px, radius `--radius-control`, focus ring 3 px `--accent` at 40 %.

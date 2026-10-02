@@ -143,6 +143,32 @@ export function groupToggled(members: EntityInfo[]): ReviewState {
   return groupDecision(members) === "redacted" ? "rejected" : "confirmed";
 }
 
+/** Score steps offered for keeping the model's least certain findings. */
+export const KEEP_BELOW_STEPS = [0.4, 0.5, 0.6, 0.7] as const;
+
+/**
+ * Undecided findings the model scored below a threshold, with their repeats, so a
+ * group of identical findings is kept whole. A text counts by its best evidence:
+ * the highest score among its identical findings, and a rule or the reviewer's own
+ * finding outranks every score. Nothing already decided is included.
+ */
+export function lowConfidence(entities: EntityInfo[], threshold: number): EntityInfo[] {
+  const key = (entity: EntityInfo) => `${entity.type}:${covers(entity).toLocaleLowerCase()}`;
+  const best = new Map<string, number>();
+  for (const entity of entities) {
+    if (!isDecidable(entity) || entity.source === "propagated") continue;
+    const score = entity.source === "model" && entity.score !== null ? entity.score : 1;
+    best.set(key(entity), Math.max(best.get(key(entity)) ?? 0, score));
+  }
+  return entities.filter(
+    (entity) =>
+      isDecidable(entity) &&
+      entity.review === "pending" &&
+      (entity.source === "model" || entity.source === "propagated") &&
+      (best.get(key(entity)) ?? 1) < threshold,
+  );
+}
+
 /** Drawn regions numbered 1, 2, … in the order they were drawn, as the page and the list show them. */
 export function regionNumbers(entities: EntityInfo[]): Map<string, number> {
   const numbers = new Map<string, number>();

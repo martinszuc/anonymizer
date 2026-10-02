@@ -122,6 +122,9 @@ function demoDocument(readScans = false): DocumentInfo {
       found("iban", "CZ65 0800 0000 1920 0014 5399"),
       found("url", "https://example.com/jnovak", { review: "confirmed" }),
       found("organization", "Example s.r.o.", { source: "model", score: 0.62, review: "rejected" }),
+      // Uncertain model findings that are not names, as job titles often are.
+      found("person", "Software engineer", { source: "model", score: 0.38 }),
+      found("person", "Junior developer", { source: "model", score: 0.46 }),
       found("person", "Jan Novák", { source: "propagated" }, reference),
       found("email", "jan.novak@example.com", {
         surface_id: "link:0:12",

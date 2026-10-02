@@ -17,6 +17,7 @@ import {
   formatBytes,
   isUnreadScan,
   lastDrawnRegion,
+  lowConfidence,
   openStatus,
   pagesWithoutText,
   regionNumbers,
@@ -345,5 +346,42 @@ describe("openStatus", () => {
       count: null,
       fraction: null,
     });
+  });
+});
+
+describe("lowConfidence", () => {
+  const name = (id: string, text: string, score: number | null, extra: Partial<EntityInfo> = {}) =>
+    entity({ id, type: "person", source: "model", score, text, ...extra });
+  const ids = (entities: EntityInfo[]) => entities.map((item) => item.id);
+
+  it("takes undecided model findings under the threshold, not rules", () => {
+    const found = [name("low", "Kupující", 0.35), name("high", "Jan Novák", 0.92), entity({ id: "rule" })];
+    expect(ids(lowConfidence(found, 0.5))).toEqual(["low"]);
+    expect(ids(lowConfidence(found, 0.3))).toEqual([]);
+  });
+
+  it("takes the repeats of a low finding with it", () => {
+    const found = [
+      name("model", "Kupující", 0.4),
+      name("repeat", "kupující", null, { source: "propagated" }),
+      name("other", "Novák", null, { source: "propagated" }),
+    ];
+    expect(ids(lowConfidence(found, 0.5))).toEqual(["model", "repeat"]);
+  });
+
+  it("judges identical findings by their best evidence", () => {
+    const scored = [name("weak", "Jan Novák", 0.35), name("strong", "jan  novák", 0.8)];
+    expect(lowConfidence(scored, 0.5)).toEqual([]);
+    const ruled = [entity({ id: "rule", type: "person", text: "Jan Novák" }), name("weak", "Jan Novák", 0.35)];
+    expect(lowConfidence(ruled, 0.5)).toEqual([]);
+  });
+
+  it("leaves decided findings and hidden data alone", () => {
+    const found = [
+      name("kept", "Prodávající", 0.3, { review: "rejected" }),
+      name("confirmed", "Spotřebitel", 0.3, { review: "confirmed" }),
+      name("hidden", "Kupující", 0.3, { surface_id: "metadata:Title" }),
+    ];
+    expect(lowConfidence(found, 0.7)).toEqual([]);
   });
 });

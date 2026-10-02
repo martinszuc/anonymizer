@@ -120,6 +120,7 @@ uv sync                    # install
 uv run poe check           # lint, format check, pyright, pytest with coverage floors
 uv run poe fix             # ruff check --fix, ruff format
 uv run poe test            # pytest only
+uv run poe dev             # review window with Vite hot reload (installs the frontend, --built builds it)
 ```
 
 `poe check` must pass before committing; it runs every step and fails at the end, so one

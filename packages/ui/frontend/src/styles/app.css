@@ -1337,6 +1337,31 @@ kbd {
   color: var(--label-2);
 }
 
+/* Where models are stored, with the button that changes it. */
+.model-folder {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-row);
+  background: var(--fill);
+  color: var(--label-2);
+  font-size: var(--text-footnote);
+}
+
+.model-folder svg {
+  flex: none;
+}
+
+.model-folder-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .model-install {
   display: flex;
   align-items: flex-start;

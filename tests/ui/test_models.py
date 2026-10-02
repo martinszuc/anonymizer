@@ -10,6 +10,7 @@ import threading
 from pathlib import Path
 
 import pytest
+import webview
 from anonymizer.core.resources import Catalog, Resource, ResourceFile
 from anonymizer.ui.api import ReviewApi, ReviewError
 from anonymizer.ui.app import WindowApi
@@ -194,3 +195,44 @@ def test_the_window_tells_the_page_once_per_percent(tmp_path: Path, server: Fake
     percents = [detail["received"] * 100 // detail["total"] for detail in told]
     assert len(percents) == len(set(percents))
     assert _feature(api.models(), "ocr")["missing_bytes"] == 0
+
+
+def test_a_chosen_folder_is_used_now_and_by_later_runs(tmp_path: Path, server: FakeServer):
+    review = ReviewApi(tmp_path / "first", catalog=CATALOG, opener=server)
+    review.download_models("ocr")
+    assert _feature(review.models(), "ocr")["missing_bytes"] == 0
+    status = review.choose_models_folder(str(tmp_path / "second"))
+    assert status["models_folder"] == str((tmp_path / "second" / "models").resolve())
+    # Nothing was moved: the new folder has no models yet.
+    assert _feature(review.models(), "ocr")["missing_bytes"] > 0
+    later = ReviewApi(catalog=CATALOG, opener=server)
+    assert later.status()["models_folder"] == status["models_folder"]
+
+
+def test_models_loaded_from_the_old_folder_are_dropped(tmp_path: Path):
+    review = ReviewApi(tmp_path / "first", catalog=CATALOG)
+    review._model = object()  # type: ignore[assignment]
+    review._ocr["onnxtr"] = object()  # type: ignore[assignment]
+    review.choose_models_folder(str(tmp_path / "second"))
+    assert review._model is None
+    assert review._ocr == {}
+
+
+def test_the_folder_cannot_change_during_a_download(tmp_path: Path):
+    review = ReviewApi(tmp_path / "first", catalog=CATALOG)
+    review._downloading.add("onnxtr-fast-base")
+    with pytest.raises(ReviewError, match="wait for the download"):
+        review.choose_models_folder(str(tmp_path / "second"))
+    assert review.status()["models_folder"] == str(tmp_path / "first" / "models")
+
+
+def test_the_window_asks_for_a_folder(tmp_path: Path):
+    window = StandInWindow(answers=[(str(tmp_path / "chosen"),), None])
+    api = WindowApi(ReviewApi(tmp_path / "first", catalog=CATALOG))
+    api._attach(window)  # type: ignore[arg-type]
+    status = api.choose_models_folder()
+    assert status is not None
+    assert status["models_folder"] == str((tmp_path / "chosen" / "models").resolve())
+    assert window.asked[0]["dialog"] == webview.FileDialog.FOLDER
+    assert api.choose_models_folder() is None  # cancelled: nothing changes
+    assert api.status()["models_folder"] == status["models_folder"]

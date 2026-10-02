@@ -73,6 +73,8 @@ export type ModelState = "ready" | "not_installed" | "files_missing";
 export interface AppStatus {
   version: string;
   languages: { code: string; name: string }[];
+  /** Where models are stored and looked for; the reviewer can choose another folder. */
+  models_folder: string;
   model: { state: ModelState; missing: string[] };
   ocr: { engine: string; state: ModelState; missing: string[] };
 }

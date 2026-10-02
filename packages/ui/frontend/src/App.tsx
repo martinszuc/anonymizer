@@ -157,6 +157,24 @@ export function App() {
     }
   }
 
+  /** Store models in another folder; a feature whose models are not there turns off. */
+  async function chooseModelsFolder() {
+    if (!bridge) return;
+    try {
+      const installed = await bridge.choose_models_folder();
+      if (!installed) return;
+      setStatus(installed);
+      setOptions((current) => ({
+        ...current,
+        use_model: current.use_model && installed.model.state === "ready",
+        use_ocr: current.use_ocr && installed.ocr.state === "ready",
+      }));
+      setModels(await bridge.models());
+    } catch (error) {
+      reportError(errorMessage(error));
+    }
+  }
+
   const openPdf = () => open((api) => api.choose_pdf(options));
   const openReview = () => open((api) => api.choose_session());
   const openDropped = (name: string) => open((api) => api.open_dropped(options), name);
@@ -495,6 +513,8 @@ export function App() {
           open={modelsOpen}
           features={models}
           downloads={downloads}
+          folder={status?.models_folder ?? null}
+          onChangeFolder={() => void chooseModelsFolder()}
           onDownload={(feature) => void downloadModels(feature)}
           onClose={() => setModelsOpen(false)}
         />

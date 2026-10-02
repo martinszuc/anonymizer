@@ -474,6 +474,34 @@ class ReviewApi:
         log.debug("review: %s decided %s", state, describe(entity))
         return _entity_payload(entity)
 
+    def set_reviews(self, entity_ids: list[str], state: str) -> list[dict[str, Any]]:
+        """Record one decision on several entities at once, such as every repeat of a word.
+
+        Nothing changes unless every entity and the state are valid.
+
+        Args:
+            entity_ids: The entities decided on.
+            state: `confirmed` (redact), `rejected` (keep) or `pending`.
+
+        Returns:
+            The entities as `document()` lists them, in the order given.
+
+        Raises:
+            ReviewError: If `entity_ids` is not a list of ids, or an entity or
+                the state is unknown.
+        """
+        current = self._current()
+        if not isinstance(entity_ids, list) or not all(isinstance(i, str) for i in entity_ids):
+            msg = "entity ids must be a list of strings"
+            raise ReviewError(msg)
+        with _as_review_error():
+            review = ReviewState(state)
+            entities = [current.document.entity(entity_id) for entity_id in entity_ids]
+        for entity in entities:
+            entity.review = review
+        log.debug("review: %s decided on %d entities at once", state, len(entities))
+        return [_entity_payload(entity) for entity in entities]
+
     def add_region(
         self, page_index: int, x0: float, y0: float, x1: float, y1: float
     ) -> dict[str, Any]:

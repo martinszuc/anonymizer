@@ -381,6 +381,46 @@ kbd {
   background: var(--accent-fill);
 }
 
+/* A group of identical findings: a disclosure chevron and a count beside the text. */
+.row-disclosure {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0 calc(-1 * var(--space-2));
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-box);
+  background: transparent;
+  color: var(--label-2);
+}
+
+.row-disclosure:hover {
+  background: var(--fill-hover);
+}
+
+.row-disclosure svg {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.row-group[aria-expanded="true"] .row-disclosure svg {
+  transform: rotate(90deg);
+}
+
+.row-times {
+  margin-left: var(--space-2);
+  color: var(--label-2);
+  font-family: var(--font);
+  font-size: var(--text-footnote);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The occurrences of an open group, indented under it. */
+.occurrences[data-open="true"] > .row:not(.row-group) {
+  margin-left: var(--space-6);
+}
+
 .row-body {
   display: flex;
   flex-direction: column;
@@ -531,6 +571,12 @@ kbd {
 .switch[data-on="true"] {
   justify-content: flex-end;
   background: var(--switch-on-track);
+}
+
+/* Partly on (a group of repeats decided differently): the thumb waits in the middle. */
+.switch[data-mixed="true"] {
+  justify-content: center;
+  background: var(--label-3);
 }
 
 /* An ordinary option: on takes the accent, as macOS switches do. */

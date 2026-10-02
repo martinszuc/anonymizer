@@ -196,6 +196,11 @@ class WindowApi:
         return self._review.set_review(entity_id, state)
 
     @_logged
+    def set_reviews(self, entity_ids: Any, state: str) -> list[dict[str, Any]]:
+        """Record one decision on several entities; see `ReviewApi.set_reviews`."""
+        return self._review.set_reviews(entity_ids, state)
+
+    @_logged
     def add_region(
         self, page_index: int, x0: float, y0: float, x1: float, y1: float
     ) -> dict[str, Any]:

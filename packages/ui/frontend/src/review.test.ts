@@ -5,6 +5,9 @@ import {
   dragBox,
   exportSummary,
   groupByType,
+  groupDecision,
+  groupOccurrences,
+  groupToggled,
   isDecidable,
   isLargeEnough,
   isRedacted,
@@ -280,5 +283,47 @@ describe("what the reviewer decides", () => {
     expect(isDecidable(entity({}))).toBe(true);
     expect(isDecidable(entity({ surface_id: "link:0:7/uri" }))).toBe(false);
     expect(isDecidable(entity({ type: "region", is_region: true, text: null }))).toBe(false);
+  });
+});
+
+describe("groupOccurrences", () => {
+  const name = (id: string, text: string, overrides: Partial<EntityInfo> = {}) =>
+    entity({ id, type: "person", text, ...overrides });
+
+  it("puts identical findings together, ignoring case and spacing", () => {
+    const groups = groupOccurrences([
+      name("a", "Jan Novák"),
+      name("b", "Petr"),
+      name("c", "JAN  novák"),
+      name("d", "Jan\nNovák", { source: "propagated" }),
+    ]);
+    expect(groups.map((group) => group.members.map((member) => member.id))).toEqual([
+      ["a", "c", "d"],
+      ["b"],
+    ]);
+  });
+
+  it("keeps hidden-data findings and regions apart from what can be decided", () => {
+    const hidden = name("h", "Jan Novák", { surface_id: "s1", page_index: null });
+    const region = (id: string) => entity({ id, type: "region", is_region: true, text: null });
+    const groups = groupOccurrences([name("a", "Jan Novák"), hidden, region("r1"), region("r2")]);
+    expect(groups.map((group) => group.members.map((member) => member.id))).toEqual([
+      ["a"],
+      ["h"],
+      ["r1"],
+      ["r2"],
+    ]);
+  });
+
+  it("says what export does with a group and what its switch does", () => {
+    const redacted = name("a", "Jan");
+    const kept = name("b", "Jan", { review: "rejected" });
+    expect(groupDecision([redacted, { ...redacted, id: "c" }])).toBe("redacted");
+    expect(groupDecision([kept])).toBe("kept");
+    expect(groupDecision([redacted, kept])).toBe("mixed");
+    expect(groupToggled([redacted])).toBe("rejected");
+    // A mixed group redacts everything: the safe direction.
+    expect(groupToggled([redacted, kept])).toBe("confirmed");
+    expect(groupToggled([kept])).toBe("confirmed");
   });
 });

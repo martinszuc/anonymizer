@@ -155,6 +155,31 @@ class TestSetReview:
         assert str(raised.value) == "no entity with id missing"
 
 
+class TestSetReviews:
+    def test_decides_every_entity_given(self, review: ReviewApi):
+        ids = [entity["id"] for entity in review.document()["entities"]]
+        changed = review.set_reviews(ids, "rejected")
+        assert [entity["id"] for entity in changed] == ids
+        assert {entity["review"] for entity in review.document()["entities"]} == {"rejected"}
+
+    @pytest.mark.parametrize(
+        ("ids", "state", "message"),
+        [
+            (["missing"], "rejected", "no entity with id missing"),
+            ([], "maybe", "'maybe' is not a valid ReviewState"),
+            ("e1", "rejected", "must be a list"),
+            ([1], "rejected", "must be a list"),
+        ],
+    )
+    def test_nothing_changes_unless_all_is_valid(
+        self, review: ReviewApi, ids: list, state: str, message: str
+    ):
+        first = review.document()["entities"][0]["id"]
+        with pytest.raises(ReviewError, match=message):
+            review.set_reviews([first, *ids] if isinstance(ids, list) else ids, state)
+        assert review.document()["entities"][0]["review"] == "pending"
+
+
 class TestSessions:
     def test_a_saved_review_reopens_with_its_decisions(self, review: ReviewApi, pdf: Path):
         email = entity_of_type(review.document(), "email")

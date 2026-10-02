@@ -63,6 +63,15 @@ hidden data (a link, metadata) shows a locked pill *Always removed* (`--fill`,
 `--label-2`) instead, and no review dot: export clears it with the hidden item,
 so there is nothing to decide.
 
+**Group of repeats.** Identical findings of one type (case and spacing ignored)
+share one row: a disclosure chevron (rotates 90° when open), the text with
+"×N" in `--label-2` footnote, the pages they are on (and "N kept" when decided
+differently), and one switch for all of them. A partly decided group's switch
+is *mixed*: thumb in the middle on a `--label-3` track, `aria-checked="mixed"`;
+its click redacts every member. Open, the occurrences follow indented by
+`--space-6`, each with its own switch. Clicking the row selects the next
+occurrence on the page; → and ← open and close it from the keyboard.
+
 **Models sheet.** A wide sheet (560 px) from *Manage models…* on the home
 screen: one section per feature (`--fill` card), its state on the right
 (*Ready* in `--keep`, otherwise `--label-2`), each model as a name over a

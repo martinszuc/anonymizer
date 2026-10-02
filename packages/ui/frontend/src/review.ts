@@ -1,6 +1,15 @@
 // Review rules shared by the page view and the sidebar. Pure, so they are unit-tested.
 
-import type { Box, DocumentInfo, EntityInfo, ExportResult, PageInfo, ReviewState } from "./types";
+import type {
+  Box,
+  DocumentInfo,
+  EntityInfo,
+  ExportResult,
+  OpenProgress,
+  OpenStep,
+  PageInfo,
+  ReviewState,
+} from "./types";
 
 /** Undecided items are redacted at export (decided in PLAN.md), so only a rejection keeps text. */
 export function isRedacted(state: ReviewState): boolean {
@@ -235,4 +244,32 @@ export const MIN_REGION_PIXELS = 6;
 export function isLargeEnough(box: Box, scale: number): boolean {
   const [x0, y0, x1, y1] = box;
   return (x1 - x0) * scale >= MIN_REGION_PIXELS && (y1 - y0) * scale >= MIN_REGION_PIXELS;
+}
+
+const OPEN_STATUS: Record<OpenStep, string> = {
+  loading_ocr: "Loading the OCR engine",
+  reading: "Reading the text layer",
+  ocr: "Reading scanned pages with OCR",
+  loading_model: "Loading the names model",
+  detecting: "Finding personal data",
+};
+
+export interface OpenStatus {
+  /** What is happening now. */
+  label: string;
+  /** "3 of 12 pages", or null when the step cannot count (a model loads in one go). */
+  count: string | null;
+  /** Share done, 0 to 1; null for a step without pages, whose bar runs indeterminately. */
+  fraction: number | null;
+}
+
+/** The status line and bar while a PDF opens. */
+export function openStatus(progress: OpenProgress): OpenStatus {
+  const label = OPEN_STATUS[progress.step];
+  if (progress.total === 0) return { label, count: null, fraction: null };
+  return {
+    label,
+    count: `${progress.done} of ${plural(progress.total, "page")}`,
+    fraction: Math.min(progress.done / progress.total, 1),
+  };
 }

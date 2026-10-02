@@ -113,10 +113,15 @@ control, setting switches); *Continue a saved review…* as a plain button; a
 footer "Everything stays on this computer · version". The model's row says why
 its switch is disabled and what to run.
 
-**Opening.** A step list in an `--elevated` card: done (check, `--keep`),
-current (spinning loader, `--accent`, label in `--label`), pending (circle,
-`--label-3`). Shown from Python's first progress event until the document
-opens; a model step appears only when the model is used.
+**Opening.** An `--elevated` card (360 px): a status line (what is running
+now, weight 500; "3 of 12 pages" in `--label-2` on the right when the step
+counts pages), a 6 px bar (`--accent` on `--fill-active`, the same as a
+download's; while a model loads, a segment sweeps across instead, or a still
+dimmed bar under reduced motion), then the step list under a hairline: done
+(check, `--keep`), current (spinning loader, `--accent`, label in `--label`),
+pending (circle, `--label-3`). Shown from Python's first progress event until
+the document opens; a model step appears only when the model is used, and OCR
+runs inside *Reading the pages*.
 
 **Drop overlay.** Over an open document while a file is dragged: dashed
 `--accent` border on `--accent-fill` below the toolbar, a pill "Drop to open

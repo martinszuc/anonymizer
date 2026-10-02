@@ -12,12 +12,14 @@ import type {
   ModelState,
   FeatureModels,
   OpenOptions,
+  OpenProgress,
   OpenStep,
   ReviewState,
 } from "./types";
 
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 842;
+const DEMO_PAGES = 2;
 const LEFT = 72;
 const FONT_SIZE = 11;
 
@@ -175,9 +177,10 @@ const LATENCY_MS = 180;
 const copied = <T,>(value: T): T => structuredClone(value);
 const pause = () => new Promise((resolve) => setTimeout(resolve, LATENCY_MS));
 
-/** Tell the page a step of opening has started, as `WindowApi._progress` does. */
-function progress(step: OpenStep) {
-  window.dispatchEvent(new CustomEvent("anonymizer:progress", { detail: step }));
+/** Tell the page how far opening is, as `WindowApi._progress` does. */
+function progress(step: OpenStep, done = 0, total = 0) {
+  const detail: OpenProgress = { step, done, total };
+  window.dispatchEvent(new CustomEvent("anonymizer:progress", { detail }));
 }
 
 /**
@@ -271,13 +274,20 @@ export function demoBridge(): ReviewBridge {
     }
     progress("reading");
     await pause();
+    if (options?.use_ocr) {
+      progress("ocr", 0, 1);
+      await pause();
+      progress("ocr", 1, 1);
+    }
     if (options?.use_model) {
       progress("loading_model");
       await pause();
       await pause();
     }
-    progress("detecting");
-    await pause();
+    for (let page = 0; page <= DEMO_PAGES; page += 1) {
+      progress("detecting", page, DEMO_PAGES);
+      await pause();
+    }
     current = demoDocument(options?.use_ocr ?? false);
     return copied(current);
   };

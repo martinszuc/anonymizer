@@ -214,9 +214,9 @@ class WindowApi:
         )
         return self._titled(payload)
 
-    def _progress(self, step: str) -> None:
-        """Tell the page which step of opening a PDF has started."""
-        self._notify("progress", step)
+    def _progress(self, step: str, done: int, total: int) -> None:
+        """Tell the page which step of opening a PDF is running, and on which page."""
+        self._notify("progress", {"step": step, "done": done, "total": total})
 
     def _download_progress(self, feature: str, received: int, total: int) -> None:
         """Tell the page how far a download is, once per whole percent."""

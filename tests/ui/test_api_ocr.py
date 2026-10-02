@@ -34,13 +34,22 @@ def loads(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
 
 def test_scanned_page_is_read_detected_and_marked(scan: Path, loads: list[str]):
-    steps: list[str] = []
-    payload = ReviewApi().open_pdf(str(scan), "cs", progress=steps.append, use_ocr=True)
+    steps: list[tuple[str, int, int]] = []
+    payload = ReviewApi().open_pdf(
+        str(scan), "cs", progress=lambda *step: steps.append(step), use_ocr=True
+    )
     (page,) = payload["pages"]
     assert page["raster_dpi"] == 300
     assert page["has_text_layer"] is False
     assert {entity["type"] for entity in payload["entities"]} == {"email", "phone"}
-    assert steps == ["loading_ocr", "reading", "detecting"]
+    assert steps == [
+        ("loading_ocr", 0, 0),
+        ("reading", 0, 0),
+        ("ocr", 0, 1),
+        ("ocr", 1, 1),
+        ("detecting", 0, 1),
+        ("detecting", 1, 1),
+    ]
     assert loads == ["onnxtr"]
 
 
@@ -48,7 +57,7 @@ def test_engine_is_loaded_once_per_session(scan: Path, loads: list[str]):
     reviewer = ReviewApi()
     reviewer.open_pdf(str(scan), "cs", use_ocr=True)
     steps: list[str] = []
-    reviewer.open_pdf(str(scan), "cs", progress=steps.append, use_ocr=True)
+    reviewer.open_pdf(str(scan), "cs", progress=lambda step, *_: steps.append(step), use_ocr=True)
     assert loads == ["onnxtr"]
     assert "loading_ocr" not in steps
 
@@ -83,11 +92,13 @@ def test_saved_review_reopens_with_the_engine_it_names(
     reviewer.open_pdf(str(scan), "cs", use_ocr=True)
     reviewer.save_session(str(tmp_path / "review.json"))
     later = ReviewApi()
-    steps: list[str] = []
-    payload = later.open_session(str(scan), str(tmp_path / "review.json"), steps.append)
+    steps: list[tuple[str, int, int]] = []
+    payload = later.open_session(
+        str(scan), str(tmp_path / "review.json"), lambda *step: steps.append(step)
+    )
     assert payload["pages"][0]["raster_dpi"] == 300
     assert loads == ["onnxtr", "stand-in"]
-    assert steps == ["loading_ocr", "reading"]
+    assert steps == [("loading_ocr", 0, 0), ("reading", 0, 0), ("ocr", 0, 1), ("ocr", 1, 1)]
     assert later.export(str(tmp_path / "out.pdf"))["written"] is True
 
 

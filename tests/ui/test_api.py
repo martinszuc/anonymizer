@@ -395,13 +395,13 @@ class TestOpenWithModel:
         monkeypatch.setattr(api, "load_gliner_detector", load)
         reviewer = ReviewApi(Path("/models-root"))
         steps: list[str] = []
-        payload = reviewer.open_pdf(str(pdf), "cs", True, True, steps.append)
+        payload = reviewer.open_pdf(str(pdf), "cs", True, True, lambda step, *_: steps.append(step))
         assert entity_of_type(payload, "person")["text"] == "Jan Novak"
-        assert steps == ["reading", "loading_model", "detecting"]
+        assert steps == ["reading", "loading_model", "detecting", "detecting"]
 
         steps.clear()
-        reviewer.open_pdf(str(pdf), "cs", True, True, steps.append)
-        assert steps == ["reading", "detecting"]
+        reviewer.open_pdf(str(pdf), "cs", True, True, lambda step, *_: steps.append(step))
+        assert steps == ["reading", "detecting", "detecting"]
         assert loads == [Path("/models-root")]
 
     def test_without_the_model_no_names_are_found(self, pdf: Path):

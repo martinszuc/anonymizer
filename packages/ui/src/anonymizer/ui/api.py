@@ -82,8 +82,10 @@ LANGUAGES = {"cs": "Czech", "sk": "Slovak", "en": "English"}
 OCR_ENGINE = "onnxtr"
 """The OCR engine the window offers (see `ingest.OCR_ENGINES`)."""
 
-Progress = Callable[[str], None]
-"""Told each step of opening a PDF: `loading_ocr`, `reading`, `loading_model`, `detecting`."""
+Progress = Callable[[str, int, int], None]
+"""Told each step of opening a PDF as it starts and, page by page, as it goes: the
+step (`loading_ocr`, `reading`, `ocr`, `loading_model`, `detecting`), then the pages
+done and the pages in all (both 0 for a step without pages)."""
 
 
 Downloaded = Callable[[str, int, int], None]
@@ -327,15 +329,24 @@ class ReviewApi:
             "open pdf:%s",
             fields(language=language, propagate=propagate, model=use_model, ocr=use_ocr),
         )
-        report = progress or (lambda _step: None)
+        report = progress or (lambda _step, _done, _total: None)
         ocr = self._loaded_ocr(OCR_ENGINE, report) if use_ocr else None
-        report("reading")
+        report("reading", 0, 0)
         with _as_review_error():
             pdf_bytes = read_pdf(path)
-            document = document_from_bytes(pdf_bytes, language=language, ocr=ocr)
+            document = document_from_bytes(
+                pdf_bytes,
+                language=language,
+                ocr=ocr,
+                ocr_progress=lambda done, total: report("ocr", done, total),
+            )
         model = self._loaded_model(report) if use_model else None
-        report("detecting")
-        run_detection(document, build_detector(language, model=model), propagate=propagate)
+        run_detection(
+            document,
+            build_detector(language, model=model),
+            propagate=propagate,
+            progress=lambda done, total: report("detecting", done, total),
+        )
         self._open = _OpenDocument(Path(path), document, pdf_bytes)
         return self.document()
 
@@ -344,7 +355,7 @@ class ReviewApi:
         if self._model is not None:
             log.debug("name model already loaded")
         else:
-            report("loading_model")
+            report("loading_model", 0, 0)
             try:
                 self._model = load_gliner_detector(self._resource_root)
             except (ImportError, FileNotFoundError) as error:
@@ -358,7 +369,7 @@ class ReviewApi:
         if name in self._ocr:
             log.debug("OCR engine %s already loaded", name)
         else:
-            report("loading_ocr")
+            report("loading_ocr", 0, 0)
             try:
                 self._ocr[name] = load_ocr_engine(name, self._resource_root)
             except (ImportError, FileNotFoundError, ValueError) as error:
@@ -389,14 +400,17 @@ class ReviewApi:
                 matches it, either file cannot be read, or the review's OCR
                 engine cannot be loaded.
         """
-        report = progress or (lambda _step: None)
+        report = progress or (lambda _step, _done, _total: None)
         with _as_review_error():
             engine = session_ocr_engine(session_path)
         ocr = self._loaded_ocr(engine, report) if engine is not None else None
-        report("reading")
+        report("reading", 0, 0)
         with _as_review_error():
             pdf_bytes = read_pdf(pdf_path)
-            document = apply_session(document_from_bytes(pdf_bytes, ocr=ocr), session_path)
+            scanned = document_from_bytes(
+                pdf_bytes, ocr=ocr, ocr_progress=lambda done, total: report("ocr", done, total)
+            )
+            document = apply_session(scanned, session_path)
         self._open = _OpenDocument(Path(pdf_path), document, pdf_bytes)
         return self.document()
 

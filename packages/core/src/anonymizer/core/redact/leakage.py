@@ -49,8 +49,11 @@ may be extracted with different spacing.
 
 from __future__ import annotations
 
+import logging
 import re
+import time
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -59,8 +62,11 @@ from typing import Any, NamedTuple
 import pymupdf
 from anonymizer.core.ingest import OcrEngine, extract_page, extract_surfaces, read_page
 from anonymizer.core.ingest.normalize import bbox_to_unrotated_rect
+from anonymizer.core.log import fields, step
 from anonymizer.core.redact.canvas import off_page_words
 from anonymizer.core.types import BBox, Document, Entity
+
+log = logging.getLogger(__name__)
 
 # A word or drawing merely touching a region's edge is not inside it.
 _EDGE_TOLERANCE = 1.0
@@ -88,6 +94,9 @@ class LeakLayer(StrEnum):
     OBJECT = "object"
     FILE_BYTES = "file_bytes"
     OCR = "ocr"
+
+
+_UNLOGGED_LOCATIONS = frozenset({LeakLayer.SURFACE, LeakLayer.FILE_BYTES})
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,18 +151,42 @@ def find_leaks(
     kept = _kept_texts(document)
     all_kept = [text for texts in kept.values() for text in texts]
     never_kept = [target for target in targets if _copies(target.text, all_kept) == 0]
-    with pymupdf.open(redacted) as pdf:
+    with (
+        step(log, "leak check", targets=len(targets), regions=len(regions)) as outcome,
+        pymupdf.open(redacted) as pdf,
+    ):
         leaks = [
-            *_page_text_leaks(pdf, targets, kept),
-            *_region_leaks(pdf, regions),
-            *_off_page_leaks(pdf),
-            *_surface_leaks(pdf),
-            *_thumbnail_leaks(pdf),
-            *_object_leaks(pdf, never_kept),
+            *_layer("page text", lambda: _page_text_leaks(pdf, targets, kept)),
+            *_layer("region", lambda: _region_leaks(pdf, regions)),
+            *_layer("off-page text", lambda: _off_page_leaks(pdf)),
+            *_layer("hidden items", lambda: _surface_leaks(pdf)),
+            *_layer("thumbnail", lambda: _thumbnail_leaks(pdf)),
+            *_layer("object", lambda: _object_leaks(pdf, never_kept)),
         ]
-        file_bytes = _file_byte_leaks(Path(redacted), never_kept)
-        reread = _ocr_leaks(pdf, document, targets, kept, ocr) if ocr is not None else []
+        file_bytes = _layer("file bytes", lambda: _file_byte_leaks(Path(redacted), never_kept))
+        reread = (
+            _layer("OCR re-read", lambda: _ocr_leaks(pdf, document, targets, kept, ocr))
+            if ocr is not None
+            else []
+        )
+        outcome["leaks"] = len(leaks) + len(file_bytes) + len(reread)
     return leaks + file_bytes + reread
+
+
+def _layer(name: str, check: Callable[[], list[Leak]]) -> list[Leak]:
+    """Run one layer of the check and log what it found, in one record."""
+    started = time.perf_counter()
+    leaks = check()
+    log.debug(
+        "leak check layer %s: %d leak(s) in %.2fs", name, len(leaks), time.perf_counter() - started
+    )
+    for leak in leaks:
+        # A leak is as sensitive as the text it quotes, so it is a DEBUG record.
+        # Where a leak lies is left out when it is a file name or a surface's
+        # locator (a link target, an attachment's name): a log holds no names.
+        where = "-" if leak.layer in _UNLOGGED_LOCATIONS else leak.where
+        log.debug("leak in %s:%s", name, fields(where=where, entity=leak.entity_id, text=leak.text))
+    return leaks
 
 
 def _compact(text: str) -> str:

@@ -17,6 +17,7 @@ fingerprint.
 from __future__ import annotations
 
 import base64
+import logging
 import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -31,6 +32,7 @@ from anonymizer.core.detect import (
     load_gliner_detector,
     missing_gliner_files,
 )
+from anonymizer.core.detect.base import describe
 from anonymizer.core.detect.gliner import GLINER_RESOURCE
 from anonymizer.core.ingest import (
     OCR_ENGINE_RESOURCES,
@@ -42,6 +44,7 @@ from anonymizer.core.ingest import (
     pages_needing_ocr,
     read_pdf,
 )
+from anonymizer.core.log import fields
 from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import Leak, export_redacted
 from anonymizer.core.resources import (
@@ -65,6 +68,8 @@ from anonymizer.core.types import (
     Surface,
 )
 from anonymizer.ui import __version__
+
+log = logging.getLogger(__name__)
 
 MIN_DPI = 36
 MAX_DPI = 400
@@ -216,7 +221,9 @@ class ReviewApi:
         if feature not in FEATURES:
             msg = f"unknown feature {feature!r}"
             raise ReviewError(msg)
+        log.info("download requested: feature=%s", feature)
         if not self._downloading.acquire(blocking=False):
+            log.warning("download refused: another one is running")
             msg = "a download is already running"
             raise ReviewError(msg)
         try:
@@ -308,6 +315,10 @@ class ReviewApi:
             ReviewError: If the file is missing or unreadable, or the model or
                 the OCR engine was asked for but cannot be loaded.
         """
+        log.debug(
+            "open pdf:%s",
+            fields(language=language, propagate=propagate, model=use_model, ocr=use_ocr),
+        )
         report = progress or (lambda _step: None)
         ocr = self._loaded_ocr(OCR_ENGINE, report) if use_ocr else None
         report("reading")
@@ -322,22 +333,28 @@ class ReviewApi:
 
     def _loaded_model(self, report: Progress) -> Detector:
         """Return the name model, loading it the first time."""
-        if self._model is None:
+        if self._model is not None:
+            log.debug("name model already loaded")
+        else:
             report("loading_model")
             try:
                 self._model = load_gliner_detector(self._resource_root)
             except (ImportError, FileNotFoundError) as error:
+                log.warning("the name model is not available", exc_info=True)
                 msg = f"the name model is not available: {error}"
                 raise ReviewError(msg) from error
         return self._model
 
     def _loaded_ocr(self, name: str, report: Progress) -> OcrEngine:
         """Return an OCR engine, loading it the first time."""
-        if name not in self._ocr:
+        if name in self._ocr:
+            log.debug("OCR engine %s already loaded", name)
+        else:
             report("loading_ocr")
             try:
                 self._ocr[name] = load_ocr_engine(name, self._resource_root)
             except (ImportError, FileNotFoundError, ValueError) as error:
+                log.warning("the OCR engine is not available", exc_info=True)
                 msg = f"the OCR engine is not available: {error}"
                 raise ReviewError(msg) from error
         return self._ocr[name]
@@ -386,6 +403,8 @@ class ReviewApi:
 
     def close(self) -> None:
         """Forget the open document, so its content no longer stays in memory."""
+        if self._open is not None:
+            log.info("document closed")
         self._open = None
 
     def document(self) -> dict[str, Any]:
@@ -422,6 +441,7 @@ class ReviewApi:
         with _as_review_error():
             current.document.page(index)
         resolution = min(max(dpi, MIN_DPI), MAX_DPI)
+        log.debug("render page %d at %d dpi", index, resolution)
         with pymupdf.open(stream=current.pdf_bytes, filetype="pdf") as pdf:
             png = pdf[index].get_pixmap(dpi=resolution).tobytes("png")
         return "data:image/png;base64," + base64.b64encode(png).decode("ascii")
@@ -443,6 +463,7 @@ class ReviewApi:
         with _as_review_error():
             entity = current.document.entity(entity_id)
             entity.review = ReviewState(state)
+        log.debug("review: %s decided %s", state, describe(entity))
         return _entity_payload(entity)
 
     def add_region(
@@ -467,6 +488,7 @@ class ReviewApi:
         box = BBox(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
         with _as_review_error():
             region = current.document.add_region(page_index, box)
+        log.debug("region added: entity=%s page=%d", region.entity_id, page_index)
         return _entity_payload(region)
 
     def remove_entity(self, entity_id: str) -> None:
@@ -486,6 +508,7 @@ class ReviewApi:
             msg = "only items you added can be removed; keep a detected item instead"
             raise ReviewError(msg)
         current.document.remove_entity(entity_id)
+        log.debug("item removed: entity=%s", entity_id)
 
     def save_session(self, path: str) -> None:
         """Write the review to a session file, replacing one that exists.
@@ -526,6 +549,12 @@ class ReviewApi:
         """
         current = self._current()
         unreadable = [index + 1 for index in pages_needing_ocr(current.document)]
+        log.info("export requested: unread_scan_pages=%d", len(unreadable))
+        if unreadable and allow_pages_without_text:
+            log.warning(
+                "exporting with %d scanned page(s) OCR has not read; they stay unredacted",
+                len(unreadable),
+            )
         if unreadable and not allow_pages_without_text:
             listed = ", ".join(str(page) for page in unreadable)
             msg = f"page {listed} is a scan OCR has not read; nothing on it would be redacted"

@@ -2,6 +2,7 @@
 
 import inspect
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -11,6 +12,7 @@ from typing import Any
 import pytest
 import webview
 from anonymizer.core.ingest import load_document
+from anonymizer.core.log import configure_logging
 from anonymizer.ui import api as api_module
 from anonymizer.ui import app
 from anonymizer.ui.api import ReviewApi, ReviewError
@@ -381,3 +383,58 @@ class TestOcr:
         assert main([str(scan), "--lang", "cs", "--ocr", "--resource-root", str(tmp_path)]) == 0
         document = stand_in.created["js_api"].current_document()
         assert document["pages"][0]["raster_dpi"] == 300
+
+
+class TestLogging:
+    def test_debug_turns_on_debug_logging_and_the_inspector(
+        self, stand_in: StandInWebview, pdf: Path, capsys: pytest.CaptureFixture
+    ):
+        assert main([str(pdf), "--lang", "cs", "--debug"]) == 0
+        assert stand_in.started == {"debug": True, "private_mode": True}
+        err = capsys.readouterr().err
+        assert "detection: start" in err
+        assert "find_emails matched" in err
+
+    def test_debug_writes_no_file(
+        self, stand_in: StandInWebview, pdf: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        before = {path.name for path in tmp_path.iterdir()}
+        main([str(pdf), "--debug"])
+        assert {path.name for path in tmp_path.iterdir()} == before
+
+    def test_log_file_is_written_only_when_named(
+        self, stand_in: StandInWebview, pdf: Path, tmp_path: Path
+    ):
+        target = tmp_path / "window.log"
+        main([str(pdf), "--log-level", "info", "--log-file", str(target)])
+        written = target.read_text(encoding="utf-8")
+        assert "anonymize-ui" in written
+        assert "window closed" in written
+        assert "cv.pdf" not in written
+
+    def test_the_default_is_quiet(
+        self, stand_in: StandInWebview, pdf: Path, capsys: pytest.CaptureFixture
+    ):
+        main([str(pdf)])
+        assert capsys.readouterr().err == ""
+
+    def test_a_refused_call_is_a_warning_with_no_message(self, capsys: pytest.CaptureFixture):
+        configure_logging(logging.WARNING)
+        api = attached(StandInWindow())
+        with pytest.raises(ReviewError):
+            api.set_review("any", "confirmed")
+        err = capsys.readouterr().err
+        assert "page call set_review was refused" in err
+        assert "WARNING" in err
+        assert "no document is open" not in err
+
+    def test_an_unexpected_failure_is_an_error(self, capsys: pytest.CaptureFixture):
+        configure_logging(logging.WARNING)
+        api = attached(StandInWindow())
+        api._review.page_image = None  # type: ignore[method-assign,assignment]
+        with pytest.raises(TypeError):
+            api.page_image(0)
+        err = capsys.readouterr().err
+        assert "ERROR" in err
+        assert "page call page_image failed" in err

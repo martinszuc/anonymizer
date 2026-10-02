@@ -18,6 +18,8 @@ listed by `surfaces`.
 from __future__ import annotations
 
 import hashlib
+import logging
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +28,10 @@ from anonymizer.core.ingest.layout import PlacedWord, assemble
 from anonymizer.core.ingest.normalize import unrotated_rect_to_bbox
 from anonymizer.core.ingest.ocr import DEFAULT_OCR_DPI, OcrEngine, read_page
 from anonymizer.core.ingest.surfaces import extract_surfaces
+from anonymizer.core.log import counts, short_fingerprint, step
 from anonymizer.core.types import Document, Page
+
+log = logging.getLogger(__name__)
 
 # Field positions in PyMuPDF's "words" tuples.
 _BLOCK_INDEX = 5
@@ -152,21 +157,50 @@ def document_from_bytes(
     Raises:
         pymupdf.FileDataError: If the bytes are not a readable PDF.
     """
-    with pymupdf.open(stream=data, filetype="pdf") as pdf:
-        pages = [extract_page(pdf.load_page(index), index) for index in range(pdf.page_count)]
-        if ocr is not None:
-            pages = [
-                page
-                if page.has_text_layer
-                else read_page(pdf.load_page(page.index), page.index, ocr, ocr_dpi)
-                for page in pages
-            ]
-        surfaces = extract_surfaces(pdf)
-    read_by_ocr = any(page.raster_dpi is not None for page in pages)
+    digest = fingerprint(data)
+    with step(
+        log,
+        "read document",
+        done_level=logging.INFO,
+        document=short_fingerprint(digest),
+        size=len(data),
+        ocr=ocr.name if ocr is not None else None,
+    ) as outcome:
+        with pymupdf.open(stream=data, filetype="pdf") as pdf:
+            pages = [extract_page(pdf.load_page(index), index) for index in range(pdf.page_count)]
+            for page in pages:
+                log.debug(
+                    "page %d: text layer=%s words=%d",
+                    page.index,
+                    page.has_text_layer,
+                    len(page.words),
+                )
+            if ocr is not None:
+                pages = [
+                    page
+                    if page.has_text_layer
+                    else read_page(pdf.load_page(page.index), page.index, ocr, ocr_dpi)
+                    for page in pages
+                ]
+            surfaces = extract_surfaces(pdf)
+        read_by_ocr = any(page.raster_dpi is not None for page in pages)
+        unread = len(pages_needing_ocr(Document(pages=pages)))
+        outcome.update(
+            pages=len(pages),
+            read_by_ocr=sum(page.raster_dpi is not None for page in pages),
+            hidden_items=len(surfaces),
+            hidden_kinds=counts(Counter(surface.kind for surface in surfaces)),
+        )
+        if unread:
+            log.info(
+                "%d page(s) have no text layer and were not read by OCR; nothing on them "
+                "is detected or redacted",
+                unread,
+            )
     return Document(
         pages=pages,
         surfaces=surfaces,
-        fingerprint=fingerprint(data),
+        fingerprint=digest,
         language=language,
         ocr_engine=ocr.name if ocr is not None and read_by_ocr else None,
     )

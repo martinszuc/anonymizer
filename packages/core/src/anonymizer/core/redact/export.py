@@ -8,12 +8,17 @@ export through here.
 
 from __future__ import annotations
 
+import logging
+from collections import Counter
 from pathlib import Path
 
 from anonymizer.core.ingest import OcrEngine
+from anonymizer.core.log import counts, short_fingerprint, step
 from anonymizer.core.redact.leakage import Leak, find_leaks
 from anonymizer.core.redact.pdf import redact_pdf
 from anonymizer.core.types import Document
+
+log = logging.getLogger(__name__)
 
 
 def export_redacted(
@@ -48,14 +53,25 @@ def export_redacted(
         msg = "the redacted copy must not overwrite its source"
         raise ValueError(msg)
     partial = destination.with_name(f".{destination.name}.partial")
-    try:
-        redact_pdf(source, document, partial)
-        leaks = find_leaks(partial, document, ocr=ocr)
-    except BaseException:
-        partial.unlink(missing_ok=True)
-        raise
-    if leaks:
-        partial.unlink()
-        return leaks
-    partial.replace(destination)
+    with step(
+        log, "export", done_level=logging.INFO, document=short_fingerprint(document.fingerprint)
+    ) as outcome:
+        try:
+            redact_pdf(source, document, partial)
+            leaks = find_leaks(partial, document, ocr=ocr)
+        except BaseException:
+            partial.unlink(missing_ok=True)
+            raise
+        if leaks:
+            partial.unlink()
+            log.error(
+                "export refused: leak check found %d leak(s), nothing written; by layer: %s",
+                len(leaks),
+                counts(Counter(leak.layer.value for leak in leaks)),
+            )
+            outcome["written"] = False
+            return leaks
+        partial.replace(destination)
+        outcome["written"] = True
+        outcome["leak_check"] = "passed"
     return []

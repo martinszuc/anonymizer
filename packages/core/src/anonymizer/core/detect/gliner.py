@@ -30,9 +30,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, cast
 
-from anonymizer.core.detect.base import merge_entities
+from anonymizer.core.detect.base import describe, merge_entities
+from anonymizer.core.log import fields, step
 from anonymizer.core.resources import load_catalog, resource_status
 from anonymizer.core.types import DetectionSource, Entity, EntityType, Page
+
+log = logging.getLogger(__name__)
 
 GLINER_RESOURCE = "gliner-multi-v2.1"
 """Catalog id of the model; its requirements hold the encoder tokenizer."""
@@ -143,6 +146,7 @@ class GlinerDetector:
         windows = list(_windows(page.text))
         if not windows:
             return []
+        log.debug("%s: page %d: %d windows", self.name, page.index, len(windows))
         predictions = self.model.inference(
             [page.text[window.start : window.end] for window in windows],
             list(self.labels),
@@ -160,14 +164,19 @@ class GlinerDetector:
     def _entity(self, page: Page, window: _Window, span: Mapping[str, Any]) -> Entity | None:
         kind = self._types_by_label.get(str(span["label"]).lower())
         if kind is None:
+            log.debug("%s: ignored span with unknown label %s", self.name, span["label"])
             return None
-        widened = widen_to_words(
-            page.text, window.start + span["start"], window.start + span["end"]
-        )
+        raw_start, raw_end = window.start + span["start"], window.start + span["end"]
+        widened = widen_to_words(page.text, raw_start, raw_end)
         if widened is None:
+            log.debug(
+                "%s: dropped span, only punctuation left after widening:%s",
+                self.name,
+                fields(raw=page.text[raw_start:raw_end]),
+            )
             return None
         start, end = widened
-        return Entity(
+        entity = Entity(
             type=kind,
             page_index=page.index,
             start=start,
@@ -177,6 +186,17 @@ class GlinerDetector:
             source=DetectionSource.MODEL,
             score=min(1.0, max(0.0, float(span["score"]))),
         )
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(
+                "%s predicted %s label=%s%s",
+                self.name,
+                describe(entity),
+                span["label"],
+                fields(model_span=page.text[raw_start:raw_end])
+                if (raw_start, raw_end) != (start, end)
+                else "",
+            )
+        return entity
 
 
 def widen_to_words(text: str, start: int, end: int) -> tuple[int, int] | None:
@@ -281,10 +301,11 @@ def load_gliner_detector(
         )
         raise FileNotFoundError(msg)
     catalog = load_catalog()
-    model = load_gliner(
-        catalog[GLINER_RESOURCE].directory(root),
-        catalog[ENCODER_RESOURCE].directory(root),
-    )
+    with step(log, "load name model", done_level=logging.INFO, model=GLINER_RESOURCE):
+        model = load_gliner(
+            catalog[GLINER_RESOURCE].directory(root),
+            catalog[ENCODER_RESOURCE].directory(root),
+        )
     return GlinerDetector(model, labels=labels, threshold=threshold)
 
 

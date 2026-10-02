@@ -175,6 +175,9 @@ page's own drag listeners only draw the highlight.
   `data:` URLs); the window runs with `private_mode=True`; a session file is
   written only on the reviewer's Save. Do not add "recent files" or caches
   that persist paths or content: a file name can itself be personal data.
+- **Logs hold no file names, paths or exception messages**, and document text
+  only at DEBUG (`docs/logging.md`). A new `ReviewApi` method logs counts and
+  ids; a new `WindowApi` method gets `@_logged`.
 - **The PDF bytes are read once**; the document is loaded from them and
   pages render from them, never from the path again.
 - **The page reaches only `WindowApi`'s public methods**, which equal the
@@ -235,7 +238,15 @@ cd packages/ui/frontend && npm ci
 npm run dev                  # http://127.0.0.1:5173 with the demo document
 uv run anonymize-ui --dev-server http://127.0.0.1:5173 --debug   # real window, hot reload
 npm run build && uv run anonymize-ui some.pdf --lang cs          # real window, built page
+uv run anonymize-ui some.pdf --log-level info --log-file run.log # milestones, kept in a file
 ```
+
+`--debug` is the web inspector and debug logging together: every step of
+opening, detecting and exporting, and every word found with its rule or model,
+on stderr. The log holds document text; INFO and above never do, and no file
+exists unless `--log-file` names one. Every page call is logged by `_logged` in
+`app.py` (a refusal is a warning, anything else an error; never the message).
+How to log from a new method: [`docs/logging.md`](logging.md).
 
 An AI session can preview the page in its browser pane with `npm run dev`
 (the demo document appears after Open PDF…). The demo never goes through

@@ -21,12 +21,16 @@ resource catalog instead.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Protocol
 
 import pymupdf
 from anonymizer.core.ingest.layout import PlacedWord, assemble
+from anonymizer.core.log import step
 from anonymizer.core.types import BBox, Page
+
+log = logging.getLogger(__name__)
 
 DEFAULT_OCR_DPI = 300
 """Resolution pages are rendered at for OCR; 300 DPI is the usual scanning resolution."""
@@ -127,6 +131,13 @@ def read_page(pdf_page: pymupdf.Page, index: int, engine: OcrEngine, dpi: int) -
         A page whose words and text come from OCR, with `has_text_layer`
         false and `raster_dpi` set.
     """
+    with step(log, "ocr page", page=index, dpi=dpi) as outcome:
+        page = _read_page(pdf_page, index, engine, dpi)
+        outcome["words"] = len(page.words)
+    return page
+
+
+def _read_page(pdf_page: pymupdf.Page, index: int, engine: OcrEngine, dpi: int) -> Page:
     image = render_page(pdf_page, dpi)
     page = Page(
         index=index,

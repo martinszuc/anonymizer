@@ -44,6 +44,8 @@ npm run build      # into ../src/anonymizer/ui/static
 
 To work on the frontend inside the real window with hot reload, keep `npm run dev`
 running and start `anonymize-ui --dev-server http://127.0.0.1:5173 --debug`.
+`--debug` also turns on debug logging to stderr, which holds document text;
+`--log-level` and `--log-file` are described in [`docs/logging.md`](../../docs/logging.md).
 
 The built page carries a Content-Security-Policy (see `vite.config.ts`): its own
 files only, page images as `data:` URLs, no connections. `'unsafe-eval'` stays

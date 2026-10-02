@@ -8,12 +8,16 @@ in `detect/` modules of their own.
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Protocol, Self, runtime_checkable
 
+from anonymizer.core.log import fields
 from anonymizer.core.types import DetectionSource, Entity, EntityType, Page
+
+log = logging.getLogger(__name__)
 
 # Applied when one span lies inside another: the type listed first wins.
 # Structured identifiers beat free-form ones, because a valid checksum is
@@ -143,17 +147,44 @@ def merge_entities(
     kept: list[Entity] = []
     for entity in ordered:
         start, end = entity.span
-        inside = any(
-            other.page_index == entity.page_index
-            and other.surface_id == entity.surface_id
-            and other.span[0] <= start
-            and end <= other.span[1]
-            for other in kept
+        container = next(
+            (
+                other
+                for other in kept
+                if other.page_index == entity.page_index
+                and other.surface_id == entity.surface_id
+                and other.span[0] <= start
+                and end <= other.span[1]
+            ),
+            None,
         )
-        if not inside:
+        if container is None:
             kept.append(entity)
+        elif log.isEnabledFor(logging.DEBUG):
+            log.debug("merge: dropped %s, inside %s", describe(entity), describe(container))
     kept.sort(key=lambda entity: (entity.page_index or 0, entity.surface_id or "", entity.span))
     return regions + kept
+
+
+def describe(entity: Entity) -> str:
+    """Render an entity for a DEBUG record: what was found, where, and by what.
+
+    This includes the document's text, so it belongs in DEBUG records only.
+
+    Args:
+        entity: Entity to describe.
+
+    Returns:
+        ``key=value`` pairs: type, page, span, source, score and text.
+    """
+    shown: dict[str, object] = {"type": entity.type, "page": entity.page_index}
+    if not entity.is_region:
+        shown["span"] = f"[{entity.span[0]},{entity.span[1]})"
+    shown["source"] = entity.source
+    if entity.score is not None:
+        shown["score"] = f"{entity.score:.2f}"
+    shown["text"] = entity.text
+    return fields(**shown).lstrip()
 
 
 class CombinedDetector:
@@ -193,9 +224,14 @@ class CombinedDetector:
         Returns:
             Entities in reading order; see `merge_entities`.
         """
-        return merge_entities(
-            entity for detector in self.detectors for entity in detector.detect(page)
-        )
+        found = [(detector.name, detector.detect(page)) for detector in self.detectors]
+        merged = merge_entities(entity for _name, entities in found for entity in entities)
+        if log.isEnabledFor(logging.DEBUG):
+            per_detector = ", ".join(f"{name}={len(entities)}" for name, entities in found)
+            log.debug(
+                "%s: page %d: %s, %d after merge", self.name, page.index, per_detector, len(merged)
+            )
+        return merged
 
 
 class RuleDetector:
@@ -230,16 +266,32 @@ class RuleDetector:
             Entities in reading order, with geometry resolved from page words;
             see `merge_entities` for overlapping matches.
         """
-        return merge_entities(
-            Entity(
-                type=match.type,
-                page_index=page.index,
-                start=match.start,
-                end=match.end,
-                text=match.text,
-                bboxes=page.bboxes_for_span(match.start, match.end),
-                source=DetectionSource.RULE,
-            )
-            for finder in self.finders
-            for match in finder(page.text)
+        entities = []
+        for finder in self.finders:
+            for match in finder(page.text):
+                entity = Entity(
+                    type=match.type,
+                    page_index=page.index,
+                    start=match.start,
+                    end=match.end,
+                    text=match.text,
+                    bboxes=page.bboxes_for_span(match.start, match.end),
+                    source=DetectionSource.RULE,
+                )
+                if log.isEnabledFor(logging.DEBUG):
+                    log.debug("%s matched %s", _finder_name(finder), describe(entity))
+                entities.append(entity)
+        merged = merge_entities(entities)
+        log.debug(
+            "%s: page %d: %d matches, %d after merge",
+            self.name,
+            page.index,
+            len(entities),
+            len(merged),
         )
+        return merged
+
+
+def _finder_name(finder: Finder) -> str:
+    """Name a finder for a record: its function name, which is what to look for in the code."""
+    return getattr(finder, "__name__", None) or type(finder).__name__

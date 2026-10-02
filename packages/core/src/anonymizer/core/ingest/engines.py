@@ -8,6 +8,7 @@ engine added here reaches all of them.
 from __future__ import annotations
 
 import importlib.util
+import logging
 from collections.abc import Callable
 from pathlib import Path
 
@@ -17,7 +18,10 @@ from anonymizer.core.ingest.onnxtr import (
     RECOGNITION_RESOURCE,
     load_onnxtr_engine,
 )
+from anonymizer.core.log import step
 from anonymizer.core.resources import load_catalog, resource_status
+
+log = logging.getLogger(__name__)
 
 OCR_ENGINES: dict[str, Callable[[Path], OcrEngine]] = {"onnxtr": load_onnxtr_engine}
 """Engine loaders by name."""
@@ -82,4 +86,5 @@ def load_ocr_engine(name: str, root: Path) -> OcrEngine:
     if name not in OCR_ENGINES:
         msg = f"unknown OCR engine {name!r}; choose from {sorted(OCR_ENGINES)}"
         raise ValueError(msg)
-    return OCR_ENGINES[name](root)
+    with step(log, "load OCR engine", done_level=logging.INFO, engine=name):
+        return OCR_ENGINES[name](root)

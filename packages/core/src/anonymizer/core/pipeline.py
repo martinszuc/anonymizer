@@ -9,6 +9,9 @@ what the tools ship. Writing the redacted copy is `redact.export_redacted`.
 
 from __future__ import annotations
 
+import logging
+from collections import Counter
+
 from anonymizer.core.detect import (
     CombinedDetector,
     Detector,
@@ -16,7 +19,10 @@ from anonymizer.core.detect import (
     detector_for,
     propagate_occurrences,
 )
+from anonymizer.core.log import counts, short_fingerprint, step
 from anonymizer.core.types import Document
+
+log = logging.getLogger(__name__)
 
 
 def build_detector(language: str | None, *, model: Detector | None = None) -> Detector:
@@ -30,7 +36,9 @@ def build_detector(language: str | None, *, model: Detector | None = None) -> De
         The detector to run over a document.
     """
     rules = detector_for(language)
-    return rules if model is None else CombinedDetector([rules, model])
+    detector = rules if model is None else CombinedDetector([rules, model])
+    log.debug("detector built: %s (%d rules)", detector.name, len(rules.finders))
+    return detector
 
 
 def run_detection(document: Document, detector: Detector, *, propagate: bool = True) -> None:
@@ -41,6 +49,20 @@ def run_detection(document: Document, detector: Detector, *, propagate: bool = T
         detector: Detector to run (see `build_detector`).
         propagate: Also mark every further occurrence of the texts found.
     """
-    document.entities = detect_document(detector, document)
-    if propagate:
-        document.entities += propagate_occurrences(document)
+    with step(
+        log,
+        "detection",
+        done_level=logging.INFO,
+        document=short_fingerprint(document.fingerprint),
+        detector=detector.name,
+        propagate=propagate,
+        pages=len(document.pages),
+        hidden_items=len(document.surfaces),
+    ) as outcome:
+        document.entities = detect_document(detector, document)
+        outcome["found"] = len(document.entities)
+        if propagate:
+            propagated = propagate_occurrences(document)
+            document.entities += propagated
+            outcome["propagated"] = len(propagated)
+        outcome["types"] = counts(Counter(entity.type for entity in document.entities))

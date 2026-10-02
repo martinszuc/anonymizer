@@ -17,6 +17,7 @@ import {
   isDecidable,
   lastDrawnRegion,
   pagesWithoutText,
+  plural,
   steppedZoom,
   toggled,
 } from "./review";
@@ -80,11 +81,18 @@ export function App() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const canvasWidth = useElementWidth(canvasRef, document !== null);
 
-  const notify = useCallback((kind: Toast["kind"], message: string) => {
-    const id = Date.now() + Math.random();
-    setToasts((current) => [...current, { id, kind, message }]);
-    setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), TOAST_MS);
-  }, []);
+  const dismissToast = useCallback(
+    (id: number) => setToasts((current) => current.filter((toast) => toast.id !== id)),
+    [],
+  );
+  const notify = useCallback(
+    (kind: Toast["kind"], message: string, action?: Toast["action"]) => {
+      const id = Date.now() + Math.random();
+      setToasts((current) => [...current, { id, kind, message, action }]);
+      setTimeout(() => dismissToast(id), TOAST_MS);
+    },
+    [dismissToast],
+  );
   const reportError = useCallback((message: string) => notify("error", message), [notify]);
 
   useEffect(() => {
@@ -356,10 +364,25 @@ export function App() {
   /** One decision for every repeat of a finding; hidden-data members have none to change. */
   async function toggleGroup(members: EntityInfo[]) {
     const decidable = members.filter(isDecidable);
-    if (!bridge || decidable.length === 0) return;
-    const next = groupToggled(decidable);
-    const ids = new Set(decidable.map((entity) => entity.id));
-    const before = new Map(decidable.map((entity) => [entity.id, entity.review]));
+    if (decidable.length === 0) return;
+    await decideAll(decidable, groupToggled(decidable));
+  }
+
+  /** Keep the model's uncertain findings, with an Undo that makes them undecided again. */
+  async function keepAll(entities: EntityInfo[]) {
+    if (entities.length === 0 || !(await decideAll(entities, "rejected"))) return;
+    notify("success", `Kept ${plural(entities.length, "finding")}`, {
+      label: "Undo",
+      // Kept by now: a refused undo leaves them kept, as Python has them.
+      run: () => void decideAll(entities.map((entity) => ({ ...entity, review: "rejected" })), "pending"),
+    });
+  }
+
+  /** One decision for several decidable entities; false if Python refused it. */
+  async function decideAll(entities: EntityInfo[], next: EntityInfo["review"]): Promise<boolean> {
+    if (!bridge) return false;
+    const ids = new Set(entities.map((entity) => entity.id));
+    const before = new Map(entities.map((entity) => [entity.id, entity.review]));
     // Optimistic, like a single toggle: every box changes at once, and back if Python refuses.
     const apply = (reviewOf: (entity: EntityInfo) => EntityInfo["review"]) =>
       setDocument((current) =>
@@ -372,9 +395,11 @@ export function App() {
     setDirty(true);
     try {
       await bridge.set_reviews([...ids], next);
+      return true;
     } catch (error) {
       apply((item) => before.get(item.id) ?? item.review);
       reportError(errorMessage(error));
+      return false;
     }
   }
 
@@ -500,6 +525,7 @@ export function App() {
                 onSelect={select}
                 onToggle={toggle}
                 onToggleGroup={(members) => void toggleGroup(members)}
+                onKeep={(entities) => void keepAll(entities)}
                 onRemove={(entity) => void removeEntity(entity)}
                 selectedSurfaceId={selectedSurfaceId}
                 onSelectSurface={selectSurface}
@@ -557,7 +583,7 @@ export function App() {
           onDownload={(feature) => void downloadModels(feature)}
           onClose={() => setModelsOpen(false)}
         />
-        <Toasts toasts={toasts} />
+        <Toasts toasts={toasts} onDismiss={dismissToast} />
       </div>
     </MotionConfig>
   );

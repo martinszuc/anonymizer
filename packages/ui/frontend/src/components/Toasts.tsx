@@ -7,9 +7,11 @@ export interface Toast {
   id: number;
   kind: "success" | "error";
   message: string;
+  /** A button after the message, such as Undo; the toast closes when it is used. */
+  action?: { label: string; run: () => void };
 }
 
-export function Toasts({ toasts }: { toasts: Toast[] }) {
+export function Toasts({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
   return (
     <div className="toasts" role="status" aria-live="polite">
       <AnimatePresence initial={false}>
@@ -26,6 +28,18 @@ export function Toasts({ toasts }: { toasts: Toast[] }) {
           >
             {toast.kind === "error" ? <CircleAlert size={16} /> : <CircleCheck size={16} />}
             <span>{toast.message}</span>
+            {toast.action && (
+              <button
+                type="button"
+                className="toast-action"
+                onClick={() => {
+                  toast.action?.run();
+                  onDismiss(toast.id);
+                }}
+              >
+                {toast.action.label}
+              </button>
+            )}
           </motion.div>
         ))}
       </AnimatePresence>

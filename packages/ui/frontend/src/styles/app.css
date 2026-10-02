@@ -511,6 +511,33 @@ kbd {
   transform: scale(0.4);
 }
 
+/* Keeping the model's uncertain findings, above the list */
+
+.keep-uncertain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-radius: var(--radius-row);
+  background: var(--fill);
+  font-size: var(--text-footnote);
+  color: var(--label-2);
+}
+
+.keep-uncertain-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.keep-uncertain-count {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label);
+}
+
 .list-columns {
   display: flex;
   justify-content: space-between;
@@ -1324,6 +1351,23 @@ kbd {
   backdrop-filter: var(--material-popover);
   box-shadow: var(--shadow-popover);
   font-weight: 500;
+}
+
+.toast-action {
+  pointer-events: auto;
+  margin-left: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toast-action:focus-visible {
+  border-radius: var(--radius-control);
+  box-shadow: var(--focus-ring);
 }
 
 .toast[data-kind="success"] svg {

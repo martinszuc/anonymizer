@@ -40,7 +40,11 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   are one row with a count and one switch for all of them (`set_reviews`);
   opened (chevron or →), each occurrence has its own switch, and a group decided
   both ways shows a mixed switch whose click redacts everything. Clicking a group
-  row steps through its occurrences on the page. A finding in hidden data (a link, metadata) is locked,
+  row steps through its occurrences on the page. Above the list, while the
+  names model left findings undecided, a bar keeps those it scored below a
+  chosen step (40–70 %) in one click, with their repeats (`review.lowConfidence`:
+  a text counts by its best score, a rule's finding by none); the toast offers
+  Undo, which makes them undecided again. A finding in hidden data (a link, metadata) is locked,
   *Always removed*: export clears it with the hidden item, so there is nothing
   to decide. The *Hidden* tab lists every hidden item with what it is, what
   export does with it and the findings it contains; selecting one outlines it
@@ -369,23 +373,23 @@ In suggested order. Each item names where it plugs in.
 4. **Remembered preferences:** the home screen's options kept between runs
    in a small settings file (no personal data), and an **opt-in** list of
    recent files, off by default: a file name can be personal data.
-4. **Unsaved changes on close:** pywebview `confirm_close` or a closing
+5. **Unsaved changes on close:** pywebview `confirm_close` or a closing
    event tied to the `dirty` flag; today only opening another document asks.
-5. **Undo / redo** of decisions (Cmd/Ctrl+Z), kept in the frontend as a
+6. **Undo / redo** of decisions (Cmd/Ctrl+Z), kept in the frontend as a
    stack of `set_review` calls.
-6. **Models sheet, next steps:** cancel a running download; verify stored
+7. **Models sheet, next steps:** cancel a running download; verify stored
    files on request (`verify_resource`, hashing takes seconds per GB); choose
    between OCR engines once a second one is in the catalog.
-7. **OCR quality in review:** show OCR's confidence per word and flag
+8. **OCR quality in review:** show OCR's confidence per word and flag
     low-confidence words (an `@` read as `(m` hides an email from the rules),
     and offer a second engine once RapidOCR or EasyOCR is in the catalog.
-8. **Label mode preview** once labels exist (M5): preview draws `[NAME]`
+9. **Label mode preview** once labels exist (M5): preview draws `[NAME]`
     instead of black boxes.
-9. **Accessibility pass:** boxes are not keyboard-reachable (the list is the
+10. **Accessibility pass:** boxes are not keyboard-reachable (the list is the
     keyboard path); run a WCAG review of both themes.
-10. **Packaging (M9):** PyInstaller bundle per OS; test Windows (WebView2)
+11. **Packaging (M9):** PyInstaller bundle per OS; test Windows (WebView2)
     and Linux (GTK or Qt backend) by hand.
-11. **Large documents:** virtualize the page list and the sidebar beyond a
+12. **Large documents:** virtualize the page list and the sidebar beyond a
     few hundred pages or entities.
 
 ## Open issues from manual testing (2026-10-02)

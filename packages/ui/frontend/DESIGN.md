@@ -49,7 +49,8 @@ brown, dates mint, other grey. Only a hue: text on a type colour is never used.
 ## Components
 
 **Toolbar** (52 px). Document name and language; page position; zoom group (−, fit,
-+); a back chevron at the far left closes the document; region tool (R, pressed = accent fill; holding Alt draws without it); preview
++); a back chevron at the far left closes the document; region tool (R, pressed = accent fill; holding Alt draws without it); locate
+toggle (L, crosshair icon, pressed = a click on a box only selects it); preview
 toggle (eye); open; *Save Review* (secondary);
 primary *Export…* (Cmd/Ctrl+E), the final step. Controls are 28 px high.
 

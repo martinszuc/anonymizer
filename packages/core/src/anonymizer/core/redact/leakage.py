@@ -5,7 +5,11 @@ Eight layers, because each misses something the others catch:
 1. **Page text.** The output is extracted the way ingest extracts the input,
    and no redacted entity's text may remain on any page beyond the copies
    review kept there: the same text can be redacted in one place and kept in
-   another, so occurrences are counted against the rejected entities.
+   another, so occurrences are counted against the rejected entities. A text
+   counts inside a longer word too, since an inflected name ("Nováka" for
+   "Novák") still names the person; a text of fewer than three characters
+   counts only as a word of its own, because one or two letters occur by
+   chance inside unrelated words ("Li" in "Lisabon").
 2. **Regions.** A region has no text to search for, so nothing may remain
    inside its box: no word and no drawing apart from the black fill itself.
    Image pixels under a box are not re-read here; their removal is verified by
@@ -26,29 +30,40 @@ Eight layers, because each misses something the others catch:
    text are the first layers' job. A text that starts or ends with a digit
    must not continue into another digit or a decimal number there: a ZIP code
    `20001` also occurs inside the layout operand `9.200012`, which is syntax,
-   not a leak. A text review kept on some page is not searched for: this
-   layer cannot tell the kept copy from a redacted one, and a copy of a text
-   the output shows anyway reveals nothing more.
+   not a leak. A picture's samples are not searched (its dictionary is): they
+   are pixels, and a scanned page holds every short byte sequence by chance.
+   A text of fewer than three characters is not searched for at all: PDF
+   syntax holds every such string as an operator, a name or part of one
+   (`Q`, `Do`, `/Type`), so a match would say nothing; the page text, surface
+   and OCR layers still check it. A text review kept on some page is not
+   searched for: this layer cannot tell the kept copy from a redacted one,
+   and a copy of a text the output shows anyway reveals nothing more.
 7. **File bytes.** An incremental save appends new object revisions and leaves
    the old ones in the file, where the object table no longer points but any
    text editor still shows them. The raw bytes are searched as well, with the
-   same literal-string limit and digit rule as layer 6.
+   same literal-string limit, digit rule and length limit as layer 6. The
+   body of a stream with a filter or of a picture is left out: its bytes are
+   compressed, encoded or pixels, which store no text literally, so a match
+   there is chance.
 8. **OCR.** A page OCR read keeps its content in pixels, which no layer above
    reads. Its text layer must be empty, and the engine that read it re-reads
    the redacted page at the same resolution: no redacted text may be found
-   beyond the copies review kept, and no word may lie mostly (half its box or
-   more) inside a redacted box or region: on a skewed scan an axis-aligned
-   box clips the corners of neighbouring words, which are not leaks. This
-   shows only that *this engine* can no longer read the
-   value. It cannot prove the pixels are gone (that is verified by the test
-   suite); it does not report a fragment beside a box that no longer spells
-   the detected text, such as the end of an address a narrow box missed; and
-   a value the engine misread when reading the original was neither
-   detected nor can be found now, while a better reader or a person might
-   still read it.
+   beyond the copies review kept (counted as in layer 1), and no word may
+   lie mostly (half its box or more) inside a redacted box or region: on a
+   skewed scan an axis-aligned box clips the corners of neighbouring words,
+   which are not leaks. This shows only that *this engine* can no longer
+   read the value. It cannot prove the pixels are gone (that is verified by
+   the test suite); it does not report a fragment beside a box that no
+   longer spells the detected text, such as the end of an address a narrow
+   box missed; and a value the engine misread when reading the original was
+   neither detected nor can be found now, while a better reader or a person
+   might still read it. The reverse is reported: a re-read can find a
+   redacted text in ink no box touched, where the first reading saw another
+   word, and only a person can tell which reading was right.
 
-Whitespace is ignored when comparing text: a span that crossed a line break
-may be extracted with different spacing.
+Whitespace is ignored when comparing text (except inside a text of fewer
+than three characters): a span that crossed a line break may be extracted
+with different spacing.
 """
 
 from __future__ import annotations
@@ -78,14 +93,24 @@ _EDGE_TOLERANCE = 1.0
 # A word re-read by OCR is under a redacted box when this share of it is.
 _MOSTLY = 0.5
 _BLACK = (0.0, 0.0, 0.0)
+# A text with fewer characters occurs by chance inside other words and in PDF syntax.
+_SHORT = 3
+# A stream's keyword after its dictionary, and the entries that make its body binary.
+_STREAM_START = re.compile(rb">>\s*stream\r?\n")
+_BINARY_BODY = re.compile(rb"/Filter\b|/Subtype\s*/Image\b")
 
 
 class _Target(NamedTuple):
-    """An entity's text the output must no longer contain, and how it is stored literally."""
+    """An entity's text the output must no longer contain, as it is matched in each layer.
+
+    `in_text` matches it in extracted or re-read text, `literal` in the
+    file's objects and bytes; `None` when it is too short to search there.
+    """
 
     entity_id: str
     text: str
-    literal: re.Pattern[str]
+    in_text: re.Pattern[str]
+    literal: re.Pattern[str] | None
 
 
 class LeakLayer(StrEnum):
@@ -151,14 +176,19 @@ def find_leaks(
         raise ValueError(msg)
     redactable = [entity for entity in document.entities if entity.is_redactable]
     targets = [
-        _Target(entity.entity_id, entity.text, _literal_pattern(entity.text))
+        _Target(
+            entity.entity_id,
+            entity.text,
+            _text_pattern(entity.text),
+            _literal_pattern(entity.text),
+        )
         for entity in redactable
         if entity.text is not None
     ]
     regions = [entity for entity in redactable if entity.is_region]
     kept = _kept_texts(document)
     all_kept = [text for texts in kept.values() for text in texts]
-    never_kept = [target for target in targets if _copies(target.text, all_kept) == 0]
+    never_kept = [target for target in targets if _copies(target.in_text, all_kept) == 0]
     with (
         step(log, "leak check", targets=len(targets), regions=len(regions)) as outcome,
         pymupdf.open(redacted) as pdf,
@@ -203,18 +233,17 @@ def _compact(text: str) -> str:
 
 
 def _kept_texts(document: Document) -> dict[int, list[str]]:
-    """Return the page texts review rejected, compacted, by page."""
+    """Return the page texts review rejected, by page."""
     kept: dict[int, list[str]] = defaultdict(list)
     for entity in document.entities:
         if not entity.is_redactable and entity.in_page_text and entity.page_index is not None:
-            kept[entity.page_index].append(_compact(entity.text or ""))
+            kept[entity.page_index].append(entity.text or "")
     return kept
 
 
-def _copies(text: str, compacted: list[str]) -> int:
-    """Count the occurrences of a text in already compacted texts."""
-    needle = _compact(text)
-    return sum(haystack.count(needle) for haystack in compacted)
+def _copies(pattern: re.Pattern[str], texts: list[str]) -> int:
+    """Count the occurrences of a target's text pattern in texts."""
+    return sum(len(pattern.findall(text)) for text in texts)
 
 
 def _page_text_leaks(
@@ -223,11 +252,11 @@ def _page_text_leaks(
     """Find entity text in any page's extracted text, beyond the copies review kept."""
     leaks: list[Leak] = []
     for index in range(pdf.page_count):
-        page_text = _compact(extract_page(pdf.load_page(index), index).text)
+        page_text = extract_page(pdf.load_page(index), index).text
         leaks.extend(
             Leak(LeakLayer.PAGE_TEXT, f"page {index}", target.text, target.entity_id, index)
             for target in targets
-            if _copies(target.text, [page_text]) > _copies(target.text, kept.get(index, []))
+            if _copies(target.in_text, [page_text]) > _copies(target.in_text, kept.get(index, []))
         )
     return leaks
 
@@ -335,27 +364,52 @@ def _object_leaks(pdf: pymupdf.Document, targets: list[_Target]) -> list[Leak]:
         leaks.extend(
             Leak(LeakLayer.OBJECT, f"object {xref}", target.text, target.entity_id)
             for target in targets
-            if target.literal.search(content)
+            if target.literal is not None and target.literal.search(content)
         )
     return leaks
 
 
 def _object_text(pdf: pymupdf.Document, xref: int) -> str:
-    """Return an object's source and, for a stream, its decompressed data."""
+    """Return an object's source and, for a stream other than a picture, its decompressed data."""
     source = pdf.xref_object(xref)
-    if not pdf.xref_is_stream(xref):
+    if not pdf.xref_is_stream(xref) or pdf.xref_get_key(xref, "Subtype") == ("name", "/Image"):
         return source
     return source + _latin1(pdf.xref_stream(xref) or b"")
 
 
 def _file_byte_leaks(path: Path, targets: list[_Target]) -> list[Leak]:
     """Find entity text anywhere in the raw file, earlier revisions included."""
-    content = _latin1(path.read_bytes())
+    content = _without_binary_bodies(path.read_bytes())
     return [
         Leak(LeakLayer.FILE_BYTES, path.name, target.text, target.entity_id)
         for target in targets
-        if target.literal.search(content)
+        if target.literal is not None and target.literal.search(content)
     ]
+
+
+def _without_binary_bodies(data: bytes) -> str:
+    """Return a file's bytes without the body of any stream with a filter or of a picture.
+
+    Each stream's dictionary is read back to its object's `obj` keyword. A
+    body is skipped up to the first `endstream`, so a binary body that holds
+    the keyword by chance leaves its remainder searched, which can only add
+    matches.
+    """
+    parts: list[bytes] = []
+    position = 0
+    for start in _STREAM_START.finditer(data):
+        if start.start() < position:
+            continue
+        end = data.find(b"endstream", start.end())
+        if end < 0:
+            break
+        header = data[max(data.rfind(b"obj", position, start.start()), position) : start.end()]
+        parts.append(data[position : start.end()])
+        if not _BINARY_BODY.search(header):
+            parts.append(data[start.end() : end])
+        position = end
+    parts.append(data[position:])
+    return _latin1(b"".join(parts))
 
 
 def _ocr_leaks(
@@ -378,11 +432,11 @@ def _ocr_leaks(
             for word in extract_page(pdf_page, page.index).words
         )
         reread = read_page(pdf_page, page.index, engine, int(page.raster_dpi))
-        reread_text = _compact(reread.text)
         leaks.extend(
             Leak(LeakLayer.OCR, where, target.text, target.entity_id, page.index)
             for target in targets
-            if _copies(target.text, [reread_text]) > _copies(target.text, kept.get(page.index, []))
+            if _copies(target.in_text, [reread.text])
+            > _copies(target.in_text, kept.get(page.index, []))
         )
         leaks.extend(
             Leak(
@@ -413,15 +467,34 @@ def _redacted_boxes(document: Document) -> dict[int, list[tuple[str, BBox]]]:
     return boxes
 
 
-def _literal_pattern(text: str) -> re.Pattern[str]:
+def _text_pattern(text: str) -> re.Pattern[str]:
+    """Match a text in extracted or re-read text, with any whitespace between its characters.
+
+    A text of fewer than three characters must stand as a word of its own,
+    with whitespace only where it has some: one or two letters occur by
+    chance inside other words and across the gap between two.
+    """
+    compact = _compact(text)
+    if len(compact) >= _SHORT:
+        return re.compile(r"\s*".join(re.escape(character) for character in compact))
+    words = r"\s*".join(re.escape(word) for word in text.split())
+    return re.compile(rf"(?<!\w){words}(?!\w)")
+
+
+def _literal_pattern(text: str) -> re.Pattern[str] | None:
     """Match a text stored literally, with any whitespace between its characters.
 
     A text starting or ending with a digit must not continue into another
     digit or a decimal number: PDF syntax is full of numbers, and `20001`
     inside `9.200012` is a glyph offset, not a ZIP code. Whitespace still
     counts as a boundary, so `(20001 12)` matches.
+
+    Returns:
+        The pattern, or `None` for a text too short to tell from syntax.
     """
     compact = _compact(text)
+    if len(compact) < _SHORT:
+        return None
     body = r"\s*".join(re.escape(character) for character in compact)
     before = r"(?<!\d)(?<!\d\.)" if compact[:1].isdigit() else ""
     after = r"(?!\d)(?!\.\d)" if compact[-1:].isdigit() else ""

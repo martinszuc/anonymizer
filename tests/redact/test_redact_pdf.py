@@ -499,3 +499,98 @@ class TestNumbersInPdfSyntax:
             pdf.save(tmp_path / "planted.pdf")
         leaks = find_leaks(tmp_path / "planted.pdf", document)
         assert layers(leaks) == {LeakLayer.OBJECT, LeakLayer.FILE_BYTES}
+
+
+def _redact_word(tmp_path: Path, lines: list[str], word: str) -> tuple[Path, Document]:
+    """Redact the first whole-word occurrence of `word` alone, as a model's person span."""
+    source = write_pdf(tmp_path / "source.pdf", [lines])
+    document = load_document(source)
+    page = document.pages[0]
+    found = next(entry for entry in page.words if entry.text == word)
+    document.entities = [
+        Entity(
+            type=EntityType.PERSON,
+            page_index=0,
+            start=found.start,
+            end=found.end,
+            text=word,
+            bboxes=[found.bbox],
+            source=DetectionSource.MODEL,
+        )
+    ]
+    output = tmp_path / "out.pdf"
+    redact_pdf(source, document, output)
+    return output, document
+
+
+class TestShortTargets:
+    """One or two characters occur by chance inside other words and in PDF syntax."""
+
+    def test_inside_another_word_is_not_a_leak(self, tmp_path: Path):
+        output, document = _redact_word(tmp_path, ["pan Li", "Lisabon je daleko"], "Li")
+        assert "Lisabon" in output_text(output)
+        assert find_leaks(output, document) == []
+
+    def test_left_as_a_word_is_a_leak_on_the_page(self, tmp_path: Path):
+        output, document = _redact_word(tmp_path, ["pan Li", "a Li je daleko"], "Li")
+        assert layers(find_leaks(output, document)) == {LeakLayer.PAGE_TEXT}
+
+    def test_in_pdf_syntax_is_not_a_leak(self, tmp_path: Path):
+        output, document = _redact_word(tmp_path, ["pan Li", "KEEP"], "Li")
+        with pymupdf.open(output) as pdf:
+            pdf.xref_set_key(pdf.pdf_catalog(), "Lis", "true")
+            pdf.save(tmp_path / "planted.pdf")
+        assert b"/Lis" in (tmp_path / "planted.pdf").read_bytes()
+        assert find_leaks(tmp_path / "planted.pdf", document) == []
+
+    def test_three_letters_keep_matching_inside_words(self, tmp_path: Path):
+        # An inflected name ("Janem") still names the person.
+        output, document = _redact_word(tmp_path, ["pan Jan", "s Janem"], "Jan")
+        assert LeakLayer.PAGE_TEXT in layers(find_leaks(output, document))
+
+
+class TestBinaryData:
+    """A literal text only counts where the file stores text, not pixels or encoded bytes."""
+
+    NAME = "Jana"
+
+    def _planted(self, tmp_path: Path, dictionary: str, raw: bytes, stream_filter: str | None):
+        output, document = _redact_word(tmp_path, [f"pani {self.NAME}", "KEEP"], self.NAME)
+        with pymupdf.open(output) as pdf:
+            xref = pdf.get_new_xref()
+            pdf.update_object(xref, dictionary)
+            pdf.update_stream(xref, raw, compress=False)
+            if stream_filter:
+                pdf.xref_set_key(xref, "Filter", stream_filter)
+            pdf.xref_set_key(pdf.pdf_catalog(), "Extra", f"{xref} 0 R")
+            pdf.save(tmp_path / "planted.pdf")
+        # Guard the fixture: the raw bytes hold the name, the decoded stream as declared.
+        assert self.NAME.encode() in (tmp_path / "planted.pdf").read_bytes()
+        with pymupdf.open(tmp_path / "planted.pdf") as pdf:
+            decoded = pdf.xref_stream(xref) or b""
+        return tmp_path / "planted.pdf", document, decoded
+
+    IMAGE = (
+        "<< /Type /XObject /Subtype /Image /Width 16 /Height 1"
+        " /ColorSpace /DeviceGray /BitsPerComponent 8 >>"
+    )
+
+    @pytest.mark.parametrize(
+        ("dictionary", "reported"),
+        [(IMAGE, set()), ("<< >>", {LeakLayer.OBJECT, LeakLayer.FILE_BYTES})],
+        ids=["image-pixels", "plain-stream"],
+    )
+    def test_pixel_data_is_not_text(
+        self, tmp_path: Path, dictionary: str, reported: set[LeakLayer]
+    ):
+        pixels = self.NAME.encode().ljust(16, b"\xff")
+        planted, document, decoded = self._planted(tmp_path, dictionary, pixels, None)
+        assert decoded == pixels
+        assert layers(find_leaks(planted, document)) == reported
+
+    def test_encoded_stream_bytes_are_not_text(self, tmp_path: Path):
+        # The raw ASCII85 body spells the name; decoded, it is three other bytes.
+        raw = f"{self.NAME}~>".encode()
+        planted, document, decoded = self._planted(tmp_path, "<< >>", raw, "/ASCII85Decode")
+        assert decoded and self.NAME.encode() not in decoded
+        assert find_leaks(planted, document) == []

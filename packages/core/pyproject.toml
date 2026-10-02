@@ -12,6 +12,9 @@ dependencies = ["platformdirs>=4", "py3langid>=0.3", "pymupdf>=1.24"]
 ner = ["gliner>=0.2.29,<0.3", "protobuf>=4"]
 # OCR with OnnxTR: onnxruntime, no PyTorch. Headless OpenCV, as no window is opened.
 ocr-onnxtr = ["onnxtr[cpu-headless]>=0.9,<0.10"]
+# Handwriting-capable OCR with kraken (baseline segmentation, PP-OCRv6 line recognition).
+# Pulls in PyTorch and Lightning.
+ocr-kraken = ["kraken>=7.1.1,<7.2"]
 
 [build-system]
 requires = ["hatchling"]

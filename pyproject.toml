@@ -27,6 +27,7 @@ dev = [
 ]
 ner = ["anonymizer-core[ner]"]
 ocr-onnxtr = ["anonymizer-core[ocr-onnxtr]"]
+ocr-kraken = ["anonymizer-core[ocr-kraken]"]
 benchmark = ["matplotlib>=3.9"]
 
 [tool.uv]

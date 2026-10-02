@@ -12,26 +12,26 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 
+from anonymizer.core.ingest import kraken, onnxtr
 from anonymizer.core.ingest.ocr import OcrEngine
-from anonymizer.core.ingest.onnxtr import (
-    DETECTION_RESOURCE,
-    RECOGNITION_RESOURCE,
-    load_onnxtr_engine,
-)
 from anonymizer.core.log import step
 from anonymizer.core.resources import load_catalog, resource_status
 
 log = logging.getLogger(__name__)
 
-OCR_ENGINES: dict[str, Callable[[Path], OcrEngine]] = {"onnxtr": load_onnxtr_engine}
+OCR_ENGINES: dict[str, Callable[[Path], OcrEngine]] = {
+    "onnxtr": onnxtr.load_onnxtr_engine,
+    "kraken": kraken.load_kraken_engine,
+}
 """Engine loaders by name."""
 
 OCR_ENGINE_RESOURCES: dict[str, tuple[str, ...]] = {
-    "onnxtr": (DETECTION_RESOURCE, RECOGNITION_RESOURCE),
+    "onnxtr": (onnxtr.DETECTION_RESOURCE, onnxtr.RECOGNITION_RESOURCE),
+    "kraken": (kraken.SEGMENTATION_RESOURCE, kraken.RECOGNITION_RESOURCE),
 }
 """The catalog ids each engine loads, in download order, for versions and download hints."""
 
-_PACKAGES = {"onnxtr": "onnxtr"}
+_PACKAGES = {"onnxtr": "onnxtr", "kraken": "kraken"}
 
 
 def ocr_engine_installed(name: str) -> bool:

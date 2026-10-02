@@ -27,22 +27,25 @@ def test_unknown_engine_is_refused(tmp_path: Path):
         load_ocr_engine("tesseract", tmp_path)
 
 
-def test_missing_models_are_listed_in_download_order(tmp_path: Path):
-    assert missing_ocr_files("onnxtr", tmp_path) == list(OCR_ENGINE_RESOURCES["onnxtr"])
+@pytest.mark.parametrize("engine", sorted(OCR_ENGINES))
+def test_missing_models_are_listed_in_download_order(engine: str, tmp_path: Path):
+    assert missing_ocr_files(engine, tmp_path) == list(OCR_ENGINE_RESOURCES[engine])
 
 
-def test_no_models_are_missing_once_every_file_is_stored(tmp_path: Path):
-    for resource in load_catalog().with_requirements(OCR_ENGINE_RESOURCES["onnxtr"][-1]):
+@pytest.mark.parametrize("engine", sorted(OCR_ENGINES))
+def test_no_models_are_missing_once_every_file_is_stored(engine: str, tmp_path: Path):
+    for resource in load_catalog().with_requirements(OCR_ENGINE_RESOURCES[engine][-1]):
         for item in resource.files:
             stored = resource.directory(tmp_path) / item.path
             stored.parent.mkdir(parents=True, exist_ok=True)
             stored.write_bytes(b"")
-    assert missing_ocr_files("onnxtr", tmp_path) == []
+    assert missing_ocr_files(engine, tmp_path) == []
 
 
-def test_installed_is_checked_without_importing(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setitem(sys.modules, "onnxtr", None)
-    assert ocr_engine_installed("onnxtr") is False
-    monkeypatch.delitem(sys.modules, "onnxtr")
+@pytest.mark.parametrize("engine", sorted(OCR_ENGINES))
+def test_installed_is_checked_without_importing(engine: str, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setitem(sys.modules, engine, None)
+    assert ocr_engine_installed(engine) is False
+    monkeypatch.delitem(sys.modules, engine)
     monkeypatch.setattr(importlib.util, "find_spec", lambda name: object())
-    assert ocr_engine_installed("onnxtr") is True
+    assert ocr_engine_installed(engine) is True

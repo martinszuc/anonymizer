@@ -143,6 +143,57 @@ size = 96712454
 sha256 = "ef468ad6415b93bdd73d9442a14e40a58e5f109bcbf6f328bad4873fb7f7998b"
 
 [[resource]]
+id = "kraken-blla"
+name = "kraken BLLA: baseline and region segmentation"
+kind = "model"
+uses = ["ocr-detection"]
+engine = "kraken"
+source = "https://github.com/mittagessen/kraken"
+version = "a314f84f42da49a34079a4166305a7f378bb9c71"
+licence = "Apache-2.0"
+languages = ["mul"]
+notes = """
+kraken's default layout model, shipped inside the kraken package as \
+kraken/blla.mlmodel; it finds text lines as baselines with bounding polygons, \
+whatever the script or hand. Pinned to the commit of the kraken 7.1.1 tag and \
+loaded from the catalog rather than the package, so a kraken upgrade cannot \
+change the segmenter unnoticed. Its SHA-256 was computed from the PyPI sdist of \
+7.1.1 (whose own SHA-256 PyPI publishes); GitHub publishes the git blob SHA-1."""
+
+[[resource.files]]
+path = "blla.mlmodel"
+url = "https://raw.githubusercontent.com/mittagessen/kraken/a314f84f42da49a34079a4166305a7f378bb9c71/kraken/blla.mlmodel"
+size = 5047020
+sha256 = "77a638a83c9e535620827a09e410ed36391e9e8e8126d5796a0f15b978186056"
+source_digest = "git-sha1:f64b630c2b40f132f1acb1ffc90b617d5ada54a4"
+
+[[resource]]
+id = "kraken-ppocr-v6-medium"
+name = "PP-OCRv6 medium for kraken: handwritten and printed line recognition"
+kind = "model"
+uses = ["ocr-recognition"]
+engine = "kraken"
+source = "https://doi.org/10.5281/zenodo.21788410"
+version = "doi:10.5281/zenodo.21788410"
+licence = "Apache-2.0"
+languages = ["mul", "cs", "sk", "en"]
+requires = ["kraken-blla"]
+notes = """
+CTC line recognizer (about 16M parameters) by the kraken maintainer, trained on \
+handwritten and machine-printed lines in 44 languages and 10 scripts; needs \
+kraken 7.1 or later. The model card reports CER 7.4 % for Czech (922 lines, \
+mostly medieval hands) and 2.6 % for Slovak. Output is Unicode NFD; ingest \
+normalizes it to NFC. Zenodo records are immutable and publish MD5 only; the \
+SHA-256 was recorded after a download verified against it."""
+
+[[resource.files]]
+path = "medium.safetensors"
+url = "https://zenodo.org/records/21788410/files/medium.safetensors"
+size = 63779644
+sha256 = "15313b51ace64cbfa81f8f6ef25ad64f04e5a6fb7f7823e67b107527bc081ac9"
+source_digest = "md5:e3411a453ce3b9e9efae3f8631d85762"
+
+[[resource]]
 id = "redact"
 name = "REDACT PII benchmark"
 kind = "dataset"

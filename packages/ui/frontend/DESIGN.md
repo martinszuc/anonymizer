@@ -125,7 +125,7 @@ Keyboard: ↑/↓ moves the selection, Space toggles, Return scrolls to it.
 | Keep (rejected) | no fill, 1 px dashed `--type` | nothing drawn | stays in the output |
 | Propagated | as its state, dotted outline | as its state | a repeat of other marked text |
 | Hover | fill 40 %, 2 px outline, popover | `--ink` at 25 % (peek) | what a click will do |
-| Selected | 2.5 px `--accent`, one pulse | same | chosen in the list |
+| Selected | 2.5 px `--accent`, one pulse, drawn above every other box | same; 5 px on a redacted box, whose black hides the stroke's inner half | chosen in the list |
 | Drawn region | hatched (`.hatch-line`), 1.5 px `--label-2`, numbered | opaque `--ink`, no number | drawn by the reviewer; a click selects it, Delete removes it, Cmd/Ctrl+Z removes the last drawn |
 | Region number | 18 px pill on the region's top-left corner, `--elevated`, `--shadow-control`, caption weight 600 | hidden | the region's place in drawing order, as its sidebar row ("Region 2") says; renumbered when one is removed |
 | Drawing (draft) | `--accent` at 12 %, dashed `--accent` | same | the rectangle being dragged |

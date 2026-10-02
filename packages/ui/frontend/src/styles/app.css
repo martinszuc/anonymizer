@@ -1025,11 +1025,30 @@ kbd {
   fill-opacity: 0.25;
 }
 
-.redaction[data-selected="true"] rect {
+/* Drawn regions: hatched in review mode, so what they cover stays visible;
+   preview mode draws them black like everything redacted. */
+.canvas:not([data-previewing="true"]) .redaction[data-type="region"] rect {
+  fill-opacity: 1;
+  stroke: var(--label-2);
+  stroke-dasharray: none;
+}
+
+/* Selected: the same outline in both modes. Last, and as specific as the mode
+   and region rules above (0,4,1), so neither paints it black, hides it (a kept
+   box in preview) or greys it (a drawn region). */
+.canvas .overlay .redaction[data-selected="true"] rect {
+  --selected-stroke: 2.5px;
   stroke: var(--accent);
-  stroke-width: 2.5px;
+  stroke-opacity: 1;
+  stroke-width: var(--selected-stroke);
   stroke-dasharray: none;
   animation: pulse 0.9s var(--ease-out) 1;
+}
+
+/* A stroke straddles the edge; on a black box its inner half disappears, so
+   preview widens it to leave a visible band outside the box. */
+.canvas[data-previewing="true"] .overlay .redaction[data-selected="true"][data-redacted="true"] rect {
+  --selected-stroke: 5px;
 }
 
 @keyframes pulse {
@@ -1038,17 +1057,9 @@ kbd {
     stroke-opacity: 0.2;
   }
   100% {
-    stroke-width: 2.5px;
+    stroke-width: var(--selected-stroke, 2.5px);
     stroke-opacity: 1;
   }
-}
-
-/* Drawn regions: hatched in review mode, so what they cover stays visible;
-   preview mode draws them black like everything redacted. */
-.canvas:not([data-previewing="true"]) .redaction[data-type="region"] rect {
-  fill-opacity: 1;
-  stroke: var(--label-2);
-  stroke-dasharray: none;
 }
 
 .hatch-line {

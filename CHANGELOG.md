@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.3.0 (2026-10-02)
+
+## What's Changed
+* feat: review window with page view and per-item decisions by @martinszuc in https://github.com/martinszuc/anonymizer/pull/23
+* docs: add a handbook for the review window by @martinszuc in https://github.com/martinszuc/anonymizer/pull/25
+* feat: detect whole postal addresses anchored on the postcode by @martinszuc in https://github.com/martinszuc/anonymizer/pull/27
+* feat: detect dates of birth after a birth label by @martinszuc in https://github.com/martinszuc/anonymizer/pull/26
+* feat: export the redacted PDF from the review window by @martinszuc in https://github.com/martinszuc/anonymizer/pull/28
+* feat: draw regions over photos, signatures and stamps in the review window by @martinszuc in https://github.com/martinszuc/anonymizer/pull/29
+* fix: close two leaks and narrow the review window's API after a code review by @martinszuc in https://github.com/martinszuc/anonymizer/pull/31
+* fix: stop offering a keep decision on findings in hidden data by @martinszuc in https://github.com/martinszuc/anonymizer/pull/30
+* feat: a home screen with detection options, progress while opening, and drag and drop by @martinszuc in https://github.com/martinszuc/anonymizer/pull/32
+* test: add a generator for a mixed typed, scanned and handwritten sample PDF by @martinszuc in https://github.com/martinszuc/anonymizer/pull/33
+* ci: photograph the review window on every platform and name workflows clearly by @martinszuc in https://github.com/martinszuc/anonymizer/pull/34
+* feat: read scanned pages through an OCR engine interface by @martinszuc in https://github.com/martinszuc/anonymizer/pull/35
+* feat: redact pages OCR read and re-read them in the leak check by @martinszuc in https://github.com/martinszuc/anonymizer/pull/38
+* feat: a scanned benchmark scoring OCR across degradation levels by @martinszuc in https://github.com/martinszuc/anonymizer/pull/39
+* test: run the mixed sample through the CLI in CI, and document it by @martinszuc in https://github.com/martinszuc/anonymizer/pull/40
+* feat: OnnxTR, the first OCR engine, in the CLI and the scanned benchmark by @martinszuc in https://github.com/martinszuc/anonymizer/pull/41
+* feat: read scanned pages with OCR in the review window by @martinszuc in https://github.com/martinszuc/anonymizer/pull/42
+* feat: download models from the review window by @martinszuc in https://github.com/martinszuc/anonymizer/pull/43
+* feat: add logging with --debug, --log-level and --log-file by @martinszuc in https://github.com/martinszuc/anonymizer/pull/44
+* docs: record the issues found while testing the review window by hand by @martinszuc in https://github.com/martinszuc/anonymizer/pull/45
+
+
+**Full Changelog**: https://github.com/martinszuc/anonymizer/compare/v0.2.0...v0.3.0
+
 ## 0.2.0 (2026-09-29)
 
 ## What's Changed

@@ -13,7 +13,7 @@ from anonymizer.core.types import DetectionSource, Document, Entity, EntityType,
 from anonymizer.ui import api
 from anonymizer.ui.api import MAX_DPI, ReviewApi, ReviewError
 
-from tests.pdf_builders import CONTACT_EMAIL, write_pdf, write_surfaces_pdf
+from tests.pdf_builders import CONTACT_EMAIL, ENGLISH_LETTER, write_pdf, write_surfaces_pdf
 
 PHONE = "+420 603 123 456"
 LINES = ["Jan Novak", f"e-mail {CONTACT_EMAIL}", f"tel. {PHONE}", "KEEP this line"]
@@ -44,10 +44,20 @@ def png_size(data_url: str) -> tuple[int, int]:
 
 
 class TestOpenPdf:
+    def test_auto_recognises_the_language_and_scopes_the_rules(self, tmp_path: Path):
+        letter = str(write_pdf(tmp_path / "letter.pdf", [ENGLISH_LETTER]))
+        payload = ReviewApi().open_pdf(letter, "auto")
+        assert (payload["language"], payload["language_recognised"]) == ("en", True)
+        assert payload["entities"] == []
+        every_rule = ReviewApi().open_pdf(letter)
+        assert (every_rule["language"], every_rule["language_recognised"]) == (None, False)
+        assert [entity["type"] for entity in every_rule["entities"]] == ["phone"]
+
     def test_describes_pages_and_proposed_entities(self, pdf: Path):
         payload = ReviewApi().open_pdf(str(pdf), "cs")
         assert payload["name"] == "cv.pdf"
         assert payload["language"] == "cs"
+        assert payload["language_recognised"] is False
         (page,) = payload["pages"]
         assert page["index"] == 0
         assert page["has_text_layer"] is True

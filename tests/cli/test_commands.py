@@ -11,7 +11,7 @@ from anonymizer.core.ingest import load_document
 from anonymizer.core.redact import Leak, LeakLayer
 
 from tests.detect.test_gliner import StandInModel
-from tests.pdf_builders import CONTACT_EMAIL, write_pdf
+from tests.pdf_builders import CONTACT_EMAIL, ENGLISH_LETTER, write_pdf
 
 PHONE = "+420 603 123 456"
 LINES = ["Jan Novak", f"e-mail {CONTACT_EMAIL}", f"tel. {PHONE}", "KEEP this line"]
@@ -35,6 +35,14 @@ class TestDetect:
         out = capsys.readouterr().out
         assert "1 page, 2 entities" in out
         assert "wrote review" in out
+
+    def test_auto_records_the_recognised_language(self, tmp_path: Path):
+        letter = write_pdf(tmp_path / "letter.pdf", [ENGLISH_LETTER])
+        session = tmp_path / "review.json"
+        assert main(["detect", str(letter), "-o", str(session), "--lang", "auto"]) == 0
+        saved = json.loads(session.read_text(encoding="utf-8"))
+        assert saved["language"] == "en"
+        assert saved["entities"] == []  # 777 123 456 is a phone number only in Czech
 
     def test_show_lists_every_item(self, pdf: Path, capsys: pytest.CaptureFixture):
         session = pdf.with_name("review.json")

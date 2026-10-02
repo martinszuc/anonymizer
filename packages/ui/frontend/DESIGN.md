@@ -48,7 +48,8 @@ brown, dates mint, other grey. Only a hue: text on a type colour is never used.
 
 ## Components
 
-**Toolbar** (52 px). Document name and language; page position; zoom group (−, fit,
+**Toolbar** (52 px). Document name and a language badge (the code, or *ALL* when
+every language's rules ran; its tooltip says whether it was recognised or chosen); page position; zoom group (−, fit,
 +); a back chevron at the far left closes the document; region tool (R, pressed = accent fill; holding Alt draws without it); locate
 toggle (L, crosshair icon, pressed = a click on a box only selects it); preview
 toggle (eye); open; *Save Review* (secondary);
@@ -127,7 +128,7 @@ and *Open Review…* (secondary), shortcut hints.
 line; the **drop area** (dashed `--separator` border, `--elevated`, *Open PDF…*
 primary; while a file is dragged over the window: `--accent` border on
 `--accent-fill`, "Drop to open"); a **Detection** card of option rows (label,
-one-line note in `--label-2`, control on the right: the language segmented
+one-line note in `--label-2`, control on the right: the language segmented (*Auto* first, the default)
 control, setting switches); *Continue a saved review…* as a plain button; a
 footer "Everything stays on this computer · version". The model's row says why
 its switch is disabled and what to run.

@@ -18,6 +18,7 @@ import { Button } from "./Button";
 interface ToolbarProps {
   name: string;
   language: string | null;
+  languageRecognised: boolean;
   pageCount: number;
   currentPage: number;
   scale: number;
@@ -40,7 +41,7 @@ interface ToolbarProps {
 }
 
 export function Toolbar(props: ToolbarProps) {
-  const { name, language, pageCount, currentPage, scale, fitting, dirty, previewing, exporting } =
+  const { name, language, languageRecognised, pageCount, currentPage, scale, fitting, dirty, previewing, exporting } =
     props;
   return (
     <header className="toolbar">
@@ -56,7 +57,18 @@ export function Toolbar(props: ToolbarProps) {
         <span className="toolbar-name" title={name}>
           {name}
         </span>
-        {language && <span className="badge">{language.toUpperCase()}</span>}
+        <span
+          className="badge"
+          title={
+            language === null
+              ? "Every language's rules ran"
+              : languageRecognised
+                ? "Language recognised from the text"
+                : "Language chosen when opening"
+          }
+        >
+          {language === null ? "ALL" : language.toUpperCase()}
+        </span>
         {dirty && <span className="toolbar-edited">Edited</span>}
       </div>
 

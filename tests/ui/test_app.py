@@ -286,6 +286,11 @@ class TestHomeScreenCalls:
         with pytest.raises(ReviewError, match=message):
             api.choose_pdf(options)
 
+    def test_auto_is_accepted_as_a_language(self, pdf: Path):
+        payload = attached(StandInWindow(answers=[(str(pdf),)])).choose_pdf({"language": "auto"})
+        assert payload is not None
+        assert payload["language_recognised"] is True
+
     def test_close_returns_to_home(self, pdf: Path):
         window = StandInWindow(answers=[(str(pdf),)])
         api = attached(window)

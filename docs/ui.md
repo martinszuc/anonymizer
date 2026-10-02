@@ -14,8 +14,10 @@ package usage in [`packages/ui/README.md`](../packages/ui/README.md).
 Works, for PDFs with a text layer and for scanned pages read by OCR:
 
 - **Home screen** (no document open): a drop area with *Open PDF…*, the
-  detection options that apply to the next PDF (language: All or one with
-  its own rules; the name model on or off; marking repeats), the model's
+  detection options that apply to the next PDF (language: Auto, the default,
+  recognised from the text after reading, falling back to every rule when
+  unclear; All; or one with its own rules; the name model on or off; marking
+  repeats), the model's
   state (ready, not installed, files missing with the fetch command), and
   *Continue a saved review…*. The options live for the session; the model
   is on by default when it is ready.
@@ -131,7 +133,8 @@ frontend/src/components  Toolbar, Sidebar, PageView, EmptyState, Toasts, control
 `ReviewApi.document()` returns, and `types.ts` mirrors:
 
 ```
-DocumentInfo { name, language, pages: PageInfo[], entities: EntityInfo[], surfaces: SurfaceInfo[] }
+DocumentInfo { name, language, language_recognised, pages: PageInfo[], entities: EntityInfo[], surfaces: SurfaceInfo[] }
+                # language: what detection ran with, null = every rule; language_recognised: from the text, not chosen
 FeatureModels { feature, title, installed, install_command, missing_bytes,
                 models: { id, name, uses, licence, languages, source, version, size,
                           state: present | partial | absent }[] }   # requirements first
@@ -155,7 +158,7 @@ Methods the page calls (all return promises in JS):
 | `models()` | `FeatureModels[]` | each feature's models and whether they are stored; nothing is hashed |
 | `download_models(feature)` | `FeatureModels[]` | `names` or `ocr`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while one of its models is already downloading or when a checksum fails |
 | `current_document()` | `DocumentInfo \| null` | on start: a PDF given on the command line |
-| `choose_pdf(options)` | `DocumentInfo \| null` | options `{language, propagate, use_model, use_ocr}`, checked in Python; null = cancelled |
+| `choose_pdf(options)` | `DocumentInfo \| null` | options `{language, propagate, use_model, use_ocr}`, checked in Python (`language`: a code, `"auto"` or null); null = cancelled |
 | `open_dropped(options)` | `DocumentInfo \| null` | opens the PDF Python kept from the last drop; null if none |
 | `close_document()` | `None` | forgets the document, window title back to "Anonymizer" |
 | `add_region(page_index, x0, y0, x1, y1)` | `EntityInfo` | points, corners in any order; clipped to the page; `manual`, `confirmed` |

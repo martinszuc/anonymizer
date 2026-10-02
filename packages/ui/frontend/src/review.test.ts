@@ -63,6 +63,7 @@ describe("summarize", () => {
     const document: DocumentInfo = {
       name: "cv.pdf",
       language: "cs",
+      language_recognised: false,
       pages: [],
       entities: [
         entity({ id: "a" }),
@@ -78,6 +79,7 @@ describe("summarize", () => {
     const document: DocumentInfo = {
       name: "cv.pdf",
       language: "cs",
+      language_recognised: false,
       pages: [],
       entities: [entity({ id: "link", surface_id: "link:0:7/uri", review: "rejected" })],
       surfaces: [],
@@ -218,6 +220,7 @@ describe("export helpers", () => {
     const document: DocumentInfo = {
       name: "scan.pdf",
       language: null,
+      language_recognised: false,
       pages: [
         { index: 0, width: 595, height: 842, has_text_layer: true, raster_dpi: null },
         { index: 1, width: 595, height: 842, has_text_layer: false, raster_dpi: null },

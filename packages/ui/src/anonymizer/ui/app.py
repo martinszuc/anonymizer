@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 import webview
+from anonymizer.core.language import AUTO
 from anonymizer.core.log import LEVEL_NAMES, configure_logging, resolve_level, step
 from anonymizer.core.resources import resolve_resource_root
 from anonymizer.ui import __version__
@@ -310,7 +311,7 @@ def _open_options(options: Any) -> tuple[str | None, bool, bool, bool]:
         msg = "open options must be an object"
         raise ReviewError(msg)
     language = options.get("language")
-    if language is not None and language not in LANGUAGES:
+    if language is not None and language != AUTO and language not in LANGUAGES:
         msg = f"unknown language {language!r}"
         raise ReviewError(msg)
     return (
@@ -328,7 +329,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("input", nargs="?", type=Path, help="PDF to open")
     parser.add_argument(
-        "--lang", help="document language, e.g. cs, sk or en; every rule runs when omitted"
+        "--lang",
+        help=(
+            "document language, e.g. cs, sk or en, or auto to recognise it from the text; "
+            "every rule runs when omitted"
+        ),
     )
     parser.add_argument(
         "--ner",

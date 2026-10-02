@@ -1,7 +1,8 @@
 """Detection as every client runs it, written once.
 
-The command line, the review window and the benchmark all build a detector
-for a language, run it over a loaded document and mark further occurrences.
+The command line, the review window and the benchmark all settle the language
+(recognising it from the text when asked to), build a detector for it, run it
+over a loaded document and mark further occurrences.
 Keeping those steps here means a client cannot drift from the others: an option
 one of them forgets is a bug in one place, and the benchmark measures exactly
 what the tools ship. Writing the redacted copy is `redact.export_redacted`.
@@ -21,10 +22,33 @@ from anonymizer.core.detect import (
     extend_with_titles,
     propagate_occurrences,
 )
+from anonymizer.core.language import AUTO, detect_language
 from anonymizer.core.log import counts, short_fingerprint, step
 from anonymizer.core.types import Document, PageProgress
 
 log = logging.getLogger(__name__)
+
+
+def resolve_language(document: Document, requested: str | None) -> str | None:
+    """Return the language to detect with, recognising it from the text for `AUTO`.
+
+    The answer is stored as the document's language, so a saved review keeps
+    what detection used.
+
+    Args:
+        document: The loaded document, scanned pages already read.
+        requested: A BCP 47 tag, `None` for every rule, or `language.AUTO`.
+
+    Returns:
+        A BCP 47 tag, or `None` when every rule is to run.
+    """
+    if requested != AUTO:
+        document.language = requested
+        return requested
+    language = detect_language(document)
+    log.info("language recognised: %s", language or "none, every rule runs")
+    document.language = language
+    return language
 
 
 def build_detector(language: str | None, *, model: Detector | None = None) -> Detector:

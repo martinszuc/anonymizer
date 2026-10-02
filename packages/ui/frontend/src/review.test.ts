@@ -17,6 +17,7 @@ import {
   formatBytes,
   isUnreadScan,
   lastDrawnRegion,
+  openStatus,
   pagesWithoutText,
   regionNumbers,
   renderDpi,
@@ -325,5 +326,24 @@ describe("groupOccurrences", () => {
     // A mixed group redacts everything: the safe direction.
     expect(groupToggled([redacted, kept])).toBe("confirmed");
     expect(groupToggled([kept])).toBe("confirmed");
+  });
+});
+
+describe("openStatus", () => {
+  it("counts pages for a step that goes page by page", () => {
+    expect(openStatus({ step: "detecting", done: 3, total: 12 })).toEqual({
+      label: "Finding personal data",
+      count: "3 of 12 pages",
+      fraction: 0.25,
+    });
+    expect(openStatus({ step: "ocr", done: 1, total: 1 }).count).toBe("1 of 1 page");
+  });
+
+  it("leaves the bar indeterminate while a model loads", () => {
+    expect(openStatus({ step: "loading_model", done: 0, total: 0 })).toEqual({
+      label: "Loading the names model",
+      count: null,
+      fraction: null,
+    });
   });
 });

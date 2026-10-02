@@ -28,7 +28,7 @@ import type {
   DownloadProgress,
   EntityInfo,
   OpenOptions,
-  OpenStep,
+  OpenProgress,
   SurfaceInfo,
 } from "./types";
 
@@ -48,7 +48,7 @@ export function App() {
     use_ocr: false,
   });
   // Set by Python's progress events once a file is chosen; null otherwise.
-  const [opening, setOpening] = useState<{ name: string | null; step: OpenStep } | null>(null);
+  const [opening, setOpening] = useState<{ name: string | null; progress: OpenProgress } | null>(null);
   const openingName = useRef<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [document, setDocument] = useState<DocumentInfo | null>(null);
@@ -189,8 +189,8 @@ export function App() {
 
   useEffect(() => {
     const onProgress = (event: Event) => {
-      const step = (event as CustomEvent<OpenStep>).detail;
-      setOpening({ name: openingName.current, step });
+      const progress = (event as CustomEvent<OpenProgress>).detail;
+      setOpening({ name: openingName.current, progress });
     };
     const onDropped = (event: Event) => {
       setDragging(false);
@@ -442,7 +442,7 @@ export function App() {
         {opening ? (
           <Opening
             name={opening.name}
-            step={opening.step}
+            progress={opening.progress}
             usesModel={options.use_model}
             usesOcr={options.use_ocr}
           />

@@ -21,9 +21,10 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   is on by default when it is ready.
 - Open a PDF from the dialog, by **dropping it on the window** (on the home
   screen or over an open document), or `anonymize-ui file.pdf --lang cs
-  [--ner]`. An **Opening screen** shows each step as Python starts it
-  (reading, loading the model once per session, detecting); the model's
-  first load takes about ten seconds.
+  [--ner]`. An **Opening screen** shows what is running now above a progress
+  bar, page by page for OCR and detection ("3 of 12 pages"), and a sweeping
+  bar while a model loads (the names model's first load takes about ten
+  seconds; models stay loaded for the session), with the steps below.
 - **Close the document** (the back chevron in the toolbar) returns home,
   asking first if decisions are unsaved.
 - Reopen a saved review: pick the session file, then the original PDF (a
@@ -163,7 +164,7 @@ Python tells the page about what it did not ask for with DOM events on
 
 | Event | Detail | When |
 |---|---|---|
-| `anonymizer:progress` | `loading_ocr` / `reading` / `loading_model` / `detecting` | a step of opening a PDF (or a saved review) starts |
+| `anonymizer:progress` | `{step, done, total}`: step `loading_ocr` / `reading` / `ocr` / `loading_model` / `detecting`; pages done and in all, both 0 for a step without pages | a step of opening a PDF (or a saved review) starts, and after each page OCR reads or detection scans |
 | `anonymizer:download` | `{feature, received, total}` (bytes) | a download progresses, at most once per whole percent |
 | `anonymizer:dropped` | the file's name | a PDF was dropped; the page calls `open_dropped` |
 | `anonymizer:drop-refused` | the file's name | something other than a PDF was dropped |
@@ -397,12 +398,10 @@ the repository, a test, a fixture or a commit message.
 ### Loading a document
 
 1. **Done.** ~~Remove the once-per-session hint strings~~ shown while a PDF loads.
-2. **Progress bar for detection.** Detection currently shows no progress.
-   **Explain:** is detection and OCR run page by page? If so, "page N of M" is the
-   natural unit; say which stages (OCR, rules, names) report progress and which cannot.
-3. **Status line above the progress bar** saying what is happening right now (reading
-   the text layer, running OCR, loading a model, finding names), including while models
-   load.
+2. **Done.** ~~Progress bar for detection.~~ OCR and detection run page by page and
+   report "N of M pages" (`PageProgress` in the core); loading a model is one call and
+   shows an indeterminate bar.
+3. **Done.** ~~Status line above the progress bar.~~
 
 ### Models and storage
 

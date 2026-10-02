@@ -2,54 +2,82 @@ import { Check, Circle, LoaderCircle } from "lucide-react";
 import { motion } from "motion/react";
 
 import { gentle } from "../motion";
-import type { OpenStep } from "../types";
+import { openStatus } from "../review";
+import type { OpenProgress, OpenStep } from "../types";
 
 interface OpeningProps {
   /** The dropped file's name; unknown when it came from the open dialog. */
   name: string | null;
-  step: OpenStep;
+  progress: OpenProgress;
   usesModel: boolean;
   usesOcr: boolean;
 }
 
 const STEPS: { step: OpenStep; label: string }[] = [
-  { step: "loading_ocr", label: "Loading OCR" },
+  { step: "loading_ocr", label: "Loading the OCR engine" },
   { step: "reading", label: "Reading the pages" },
-  { step: "loading_model", label: "Loading the AI model" },
+  { step: "loading_model", label: "Loading the names model" },
   { step: "detecting", label: "Finding personal data" },
 ];
 
-/** Progress while a PDF opens: a slow model load shows steps, not a frozen window. */
-export function Opening({ name, step, usesModel, usesOcr }: OpeningProps) {
+/** OCR is part of reading the pages in the list; the status line tells them apart. */
+const LISTED_AS: Partial<Record<OpenStep, OpenStep>> = { ocr: "reading" };
+
+/**
+ * Progress while a PDF opens: what is happening now with a bar (page by page
+ * where the step counts pages), above the steps still to come.
+ */
+export function Opening({ name, progress, usesModel, usesOcr }: OpeningProps) {
   // A loading step appears only when its model is used; Python skips it once loaded.
   const steps = STEPS.filter(
     (item) =>
       (item.step !== "loading_model" || usesModel) && (item.step !== "loading_ocr" || usesOcr),
   );
-  const current = steps.findIndex((item) => item.step === step);
+  const listed = LISTED_AS[progress.step] ?? progress.step;
+  const current = steps.findIndex((item) => item.step === listed);
+  const status = openStatus(progress);
   return (
     <motion.main
       className="opening"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={gentle}
-      aria-live="polite"
       aria-busy="true"
     >
       <h1>{name ? `Opening ${name}` : "Opening the document"}</h1>
-      <ol className="opening-steps">
-        {steps.map((item, index) => {
-          const state = index < current ? "done" : index === current ? "current" : "pending";
-          return (
-            <li key={item.step} data-state={state}>
-              {state === "done" && <Check size={16} aria-hidden />}
-              {state === "current" && <LoaderCircle size={16} className="spinning" aria-hidden />}
-              {state === "pending" && <Circle size={16} aria-hidden />}
-              <span>{item.label}</span>
-            </li>
-          );
-        })}
-      </ol>
+      <div className="opening-card">
+        <div className="opening-status" aria-live="polite">
+          <span>{status.label}</span>
+          {status.count && <span className="opening-count">{status.count}</span>}
+        </div>
+        <div
+          className="progress-track"
+          role="progressbar"
+          aria-label={status.label}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={status.fraction === null ? undefined : Math.round(status.fraction * 100)}
+          data-indeterminate={status.fraction === null}
+        >
+          <div
+            className="progress-fill"
+            style={status.fraction === null ? undefined : { width: `${status.fraction * 100}%` }}
+          />
+        </div>
+        <ol className="opening-steps">
+          {steps.map((item, index) => {
+            const state = index < current ? "done" : index === current ? "current" : "pending";
+            return (
+              <li key={item.step} data-state={state}>
+                {state === "done" && <Check size={16} aria-hidden />}
+                {state === "current" && <LoaderCircle size={16} className="spinning" aria-hidden />}
+                {state === "pending" && <Circle size={16} aria-hidden />}
+                <span>{item.label}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
     </motion.main>
   );
 }

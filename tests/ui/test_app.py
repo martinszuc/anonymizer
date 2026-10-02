@@ -260,7 +260,11 @@ class TestHomeScreenCalls:
     def test_opening_reports_each_step_to_the_page(self, pdf: Path):
         window = StandInWindow(answers=[(str(pdf),)])
         attached(window).choose_pdf({"language": "cs", "propagate": False})
-        assert window.events_told() == [("progress", "reading"), ("progress", "detecting")]
+        assert window.events_told() == [
+            ("progress", {"step": "reading", "done": 0, "total": 0}),
+            ("progress", {"step": "detecting", "done": 0, "total": 1}),
+            ("progress", {"step": "detecting", "done": 1, "total": 1}),
+        ]
 
     def test_options_select_the_name_model(self, pdf: Path, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(api_module, "load_gliner_detector", lambda root: NameModel())
@@ -268,7 +272,10 @@ class TestHomeScreenCalls:
         payload = attached(window).choose_pdf({"language": "cs", "use_model": True})
         assert payload is not None
         assert "person" in {entity["type"] for entity in payload["entities"]}
-        assert ("progress", "loading_model") in window.events_told()
+        assert (
+            "progress",
+            {"step": "loading_model", "done": 0, "total": 0},
+        ) in window.events_told()
 
     @pytest.mark.parametrize(
         ("options", "message"),
@@ -365,7 +372,16 @@ class TestOcr:
         payload = attached(window).choose_pdf({"language": "cs", "use_ocr": True})
         assert payload is not None
         assert payload["pages"][0]["raster_dpi"] == 300
-        assert window.events_told()[:2] == [("progress", "loading_ocr"), ("progress", "reading")]
+        assert [
+            detail["step"] for event, detail in window.events_told() if event == "progress"
+        ] == [
+            "loading_ocr",
+            "reading",
+            "ocr",
+            "ocr",
+            "detecting",
+            "detecting",
+        ]
 
     def test_a_saved_review_of_a_scan_reopens_with_its_engine(self, scan: Path, tmp_path: Path):
         session = tmp_path / "review.json"

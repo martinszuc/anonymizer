@@ -130,10 +130,13 @@ class TestPageText:
         source = write_pdf(tmp_path / "thrice.pdf", [lines])
         document = detected(source)
         document.entities[2].review = ReviewState.REJECTED
-        # The unredacted original still shows the two copies review did not keep.
+        # The unredacted original still shows the two copies review did not keep:
+        # one text, so one leak on its page.
         leaks = find_leaks(source, document)
-        assert layers(leaks) == {LeakLayer.PAGE_TEXT}
-        assert {leak.entity_id for leak in leaks} == {e.entity_id for e in document.entities[:2]}
+        assert [(leak.layer, leak.where, leak.text) for leak in leaks] == [
+            (LeakLayer.PAGE_TEXT, "page 0", CONTACT_EMAIL)
+        ]
+        assert leaks[0].entity_id == document.entities[0].entity_id
 
     def test_a_copy_kept_on_one_page_does_not_excuse_another_page(self, tmp_path: Path):
         source = write_pdf(tmp_path / "pages.pdf", [[CONTACT_EMAIL], [CONTACT_EMAIL]])
@@ -499,3 +502,106 @@ class TestNumbersInPdfSyntax:
             pdf.save(tmp_path / "planted.pdf")
         leaks = find_leaks(tmp_path / "planted.pdf", document)
         assert layers(leaks) == {LeakLayer.OBJECT, LeakLayer.FILE_BYTES}
+
+
+def marked(source: Path, text: str, *, nth: int = 0) -> Document:
+    """Load a PDF with one finding: the nth occurrence of a text on its first page."""
+    document = load_document(source)
+    page = document.pages[0]
+    start = -1
+    for _ in range(nth + 1):
+        start = page.text.index(text, start + 1)
+    end = start + len(text)
+    document.entities = [
+        Entity(
+            type=EntityType.PERSON,
+            page_index=0,
+            start=start,
+            end=end,
+            text=text,
+            bboxes=page.bboxes_for_span(start, end),
+        )
+    ]
+    return document
+
+
+class TestWhatIsSearched:
+    """Each case pairs a text the check must still find with one it must not."""
+
+    @pytest.mark.parametrize(
+        ("lines", "text", "nth", "reported"),
+        [
+            (["Novak", "dopis od Novaka"], "Novak", 0, True),
+            (["Novak", "Kunovak"], "Novak", 0, False),
+            (["25 let", "rok 25"], "25", 0, True),
+            (["25 let", "rok 1925"], "25", 0, False),
+            (["25 let", "cena 25.50"], "25", 0, False),
+            (["A", "bod A"], "A", 0, False),
+        ],
+        ids=["inflected", "inside-a-word", "number", "inside-a-year", "decimal", "one-letter"],
+    )
+    def test_page_text_counts_a_copy_where_a_word_starts(
+        self, tmp_path: Path, lines: list[str], text: str, nth: int, reported: bool
+    ):
+        source = write_pdf(tmp_path / "page.pdf", [lines])
+        document = marked(source, text, nth=nth)
+        output = tmp_path / "out.pdf"
+        redact_pdf(source, document, output)
+        page_leaks = [leak for leak in find_leaks(output, document) if leak.layer == "page_text"]
+        assert bool(page_leaks) is reported
+
+    @pytest.mark.parametrize(("planted", "reported"), [("(Novak)", True), ("(Jan)", False)])
+    def test_a_text_shorter_than_four_characters_is_not_searched_in_the_file(
+        self, tmp_path: Path, planted: str, reported: bool
+    ):
+        text = planted.strip("()")
+        source = write_pdf(tmp_path / "name.pdf", [[f"{text} here", "KEEP"]])
+        document = marked(source, text)
+        output = tmp_path / "out.pdf"
+        redact_pdf(source, document, output)
+        with pymupdf.open(output) as pdf:
+            pdf.xref_set_key(pdf.pdf_catalog(), "Note", planted)
+            pdf.save(tmp_path / "planted.pdf")
+        assert planted.encode() in (tmp_path / "planted.pdf").read_bytes()
+        leaks = find_leaks(tmp_path / "planted.pdf", document)
+        assert bool(layers(leaks) & {LeakLayer.OBJECT, LeakLayer.FILE_BYTES}) is reported
+
+    @pytest.mark.parametrize(
+        ("dictionary", "reported"),
+        [
+            ("<< >>", True),
+            ("<< /Type /XObject /Subtype /Image /Width 1 /Height 1 >>", False),
+            ("<< /Length1 5 >>", False),
+        ],
+        ids=["plain", "image", "font-program"],
+    )
+    def test_image_and_font_streams_are_not_searched(
+        self, tmp_path: Path, dictionary: str, reported: bool
+    ):
+        source = write_pdf(tmp_path / "name.pdf", [["Novak here", "KEEP"]])
+        document = marked(source, "Novak")
+        output = tmp_path / "out.pdf"
+        redact_pdf(source, document, output)
+        with pymupdf.open(output) as pdf:
+            xref = add_stream(pdf, dictionary, b"xx Novak xx")
+            pdf.xref_set_key(pdf.pdf_catalog(), "Extra", f"{xref} 0 R")
+            pdf.save(tmp_path / "planted.pdf", deflate=True)
+        with pymupdf.open(tmp_path / "planted.pdf") as pdf:
+            assert any(b"Novak" in stream for stream in streams(pdf))
+        leaks = find_leaks(tmp_path / "planted.pdf", document)
+        assert (LeakLayer.OBJECT in layers(leaks)) is reported
+
+    def test_the_file_byte_layer_does_not_name_the_file(self, tmp_path: Path):
+        source = write_surfaces_pdf(tmp_path / "Novak-letter.pdf")
+        leaks = find_leaks(source, detected(source))
+        assert {leak.where for leak in leaks if leak.layer == "file_bytes"} == {"the file's bytes"}
+
+
+def test_progress_names_each_layer_as_it_starts(tmp_path: Path):
+    source = write_pdf(tmp_path / "contact.pdf", [LINES])
+    document = detected(source)
+    output = tmp_path / "out.pdf"
+    redact_pdf(source, document, output)
+    told: list[tuple[str, int, int]] = []
+    find_leaks(output, document, progress=lambda *step: told.append(step))
+    assert told == [(layer.value, 0, 0) for layer in LeakLayer if layer is not LeakLayer.OCR]

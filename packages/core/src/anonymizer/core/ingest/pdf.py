@@ -29,7 +29,7 @@ from anonymizer.core.ingest.normalize import unrotated_rect_to_bbox
 from anonymizer.core.ingest.ocr import DEFAULT_OCR_DPI, OcrEngine, read_page
 from anonymizer.core.ingest.surfaces import extract_surfaces
 from anonymizer.core.log import counts, short_fingerprint, step
-from anonymizer.core.types import Document, Page
+from anonymizer.core.types import Document, Page, PageProgress
 
 log = logging.getLogger(__name__)
 
@@ -132,6 +132,7 @@ def document_from_bytes(
     language: str | None = None,
     ocr: OcrEngine | None = None,
     ocr_dpi: int = DEFAULT_OCR_DPI,
+    ocr_progress: PageProgress | None = None,
 ) -> Document:
     """Read a PDF held in memory into a `Document`.
 
@@ -148,6 +149,8 @@ def document_from_bytes(
             the same engine and resolution, since its offsets refer to what
             OCR read.
         ocr_dpi: Resolution those pages are rendered at for the engine.
+        ocr_progress: Told how many of the pages needing OCR it has read; the
+            text layer is read too fast to be worth telling.
 
     Returns:
         A document with one page per PDF page, every string found outside the
@@ -176,12 +179,7 @@ def document_from_bytes(
                     len(page.words),
                 )
             if ocr is not None:
-                pages = [
-                    page
-                    if page.has_text_layer
-                    else read_page(pdf.load_page(page.index), page.index, ocr, ocr_dpi)
-                    for page in pages
-                ]
+                pages = _read_scans(pdf, pages, ocr, ocr_dpi, ocr_progress)
             surfaces = extract_surfaces(pdf)
         read_by_ocr = any(page.raster_dpi is not None for page in pages)
         unread = len(pages_needing_ocr(Document(pages=pages)))
@@ -204,6 +202,25 @@ def document_from_bytes(
         language=language,
         ocr_engine=ocr.name if ocr is not None and read_by_ocr else None,
     )
+
+
+def _read_scans(
+    pdf: pymupdf.Document,
+    pages: list[Page],
+    ocr: OcrEngine,
+    dpi: int,
+    progress: PageProgress | None,
+) -> list[Page]:
+    """Replace each page without a text layer by what OCR reads on it."""
+    scans = [page.index for page in pages if not page.has_text_layer]
+    if scans and progress is not None:
+        progress(0, len(scans))
+    read = list(pages)
+    for done, index in enumerate(scans, start=1):
+        read[index] = read_page(pdf.load_page(index), index, ocr, dpi)
+        if progress is not None:
+            progress(done, len(scans))
+    return read
 
 
 def read_pdf(path: Path | str) -> bytes:

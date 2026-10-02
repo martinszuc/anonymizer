@@ -1,0 +1,26 @@
+# Slovak municipal notice on waste collection: no personal data. Roles
+# (Poplatník, Vlastník nehnuteľnosti, Správca dane, Prednosta úradu, Hlavný
+# kontrolór), the municipality, its yard and collection firm, dates and fees.
+language = "sk"
+kind = "notice"
+lines = [
+  "Obec Dolná Lehota",
+  "Oznámenie o zbere komunálneho odpadu v roku 2027",
+  "Obec Dolná Lehota oznamuje Poplatníkom, že zber zmesového komunálneho odpadu bude v roku 2027 prebiehať každý druhý utorok. Zber zabezpečuje Zberová spoločnosť Hron Eko, s. r. o., na základe zmluvy s obcou. Nádoby treba vyložiť pred dom do 6:00 hodiny ráno v deň zberu.",
+  "Poplatok za komunálny odpad",
+  "Poplatníkom je každá fyzická osoba s trvalým pobytom v obci a Vlastník nehnuteľnosti, ktorá nie je určená na bývanie. Sadzba poplatku je 0,0548 eura za osobu a kalendárny deň, teda 20 eur ročne. Poplatok vyrubí Správca dane rozhodnutím, ktoré Poplatníkovi doručí do konca marca. Poplatok je splatný do 15 dní od doručenia rozhodnutia.",
+  "Zberný dvor",
+  "Zberný dvor na Priemyselnej ulici je otvorený v stredu od 14:00 do 18:00 a v sobotu od 8:00 do 12:00. Odovzdať možno objemný odpad, drobný stavebný odpad do 1 m³ ročne na Poplatníka, elektroodpad a pneumatiky. Pri vstupe sa Poplatník preukáže dokladom o zaplatení poplatku.",
+  "Úľavy a kontrola",
+  "O zníženie poplatku môže požiadať Poplatník, ktorý sa dlhodobo zdržiava v zahraničí, a to písomne na Obecnom úrade. Žiadosti vybavuje Prednosta obecného úradu. Dodržiavanie všeobecne záväzného nariadenia kontroluje Hlavný kontrolór obce, ktorý o výsledkoch informuje Obecné zastupiteľstvo.",
+  "Toto oznámenie bolo vyvesené na úradnej tabuli dňa 1. decembra 2026.",
+]
+decoys = [
+  "Obec Dolná Lehota",
+  "Hron Eko, s. r. o.",
+  "Vlastník nehnuteľnosti",
+  "Správca dane",
+  "Prednosta obecného úradu",
+  "Hlavný kontrolór",
+  "Obecné zastupiteľstvo",
+]

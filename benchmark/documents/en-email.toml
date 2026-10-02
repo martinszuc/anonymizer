@@ -1,0 +1,18 @@
+# English e-mail: first names alone in the greeting and the signature, a
+# British mobile number, and a sick note attached under the sender's surname.
+language = "en"
+kind = "email"
+lines = [
+  "From: [[person:Samuel Okafor]] <[[email:s.okafor@example.net]]>",
+  "To: HR Team <hr@example.net>",
+  "Date: Tuesday, 22 September 2026 08:47",
+  "Subject: Sick leave this week",
+  "Hi [[person:Rachel]],",
+  "I won't be in until Friday: my doctor, Dr. [[person:Alan Whitfield]], signed me off for three days. The fit note is attached. [[person:Megan]] has agreed to cover the Thursday client call with Harbor Logistics.",
+  "If anything urgent comes up, my personal number is [[phone:+44 7700 900461]].",
+  "Thanks,",
+  "[[person:Sam]]",
+]
+links = [{ anchor = "Reply", target = "mailto:[[email:s.okafor@example.net]]" }]
+attachments = [{ filename = "fit-note-[[person:okafor]].pdf", description = "Fit note" }]
+decoys = ["hr@example.net", "HR Team", "Harbor Logistics"]

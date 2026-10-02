@@ -1,0 +1,33 @@
+# Czech employment contract. The employer is a company: its name, IČO and
+# registered seat are not personal data, yet the IČO carries a label and the
+# seat has the shape of an address. Names in several cases and with degrees;
+# the payroll contact also signs the metadata and the XMP packet.
+language = "cs"
+kind = "contract"
+lines = [
+  "Pracovní smlouva",
+  "uzavřená podle § 33 a násl. zákona č. 262/2006 Sb., zákoník práce, ve znění pozdějších předpisů",
+  "Zaměstnavatel: Strojírny Polička s.r.o., IČO 69281432, se sídlem Družstevní 1120, 572 01 Polička, zastoupená jednatelem Ing. [[person:Radkem Hájkem]]",
+  "Zaměstnanec: [[person:Petr Kalous]], nar. [[date:23. 4. 1979]], rodné číslo [[birth_number:790423/4129]], trvale bytem [[address:Zahradní 418, 569 43 Jevíčko]]",
+  "Článek I. Druh a místo výkonu práce",
+  "Zaměstnavatel přijímá [[person:Petra Kalouse]] do pracovního poměru na pozici konstruktér. Místem výkonu práce je provozovna zaměstnavatele v Poličce. Den nástupu do práce je 1. 11. 2026. Pracovní poměr se sjednává na dobu neurčitou se zkušební dobou tří měsíců.",
+  "Článek II. Mzda a pracovní doba",
+  "Mzda je stanovena mzdovým výměrem a je splatná pozadu za měsíční období, nejpozději do 15. dne následujícího měsíce. Na žádost zaměstnance ji zaměstnavatel poukazuje na účet č. [[bank_account:35-4718203657/0100]]. Stanovená týdenní pracovní doba činí 40 hodin.",
+  "Článek III. Dovolená a další ujednání",
+  "Zaměstnanci [[person:Petru Kalousovi]] přísluší dovolená v rozsahu pěti týdnů v kalendářním roce. Nadřízenou zaměstnance je vedoucí konstrukce Ing. [[person:Zdeňka Marková]]. Ve věcech mzdy a docházky se zaměstnanec obrací na mzdovou účetní [[person:Jitku Brabcovou]], tel. [[phone:461 723 118]], e-mail [[email:jitka.brabcova@example.com]].",
+  "Tato smlouva je vyhotovena ve dvou stejnopisech, z nichž každá strana obdrží jeden.",
+  "V Poličce dne 20. 10. 2026",
+  "Ing. [[person:Radek Hájek]], jednatel",
+  "[[person:Petr Kalous]], zaměstnanec",
+]
+metadata = { Title = "Pracovní smlouva – [[person:Kalous]]", Author = "[[person:Jitka Brabcová]]" }
+xmp = { creator = "[[person:Jitka Brabcová]]", title = "Pracovní smlouva – [[person:Petr Kalous]]" }
+decoys = [
+  "Strojírny Polička s.r.o.",
+  "69281432",
+  "Družstevní 1120, 572 01 Polička",
+  "262/2006 Sb.",
+  "konstruktér",
+  "1. 11. 2026",
+  "20. 10. 2026",
+]

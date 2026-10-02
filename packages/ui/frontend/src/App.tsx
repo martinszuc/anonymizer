@@ -6,26 +6,29 @@ import { ExportSheets, type ExportStep } from "./components/ExportSheets";
 import { Home } from "./components/Home";
 import { ModelsSheet } from "./components/ModelsSheet";
 import { Opening } from "./components/Opening";
-import { PageView } from "./components/PageView";
+import { PageView, type WordSelection } from "./components/PageView";
 import { Sidebar, type SidebarTab } from "./components/Sidebar";
 import { Toasts, type Toast } from "./components/Toasts";
 import { Toolbar } from "./components/Toolbar";
 import { PageImages } from "./pageImages";
+import { PageWords } from "./pageWords";
 import { hasCommand } from "./platform";
 import {
   DEFAULT_VIEW,
   NO_FILTER,
   activeFilters,
+  covers,
   filterFindings,
   groupToggled,
   isDecidable,
-  lastDrawnRegion,
+  lastAdded,
   pagesWithoutText,
   plural,
   steppedZoom,
   toggled,
   type ListView,
 } from "./review";
+import { selectionSpan } from "./selection";
 import type {
   AppStatus,
   Box,
@@ -79,8 +82,12 @@ export function App() {
   const [altHeld, setAltHeld] = useState(false);
   // A click on a box only finds it in the list; off by default, so a click decides.
   const [locating, setLocating] = useState(false);
-  // Regions drawn since this document opened, oldest first: Cmd/Ctrl+Z removes the last.
-  const drawnRegions = useRef<string[]>([]);
+  // Items added since this document opened (regions drawn, text selected), oldest first:
+  // Cmd/Ctrl+Z removes the last.
+  const addedItems = useRef<string[]>([]);
+  // Words selected on a page, waiting to be added as a finding.
+  const [selection, setSelection] = useState<WordSelection | null>(null);
+  const [adding, setAdding] = useState(false);
   // The Models sheet: its features (null while loading) and the running downloads, by feature.
   const [modelsOpen, setModelsOpen] = useState(false);
   const [models, setModels] = useState<FeatureModels[] | null>(null);
@@ -117,7 +124,13 @@ export function App() {
     });
   }, []);
 
+  // Preview and the region tool have no use for selected words.
+  useEffect(() => {
+    if (previewing || drawTool) setSelection(null);
+  }, [previewing, drawTool]);
+
   const images = useMemo(() => (bridge ? new PageImages(bridge) : null), [bridge, generation]);
+  const words = useMemo(() => (bridge ? new PageWords(bridge) : null), [bridge, generation]);
   // The findings a filter lets through, whose boxes stay bright on the page; null without a filter.
   const shownIds = useMemo(
     () =>
@@ -134,7 +147,8 @@ export function App() {
     setSelectedId(null);
     setView((current) => ({ ...current, filter: NO_FILTER }));
     setSelectedSurfaceId(null);
-    drawnRegions.current = [];
+    setSelection(null);
+    addedItems.current = [];
     setCurrentPage(0);
     setZoom("fit");
     canvasRef.current?.scrollTo({ top: 0 });
@@ -220,6 +234,7 @@ export function App() {
       setDirty(false);
       setPreviewing(false);
       setDrawTool(false);
+      setSelection(null);
       setExportStep(null);
     } catch (error) {
       reportError(errorMessage(error));
@@ -333,11 +348,37 @@ export function App() {
     try {
       const region = await bridge.add_region(pageIndex, ...box);
       setDocument((current) => current && { ...current, entities: [...current.entities, region] });
-      drawnRegions.current.push(region.id);
+      addedItems.current.push(region.id);
       setSelectedId(region.id);
       setDirty(true);
     } catch (error) {
       reportError(errorMessage(error));
+    }
+  }
+
+  /** Add the selected words as a finding of a type, with the repeats Python proposes. */
+  async function addFinding(type: string) {
+    const span = selection && selectionSpan(selection.words);
+    if (!bridge || !selection || !span || adding) return;
+    setAdding(true);
+    try {
+      const added = await bridge.add_finding(selection.pageIndex, ...span, type);
+      const [finding] = added;
+      if (!finding) return;
+      setDocument((current) => current && { ...current, entities: [...current.entities, ...added] });
+      addedItems.current.push(finding.id);
+      setSelection(null);
+      setSelectedId(finding.id);
+      setDirty(true);
+      const repeats = added.length - 1;
+      notify("success", `Added “${clipped(covers(finding))}”${repeats > 0 ? ` and ${plural(repeats, "repeat")}` : ""}`, {
+        label: "Undo",
+        run: () => void removeEntity(finding),
+      });
+    } catch (error) {
+      reportError(errorMessage(error));
+    } finally {
+      setAdding(false);
     }
   }
 
@@ -348,7 +389,10 @@ export function App() {
     setSelectedId((current) => (current === entity.id ? null : current));
     setDirty(true);
     try {
-      await bridge.remove_entity(entity.id);
+      // Repeats proposed only because of an added text go with it.
+      const removed = new Set(await bridge.remove_entity(entity.id));
+      setDocument((current) => current && { ...current, entities: current.entities.filter((item) => !removed.has(item.id)) });
+      setSelectedId((current) => (current !== null && removed.has(current) ? null : current));
     } catch (error) {
       setDocument((current) => current && { ...current, entities: [...current.entities, entity] });
       reportError(errorMessage(error));
@@ -458,7 +502,7 @@ export function App() {
       else if (key === "0" && document) setZoom("fit");
       else if (key === "y" && document) setPreviewing((value) => !value);
       else if (key === "e" && document) startExport();
-      else if (key === "z" && !event.shiftKey && document) undoRegion();
+      else if (key === "z" && !event.shiftKey && document) undoAdded();
       else return;
       event.preventDefault();
     };
@@ -476,23 +520,27 @@ export function App() {
     };
   });
 
-  /** Remove the last region drawn that is still there; there is no undo for decisions yet. */
-  function undoRegion() {
+  /** Remove the last item added that is still there; there is no undo for decisions yet. */
+  function undoAdded() {
     if (!document) return;
-    const region = lastDrawnRegion(drawnRegions.current, document.entities);
-    drawnRegions.current = drawnRegions.current.filter((id) => id !== region?.id);
-    if (region) void removeEntity(region);
+    const added = lastAdded(addedItems.current, document.entities);
+    addedItems.current = addedItems.current.filter((id) => id !== added?.id);
+    if (added) void removeEntity(added);
   }
 
-  /** Keys without a modifier: R for the region tool, L for locating, Escape, Delete on a selected region. */
+  /**
+   * Keys without a modifier: R for the region tool, L for locating, Escape, Delete on a
+   * selected item the reviewer added.
+   */
   function onPlainKey(event: KeyboardEvent) {
     if (!document || event.altKey || event.ctrlKey || event.metaKey) return;
     const selected = document.entities.find((entity) => entity.id === selectedId);
     if (event.key === "r" || event.key === "R") setDrawTool((value) => !value);
     else if (event.key === "l" || event.key === "L") setLocating((value) => !value);
+    else if (event.key === "Escape" && selection) setSelection(null);
     else if (event.key === "Escape" && drawTool) setDrawTool(false);
     else if (event.key === "Escape") setSelectedId(null);
-    else if ((event.key === "Delete" || event.key === "Backspace") && selected?.is_region) {
+    else if ((event.key === "Delete" || event.key === "Backspace") && selected?.source === "manual") {
       void removeEntity(selected);
     } else return;
     event.preventDefault();
@@ -508,7 +556,7 @@ export function App() {
             usesModel={options.use_model}
             usesOcr={options.use_ocr}
           />
-        ) : document && images ? (
+        ) : document && images && words ? (
           <>
             <Toolbar
               name={document.name}
@@ -553,6 +601,7 @@ export function App() {
                 ref={canvasRef}
                 document={document}
                 images={images}
+                words={words}
                 scale={scale}
                 selectedId={selectedId}
                 selectedSurfaceId={selectedSurfaceId}
@@ -561,8 +610,12 @@ export function App() {
                 drawing={drawTool || altHeld}
                 locating={locating}
                 shownIds={shownIds}
+                selection={altHeld ? null : selection}
+                adding={adding}
                 onSelect={(entity) => setSelectedId(entity.id)}
                 onDrawRegion={(pageIndex, box) => void addRegion(pageIndex, box)}
+                onSelectWords={setSelection}
+                onAddFinding={(type) => void addFinding(type)}
                 onToggle={toggle}
                 onError={reportError}
                 onCurrentPage={setCurrentPage}
@@ -607,6 +660,11 @@ export function App() {
       </div>
     </MotionConfig>
   );
+}
+
+/** A finding's text short enough for a toast. */
+function clipped(text: string, length = 40): string {
+  return text.length > length ? `${text.slice(0, length - 1)}…` : text;
 }
 
 /** The element's content width, tracked as the window resizes. */

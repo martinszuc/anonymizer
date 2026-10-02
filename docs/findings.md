@@ -325,6 +325,85 @@ partial match; only counts and scores were printed, never corpus text.
   (a surname as well as a mayor, left off the role lists on purpose) and a
   labelled company IČO (rules, by design).
 
+### 2026-10-02 · Benchmark grown to 26 documents
+
+Seventeen new synthetic documents (`benchmark/documents`): employment and
+rental contracts, a form filled in on screen, a power of attorney, an
+official decision, e-mail printouts, owners' minutes, an invoice, a CV and
+a hospital report, in Czech, Slovak and English, plus four documents
+without personal data written without looking at the name filter's role
+lists. 224 planted items (was 51), 45 of them outside the page text in
+seven carriers: links, metadata, a bookmark, and now form fields, notes,
+attachments and XMP. Commit `bde70da`, GLiNER at threshold 0.3.
+
+| | rules | rules + GLiNER |
+|---|---|---|
+| items found whole | 27/51 → 86/224 | 50/51 → 199/224 |
+| names found | 0/23 → 0/128 | 22/23 → 110/128 |
+| distinct false alarms | 1 → 14 | 4 → 44 |
+| per 1,000 words | 0.5 → 3.0 | 2.1 → 9.4 |
+| documents with nothing readable left | 3/9 → 8/26 | 8/9 → 17/26 |
+| leak check passed | 9/9 → 26/26 | 9/9 → 25/26 |
+
+The nine earlier documents score as before (50/51, 4 false alarms); their
+word count grew from 1,921 to 1,928 because link anchors are now counted.
+
+- **A name written as one word is mostly missed:** 5 of 16 on the page,
+  against 80 of 81 names of two or more words. Missed: a surname after
+  "pan"/"paní" or in a later sentence (Sýkora, Bartoš, Musil, Vránu,
+  Zemanem, Hruškové, Hudák), a vocative ("pane Navrátile"), a nickname
+  ("Báro") and English first names ("Megan", "Sam"). Occurrence propagation
+  does not help: it repeats the detected text, and the surname alone is not
+  that text. These are most of what leaves 9 documents unsafe.
+- **The role lists do not carry over to new documents.** The three
+  documents they were written with produce 3 false alarms in 1,178 words;
+  the four written without looking at them produce 28 in 992. Role nouns
+  missing from the lists ("Poplatník", "Zákazníka", "Uchazeče",
+  "Pověřenec", "Trenér", "Údržbář", "Prednosta", "Vlastník") and English
+  roles, for which no list exists ("Employee", "Line Manager", "Head of
+  People"), are tagged as persons; so are "Priemyselnej ulici" and the
+  emergency numbers "na čísle 155" as addresses.
+- **The English handbook failed the leak check** for the reason recorded
+  above for "Žadatel": "Employee" was detected, "Employees" was not, and
+  the page-text layer found the detected text inside the longer word.
+- **A law citation is a valid account number.** "zákona č. 262/2006 Sb.",
+  the Labour Code that every Czech employment contract cites, passes the
+  account checksum (262 weighted is 22) and was redacted as a bank
+  account. A citation number/year is a valid account roughly one time in
+  eleven.
+- **Every rule false alarm is by design:** a labelled company IČO, company
+  seats and an authority's address, shared mailboxes (`recepce@`, `hr@`),
+  a bank's PO box. Recall-first rules cannot tell them from personal ones.
+- **A label separated from its value hides it.** Text extraction returns
+  form field values after every printed label, so "Datum narození:" is not
+  followed by the date and the rule misses it (the field is cleared
+  anyway). "my date of birth is March 12, 1990" is missed because of the
+  "is" between label and date.
+- **No rule covers** an identity card number, a Slovak DIČ, a car
+  registration plate or a British mobile number (`+44 7700 …`), and GLiNER
+  found none of them. The identity card number was redacted all the same,
+  by chance: its nine digits also read as a birth number from before 1954,
+  which has no check digit. A US address with "Apt 4B" was found in part.
+- **Hidden carriers are cleared whatever detection finds.** With rules only,
+  no item in a form field, note, attachment, XMP packet, link, bookmark or
+  metadata entry was left in its carrier; every residue is page text. A
+  form whose answers are all fields is safe without detection, since
+  deleting a field removes its drawn value too.
+- **Detection on hidden carriers is uneven:** names in the XMP packet
+  (1/4) and an attachment file name written without diacritics
+  ("op-hruskova-sken.pdf") are not found; review would not show them as
+  findings although redaction removes them.
+- **Two generator quirks seen in passing:** PyMuPDF reads an attachment's
+  file name containing "í" as "Ã­" (`embfile_info`), so ingest shows a
+  garbled name; and in field appearances MuPDF draws punctuation that text
+  extraction then omits when the value has letters outside Latin-1 ("Ing.
+  Markéta" reads as "Ing Markéta"). Benchmark field values avoid both.
+- **Scanned, perfect reader, 3° skew:** the leak check refused 2 of 26
+  correct redactions. A short word on a neighbouring line ("dne", "se",
+  "is") lay half under a tilted box: the half-box threshold recorded
+  under *Scanned benchmark with a perfect reader* is not enough for
+  two- and three-letter words.
+
 ### 2026-10-02 · First RQ1 tables from the harness (development data)
 
 `python -m experiments run` with `experiments/configs/{gliner-sweep,rq1-dev,rq1-ablations-dev}.toml`;

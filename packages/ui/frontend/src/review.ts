@@ -365,11 +365,14 @@ export function covers(entity: EntityInfo, regionNumber?: number): string {
   return (entity.text ?? "").replace(/\s+/g, " ").trim();
 }
 
-/** The last region drawn that is still in the document, for Cmd/Ctrl+Z; ids are in drawing order. */
-export function lastDrawnRegion(drawnIds: string[], entities: EntityInfo[]): EntityInfo | null {
-  for (const id of [...drawnIds].reverse()) {
-    const region = entities.find((entity) => entity.id === id && entity.is_region);
-    if (region) return region;
+/**
+ * The last item the reviewer added (a drawn region or selected text) that is still in the
+ * document, for Cmd/Ctrl+Z; ids are in the order they were added.
+ */
+export function lastAdded(addedIds: string[], entities: EntityInfo[]): EntityInfo | null {
+  for (const id of [...addedIds].reverse()) {
+    const added = entities.find((entity) => entity.id === id && entity.source === "manual");
+    if (added) return added;
   }
   return null;
 }

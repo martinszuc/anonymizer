@@ -1,4 +1,4 @@
-import { ArrowDownUp, ChevronDown, ChevronRight, EyeOff, Info, ListFilter, Lock, Paperclip, Search, X } from "lucide-react";
+import { ArrowDownUp, ChevronDown, ChevronRight, EyeOff, Info, ListFilter, Lock, Paperclip, Search, TextSelect, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
@@ -113,6 +113,12 @@ export function Sidebar({
           onSelectSurface={onSelectSurface}
         />
       )}
+      {tab === "findings" && document.entities.length > 0 && (
+        <p className="list-footer">
+          <TextSelect size={13} aria-hidden />
+          Missed a word? Drag across it on the page, or double-click it.
+        </p>
+      )}
     </aside>
   );
 }
@@ -151,7 +157,7 @@ const SOURCES: { value: SourceFilter; label: string }[] = [
   { value: "rule", label: "Rules" },
   { value: "model", label: "Model" },
   { value: "propagated", label: "Repeats" },
-  { value: "manual", label: "Drawn" },
+  { value: "manual", label: "Added" },
 ];
 
 type ScoreStep = "any" | `${(typeof SCORE_STEPS)[number]}`;
@@ -392,6 +398,7 @@ function Findings({
       <div className="sidebar-empty">
         <p>Nothing was found in the text.</p>
         <p className="muted">Hidden items are still removed on export.</p>
+        <p className="muted">Missed something? Select its words on the page to add it.</p>
       </div>
     );
   }
@@ -673,11 +680,29 @@ function EntityRow({ entity, regionNumber, showType, selected, onSelect, onToggl
           <X size={14} />
         </button>
       ) : (
-        <Switch
-          checked={redacted}
-          label={redacted ? `Redacted: click to keep “${text}”` : `Kept: click to redact “${text}”`}
-          onChange={() => onToggle(entity)}
-        />
+        <>
+          {entity.source === "manual" && (
+            <button
+              type="button"
+              className="row-remove"
+              data-quiet
+              aria-label={`Remove “${text}”, added by you, on page ${(entity.page_index ?? 0) + 1}`}
+              title="Remove what you added, with its repeats (Delete)"
+              tabIndex={-1}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemove(entity);
+              }}
+            >
+              <X size={14} />
+            </button>
+          )}
+          <Switch
+            checked={redacted}
+            label={redacted ? `Redacted: click to keep “${text}”` : `Kept: click to redact “${text}”`}
+            onChange={() => onToggle(entity)}
+          />
+        </>
       )}
     </div>
   );

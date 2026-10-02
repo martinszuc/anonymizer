@@ -1,0 +1,28 @@
+# Czech power of attorney. The identity card number has no checksum and no
+# rule; the attorney's office address is a business address, not personal.
+# The scanned identity card is attached under a file name with the surname
+# written without diacritics, as file names usually are.
+language = "cs"
+kind = "authorization"
+lines = [
+  "Plná moc",
+  "Zmocnitelka: [[person:Jaroslava Hrušková]], nar. [[date:3. 5. 1971]], r. č. [[birth_number:715503/3820]], číslo OP [[id_number:205418763]], bytem [[address:Nádražní 845/3, 702 00 Ostrava]]",
+  "tímto zmocňuje",
+  "Zmocněnce: Mgr. [[person:Tomáše Vlčka]], advokáta se sídlem Českobratrská 2227/7, 702 00 Ostrava,",
+  "aby ji zastupoval ve všech úkonech souvisejících s prodejem pozemku parc. č. 1532/4 v katastrálním území Poruba, zejména aby jejím jménem podepsal kupní smlouvu, podal návrh na vklad do katastru nemovitostí a převzal kupní cenu. Zmocněnec je oprávněn udělit substituční plnou moc jinému advokátovi.",
+  "Paní [[person:Hruškové]] bude zmocněnec o každém úkonu informovat písemně na adresu jejího bydliště.",
+  "V Ostravě dne 2. 9. 2026",
+  "[[person:Jaroslava Hrušková]]",
+  "Plnou moc přijímám. Mgr. [[person:Tomáš Vlček]]",
+  "Podpis zmocnitelky ověřen pod pořadovým číslem 2026/0418 na Úřadu městského obvodu Poruba.",
+]
+attachments = [
+  { filename = "op-[[person:hruskova]]-sken.pdf", description = "Kopie OP – [[person:Jaroslava Hrušková]]" },
+]
+decoys = [
+  "Českobratrská 2227/7, 702 00 Ostrava",
+  "parc. č. 1532/4",
+  "2026/0418",
+  "Úřadu městského obvodu Poruba",
+  "2. 9. 2026",
+]

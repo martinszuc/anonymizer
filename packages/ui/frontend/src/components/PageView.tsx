@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type MouseEvent,
   type PointerEvent,
   type RefObject,
   type UIEvent,
@@ -13,6 +14,7 @@ import {
 import { errorMessage } from "../bridge";
 import { gentle } from "../motion";
 import type { PageImages } from "../pageImages";
+import type { PageWords } from "../pageWords";
 import {
   covers,
   dragBox,
@@ -24,11 +26,23 @@ import {
   renderDpi,
   typeLabel,
 } from "../review";
-import type { Box, DocumentInfo, EntityInfo, PageInfo, SurfaceInfo } from "../types";
+import { lineBoxes, nearestWord, wordAt, wordRange, type Point } from "../selection";
+import type { Box, DocumentInfo, EntityInfo, PageInfo, SurfaceInfo, WordInfo } from "../types";
+import { AddFindingPopover } from "./AddFinding";
+
+/** Words selected on a page, waiting for the reviewer to add them as a finding. */
+export interface WordSelection {
+  pageIndex: number;
+  words: WordInfo[];
+}
+
+/** How far the pointer moves, in screen pixels, before a press on a word becomes a selection. */
+const SELECT_THRESHOLD = 4;
 
 interface PageViewProps {
   document: DocumentInfo;
   images: PageImages;
+  words: PageWords;
   scale: number;
   selectedId: string | null;
   /** The hidden item chosen in the Hidden tab, outlined on its page. */
@@ -41,8 +55,15 @@ interface PageViewProps {
   locating: boolean;
   /** Findings the list's filter shows; the others are dimmed. Null when nothing is filtered. */
   shownIds: Set<string> | null;
+  /** Words selected to add as a finding, shown with the popover that adds them. */
+  selection: WordSelection | null;
+  /** Adding the selection is under way. */
+  adding: boolean;
   onSelect: (entity: EntityInfo) => void;
   onDrawRegion: (pageIndex: number, box: Box) => void;
+  /** Words were selected on a page, or the selection was dropped (null). */
+  onSelectWords: (selection: WordSelection | null) => void;
+  onAddFinding: (type: string) => void;
   onToggle: (entity: EntityInfo) => void;
   onError: (message: string) => void;
   onCurrentPage: (index: number) => void;
@@ -102,6 +123,7 @@ function Page({
   surfaces,
   regionNumbers,
   images,
+  words,
   scale,
   selectedId,
   selectedSurfaceId,
@@ -110,10 +132,14 @@ function Page({
   drawing,
   locating,
   shownIds,
+  selection,
+  adding,
   onSelect,
   onToggle,
   onError,
   onDrawRegion,
+  onSelectWords,
+  onAddFinding,
 }: PageProps) {
   const pageRef = useRef<HTMLDivElement>(null);
   const nearby = useNearViewport(pageRef);
@@ -125,7 +151,31 @@ function Page({
   // and a handler reading state would see the previous event's value.
   const drag = useRef<{ start: [number, number]; box: Box } | null>(null);
   const [draft, setDraft] = useState<Box | null>(null);
+  // Selecting words: the page's words once loaded, the press that may become a
+  // selection, and the words dragged over so far.
+  const pageWords = useRef<WordInfo[] | null>(null);
+  const press = useRef<{ client: Point; anchor: number; selecting: boolean } | null>(null);
+  const [dragged, setDragged] = useState<WordInfo[] | null>(null);
+  // A selection ends with a click on whatever is under the pointer; it must not toggle a box.
+  const swallowClick = useRef(false);
+  const [overWord, setOverWord] = useState(false);
+  const selecting = !previewing && !drawing;
+  const selected = selection?.pageIndex === page.index ? selection.words : null;
   const dpi = renderDpi(scale, window.devicePixelRatio || 1);
+
+  useEffect(() => {
+    if (!nearby || pageWords.current) return;
+    let current = true;
+    words
+      .get(page.index)
+      .then((list) => {
+        if (current) pageWords.current = list;
+      })
+      .catch((error: unknown) => current && onError(`Page ${page.index + 1}: ${errorMessage(error)}`));
+    return () => {
+      current = false;
+    };
+  }, [nearby, words, page.index, onError]);
 
   useEffect(() => {
     if (!nearby) return;
@@ -144,7 +194,7 @@ function Page({
   const hatchId = `region-hatch-${page.index}`;
 
   /** The pointer's position in page points. */
-  const toPoints = (event: PointerEvent<SVGSVGElement>): [number, number] => {
+  const toPoints = (event: MouseEvent<SVGSVGElement>): Point => {
     const bounds = event.currentTarget.getBoundingClientRect();
     return [
       ((event.clientX - bounds.left) * page.width) / bounds.width,
@@ -153,7 +203,11 @@ function Page({
   };
 
   const onPointerDown = (event: PointerEvent<SVGSVGElement>) => {
-    if (event.button !== 0 || !(drawing || event.altKey)) return;
+    if (event.button !== 0) return;
+    if (!(drawing || event.altKey)) {
+      startSelecting(event);
+      return;
+    }
     event.preventDefault();
     try {
       // Keeps the drag going when the pointer leaves the page; a nicety, so a
@@ -168,19 +222,73 @@ function Page({
     setHoveredId(null);
   };
 
+  /** A press on a word may become a selection once the pointer moves; a click stays a click. */
+  const startSelecting = (event: PointerEvent<SVGSVGElement>) => {
+    if (selection) onSelectWords(null);
+    const list = pageWords.current;
+    if (!selecting || !list) return;
+    const anchor = wordAt(list, toPoints(event));
+    if (anchor !== -1) press.current = { client: [event.clientX, event.clientY], anchor, selecting: false };
+  };
+
   const onPointerMove = (event: PointerEvent<SVGSVGElement>) => {
-    if (!drag.current) return;
+    if (press.current) {
+      moveSelection(event, press.current);
+      return;
+    }
+    if (!drag.current) {
+      const list = pageWords.current;
+      setOverWord(selecting && list !== null && wordAt(list, toPoints(event)) !== -1);
+      return;
+    }
     drag.current.box = dragBox(drag.current.start, toPoints(event), page);
     setDraft(drag.current.box);
   };
 
+  const moveSelection = (event: PointerEvent<SVGSVGElement>, current: NonNullable<typeof press.current>) => {
+    const list = pageWords.current;
+    if (!list) return;
+    const [x, y] = current.client;
+    if (!current.selecting && Math.hypot(event.clientX - x, event.clientY - y) < SELECT_THRESHOLD) return;
+    if (!current.selecting) {
+      current.selecting = true;
+      setHoveredId(null);
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Selecting works without capture while the pointer stays on the page.
+      }
+    }
+    setDragged(wordRange(list, current.anchor, nearestWord(list, toPoints(event))));
+  };
+
   const onPointerUp = (event: PointerEvent<SVGSVGElement>) => {
+    if (press.current) {
+      const current = press.current;
+      press.current = null;
+      const list = pageWords.current;
+      setDragged(null);
+      if (!current.selecting || !list) return;
+      swallowClick.current = true;
+      onSelectWords({ pageIndex: page.index, words: wordRange(list, current.anchor, nearestWord(list, toPoints(event))) });
+      return;
+    }
     if (!drag.current) return;
     const box = dragBox(drag.current.start, toPoints(event), page);
     drag.current = null;
     setDraft(null);
     if (isLargeEnough(box, scale)) onDrawRegion(page.index, box);
   };
+
+  /** A double click on a word outside every box selects that word. */
+  const onDoubleClick = (event: MouseEvent<SVGSVGElement>) => {
+    const list = pageWords.current;
+    if (!selecting || !list || (event.target as Element).closest(".redaction")) return;
+    const word = list[wordAt(list, toPoints(event))];
+    if (word) onSelectWords({ pageIndex: page.index, words: [word] });
+  };
+
+  const highlighted = dragged ?? selected;
 
   return (
     <section className="page-slot" data-page-index={page.index} aria-label={`Page ${page.index + 1}`}>
@@ -214,11 +322,21 @@ function Page({
           className="overlay"
           viewBox={`0 0 ${page.width} ${page.height}`}
           preserveAspectRatio="none"
-          onMouseLeave={() => setHoveredId(null)}
+          data-over-word={overWord}
+          onMouseLeave={() => {
+            setHoveredId(null);
+            setOverWord(false);
+          }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          onDoubleClick={onDoubleClick}
+          onClickCapture={(event) => {
+            if (!swallowClick.current) return;
+            swallowClick.current = false;
+            event.stopPropagation();
+          }}
         >
           <defs>
             {/* Drawn regions are hatched in review mode, so what they cover stays visible. */}
@@ -251,6 +369,10 @@ function Page({
               onSelect={onSelect}
             />
           ))}
+          {highlighted &&
+            lineBoxes(highlighted).map(([x0, y0, x1, y1], index) => (
+              <rect key={index} className="word-selection" x={x0} y={y0} width={x1 - x0} height={y1 - y0} rx={1.5} />
+            ))}
           {draft && (
             <rect
               className="draft-region"
@@ -274,7 +396,7 @@ function Page({
               ),
           )}
         <AnimatePresence>
-          {hovered && !previewing && !draft && (
+          {hovered && !previewing && !draft && !highlighted && (
             <Popover
               key={hovered.id}
               entity={hovered}
@@ -282,6 +404,20 @@ function Page({
               locating={locating}
               scale={scale}
               pageHeight={height}
+            />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {selected && !previewing && (
+            <AddFindingPopover
+              key={selected.map((word) => word.start).join(",")}
+              words={selected}
+              adding={adding}
+              scale={scale}
+              pageWidth={width}
+              pageHeight={height}
+              onAdd={onAddFinding}
+              onCancel={() => onSelectWords(null)}
             />
           )}
         </AnimatePresence>

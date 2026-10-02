@@ -125,6 +125,22 @@ Keyboard: ↑/↓ moves the selection, Space toggles, Return scrolls to it.
 | Drawn region | hatched (`.hatch-line`), 1.5 px `--label-2`, numbered | opaque `--ink`, no number | drawn by the reviewer; a click selects it, Delete removes it, Cmd/Ctrl+Z removes the last drawn |
 | Region number | 18 px pill on the region's top-left corner, `--elevated`, `--shadow-control`, caption weight 600 | hidden | the region's place in drawing order, as its sidebar row ("Region 2") says; renumbered when one is removed |
 | Drawing (draft) | `--accent` at 12 %, dashed `--accent` | same | the rectangle being dragged |
+| Word selection | `--accent` at 28 %, no outline, one box per line (neighbouring words joined) | not shown | words dragged over or double-clicked, to add as a finding |
+
+**Adding a missed word.** No tool to switch on: in review mode the pointer is
+a text cursor over words, a drag across words (starting after 4 px of
+movement, so a click still toggles a box) or a double-click on a word selects
+them, highlighted as above. The **add popover** (304 px, `--elevated` with
+`--material-popover`, `--shadow-popover`, `--radius-card`) opens under the
+selection, or above it near the page's end: the selected text (weight 600,
+one line, ellipsis), a radio group of type pills (`--fill`, 24 px, a type dot;
+checked: the type colour at 18 % with a 1.5 px inset ring of it, weight 600),
+then a caption hint ("1–6 type · ↩ add" with `kbd`), *Cancel* (plain) and
+*Add* (primary, focused). Keys: 1–6 or arrows pick the type, Return adds,
+Escape cancels; the popover stops them reaching the window. A row of added
+text shows a quiet remove button (×, as a region's) before its switch, visible
+on hover or selection. A **list footer** under the findings (caption,
+`--label-2`, hairline above, text-select icon) says how to add a missed word.
 
 **Summary pill.** "12 redacted · 2 kept · 6 hidden removed"; counts animate.
 

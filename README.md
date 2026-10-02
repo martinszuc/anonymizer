@@ -167,7 +167,8 @@ GLiNER model (optional,
 `--ner`) widened over the academic titles beside them, review through
 session files or the review window (a home screen with the detection options,
 models downloaded from the window and checked against their checksums, open or
-drop a PDF, toggle each item, draw regions, save the session, export), blackbox
+drop a PDF, toggle each item, add a missed word by selecting it, draw regions, save
+the session, export), blackbox
 redaction and a leak check on the output.
 Scanned pages: ingest reads pages without a text layer through an OCR engine
 interface, redaction overwrites the pixels under each box and removes the page's
@@ -176,7 +177,7 @@ The first engine is OnnxTR with a multilingual recognizer (optional: CLI `--ocr
 onnxtr`, the review window's *Scanned pages* switch).
 Searchable scans (a picture under an invisible text layer) are redacted through
 that layer; see `docs/findings.md`.
-Not yet: measured NER and OCR quality, adding a missed word in the review window.
+Not yet: measured NER and OCR quality.
 
 ## License
 

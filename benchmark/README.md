@@ -74,18 +74,38 @@ uv run python -m benchmark history history/*/benchmark-results.json --out charts
   of different lengths compare.
 - **decoys removed** — listed strings that look personal but are not, and
   were redacted anyway.
+- **per carrier** — found, and left there: still readable, whole or as a
+  fragment, in the place the item was planted (the page or a surface kind).
+  A surname left on the page is not counted against the bookmark that
+  carries it too. **Per document
+  kind** — the same scores over documents of one kind (cv, contract, ...).
+- **not found / false alarms** — the report lists every item not found whole
+  and every false alarm, by document, for error analysis.
 - **safe** — after redaction, no planted item is readable, whole or as a word
   unique to it. The leak check only verifies that *detected* items are gone;
   this is the measure of what was never detected.
 
-## Documents without personal data
+## Documents
 
-`cs-terms`, `cs-notice` and `sk-terms` plant nothing: terms and conditions
-and official instructions, full of capitalised role nouns ("Kupující",
-"Žadatel", "Vedoucí odboru"), company and authority names. Every finding in
-them is a false alarm, which is what ordinary documents produce most of; the
-documents with planted items are too dense with personal data to show it. A
-document without items lists decoys instead.
+Twenty-six documents: CVs, contracts (purchase, employment, flat rental),
+invoices, letters, e-mail printouts, minutes, a filled-in form, a power of
+attorney, an official decision and a hospital report, in Czech, Slovak and
+English. Names appear in several grammatical cases, alone after "pan" or
+"paní", with degrees, as first names or nicknames; addresses with and
+without a postcode, split over form fields; decoys sit beside them: company
+names, seats and IČOs, shared mailboxes, law citations, reference numbers
+and dates that are not dates of birth.
+
+Seven documents plant nothing: terms and conditions, a complaints policy, a
+privacy notice, an employee handbook, sports-hall rules and two notices from
+an office (`cs-terms`, `cs-notice`, `cs-gym-rules`, `cs-privacy-notice`,
+`sk-terms`, `sk-waste-notice`, `en-handbook`). They are full of capitalised
+role nouns ("Kupující", "Žadatel", "Poplatník", "Line Manager"), company and
+authority names. Every finding in them is a false alarm, which is what
+ordinary documents produce most of; the documents with planted items are
+too dense with personal data to show it. A document without items lists
+decoys instead. The later ones were written without looking at the name
+filter's role lists, so that they test the filter rather than mirror it.
 
 ## Adding a document
 
@@ -100,6 +120,22 @@ metadata = { Title = "Dopis – [[person:Jan Novák]]" }
 bookmarks = ["Dopis"]
 decoys = ["Stavby Morava a.s."]
 ```
+
+Strings outside the page text, each a carrier redaction has to clear:
+
+```toml
+fields = [{ label = "Jméno:", value = "[[person:Jan Novák]]" }]        # text form field
+annotations = [{ author = "[[person:Eva Malá]]", text = "Ověřit." }]   # sticky note
+attachments = [{ filename = "novak-doklad.pdf", description = "Doklad" }]
+xmp = { creator = "[[person:Jan Novák]]", title = "Dopis" }           # Dublin Core
+```
+
+A field's value is drawn on the page as well as stored in the field, so it
+plants two items: one on the page, one in the field. MuPDF draws a value
+with Czech letters a little low, so the top of it is clipped in pictures;
+the text is unaffected. The annotation's author
+is its title, usually a person's name. Attachment contents are fixed neutral
+text: ingest never reads them, and redaction drops attachments whole.
 
 `[[type:text]]` plants an item (types as in `EntityType`); `{{filler:N}}`
 adds N words of neutral text. Use invented names, `example.com/.org/.net`

@@ -1,0 +1,30 @@
+# Slovak invoice from a sole trader: his IČO and DIČ identify him; the buyer
+# is a company whose name, seat and IČO are not personal data. The material
+# list is attached, its description naming who drew it up.
+language = "sk"
+kind = "invoice"
+lines = [
+  "Faktúra č. 2026031",
+  "Dodávateľ: [[person:Marek Baláž]] – Elektroinštalácie, [[address:Štúrova 27, 949 01 Nitra]]",
+  "IČO: [[company_id:50726196]], DIČ: [[id_number:1084572913]], nie je platiteľ DPH",
+  "Bankové spojenie: [[iban:SK60 0900 0000 0054 3201 9875]]",
+  "Odberateľ: Agro Dvor Lehota, s. r. o., Poľná 4, 951 36 Lehota, IČO: 36512281",
+  "Dátum vystavenia: 30. 9. 2026, dátum dodania: 25. 9. 2026, dátum splatnosti: 14. 10. 2026",
+  "Variabilný symbol: 2026031",
+  "Výmena rozvádzača a revízia elektroinštalácie v hospodárskej budove, 1 ks, 1 840,00 EUR",
+  "Materiál podľa priloženého súpisu, 612,40 EUR",
+  "Spolu na úhradu: 2 452,40 EUR",
+  "Vystavil: [[person:Marek Baláž]], tel. [[phone:0905 318 442]], [[email:marek.balaz@example.com]]",
+  "Podnikateľ je zapísaný v živnostenskom registri Okresného úradu Nitra, číslo živnostenského registra 430-41187.",
+]
+attachments = [
+  { filename = "supis-materialu-2026031.xlsx", description = "Súpis materiálu – vypracoval [[person:Marek Baláž]]" },
+]
+decoys = [
+  "Agro Dvor Lehota, s. r. o.",
+  "Poľná 4, 951 36 Lehota",
+  "36512281",
+  "2026031",
+  "Okresného úradu Nitra",
+  "430-41187",
+]

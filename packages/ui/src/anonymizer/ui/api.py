@@ -46,7 +46,13 @@ from anonymizer.core.ingest import (
 )
 from anonymizer.core.language import AUTO
 from anonymizer.core.log import fields
-from anonymizer.core.pipeline import build_detector, resolve_language, run_detection
+from anonymizer.core.pipeline import (
+    add_finding,
+    build_detector,
+    remove_finding,
+    resolve_language,
+    run_detection,
+)
 from anonymizer.core.redact import Leak, export_redacted
 from anonymizer.core.resources import (
     Catalog,
@@ -66,6 +72,7 @@ from anonymizer.core.types import (
     DetectionSource,
     Document,
     Entity,
+    EntityType,
     Page,
     ReviewState,
     Surface,
@@ -130,6 +137,9 @@ class _OpenDocument:
     document: Document
     pdf_bytes: bytes
     language_recognised: bool = False
+    # Whether text the reviewer adds is marked again where it repeats, as
+    # detection's was; a reopened review has no record of it and marks them.
+    propagate: bool = True
 
 
 class ReviewApi:
@@ -387,7 +397,11 @@ class ReviewApi:
             progress=lambda done, total: report("detecting", done, total),
         )
         self._open = _OpenDocument(
-            Path(path), document, pdf_bytes, language_recognised=language == AUTO
+            Path(path),
+            document,
+            pdf_bytes,
+            language_recognised=language == AUTO,
+            propagate=propagate,
         )
         return self.document()
 
@@ -510,6 +524,66 @@ class ReviewApi:
             png = pdf[index].get_pixmap(dpi=resolution).tobytes("png")
         return "data:image/png;base64," + base64.b64encode(png).decode("ascii")
 
+    def page_words(self, index: int) -> list[dict[str, Any]]:
+        """List a page's words, so the reviewer can select text detection missed.
+
+        Args:
+            index: Zero-based page number.
+
+        Returns:
+            The words in reading order, each with its offsets in the page text,
+            its text and its box (`[x0, y0, x1, y1]` in points). A page OCR
+            read lists the words OCR found.
+
+        Raises:
+            ReviewError: If the page does not exist.
+        """
+        current = self._current()
+        with _as_review_error():
+            page = current.document.page(index)
+        log.debug("words of page %d: %d", index, len(page.words))
+        return [
+            {"start": word.start, "end": word.end, "text": word.text, "box": word.bbox.to_list()}
+            for word in page.words
+        ]
+
+    def add_finding(
+        self, page_index: int, start: int, end: int, entity_type: str
+    ) -> list[dict[str, Any]]:
+        """Add text the reviewer selected because detection missed it.
+
+        The selection is widened to whole words, and its other occurrences are
+        proposed too when the document was opened marking repeats
+        (`pipeline.add_finding`).
+
+        Args:
+            page_index: Page the text is on.
+            start: First offset of the selection in the page text (a word's
+                `start` from `page_words`).
+            end: Offset one past the selection (a word's `end`).
+            entity_type: What the text is, e.g. `person` or `email`.
+
+        Returns:
+            The added finding, then its other occurrences, as `document()`
+            lists entities.
+
+        Raises:
+            ReviewError: If an argument is not a whole number, the type or the
+                page is unknown, the selection covers no word, or the text is
+                already marked for redaction.
+        """
+        current = self._current()
+        if not all(_is_whole(value) for value in (page_index, start, end)):
+            msg = "the page and the offsets must be whole numbers"
+            raise ReviewError(msg)
+        with _as_review_error():
+            kind = EntityType(entity_type)
+            added = add_finding(
+                current.document, page_index, start, end, kind, propagate=current.propagate
+            )
+        log.debug("review: added %s with %d repeats", describe(added[0]), len(added) - 1)
+        return [_entity_payload(entity) for entity in added]
+
     def set_review(self, entity_id: str, state: str) -> dict[str, Any]:
         """Record the reviewer's decision on one entity.
 
@@ -583,11 +657,17 @@ class ReviewApi:
         log.debug("region added: entity=%s page=%d", region.entity_id, page_index)
         return _entity_payload(region)
 
-    def remove_entity(self, entity_id: str) -> None:
+    def remove_entity(self, entity_id: str) -> list[str]:
         """Remove an item the reviewer added, such as a region drawn by mistake.
+
+        Repeats proposed only because the reviewer added the text go with it
+        (`pipeline.remove_finding`).
 
         Args:
             entity_id: The item to remove.
+
+        Returns:
+            The ids removed: the item's first, then those of its repeats.
 
         Raises:
             ReviewError: If it is unknown, or was detected rather than added:
@@ -599,8 +679,9 @@ class ReviewApi:
         if entity.source is not DetectionSource.MANUAL:
             msg = "only items you added can be removed; keep a detected item instead"
             raise ReviewError(msg)
-        current.document.remove_entity(entity_id)
-        log.debug("item removed: entity=%s", entity_id)
+        removed = remove_finding(current.document, entity_id)
+        log.debug("item removed: entity=%s repeats=%d", entity_id, len(removed) - 1)
+        return [item.entity_id for item in removed]
 
     def save_session(self, path: str) -> None:
         """Write the review to a session file, replacing one that exists.
@@ -682,6 +763,11 @@ def _as_review_error() -> Iterator[None]:
         # str() of a KeyError quotes its message.
         message = error.args[0] if isinstance(error, KeyError) and error.args else str(error)
         raise ReviewError(message) from error
+
+
+def _is_whole(value: object) -> bool:
+    """Whether a value from the page is an integer (JSON has no separate type for it)."""
+    return isinstance(value, int) and not isinstance(value, bool)
 
 
 def _state(installed: bool, missing: list[str]) -> str:

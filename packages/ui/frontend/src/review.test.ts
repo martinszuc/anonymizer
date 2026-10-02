@@ -16,8 +16,17 @@ import {
   pageList,
   formatBytes,
   isUnreadScan,
+  DEFAULT_VIEW,
+  NO_FILTER,
+  activeFilters,
+  filterFindings,
+  findingSections,
+  keepable,
   lastDrawnRegion,
   lowConfidence,
+  scoreRange,
+  sortedBy,
+  type ListView,
   openStatus,
   pagesWithoutText,
   regionNumbers,
@@ -386,5 +395,81 @@ describe("lowConfidence", () => {
       name("hidden", "Kupující", 0.3, { surface_id: "metadata:Title" }),
     ];
     expect(lowConfidence(found, 0.7)).toEqual([]);
+  });
+});
+
+describe("the findings list", () => {
+  // Page 1 top to bottom: Kupující (model 35 %, three times), Jan Novák (model 92 %),
+  // an email (rule), Novák (model 55 %, kept); a drawn region on page 2.
+  const at = (top: number, page = 0) => ({ page_index: page, boxes: [[72, top, 200, top + 12]] as [number, number, number, number][] });
+  const findings: EntityInfo[] = [
+    entity({ id: "k1", type: "person", source: "model", score: 0.35, text: "Kupující", ...at(100) }),
+    entity({ id: "jan", type: "person", source: "model", score: 0.92, text: "Jan Novák", ...at(120) }),
+    entity({ id: "k2", type: "person", source: "propagated", text: "Kupující", ...at(140) }),
+    entity({ id: "mail", ...at(160) }),
+    entity({ id: "novak", type: "person", source: "model", score: 0.55, text: "Novák", review: "rejected", ...at(180) }),
+    entity({ id: "k3", type: "person", source: "propagated", text: "kupující", ...at(200) }),
+    entity({ id: "region", type: "region", source: "manual", text: null, is_region: true, review: "confirmed", ...at(50, 1) }),
+  ];
+  const view = (changes: Partial<ListView>): ListView => ({ ...DEFAULT_VIEW, ...changes });
+  const rowIds = (v: ListView) =>
+    findingSections(findings, v).flatMap((section) => section.rows.map((row) => row.members.map((m) => m.id).join("+")));
+
+  it("groups by type in reading order by default", () => {
+    const sections = findingSections(findings, DEFAULT_VIEW);
+    expect(sections.map((section) => section.type)).toEqual(["person", "email", "region"]);
+    expect(rowIds(DEFAULT_VIEW)).toEqual(["k1+k2+k3", "jan", "novak", "mail", "region"]);
+  });
+
+  it("orders by score either way, unscored rows last", () => {
+    const flat = (sort: ListView["sort"]) => sortedBy(DEFAULT_VIEW, sort);
+    expect(rowIds(flat("score-asc"))).toEqual(["k1+k2+k3", "novak", "jan", "mail", "region"]);
+    expect(rowIds(flat("score-desc"))).toEqual(["jan", "novak", "k1+k2+k3", "mail", "region"]);
+  });
+
+  it("orders by repeats, page and text", () => {
+    expect(rowIds(sortedBy(DEFAULT_VIEW, "occurrences"))[0]).toBe("k1+k2+k3");
+    expect(rowIds(sortedBy(DEFAULT_VIEW, "page"))).toEqual(["k1+k2+k3", "jan", "mail", "novak", "region"]);
+    expect(rowIds(sortedBy(DEFAULT_VIEW, "text"))).toEqual(["region", "jan", "mail", "k1+k2+k3", "novak"]);
+  });
+
+  it("keeps sections by type for another order when asked", () => {
+    const sections = findingSections(findings, view({ sort: "score-desc", byType: true }));
+    expect(sections.map((section) => section.type)).toEqual(["person", "email", "region"]);
+    expect(sections[0]?.rows.map((row) => row.members[0]?.id)).toEqual(["jan", "novak", "k1"]);
+  });
+
+  it("chooses sections with the order", () => {
+    expect(sortedBy(DEFAULT_VIEW, "score-asc").byType).toBe(false);
+    expect(sortedBy(view({ sort: "page", byType: false }), "type").byType).toBe(true);
+  });
+
+  it("filters by decision, source and score", () => {
+    const ids = (filter: Partial<typeof NO_FILTER>) => filterFindings(findings, { ...NO_FILTER, ...filter }).map((e) => e.id);
+    expect(ids({ decision: "undecided" })).toEqual(["k1", "jan", "k2", "mail", "k3"]);
+    expect(ids({ decision: "kept" })).toEqual(["novak"]);
+    expect(ids({ decision: "redacted" })).toEqual(["k1", "jan", "k2", "mail", "k3", "region"]);
+    expect(ids({ sources: ["rule", "manual"] })).toEqual(["mail", "region"]);
+    expect(ids({ scoreBelow: 0.6 })).toEqual(["k1", "k2", "novak", "k3"]);
+  });
+
+  it("searches the found text ignoring case and diacritics", () => {
+    const ids = (text: string) => filterFindings(findings, { ...NO_FILTER, text }).map((e) => e.id);
+    expect(ids("novak")).toEqual(["jan", "mail", "novak"]); // the email holds it too
+    expect(ids("  KUPUJICI ")).toEqual(["k1", "k2", "k3"]);
+    expect(ids("region 1")).toEqual(["region"]);
+  });
+
+  it("keeps only the undecided findings shown", () => {
+    const shown = findingSections(findings, view({ filter: { ...NO_FILTER, scoreBelow: 0.6 } }));
+    expect(keepable(shown).map((e) => e.id)).toEqual(["k1", "k2", "k3"]);
+  });
+
+  it("counts active filters and shows score ranges", () => {
+    expect(activeFilters(NO_FILTER)).toBe(0);
+    expect(activeFilters({ decision: "kept", sources: ["model"], scoreBelow: 0.5, text: " a " })).toBe(4);
+    expect(scoreRange(findings.slice(0, 2))).toBe("35–92 %");
+    expect(scoreRange([findings[1] as EntityInfo])).toBe("92 %");
+    expect(scoreRange([findings[3] as EntityInfo])).toBeNull();
   });
 });

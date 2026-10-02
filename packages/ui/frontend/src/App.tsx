@@ -13,6 +13,10 @@ import { Toolbar } from "./components/Toolbar";
 import { PageImages } from "./pageImages";
 import { hasCommand } from "./platform";
 import {
+  DEFAULT_VIEW,
+  NO_FILTER,
+  activeFilters,
+  filterFindings,
   groupToggled,
   isDecidable,
   lastDrawnRegion,
@@ -20,6 +24,7 @@ import {
   plural,
   steppedZoom,
   toggled,
+  type ListView,
 } from "./review";
 import type {
   AppStatus,
@@ -62,6 +67,8 @@ export function App() {
   const [previewing, setPreviewing] = useState(false);
   const [tab, setTab] = useState<SidebarTab>("findings");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // How the findings list is ordered and filtered; the order lasts the session, the filter one document.
+  const [view, setView] = useState<ListView>(DEFAULT_VIEW);
   const [selectedSurfaceId, setSelectedSurfaceId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -111,12 +118,21 @@ export function App() {
   }, []);
 
   const images = useMemo(() => (bridge ? new PageImages(bridge) : null), [bridge, generation]);
+  // The findings a filter lets through, whose boxes stay bright on the page; null without a filter.
+  const shownIds = useMemo(
+    () =>
+      document && activeFilters(view.filter) > 0
+        ? new Set(filterFindings(document.entities, view.filter).map((entity) => entity.id))
+        : null,
+    [document, view.filter],
+  );
 
   function show(opened: DocumentInfo) {
     setDocument(opened);
     setGeneration((value) => value + 1);
     setDirty(false);
     setSelectedId(null);
+    setView((current) => ({ ...current, filter: NO_FILTER }));
     setSelectedSurfaceId(null);
     drawnRegions.current = [];
     setCurrentPage(0);
@@ -527,6 +543,8 @@ export function App() {
                 onToggle={toggle}
                 onToggleGroup={(members) => void toggleGroup(members)}
                 onKeep={(entities) => void keepAll(entities)}
+                view={view}
+                onView={setView}
                 onRemove={(entity) => void removeEntity(entity)}
                 selectedSurfaceId={selectedSurfaceId}
                 onSelectSurface={selectSurface}
@@ -542,6 +560,7 @@ export function App() {
                 previewing={previewing}
                 drawing={drawTool || altHeld}
                 locating={locating}
+                shownIds={shownIds}
                 onSelect={(entity) => setSelectedId(entity.id)}
                 onDrawRegion={(pageIndex, box) => void addRegion(pageIndex, box)}
                 onToggle={toggle}

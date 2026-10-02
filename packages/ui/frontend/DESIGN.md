@@ -74,11 +74,18 @@ its click redacts every member. Open, the occurrences follow indented by
 `--space-6`, each with its own switch. Clicking the row selects the next
 occurrence on the page; → and ← open and close it from the keyboard.
 
-**Keep uncertain findings.** A `--fill` card above the list, shown while the names
-model left findings undecided: "N findings scored below" (count weight 600 in
-`--label`, the rest `--label-2` footnote), a secondary *Keep* button on the right
-(disabled at 0), and a segmented control of score steps (40, 50, 60, 70 %). Keeping
-shows a toast with *Undo*.
+**List tools** (above the findings list, footnote size). A search field
+(`--fill`, 28 px, magnifier, clear button in a `--label-3` circle; Escape
+clears it). Under it one line: the sort menu (arrows icon, a native select
+without chrome, weight 500), the *Filter* toggle (`--accent` with a count pill
+while filters are on), and "N of M" right-aligned in tabular figures. *Filter*
+opens a `--fill` panel inline: *Decision* and *Model score below* as segmented
+controls, *Found by* as pill chips (pressed: `--accent-fill`, `--accent` text),
+and a *Sections by type* checkbox (disabled for the Type order). While filtered,
+a strip offers *Keep N* (secondary) and *Clear filters* (plain); otherwise a
+`--fill` hint "N findings scored below 50 %" with a *Show them* link
+(`--accent`, weight 600). Boxes outside the filter are drawn at 25 % opacity in
+review mode; preview shows the output unchanged.
 
 **Models sheet.** A wide sheet (560 px) from *Manage models…* on the home
 screen. Under the intro, a folder row (`--fill`, folder icon, the models folder

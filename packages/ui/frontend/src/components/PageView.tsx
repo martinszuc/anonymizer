@@ -39,6 +39,8 @@ interface PageViewProps {
   drawing: boolean;
   /** A click on a box only selects it; otherwise it also changes the decision. */
   locating: boolean;
+  /** Findings the list's filter shows; the others are dimmed. Null when nothing is filtered. */
+  shownIds: Set<string> | null;
   onSelect: (entity: EntityInfo) => void;
   onDrawRegion: (pageIndex: number, box: Box) => void;
   onToggle: (entity: EntityInfo) => void;
@@ -107,6 +109,7 @@ function Page({
   previewing,
   drawing,
   locating,
+  shownIds,
   onSelect,
   onToggle,
   onError,
@@ -241,6 +244,7 @@ function Page({
               entity={entity}
               hatch={entity.is_region && !previewing ? `url(#${hatchId})` : undefined}
               selected={entity.id === selectedId}
+              dimmed={shownIds !== null && !shownIds.has(entity.id)}
               locating={locating}
               onHover={setHoveredId}
               onToggle={onToggle}
@@ -292,13 +296,15 @@ interface RedactionProps {
   /** Fill for a drawn region in review mode: the page's hatch pattern. */
   hatch?: string;
   selected: boolean;
+  /** Outside the list's filter: drawn faint in review mode. */
+  dimmed: boolean;
   locating: boolean;
   onHover: (entityId: string) => void;
   onToggle: (entity: EntityInfo) => void;
   onSelect: (entity: EntityInfo) => void;
 }
 
-function Redaction({ entity, hatch, selected, locating, onHover, onToggle, onSelect }: RedactionProps) {
+function Redaction({ entity, hatch, selected, dimmed, locating, onHover, onToggle, onSelect }: RedactionProps) {
   return (
     <g
       className="redaction"
@@ -308,6 +314,7 @@ function Redaction({ entity, hatch, selected, locating, onHover, onToggle, onSel
       data-redacted={isRemoved(entity)}
       data-propagated={entity.source === "propagated"}
       data-selected={selected}
+      data-dimmed={dimmed}
       onMouseEnter={() => onHover(entity.id)}
       onClick={() => {
         onSelect(entity);

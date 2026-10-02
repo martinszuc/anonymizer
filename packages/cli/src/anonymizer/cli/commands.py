@@ -13,7 +13,7 @@ from typing import TextIO
 from anonymizer.cli import html_report, report
 from anonymizer.core.detect import load_gliner_detector
 from anonymizer.core.ingest import OcrEngine, load_document, pages_needing_ocr
-from anonymizer.core.pipeline import build_detector, run_detection
+from anonymizer.core.pipeline import build_detector, resolve_language, run_detection
 from anonymizer.core.redact import export_redacted, find_leaks
 from anonymizer.core.session import load_session, save_session
 from anonymizer.core.types import Document
@@ -51,6 +51,7 @@ def detected(
     """
     model = load_gliner_detector(ner_root) if ner_root is not None else None
     document = load_document(source, language=language, ocr=ocr)
+    language = resolve_language(document, language)
     run_detection(document, build_detector(language, model=model), propagate=propagate)
     return document
 

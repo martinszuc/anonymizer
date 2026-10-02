@@ -64,6 +64,9 @@ _FINDERS_BY_LANGUAGE: dict[str, tuple[Finder, ...]] = {
     "en": (find_nanp_phone_numbers, find_english_birth_dates, find_us_addresses),
 }
 
+RULE_LANGUAGES: tuple[str, ...] = tuple(_FINDERS_BY_LANGUAGE)
+"""Languages with rules of their own; any other runs every rule."""
+
 STRUCTURED_FINDERS: tuple[Finder, ...] = (
     *LANGUAGE_INDEPENDENT_FINDERS,
     *_CZECH_SLOVAK_FINDERS,
@@ -125,6 +128,7 @@ def structured_detector() -> RuleDetector:
 __all__ = [
     "LANGUAGE_INDEPENDENT_FINDERS",
     "OVERLAP_PRIORITY",
+    "RULE_LANGUAGES",
     "STRUCTURED_FINDERS",
     "CombinedDetector",
     "Detector",

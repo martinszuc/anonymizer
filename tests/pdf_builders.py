@@ -14,6 +14,13 @@ from typing import Any
 import pymupdf
 from PIL import Image, TiffImagePlugin
 
+ENGLISH_LETTER = [
+    "The buyer collects the goods at the seller's shop and pays the price",
+    "by bank transfer within seven days. Complaints may be made in writing.",
+    "Order reference 777 123 456.",
+]
+"""English text with a number only the Czech phone rule takes for a phone."""
+
 
 def write_pdf(path: Path, pages: list[list[str]], rotation: int = 0) -> Path:
     """Write a PDF with one text block per line of each page."""

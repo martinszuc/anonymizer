@@ -160,7 +160,9 @@ GitHub with the wheels and source archives. See [`CHANGELOG.md`](CHANGELOG.md).
 
 Working for PDFs with a text layer: text and hidden-data extraction, rule-based
 detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL, labelled
-dates of birth, postal addresses), names with the GLiNER model (optional,
+dates of birth, postal addresses) scoped to the document's language, which can
+be recognised from the text (`--lang auto`, the window's default), names with the
+GLiNER model (optional,
 `--ner`) widened over the academic titles beside them, review through
 session files or the review window (a home screen with the detection options,
 models downloaded from the window and checked against their checksums, open or

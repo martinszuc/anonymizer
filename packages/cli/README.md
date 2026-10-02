@@ -10,6 +10,11 @@ anonymize check cv-redacted.pdf --source cv.pdf --session review.json
 anonymize inspect cv.pdf -o cv.html [--session review.json]  # see what was found
 ```
 
+**Language.** `--lang` picks the rules (`cs`, `sk`, `en`); without it every
+rule runs. `--lang auto` recognises the language from the text (py3langid, offline)
+and falls back to every rule when the text is in another language or too short to
+judge; the session records what was used.
+
 To try the commands without a real document, generate the synthetic sample
 (`uv run python scripts/make_mixed_sample.py`, see the root README, *Try it on a
 sample*). Keep `review.json` with its PDF: a session only applies to the file it

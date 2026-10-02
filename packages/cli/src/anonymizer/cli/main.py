@@ -137,7 +137,10 @@ def _add_detection_options(parser: argparse.ArgumentParser) -> None:
     """Options shared by every command that runs detection."""
     parser.add_argument(
         "--lang",
-        help="document language, e.g. cs, sk or en; every rule runs when omitted",
+        help=(
+            "document language, e.g. cs, sk or en, or auto to recognise it from the text; "
+            "every rule runs when omitted"
+        ),
     )
     parser.add_argument(
         "--no-propagate",

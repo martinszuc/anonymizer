@@ -31,7 +31,7 @@ Surfaces:
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Self
@@ -39,6 +39,12 @@ from uuid import uuid4
 
 SCHEMA_VERSION = 6
 """Version of the serialized review format. Bump on any incompatible change."""
+
+PageProgress = Callable[[int, int], None]
+"""Told as a step goes page by page: the pages done so far, then the pages in all.
+
+Called once with 0 done before the first page, then after each page.
+"""
 
 
 class EntityType(StrEnum):

@@ -12,7 +12,7 @@ import logging
 from dataclasses import replace
 
 from anonymizer.core.detect.base import Detector
-from anonymizer.core.types import Document, Entity, Page, Surface
+from anonymizer.core.types import Document, Entity, Page, PageProgress, Surface
 
 log = logging.getLogger(__name__)
 
@@ -44,18 +44,28 @@ def detect_surface(detector: Detector, surface: Surface) -> list[Entity]:
     ]
 
 
-def detect_document(detector: Detector, document: Document) -> list[Entity]:
+def detect_document(
+    detector: Detector, document: Document, progress: PageProgress | None = None
+) -> list[Entity]:
     """Return the entities a detector finds anywhere in a document.
 
     Args:
         detector: Detector to run.
         document: Document whose pages and surfaces are scanned.
+        progress: Told how many pages are scanned; the surfaces that follow
+            are short.
 
     Returns:
         Page-text entities in page order, followed by surface entities in
         surface order.
     """
-    on_pages = [entity for page in document.pages for entity in detector.detect(page)]
+    on_pages: list[Entity] = []
+    if progress is not None:
+        progress(0, len(document.pages))
+    for done, page in enumerate(document.pages, start=1):
+        on_pages += detector.detect(page)
+        if progress is not None:
+            progress(done, len(document.pages))
     on_surfaces = [
         entity for surface in document.surfaces for entity in detect_surface(detector, surface)
     ]

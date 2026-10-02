@@ -155,8 +155,16 @@ Location = tuple[int, int, int]
 
 
 def _page_locations(spec: DocumentSpec, document: Document) -> dict[int, Location | None]:
-    """Locate each planted page item; the k-th item with a text gets its k-th occurrence."""
-    seen: Counter[str] = Counter()
+    """Locate each planted page item in the ingested page text.
+
+    Items are planted in reading order, so each takes the first occurrence of
+    its text after the previous item. "Bartoš" planted alone after "Roman
+    Bartoš" is the later, standalone occurrence, not the surname inside the
+    full name. An item found only before that point (the text extracted in an
+    unexpected order) takes its first occurrence no other item holds.
+    """
+    cursor = (0, 0)
+    taken: list[Location] = []
     locations: dict[int, Location | None] = {}
     for index, item in enumerate(spec.gold):
         if item.carrier != "page":
@@ -165,15 +173,26 @@ def _page_locations(spec: DocumentSpec, document: Document) -> dict[int, Locatio
         pattern = re.compile(
             r"(?<!\w)" + r"\s+".join(re.escape(word) for word in item.text.split()) + r"(?!\w)"
         )
-        occurrences = [
+        free = [
             (page.index, match.start(), match.end())
             for page in document.pages
             for match in pattern.finditer(page.text)
+            if not any(
+                _overlapping((page.index, match.start(), match.end()), held) for held in taken
+            )
         ]
-        nth = seen[item.text]
-        seen[item.text] += 1
-        locations[index] = occurrences[nth] if nth < len(occurrences) else None
+        ahead = [location for location in free if location[:2] >= cursor]
+        location = ahead[0] if ahead else (free[0] if free else None)
+        locations[index] = location
+        if location is not None:
+            taken.append(location)
+            if ahead:
+                cursor = (location[0], location[2])
     return locations
+
+
+def _overlapping(first: Location, second: Location) -> bool:
+    return first[0] == second[0] and first[1] < second[2] and second[1] < first[2]
 
 
 def _overlaps(entity: Entity, location: Location) -> bool:

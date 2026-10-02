@@ -74,6 +74,25 @@ def test_a_shared_word_elsewhere_is_not_a_partial_find():
     assert score_detection(spec, _document(text, [email])) == [("missed", False)]
 
 
+def test_a_surname_planted_alone_is_its_own_occurrence():
+    text = "Technik Roman Bartoš přijede ve čtvrtek. Minule ji dělal pan Bartoš."
+    spec = DocumentSpec(
+        name="x",
+        language="cs",
+        kind="x",
+        lines=(text,),
+        gold=(
+            GoldItem(EntityType.PERSON, "Roman Bartoš", "page"),
+            GoldItem(EntityType.PERSON, "Bartoš", "page"),
+        ),
+    )
+    full_name = Entity(type=EntityType.PERSON, page_index=0, start=8, end=20, text="Roman Bartoš")
+    assert score_detection(spec, _document(text, [full_name])) == [
+        ("found", True),
+        ("missed", False),
+    ]
+
+
 def test_surface_items_match_only_entities_on_that_carrier():
     entities = [_entity("Jan Novák", EntityType.PERSON, surface_id="metadata:doc:Author")]
     scores = score_detection(SPEC, _document(TEXT, entities))

@@ -295,6 +295,18 @@ page's own drag listeners only draw the highlight.
 
 ## Development
 
+One command installs the frontend, starts Vite and opens the real window with
+hot reload (`--debug` on); closing the window stops Vite. Options after the task
+name go to `anonymize-ui`; `--built` builds the page once and opens that instead.
+
+```sh
+uv run poe dev
+uv run poe dev some.pdf --lang cs --ner
+uv run poe dev --built
+```
+
+The same steps by hand:
+
 ```sh
 cd packages/ui/frontend && npm ci
 npm run dev                  # http://127.0.0.1:5173 with the demo document

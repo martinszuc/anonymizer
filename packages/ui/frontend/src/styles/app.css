@@ -749,6 +749,25 @@ kbd {
   pointer-events: none;
 }
 
+/* A drawn region's number, on its top-left corner; review mode only. */
+.region-number {
+  position: absolute;
+  min-width: 18px;
+  padding: 0 var(--space-2);
+  transform: translate(-50%, -50%);
+  border-radius: var(--radius-pill);
+  background: var(--elevated);
+  backdrop-filter: var(--material-popover);
+  box-shadow: var(--shadow-control);
+  color: var(--label);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  text-align: center;
+  pointer-events: none;
+}
+
 .draft-region {
   fill: var(--accent);
   fill-opacity: 0.12;

@@ -20,6 +20,7 @@ import {
   isLargeEnough,
   isRemoved,
   isUnreadScan,
+  regionNumbers,
   renderDpi,
   typeLabel,
 } from "../review";
@@ -46,6 +47,7 @@ interface PageViewProps {
 /** Every page of the document, stacked, with its proposed redactions drawn over it. */
 export const PageView = forwardRef<HTMLDivElement, PageViewProps>(function PageView(props, ref) {
   const { document, previewing, drawing, onCurrentPage } = props;
+  const numbers = regionNumbers(document.entities);
 
   const onScroll = (event: UIEvent<HTMLDivElement>) => {
     const scroller = event.currentTarget;
@@ -74,6 +76,7 @@ export const PageView = forwardRef<HTMLDivElement, PageViewProps>(function PageV
           page={page}
           entities={document.entities.filter((entity) => entity.page_index === page.index && entity.boxes.length > 0)}
           surfaces={document.surfaces.filter((surface) => surface.page_index === page.index && surface.box)}
+          regionNumbers={numbers}
           {...props}
         />
       ))}
@@ -85,12 +88,15 @@ interface PageProps extends PageViewProps {
   page: PageInfo;
   entities: EntityInfo[];
   surfaces: SurfaceInfo[];
+  /** Every drawn region's number, by entity id. */
+  regionNumbers: Map<string, number>;
 }
 
 function Page({
   page,
   entities,
   surfaces,
+  regionNumbers,
   images,
   scale,
   selectedId,
@@ -247,9 +253,27 @@ function Page({
             />
           )}
         </svg>
+        {!previewing &&
+          entities.map(
+            (entity) =>
+              entity.is_region && (
+                <RegionNumber
+                  key={entity.id}
+                  entity={entity}
+                  number={regionNumbers.get(entity.id)}
+                  scale={scale}
+                />
+              ),
+          )}
         <AnimatePresence>
           {hovered && !previewing && !draft && (
-            <Popover key={hovered.id} entity={hovered} scale={scale} pageHeight={height} />
+            <Popover
+              key={hovered.id}
+              entity={hovered}
+              regionNumber={regionNumbers.get(hovered.id)}
+              scale={scale}
+              pageHeight={height}
+            />
           )}
         </AnimatePresence>
       </div>
@@ -314,10 +338,28 @@ function HiddenBox({ id, box: [x0, y0, x1, y1], selected }: { id: string; box: B
   );
 }
 
+/** A drawn region's number at its top-left corner, matching its row in the sidebar. */
+function RegionNumber({ entity, number, scale }: { entity: EntityInfo; number: number | undefined; scale: number }) {
+  const first = entity.boxes[0];
+  if (!first || number === undefined) return null;
+  return (
+    <span className="region-number" style={{ left: first[0] * scale, top: first[1] * scale }} aria-hidden>
+      {number}
+    </span>
+  );
+}
+
 const POPOVER_GAP = 8;
 const POPOVER_HEIGHT = 64;
 
-function Popover({ entity, scale, pageHeight }: { entity: EntityInfo; scale: number; pageHeight: number }) {
+interface PopoverProps {
+  entity: EntityInfo;
+  regionNumber: number | undefined;
+  scale: number;
+  pageHeight: number;
+}
+
+function Popover({ entity, regionNumber, scale, pageHeight }: PopoverProps) {
   const first = entity.boxes[0];
   if (!first) return null;
   const left = Math.min(...entity.boxes.map((box) => box[0])) * scale;
@@ -341,7 +383,7 @@ function Popover({ entity, scale, pageHeight }: { entity: EntityInfo; scale: num
         {typeLabel(entity.type)}
         {entity.source === "propagated" && <span className="muted"> · repeat</span>}
       </span>
-      <span className="popover-text">{covers(entity)}</span>
+      <span className="popover-text">{covers(entity, regionNumber)}</span>
       <span className="popover-hint">{popoverHint(entity, redacted)}</span>
     </motion.div>
   );

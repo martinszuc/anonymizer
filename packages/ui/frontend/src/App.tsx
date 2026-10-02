@@ -12,7 +12,7 @@ import { Toasts, type Toast } from "./components/Toasts";
 import { Toolbar } from "./components/Toolbar";
 import { PageImages } from "./pageImages";
 import { hasCommand } from "./platform";
-import { isDecidable, pagesWithoutText, steppedZoom, toggled } from "./review";
+import { isDecidable, lastDrawnRegion, pagesWithoutText, steppedZoom, toggled } from "./review";
 import type {
   AppStatus,
   Box,
@@ -62,6 +62,8 @@ export function App() {
   // The region tool, or Alt held down: a drag on a page draws a region.
   const [drawTool, setDrawTool] = useState(false);
   const [altHeld, setAltHeld] = useState(false);
+  // Regions drawn since this document opened, oldest first: Cmd/Ctrl+Z removes the last.
+  const drawnRegions = useRef<string[]>([]);
   // The Models sheet: its features (null while loading) and a running download.
   const [modelsOpen, setModelsOpen] = useState(false);
   const [models, setModels] = useState<FeatureModels[] | null>(null);
@@ -99,6 +101,7 @@ export function App() {
     setDirty(false);
     setSelectedId(null);
     setSelectedSurfaceId(null);
+    drawnRegions.current = [];
     setCurrentPage(0);
     setZoom("fit");
     canvasRef.current?.scrollTo({ top: 0 });
@@ -273,6 +276,7 @@ export function App() {
     try {
       const region = await bridge.add_region(pageIndex, ...box);
       setDocument((current) => current && { ...current, entities: [...current.entities, region] });
+      drawnRegions.current.push(region.id);
       setSelectedId(region.id);
       setDirty(true);
     } catch (error) {
@@ -355,6 +359,7 @@ export function App() {
       else if (key === "0" && document) setZoom("fit");
       else if (key === "y" && document) setPreviewing((value) => !value);
       else if (key === "e" && document) startExport();
+      else if (key === "z" && !event.shiftKey && document) undoRegion();
       else return;
       event.preventDefault();
     };
@@ -371,6 +376,14 @@ export function App() {
       window.removeEventListener("blur", onBlur);
     };
   });
+
+  /** Remove the last region drawn that is still there; there is no undo for decisions yet. */
+  function undoRegion() {
+    if (!document) return;
+    const region = lastDrawnRegion(drawnRegions.current, document.entities);
+    drawnRegions.current = drawnRegions.current.filter((id) => id !== region?.id);
+    if (region) void removeEntity(region);
+  }
 
   /** Keys without a modifier: R for the region tool, Escape, Delete on a selected region. */
   function onPlainKey(event: KeyboardEvent) {

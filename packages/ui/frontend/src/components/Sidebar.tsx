@@ -3,7 +3,16 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 
 import { gentle } from "../motion";
-import { covers, groupByType, isDecidable, isIdentifier, isRemoved, summarize, typeLabel } from "../review";
+import {
+  covers,
+  groupByType,
+  isDecidable,
+  isIdentifier,
+  isRemoved,
+  regionNumbers,
+  summarize,
+  typeLabel,
+} from "../review";
 import type { DocumentInfo, EntityInfo, SurfaceInfo } from "../types";
 import { SegmentedControl } from "./SegmentedControl";
 import { Switch } from "./Switch";
@@ -100,6 +109,7 @@ interface FindingsProps {
 
 function Findings({ document, selectedId, onSelect, onToggle, onRemove }: FindingsProps) {
   const groups = useMemo(() => groupByType(document.entities), [document.entities]);
+  const numbers = useMemo(() => regionNumbers(document.entities), [document.entities]);
   const ordered = groups.flatMap((group) => group.entities);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -158,6 +168,7 @@ function Findings({ document, selectedId, onSelect, onToggle, onRemove }: Findin
             <EntityRow
               key={entity.id}
               entity={entity}
+              regionNumber={numbers.get(entity.id)}
               selected={entity.id === selectedId}
               onSelect={onSelect}
               onToggle={onToggle}
@@ -172,17 +183,18 @@ function Findings({ document, selectedId, onSelect, onToggle, onRemove }: Findin
 
 interface EntityRowProps {
   entity: EntityInfo;
+  regionNumber: number | undefined;
   selected: boolean;
   onSelect: (entity: EntityInfo) => void;
   onToggle: (entity: EntityInfo) => void;
   onRemove: (entity: EntityInfo) => void;
 }
 
-function EntityRow({ entity, selected, onSelect, onToggle, onRemove }: EntityRowProps) {
+function EntityRow({ entity, regionNumber, selected, onSelect, onToggle, onRemove }: EntityRowProps) {
   const redacted = isRemoved(entity);
   // Only something the reviewer can decide on waits for review.
   const unreviewed = entity.review === "pending" && isDecidable(entity);
-  const text = covers(entity);
+  const text = covers(entity, regionNumber);
   return (
     <div
       id={`row-${entity.id}`}
@@ -219,7 +231,7 @@ function EntityRow({ entity, selected, onSelect, onToggle, onRemove }: EntityRow
         <button
           type="button"
           className="row-remove"
-          aria-label={`Remove this region on page ${(entity.page_index ?? 0) + 1}`}
+          aria-label={`Remove ${text.toLowerCase()} on page ${(entity.page_index ?? 0) + 1}`}
           title="Remove region (Delete)"
           tabIndex={-1}
           onClick={(event) => {

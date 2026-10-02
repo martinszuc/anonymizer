@@ -46,9 +46,12 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   check: Passed", or "Nothing was written" with the leaks.
 - **Draw a region** over a photo, signature or stamp: the region tool (R) or
   holding Alt, then drag. The region is hatched in review mode, black in
-  preview; a click selects it, Delete (or × in its sidebar row) removes it. It
-  is saved in the session and removed with everything under it on export
-  (text, the drawings it touches, image pixels).
+  preview; a click selects it, Delete (or × in its sidebar row) removes it,
+  Cmd/Ctrl+Z removes the last one drawn since the document opened. Regions are
+  numbered in drawing order on the page and in the sidebar ("Region 2"), and
+  renumbered when one is removed. A region is saved in the session and removed
+  with everything under it on export (text, the drawings it touches, image
+  pixels); overlapping regions are fine.
 - **Models** (*Manage models…* on the home screen): a sheet listing what
   each feature needs (names and addresses: GLiNER and its tokenizer; scanned
   pages: OnnxTR's two models) with size, licence, languages, source and

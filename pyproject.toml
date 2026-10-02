@@ -118,6 +118,7 @@ format-check = { cmd = "ruff format --check .", help = "Check formatting" }
 types = { cmd = "pyright", help = "Type check" }
 test = { cmd = "pytest", help = "Run the tests" }
 hooks = { cmd = "pre-commit run --all-files", help = "Run every pre-commit hook" }
+dev = { cmd = "python scripts/dev.py", help = "Start the review window with frontend hot reload (--built: build and open)" }
 
 # A regression in redaction leaks data, so redact/ has a higher floor than the
 # overall one in [tool.coverage.report].

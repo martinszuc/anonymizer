@@ -18,6 +18,10 @@ written as a literal, in that component's rule.
 3. **Every decision is one click and reversible.** Clicking a box or a row switch
    toggles redact / keep. Motion confirms the change without delaying it.
 4. **Nothing leaves the machine.** No web fonts, no remote assets, a strict CSP.
+5. **Copy says what a control does, nothing else.** Labels and notes are one short,
+   plain line. No reassurance, no explanation of how the app is built (checksums,
+   sources, "everything stays on this computer"); that belongs in the docs. A
+   sentence that would still be true in any other app is cut.
 
 ## Tokens
 
@@ -153,7 +157,7 @@ primary; while a file is dragged over the window: `--accent` border on
 `--accent-fill`, "Drop to open"); a **Detection** card of option rows (label,
 one-line note in `--label-2`, control on the right: the language segmented (*Auto* first, the default)
 control, setting switches); *Continue a saved review…* as a plain button; a
-footer "Everything stays on this computer · version". The model's row says why
+footer "Works offline · version". The model's row says why
 its switch is disabled and what to run.
 
 **Opening.** An `--elevated` card (360 px): a status line (what is running

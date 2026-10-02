@@ -46,10 +46,6 @@ export function ModelsSheet({
         </Button>
       }
     >
-      <p>
-        Downloaded only when you ask, from each model&apos;s official source, and checked against a
-        stored checksum. After that everything runs on this computer.
-      </p>
       {folder && (
         <div className="model-folder">
           <FolderCog size={14} aria-hidden />

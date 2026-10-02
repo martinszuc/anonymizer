@@ -127,7 +127,7 @@ export function Home({
 
       <footer className="home-footer">
         <ShieldCheck size={14} aria-hidden />
-        Everything stays on this computer{status ? ` · version ${status.version}` : ""}
+        Works offline{status ? ` · version ${status.version}` : ""}
       </footer>
     </motion.main>
   );

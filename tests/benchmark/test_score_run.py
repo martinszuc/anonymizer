@@ -129,4 +129,10 @@ def test_rules_only_run_writes_results_and_pictures(tmp_path):
     assert results["totals"]["rules"]["false_alarms_per_1000_words"] == 0.0
     for picture in ("original", "rules.detected", "rules.redacted", "rules.collage"):
         assert (tmp_path / "images" / f"contact.{picture}.png").stat().st_size > 0
-    assert "| rules | 2/3 |" in markdown(results)
+    assert results["totals"]["rules"]["by_carrier"]["page"]["found"] == 2
+    assert results["totals"]["rules"]["by_kind"]["letter"]["documents"] == 1
+    report = markdown(results)
+    assert "| rules | 2/3 |" in report
+    # The name is readable, and "jan" of the email address with it.
+    assert "| page | 2/3 / 2 |" in report
+    assert "| letter | 1 | 2/3 / 0/1 / 0 |" in report

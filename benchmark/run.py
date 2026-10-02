@@ -187,13 +187,31 @@ def _totals(documents: dict[str, Any], systems: list[str]) -> dict[str, Any]:
     for system in systems:
         results = [document["systems"][system] for document in documents.values()]
         items = [ItemResult(**item) for result in results for item in result["items"]]
-        by_type: dict[str, dict[str, int]] = {}
-        for kind in sorted({item.type for item in items}):
-            by_type[kind] = outcome_counts([item for item in items if item.type == kind])
+        by_type = {
+            kind: outcome_counts([item for item in items if item.type == kind])
+            for kind in sorted({item.type for item in items})
+        }
+        by_carrier = {
+            carrier: outcome_counts([item for item in items if item.carrier == carrier])
+            for carrier in sorted({item.carrier for item in items})
+        }
+        by_kind = {
+            kind: _kind_totals(
+                [
+                    document
+                    for document in documents.values()
+                    if document["summary"]["kind"] == kind
+                ],
+                system,
+            )
+            for kind in sorted({document["summary"]["kind"] for document in documents.values()})
+        }
         false_alarms = sum(len(result["false_positives"]) for result in results)
         totals[system] = {
             "counts": outcome_counts(items),
             "by_type": by_type,
+            "by_carrier": by_carrier,
+            "by_kind": by_kind,
             "false_positives": false_alarms,
             "words": words,
             "false_alarms_per_1000_words": round(1000 * false_alarms / words, 2) if words else 0.0,
@@ -204,6 +222,19 @@ def _totals(documents: dict[str, Any], systems: list[str]) -> dict[str, Any]:
             "seconds": round(sum(result["seconds"] for result in results), 3),
         }
     return totals
+
+
+def _kind_totals(documents: list[dict[str, Any]], system: str) -> dict[str, int]:
+    """Count items, false alarms and safe documents over documents of one kind."""
+    results = [document["systems"][system] for document in documents]
+    items = [ItemResult(**item) for result in results for item in result["items"]]
+    return {
+        **outcome_counts(items),
+        "documents": len(results),
+        "words": sum(document["summary"]["words"] for document in documents),
+        "false_positives": sum(len(result["false_positives"]) for result in results),
+        "safe_documents": sum(result["safe"] for result in results),
+    }
 
 
 def _model_versions(systems: tuple[str, ...]) -> dict[str, str]:

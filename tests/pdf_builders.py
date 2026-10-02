@@ -103,6 +103,9 @@ METADATA_DATE = "D:20260101120000"
 ROTATED_WORD = "HERE"
 STRUCTURE_ALT = "Photo of Jan Novak"
 STRUCTURE_ACTUAL_TEXT = f"write to {CONTACT_EMAIL}"
+ATTACHMENT_KEY = "Kratochvíl"
+ATTACHMENT_NAME = "Kratochvíl-doklad.pdf"
+ATTACHMENT_DESCRIPTION = "Doklad paní Kratochvílové"
 # PyMuPDF creates its widget type constants at runtime.
 TEXT_FIELD = pymupdf.PDF_WIDGET_TYPE_TEXT  # pyright: ignore[reportAttributeAccessIssue]
 # Encloses ROTATED_WORD as inserted at (500, 800), in unrotated coordinates.
@@ -183,6 +186,29 @@ def write_surfaces_pdf(path: Path) -> Path:
     document.embfile_add("cv.docx", b"attached", filename="cv.docx", desc="original CV")
     add_structure_tree(document, first.xref, mailto_xref)
 
+    document.save(path)
+    document.close()
+    return path
+
+
+def write_attachments_pdf(path: Path) -> Path:
+    """Write a PDF whose attachment labels carry Czech diacritics.
+
+    PyMuPDF stores the names and descriptions as UTF-16BE strings, once in the
+    document's attachment list and once in an attachment annotation on page 1.
+    """
+    document = pymupdf.open()
+    document.new_page()
+    document.embfile_add(
+        ATTACHMENT_KEY,
+        b"attached",
+        filename=ATTACHMENT_NAME,
+        ufilename=ATTACHMENT_NAME,
+        desc=ATTACHMENT_DESCRIPTION,
+    )
+    document[0].add_file_annot(
+        (400, 400), b"attached", ATTACHMENT_NAME, desc=ATTACHMENT_DESCRIPTION
+    )
     document.save(path)
     document.close()
     return path

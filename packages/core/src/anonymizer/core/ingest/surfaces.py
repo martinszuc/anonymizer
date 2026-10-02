@@ -20,7 +20,9 @@ STRUCTURE      `<object number>/Alt`, `/ActualText`, `/T` or `/E` of a
 
 Attachment *contents* are never read, only their names and descriptions. An
 attached file can hold anything, so redaction has to drop attachments whatever
-this module or a detector finds in their labels.
+this module or a detector finds in their labels. The labels are read from the
+file specification itself: PyMuPDF's `embfile_info` and `Annot.file_info`
+return a name with diacritics as UTF-8 bytes taken for Latin-1.
 """
 
 from __future__ import annotations
@@ -50,6 +52,9 @@ _STRUCTURE_TEXT_KEYS = ("Alt", "ActualText", "T", "E")
 # PDF annotation subtype of an attached file. PyMuPDF's numeric constant for it
 # is created at runtime and invisible to the type checker.
 _FILE_ATTACHMENT_SUBTYPE = "FileAttachment"
+
+# The flat name/file specification array PyMuPDF numbers attachments by.
+_EMBEDDED_FILES_PATH = "Root/Names/EmbeddedFiles/Names"
 
 
 def extract_surfaces(pdf: pymupdf.Document) -> list[Surface]:
@@ -165,18 +170,33 @@ def _bookmark_surfaces(pdf: pymupdf.Document) -> Iterator[Surface]:
 
 
 def _embedded_file_surfaces(pdf: pymupdf.Document) -> Iterator[Surface]:
-    """Yield the labels of files attached to the document as a whole."""
-    for position in range(pdf.embfile_count()):
-        info = pdf.embfile_info(position)
+    """Yield the labels of files attached to the document as a whole.
+
+    Positions follow PyMuPDF's attachment list, which redaction empties.
+    """
+    trailer = mupdf.pdf_trailer(mupdf.pdf_document_from_fz_document(pdf.this))
+    names = mupdf.pdf_dict_getp(trailer, _EMBEDDED_FILES_PATH)
+    for position, key_index in enumerate(range(0, mupdf.pdf_array_len(names), 2)):
+        file_spec = mupdf.pdf_array_get(names, key_index + 1)
         yield from _text_surfaces(
             SurfaceKind.EMBEDDED_FILE,
             {
-                f"{position}/name": info.get("name"),
-                f"{position}/filename": info.get("filename"),
-                f"{position}/ufilename": info.get("ufilename"),
-                f"{position}/description": info.get("description"),
+                f"{position}/name": _pdf_text(mupdf.pdf_array_get(names, key_index)),
+                f"{position}/filename": _file_spec_text(file_spec, "F"),
+                f"{position}/ufilename": _file_spec_text(file_spec, "UF"),
+                f"{position}/description": _file_spec_text(file_spec, "Desc"),
             },
         )
+
+
+def _file_spec_text(file_spec: mupdf.PdfObj, key: str) -> str | None:
+    """Return a file specification's string entry as text, or `None` if it has none."""
+    return _pdf_text(mupdf.pdf_dict_gets(file_spec, key))
+
+
+def _pdf_text(value: mupdf.PdfObj) -> str | None:
+    """Decode a PDF string (PDFDocEncoding or UTF-16, possibly indirect), or `None`."""
+    return mupdf.pdf_to_text_string(value) if mupdf.pdf_is_string(value) else None
 
 
 def _structure_surfaces(pdf: pymupdf.Document) -> Iterator[Surface]:
@@ -248,12 +268,14 @@ def _annotation_surfaces(page: pymupdf.Page) -> Iterator[Surface]:
             bbox,
         )
         if annot.type[1] == _FILE_ATTACHMENT_SUBTYPE:
-            attachment = annot.file_info
+            file_spec = mupdf.pdf_dict_gets(mupdf.pdf_annot_obj(annot.this), "FS")
+            # The Unicode name when present, as `Annot.file_info` reports it.
+            filename = _file_spec_text(file_spec, "UF") or _file_spec_text(file_spec, "F")
             yield from _text_surfaces(
                 SurfaceKind.EMBEDDED_FILE,
                 {
-                    f"{annot.xref}/filename": attachment.get("filename"),
-                    f"{annot.xref}/description": attachment.get("description"),
+                    f"{annot.xref}/filename": filename,
+                    f"{annot.xref}/description": _file_spec_text(file_spec, "Desc"),
                 },
                 page.number,
                 bbox,

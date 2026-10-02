@@ -14,6 +14,10 @@ Eight layers, because each misses something the others catch:
    redaction removes that area whole, and ingest never extracted it.
 4. **Surfaces.** The surface scan is re-run; redaction clears every surface, so
    any surface left is a leak, whether or not an entity was found in it.
+   No file may remain embedded either: an attachment's contents are never
+   scanned, so a file specification that still embeds a file, or an
+   embedded-file stream with any content, is a leak even when it has no label
+   to list.
 5. **Thumbnails.** A page thumbnail is a picture of the page before redaction.
 6. **Objects.** Every object and decompressed stream in the file is searched
    for each entity's text. This catches carriers the surface scan does not list
@@ -62,6 +66,7 @@ from typing import Any, NamedTuple
 import pymupdf
 from anonymizer.core.ingest import OcrEngine, extract_page, extract_surfaces, read_page
 from anonymizer.core.ingest.normalize import bbox_to_unrotated_rect
+from anonymizer.core.ingest.objects import dictionaries_with_key, embedded_file_streams
 from anonymizer.core.log import fields, step
 from anonymizer.core.redact.canvas import off_page_words
 from anonymizer.core.types import BBox, Document, Entity
@@ -304,10 +309,21 @@ def _thumbnail_leaks(pdf: pymupdf.Document) -> list[Leak]:
 
 
 def _surface_leaks(pdf: pymupdf.Document) -> list[Leak]:
-    """Report every surface still present."""
+    """Report every surface still present and every file still embedded."""
     return [
-        Leak(LeakLayer.SURFACE, f"{surface.kind} {surface.ref}", surface.value)
-        for surface in extract_surfaces(pdf)
+        *(
+            Leak(LeakLayer.SURFACE, f"{surface.kind} {surface.ref}", surface.value)
+            for surface in extract_surfaces(pdf)
+        ),
+        *(
+            Leak(LeakLayer.SURFACE, f"object {xref}", "file specification embedding a file")
+            for xref, _file_spec in dictionaries_with_key(pdf, "EF")
+        ),
+        *(
+            Leak(LeakLayer.SURFACE, f"object {xref}", "embedded file")
+            for xref in embedded_file_streams(pdf)
+            if pdf.xref_stream(xref)
+        ),
     ]
 
 

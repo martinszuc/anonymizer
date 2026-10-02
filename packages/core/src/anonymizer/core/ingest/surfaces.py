@@ -13,7 +13,9 @@ ANNOTATION     `<object number>/content`, `/title` (the author) or `/subject`
 FORM_FIELD     `<object number>/value` of the widget
 BOOKMARK       `<position in the outline>/title`, `/uri` or `/file`
 EMBEDDED_FILE  `<position in the attachment list>/<field>` for the document,
-               `<object number>/<field>` for an attachment annotation on a page
+               `<object number>/<field>` for an attachment annotation on a page,
+               `<object number>/af<n>/<field>` for the n-th associated file
+               (`/AF`) of any dictionary in that object
 STRUCTURE      `<object number>/Alt`, `/ActualText`, `/T` or `/E` of a
                structure element
 =============  ==============================================================
@@ -23,6 +25,13 @@ attached file can hold anything, so redaction has to drop attachments whatever
 this module or a detector finds in their labels. The labels are read from the
 file specification itself: PyMuPDF's `embfile_info` and `Annot.file_info`
 return a name with diacritics as UTF-8 bytes taken for Latin-1.
+
+Associated files (`/AF`, PDF 2.0 and PDF/A-3; Factur-X and ZUGFeRD invoices
+keep their XML there) are listed from every carrier, not only the catalog and
+pages, and have no page index: they are not drawn. A file specification the
+attachment list or an attachment annotation already lists is not repeated.
+File specifications in other carriers (launch actions, multimedia annotations)
+are not listed; redaction empties every specification that embeds a file.
 """
 
 from __future__ import annotations
@@ -33,6 +42,7 @@ from urllib.parse import unquote
 
 import pymupdf
 from anonymizer.core.ingest.normalize import normalize_text, rect_to_bbox, unrotated_rect_to_bbox
+from anonymizer.core.ingest.objects import dictionaries_with_key
 from anonymizer.core.types import BBox, Surface, SurfaceKind
 from pymupdf import mupdf
 
@@ -71,6 +81,7 @@ def extract_surfaces(pdf: pymupdf.Document) -> list[Surface]:
         *_xmp_surfaces(pdf),
         *_bookmark_surfaces(pdf),
         *_embedded_file_surfaces(pdf),
+        *_associated_file_surfaces(pdf),
         *_structure_surfaces(pdf),
     ]
     for page in pdf:
@@ -187,6 +198,56 @@ def _embedded_file_surfaces(pdf: pymupdf.Document) -> Iterator[Surface]:
                 f"{position}/description": _file_spec_text(file_spec, "Desc"),
             },
         )
+
+
+def _associated_file_surfaces(pdf: pymupdf.Document) -> Iterator[Surface]:
+    """Yield the labels of file specifications listed in any `/AF` array."""
+    listed = _listed_file_specs(pdf)
+    for xref, file_specs in _associated_files(pdf).items():
+        for position, file_spec in enumerate(file_specs):
+            if mupdf.pdf_is_indirect(file_spec) and mupdf.pdf_to_num(file_spec) in listed:
+                continue
+            ref = f"{xref}/af{position}"
+            yield from _text_surfaces(
+                SurfaceKind.EMBEDDED_FILE,
+                {
+                    f"{ref}/filename": _file_spec_text(file_spec, "F"),
+                    f"{ref}/ufilename": _file_spec_text(file_spec, "UF"),
+                    f"{ref}/description": _file_spec_text(file_spec, "Desc"),
+                },
+            )
+
+
+def _associated_files(pdf: pymupdf.Document) -> dict[int, list[mupdf.PdfObj]]:
+    """Return each object's associated files, across all `/AF` arrays it holds.
+
+    One object can hold several arrays (property lists in its resources), so
+    files are numbered per object rather than per array.
+    """
+    by_object: dict[int, list[mupdf.PdfObj]] = {}
+    for xref, dictionary in dictionaries_with_key(pdf, "AF"):
+        file_specs = mupdf.pdf_dict_gets(dictionary, "AF")
+        by_object.setdefault(xref, []).extend(
+            mupdf.pdf_array_get(file_specs, index)
+            for index in range(mupdf.pdf_array_len(file_specs))
+        )
+    return by_object
+
+
+def _listed_file_specs(pdf: pymupdf.Document) -> set[int]:
+    """Return the object numbers of file specifications listed as attachments already."""
+    trailer = mupdf.pdf_trailer(mupdf.pdf_document_from_fz_document(pdf.this))
+    names = mupdf.pdf_dict_getp(trailer, _EMBEDDED_FILES_PATH)
+    specs = [mupdf.pdf_array_get(names, index) for index in range(1, mupdf.pdf_array_len(names), 2)]
+    listed = {mupdf.pdf_to_num(spec) for spec in specs if mupdf.pdf_is_indirect(spec)}
+    for page in pdf:
+        for annot_xref, *_ in page.annot_xrefs():
+            if pdf.xref_get_key(annot_xref, "Subtype") != ("name", f"/{_FILE_ATTACHMENT_SUBTYPE}"):
+                continue
+            kind, value = pdf.xref_get_key(annot_xref, "FS")
+            if kind == "xref":
+                listed.add(int(value.split()[0]))
+    return listed
 
 
 def _file_spec_text(file_spec: mupdf.PdfObj, key: str) -> str | None:

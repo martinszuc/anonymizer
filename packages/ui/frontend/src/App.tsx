@@ -12,7 +12,14 @@ import { Toasts, type Toast } from "./components/Toasts";
 import { Toolbar } from "./components/Toolbar";
 import { PageImages } from "./pageImages";
 import { hasCommand } from "./platform";
-import { isDecidable, lastDrawnRegion, pagesWithoutText, steppedZoom, toggled } from "./review";
+import {
+  groupToggled,
+  isDecidable,
+  lastDrawnRegion,
+  pagesWithoutText,
+  steppedZoom,
+  toggled,
+} from "./review";
 import type {
   AppStatus,
   Box,
@@ -326,6 +333,31 @@ export function App() {
     }
   }
 
+  /** One decision for every repeat of a finding; hidden-data members have none to change. */
+  async function toggleGroup(members: EntityInfo[]) {
+    const decidable = members.filter(isDecidable);
+    if (!bridge || decidable.length === 0) return;
+    const next = groupToggled(decidable);
+    const ids = new Set(decidable.map((entity) => entity.id));
+    const before = new Map(decidable.map((entity) => [entity.id, entity.review]));
+    // Optimistic, like a single toggle: every box changes at once, and back if Python refuses.
+    const apply = (reviewOf: (entity: EntityInfo) => EntityInfo["review"]) =>
+      setDocument((current) =>
+        current && {
+          ...current,
+          entities: current.entities.map((item) => (ids.has(item.id) ? { ...item, review: reviewOf(item) } : item)),
+        },
+      );
+    apply(() => next);
+    setDirty(true);
+    try {
+      await bridge.set_reviews([...ids], next);
+    } catch (error) {
+      apply((item) => before.get(item.id) ?? item.review);
+      reportError(errorMessage(error));
+    }
+  }
+
   /** Show a hidden item where it sits on its page: its outline, or the page. */
   function selectSurface(surface: SurfaceInfo) {
     setSelectedSurfaceId(surface.id);
@@ -444,6 +476,7 @@ export function App() {
                 onTab={setTab}
                 onSelect={select}
                 onToggle={toggle}
+                onToggleGroup={(members) => void toggleGroup(members)}
                 onRemove={(entity) => void removeEntity(entity)}
                 selectedSurfaceId={selectedSurfaceId}
                 onSelectSurface={selectSurface}

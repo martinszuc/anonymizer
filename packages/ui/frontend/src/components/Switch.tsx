@@ -4,6 +4,8 @@ import { snappy } from "../motion";
 
 interface SwitchProps {
   checked: boolean;
+  /** Some of what it stands for is on and some off (a group of repeats); a click turns all on. */
+  mixed?: boolean;
   label: string;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
@@ -16,16 +18,24 @@ interface SwitchProps {
   tone?: "redact" | "setting";
 }
 
-export function Switch({ checked, label, onChange, disabled = false, tone = "redact" }: SwitchProps) {
+export function Switch({
+  checked,
+  mixed = false,
+  label,
+  onChange,
+  disabled = false,
+  tone = "redact",
+}: SwitchProps) {
   return (
     <button
       type="button"
       role="switch"
-      aria-checked={checked}
+      aria-checked={mixed ? "mixed" : checked}
       aria-label={label}
       title={label}
       className="switch"
-      data-on={checked}
+      data-on={checked && !mixed}
+      data-mixed={mixed}
       data-tone={tone}
       disabled={disabled}
       tabIndex={tone === "setting" ? 0 : -1}

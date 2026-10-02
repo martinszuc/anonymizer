@@ -379,5 +379,12 @@ export function demoBridge(): ReviewBridge {
       entity.review = state;
       return copied(entity);
     },
+    set_reviews: async (entityIds: string[], state: ReviewState) => {
+      const entities = entityIds.map((id) => current?.entities.find((item) => item.id === id));
+      const missing = entityIds.find((_, index) => !entities[index]);
+      if (missing !== undefined) throw new Error(`no entity with id ${missing}`);
+      for (const entity of entities) if (entity) entity.review = state;
+      return copied(entities.filter((entity) => entity !== undefined));
+    },
   };
 }

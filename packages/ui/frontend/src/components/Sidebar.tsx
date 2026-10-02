@@ -1,17 +1,22 @@
-import { EyeOff, Info, Lock, Paperclip, X } from "lucide-react";
+import { ChevronRight, EyeOff, Info, Lock, Paperclip, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { gentle } from "../motion";
 import {
   covers,
   groupByType,
+  groupDecision,
+  groupOccurrences,
   isDecidable,
   isIdentifier,
   isRemoved,
+  pageList,
   regionNumbers,
   summarize,
   typeLabel,
+  type GroupDecision,
+  type Occurrences,
 } from "../review";
 import type { DocumentInfo, EntityInfo, SurfaceInfo } from "../types";
 import { SegmentedControl } from "./SegmentedControl";
@@ -26,6 +31,8 @@ interface SidebarProps {
   onTab: (tab: SidebarTab) => void;
   onSelect: (entity: EntityInfo) => void;
   onToggle: (entity: EntityInfo) => void;
+  /** One decision for every member of a group of identical findings. */
+  onToggleGroup: (members: EntityInfo[]) => void;
   onRemove: (entity: EntityInfo) => void;
   selectedSurfaceId: string | null;
   onSelectSurface: (surface: SurfaceInfo) => void;
@@ -38,6 +45,7 @@ export function Sidebar({
   onTab,
   onSelect,
   onToggle,
+  onToggleGroup,
   onRemove,
   selectedSurfaceId,
   onSelectSurface,
@@ -65,6 +73,7 @@ export function Sidebar({
           selectedId={selectedId}
           onSelect={onSelect}
           onToggle={onToggle}
+          onToggleGroup={onToggleGroup}
           onRemove={onRemove}
         />
       ) : (
@@ -104,23 +113,49 @@ interface FindingsProps {
   selectedId: string | null;
   onSelect: (entity: EntityInfo) => void;
   onToggle: (entity: EntityInfo) => void;
+  onToggleGroup: (members: EntityInfo[]) => void;
   onRemove: (entity: EntityInfo) => void;
 }
 
-function Findings({ document, selectedId, onSelect, onToggle, onRemove }: FindingsProps) {
+/** A row of the list: one finding, or the head of a group of identical ones. */
+type ListRow = { kind: "entity"; entity: EntityInfo } | { kind: "group"; group: Occurrences };
+
+function Findings({ document, selectedId, onSelect, onToggle, onToggleGroup, onRemove }: FindingsProps) {
   const groups = useMemo(() => groupByType(document.entities), [document.entities]);
   const numbers = useMemo(() => regionNumbers(document.entities), [document.entities]);
-  const ordered = groups.flatMap((group) => group.entities);
+  const occurrences = useMemo(
+    () => new Map(groups.map((group) => [group.type, groupOccurrences(group.entities)])),
+    [groups],
+  );
+  // Groups of repeats are collapsed until opened, so a word found 30 times is one row.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const listRef = useRef<HTMLDivElement>(null);
+
+  const rows: ListRow[] = groups.flatMap((group) =>
+    (occurrences.get(group.type) ?? []).flatMap((found): ListRow[] => {
+      const [only] = found.members;
+      if (found.members.length === 1 && only) return [{ kind: "entity", entity: only }];
+      const head: ListRow = { kind: "group", group: found };
+      if (!expanded.has(found.key)) return [head];
+      return [head, ...found.members.map((entity): ListRow => ({ kind: "entity", entity }))];
+    }),
+  );
+  const holds = (row: ListRow) =>
+    selectedId !== null &&
+    (row.kind === "entity"
+      ? row.entity.id === selectedId
+      : !expanded.has(row.group.key) && row.group.members.some((member) => member.id === selectedId));
 
   useEffect(() => {
     if (!selectedId) return;
-    listRef.current
-      ?.querySelector(`[data-entity-id="${CSS.escape(selectedId)}"]`)
+    const list = listRef.current;
+    const id = CSS.escape(selectedId);
+    // A finding inside a closed group is shown by its group's row.
+    (list?.querySelector(`[data-entity-id="${id}"]`) ?? list?.querySelector(`[data-entity-ids~="${id}"]`))
       ?.scrollIntoView({ block: "nearest" });
   }, [selectedId]);
 
-  if (ordered.length === 0) {
+  if (rows.length === 0) {
     return (
       <div className="sidebar-empty">
         <p>Nothing was found in the text.</p>
@@ -129,27 +164,48 @@ function Findings({ document, selectedId, onSelect, onToggle, onRemove }: Findin
     );
   }
 
+  const setOpen = (key: string, open: boolean) =>
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (open) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+
   const onKeyDown = (event: KeyboardEvent) => {
-    const index = ordered.findIndex((entity) => entity.id === selectedId);
+    const index = rows.findIndex(holds);
+    const current = rows[index];
     const move = (offset: number) => {
-      const next = ordered[Math.min(Math.max(index + offset, 0), ordered.length - 1)];
-      if (next) onSelect(next);
+      const next = rows[Math.min(Math.max(index + offset, 0), rows.length - 1)];
+      if (next) onSelect(next.kind === "entity" ? next.entity : (next.group.members[0] as EntityInfo));
     };
     if (event.key === "ArrowDown") move(1);
     else if (event.key === "ArrowUp") move(-1);
+    else if (event.key === "ArrowRight" && current?.kind === "group") setOpen(current.group.key, true);
+    else if (event.key === "ArrowLeft" && current?.kind === "group") setOpen(current.group.key, false);
     // Delete on a selected region is handled window-wide, in App.
-    else if (event.key === " " && ordered[index] && isDecidable(ordered[index])) onToggle(ordered[index]);
-    else return;
+    else if (event.key === " " && current?.kind === "group" && current.group.members.some(isDecidable)) {
+      onToggleGroup(current.group.members);
+    } else if (event.key === " " && current?.kind === "entity" && isDecidable(current.entity)) {
+      onToggle(current.entity);
+    } else return;
     event.preventDefault();
   };
 
+  const active = rows.find(holds);
   return (
     <div
       ref={listRef}
       className="list"
       role="listbox"
       aria-label="Findings"
-      aria-activedescendant={selectedId ? `row-${selectedId}` : undefined}
+      aria-activedescendant={
+        active === undefined
+          ? undefined
+          : active.kind === "entity"
+            ? `row-${active.entity.id}`
+            : `group-${active.group.members[0]?.id}`
+      }
       tabIndex={0}
       onKeyDown={onKeyDown}
     >
@@ -164,21 +220,148 @@ function Findings({ document, selectedId, onSelect, onToggle, onRemove }: Findin
             {group.label}
             <span className="group-count">{group.entities.length}</span>
           </h2>
-          {group.entities.map((entity) => (
-            <EntityRow
-              key={entity.id}
-              entity={entity}
-              regionNumber={numbers.get(entity.id)}
-              selected={entity.id === selectedId}
-              onSelect={onSelect}
-              onToggle={onToggle}
-              onRemove={onRemove}
-            />
-          ))}
+          {(occurrences.get(group.type) ?? []).map((found) => {
+            const [only] = found.members;
+            if (found.members.length === 1 && only) {
+              return (
+                <EntityRow
+                  key={only.id}
+                  entity={only}
+                  regionNumber={numbers.get(only.id)}
+                  selected={only.id === selectedId}
+                  onSelect={onSelect}
+                  onToggle={onToggle}
+                  onRemove={onRemove}
+                />
+              );
+            }
+            const open = expanded.has(found.key);
+            return (
+              <div key={found.key} className="occurrences" data-open={open}>
+                <GroupRow
+                  group={found}
+                  open={open}
+                  selected={holds({ kind: "group", group: found })}
+                  selectedId={selectedId}
+                  onOpen={(value) => setOpen(found.key, value)}
+                  onSelect={onSelect}
+                  onToggleGroup={onToggleGroup}
+                />
+                {open &&
+                  found.members.map((entity) => (
+                    <EntityRow
+                      key={entity.id}
+                      entity={entity}
+                      regionNumber={undefined}
+                      selected={entity.id === selectedId}
+                      onSelect={onSelect}
+                      onToggle={onToggle}
+                      onRemove={onRemove}
+                    />
+                  ))}
+              </div>
+            );
+          })}
         </section>
       ))}
     </div>
   );
+}
+
+interface GroupRowProps {
+  group: Occurrences;
+  open: boolean;
+  selected: boolean;
+  selectedId: string | null;
+  onOpen: (open: boolean) => void;
+  onSelect: (entity: EntityInfo) => void;
+  onToggleGroup: (members: EntityInfo[]) => void;
+}
+
+/** Identical findings in one row: how often and where, one switch for all of them. */
+function GroupRow({ group, open, selected, selectedId, onOpen, onSelect, onToggleGroup }: GroupRowProps) {
+  const { members } = group;
+  const first = members[0] as EntityInfo;
+  const decision = groupDecision(members);
+  const decidable = members.some(isDecidable);
+  const unreviewed = members.some((member) => member.review === "pending" && isDecidable(member));
+  const text = covers(first);
+  // Each click goes to the next occurrence, so the page shows them one by one.
+  const current = members.findIndex((member) => member.id === selectedId);
+  const next = members[(current + 1) % members.length] ?? first;
+  return (
+    <div
+      id={`group-${first.id}`}
+      role="option"
+      aria-selected={selected}
+      aria-expanded={open}
+      className="row row-group"
+      data-entity-ids={members.map((member) => member.id).join(" ")}
+      data-selected={selected}
+      data-redacted={decision !== "kept"}
+      title="Click again to go to the next occurrence"
+      onClick={() => onSelect(next)}
+    >
+      <span
+        className="row-pending"
+        data-visible={unreviewed}
+        role="img"
+        aria-label={unreviewed ? "Not all reviewed" : undefined}
+        aria-hidden={!unreviewed}
+      />
+      <button
+        type="button"
+        className="row-disclosure"
+        aria-label={open ? "Hide each occurrence" : "Show each occurrence"}
+        tabIndex={-1}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen(!open);
+        }}
+      >
+        <ChevronRight size={14} aria-hidden />
+      </button>
+      <div className="row-body">
+        <span className={isIdentifier(first.type) ? "row-text mono" : "row-text"} title={text}>
+          {text}
+          <span className="row-times">×{members.length}</span>
+        </span>
+        <span className="row-meta">{groupMeta(members, decision)}</span>
+      </div>
+      {decidable ? (
+        <Switch
+          checked={decision === "redacted"}
+          mixed={decision === "mixed"}
+          label={
+            decision === "redacted"
+              ? `Redacted ${members.length} times: click to keep every “${text}”`
+              : `Click to redact every “${text}” (${members.length} times)`
+          }
+          onChange={() => onToggleGroup(members)}
+        />
+      ) : (
+        <span className="row-locked" title="In hidden data: export removes it with the hidden item">
+          <Lock size={12} aria-hidden />
+          Always removed
+        </span>
+      )}
+    </div>
+  );
+}
+
+function groupMeta(members: EntityInfo[], decision: GroupDecision): string {
+  const pages = [...new Set(members.flatMap((member) => (member.page_index === null ? [] : [member.page_index + 1])))];
+  const places = pages.length > 0 ? capitalised(pageList(pages.sort((a, b) => a - b))) : "Document info";
+  const parts = [places];
+  if (decision === "mixed") {
+    const kept = members.filter((member) => !isRemoved(member)).length;
+    parts.push(`${kept} kept`);
+  }
+  return parts.join(" · ");
+}
+
+function capitalised(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 interface EntityRowProps {

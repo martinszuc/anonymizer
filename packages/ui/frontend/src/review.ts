@@ -97,6 +97,43 @@ export function groupByType(entities: EntityInfo[]): EntityGroup[] {
     }));
 }
 
+/** Identical findings of one type, shown as one row and decided together. */
+export interface Occurrences {
+  key: string;
+  /** In reading order; one member for a finding that occurs once. */
+  members: EntityInfo[];
+}
+
+/**
+ * Findings of one group split into identical ones: same text, ignoring case and
+ * spacing. A region, and a finding in hidden data (nothing to decide), stays alone
+ * unless its text repeats in hidden data too. Order follows each text's first occurrence.
+ */
+export function groupOccurrences(entities: EntityInfo[]): Occurrences[] {
+  const byKey = new Map<string, EntityInfo[]>();
+  for (const entity of entities) {
+    const key = entity.is_region
+      ? `region:${entity.id}`
+      : `${entity.type}:${isDecidable(entity)}:${covers(entity).toLocaleLowerCase()}`;
+    byKey.set(key, [...(byKey.get(key) ?? []), entity]);
+  }
+  return [...byKey.entries()].map(([key, members]) => ({ key, members }));
+}
+
+export type GroupDecision = "redacted" | "kept" | "mixed";
+
+/** What export does with a group: all of it removed, all kept, or some of each. */
+export function groupDecision(members: EntityInfo[]): GroupDecision {
+  const removed = members.filter(isRemoved).length;
+  if (removed === members.length) return "redacted";
+  return removed === 0 ? "kept" : "mixed";
+}
+
+/** One switch for a group: keep everything when all is redacted, otherwise redact everything. */
+export function groupToggled(members: EntityInfo[]): ReviewState {
+  return groupDecision(members) === "redacted" ? "rejected" : "confirmed";
+}
+
 /** Drawn regions numbered 1, 2, … in the order they were drawn, as the page and the list show them. */
 export function regionNumbers(entities: EntityInfo[]): Map<string, number> {
   const numbers = new Map<string, number>();

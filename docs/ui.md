@@ -33,7 +33,11 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   Cmd/Ctrl+Y) draws the output's opaque black boxes.
 - Click a box or a row switch to toggle redact / keep; hover shows a popover.
 - Sidebar: counts, findings grouped by type, a dot on items not yet reviewed,
-  arrow keys and Space. A finding in hidden data (a link, metadata) is locked,
+  arrow keys and Space. Identical findings of a type (case and spacing ignored)
+  are one row with a count and one switch for all of them (`set_reviews`);
+  opened (chevron or →), each occurrence has its own switch, and a group decided
+  both ways shows a mixed switch whose click redacts everything. Clicking a group
+  row steps through its occurrences on the page. A finding in hidden data (a link, metadata) is locked,
   *Always removed*: export clears it with the hidden item, so there is nothing
   to decide. The *Hidden* tab lists every hidden item with what it is, what
   export does with it and the findings it contains; selecting one outlines it
@@ -149,6 +153,7 @@ Methods the page calls (all return promises in JS):
 | `save_session_as()` | `bool` | false = cancelled |
 | `page_image(index, dpi)` | `data:` PNG URL | dpi clamped to 36..400 in Python |
 | `set_review(entity_id, state)` | `EntityInfo` | `pending` / `confirmed` / `rejected` |
+| `set_reviews(entity_ids, state)` | `EntityInfo[]` | one decision for several entities (a group of repeats); nothing changes unless every id and the state are valid |
 
 A change to a payload or method touches four places: `api.py` (and its test),
 `types.ts`, `bridge.ts`, `demo.ts`. Payloads use the core's snake_case names.
@@ -435,6 +440,11 @@ the repository, a test, a fixture or a commit message.
     in the left panel (one row with a count, decided together, expandable), or a switch
     between grouped and individual view. Find out first which detector produces the
     false positives (rules, names model, or OCR text) and in which documents.
+    **Done** for the list: grouped by default, decided together, expandable. What the
+    local log shows (one 2-page document, `language` All): 31 findings, about 21 from the
+    names model scoring mostly 0.34–0.54 against a 0.3 threshold, 8 from rules, 2
+    repeats. Still open: a log of the run on the unrelated documents, then tuning the
+    threshold on the benchmark rather than by eye.
 12. **Names, titles and degrees.** **Explain:** which model finds Czech names (GLiNER via
     `--ner`, see the catalog) and what label set it is asked for. Academic titles and
     degrees (Ing., Mgr., doc., Ph.D., prof.) are often left unredacted; list the options

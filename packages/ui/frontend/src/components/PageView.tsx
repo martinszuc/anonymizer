@@ -37,6 +37,8 @@ interface PageViewProps {
   previewing: boolean;
   /** The region tool is on (or Alt is held): a drag draws a region. */
   drawing: boolean;
+  /** A click on a box only selects it; otherwise it also changes the decision. */
+  locating: boolean;
   onSelect: (entity: EntityInfo) => void;
   onDrawRegion: (pageIndex: number, box: Box) => void;
   onToggle: (entity: EntityInfo) => void;
@@ -104,6 +106,7 @@ function Page({
   showHidden,
   previewing,
   drawing,
+  locating,
   onSelect,
   onToggle,
   onError,
@@ -238,6 +241,7 @@ function Page({
               entity={entity}
               hatch={entity.is_region && !previewing ? `url(#${hatchId})` : undefined}
               selected={entity.id === selectedId}
+              locating={locating}
               onHover={setHoveredId}
               onToggle={onToggle}
               onSelect={onSelect}
@@ -271,6 +275,7 @@ function Page({
               key={hovered.id}
               entity={hovered}
               regionNumber={regionNumbers.get(hovered.id)}
+              locating={locating}
               scale={scale}
               pageHeight={height}
             />
@@ -287,12 +292,13 @@ interface RedactionProps {
   /** Fill for a drawn region in review mode: the page's hatch pattern. */
   hatch?: string;
   selected: boolean;
+  locating: boolean;
   onHover: (entityId: string) => void;
   onToggle: (entity: EntityInfo) => void;
   onSelect: (entity: EntityInfo) => void;
 }
 
-function Redaction({ entity, hatch, selected, onHover, onToggle, onSelect }: RedactionProps) {
+function Redaction({ entity, hatch, selected, locating, onHover, onToggle, onSelect }: RedactionProps) {
   return (
     <g
       className="redaction"
@@ -306,7 +312,7 @@ function Redaction({ entity, hatch, selected, onHover, onToggle, onSelect }: Red
       onClick={() => {
         onSelect(entity);
         // A drawn region is removed and hidden data always goes: a click only selects them.
-        if (isDecidable(entity)) onToggle(entity);
+        if (!locating && isDecidable(entity)) onToggle(entity);
       }}
     >
       {entity.boxes.map(([x0, y0, x1, y1], index) => (
@@ -355,11 +361,12 @@ const POPOVER_HEIGHT = 64;
 interface PopoverProps {
   entity: EntityInfo;
   regionNumber: number | undefined;
+  locating: boolean;
   scale: number;
   pageHeight: number;
 }
 
-function Popover({ entity, regionNumber, scale, pageHeight }: PopoverProps) {
+function Popover({ entity, regionNumber, locating, scale, pageHeight }: PopoverProps) {
   const first = entity.boxes[0];
   if (!first) return null;
   const left = Math.min(...entity.boxes.map((box) => box[0])) * scale;
@@ -384,14 +391,17 @@ function Popover({ entity, regionNumber, scale, pageHeight }: PopoverProps) {
         {entity.source === "propagated" && <span className="muted"> · repeat</span>}
       </span>
       <span className="popover-text">{covers(entity, regionNumber)}</span>
-      <span className="popover-hint">{popoverHint(entity, redacted)}</span>
+      <span className="popover-hint">{popoverHint(entity, redacted, locating)}</span>
     </motion.div>
   );
 }
 
-function popoverHint(entity: EntityInfo, redacted: boolean): string {
+function popoverHint(entity: EntityInfo, redacted: boolean, locating: boolean): string {
   if (entity.is_region) return "Drawn by you · click to select, Delete removes it";
   if (entity.surface_id !== null) return "In hidden data · always removed on export";
+  if (locating) {
+    return redacted ? "Will be redacted · its switch in the list keeps it" : "Kept · its switch in the list redacts it";
+  }
   return redacted ? "Will be redacted · click to keep" : "Kept · click to redact";
 }
 

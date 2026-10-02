@@ -32,6 +32,8 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   (default) keeps the covered text readable; **preview mode** (eye button,
   Cmd/Ctrl+Y) draws the output's opaque black boxes.
 - Click a box or a row switch to toggle redact / keep; hover shows a popover.
+  The locate toggle in the toolbar (L) makes a click on a box only select it and
+  find its row in the list, so the row's switch is the one way to decide.
 - Sidebar: counts, findings grouped by type, a dot on items not yet reviewed,
   arrow keys and Space. A finding in hidden data (a link, metadata) is locked,
   *Always removed*: export clears it with the hidden item, so there is nothing
@@ -418,10 +420,9 @@ the repository, a test, a fixture or a commit message.
 
 7. **Done.** ~~The detail popup does not update live.~~ It reads the entity by id on every
    render.
-8. **Clicking a box both selects and toggles it.** Clicking a highlight finds the item in
-   the left list (wanted) but also flips it to kept straight away. **Decide:** make the
-   click only locate the item, with an explicit control for changing the decision, or
-   keep the current behaviour.
+8. **Done.** ~~Clicking a box both selects and toggles it.~~ Decided: a click still
+   toggles by default; the toolbar's locate toggle (L) makes it only select and find
+   the item.
 9. **Done** for regions: Cmd/Ctrl+Z removes the last region drawn since the document
    opened. Undo of decisions stays in *Backlog*.
 10. **Done.** ~~Number the drawn regions.~~ Numbered in drawing order on the page and in

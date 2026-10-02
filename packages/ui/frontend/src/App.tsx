@@ -62,6 +62,8 @@ export function App() {
   // The region tool, or Alt held down: a drag on a page draws a region.
   const [drawTool, setDrawTool] = useState(false);
   const [altHeld, setAltHeld] = useState(false);
+  // A click on a box only finds it in the list; off by default, so a click decides.
+  const [locating, setLocating] = useState(false);
   // Regions drawn since this document opened, oldest first: Cmd/Ctrl+Z removes the last.
   const drawnRegions = useRef<string[]>([]);
   // The Models sheet: its features (null while loading) and the running downloads, by feature.
@@ -391,11 +393,12 @@ export function App() {
     if (region) void removeEntity(region);
   }
 
-  /** Keys without a modifier: R for the region tool, Escape, Delete on a selected region. */
+  /** Keys without a modifier: R for the region tool, L for locating, Escape, Delete on a selected region. */
   function onPlainKey(event: KeyboardEvent) {
     if (!document || event.altKey || event.ctrlKey || event.metaKey) return;
     const selected = document.entities.find((entity) => entity.id === selectedId);
     if (event.key === "r" || event.key === "R") setDrawTool((value) => !value);
+    else if (event.key === "l" || event.key === "L") setLocating((value) => !value);
     else if (event.key === "Escape" && drawTool) setDrawTool(false);
     else if (event.key === "Escape") setSelectedId(null);
     else if ((event.key === "Delete" || event.key === "Backspace") && selected?.is_region) {
@@ -427,6 +430,7 @@ export function App() {
               previewing={previewing}
               exporting={exporting}
               drawing={drawTool}
+              locating={locating}
               onOpen={openPdf}
               onZoom={zoomBy}
               onFit={() => setZoom("fit")}
@@ -434,6 +438,7 @@ export function App() {
               onPreview={() => setPreviewing((value) => !value)}
               onExport={startExport}
               onDrawTool={() => setDrawTool((value) => !value)}
+              onLocate={() => setLocating((value) => !value)}
               onClose={() => void closeDocument()}
             />
             <div className="workspace">
@@ -458,6 +463,7 @@ export function App() {
                 showHidden={tab === "hidden"}
                 previewing={previewing}
                 drawing={drawTool || altHeld}
+                locating={locating}
                 onSelect={(entity) => setSelectedId(entity.id)}
                 onDrawRegion={(pageIndex, box) => void addRegion(pageIndex, box)}
                 onToggle={toggle}

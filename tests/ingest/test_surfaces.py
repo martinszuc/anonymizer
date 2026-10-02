@@ -22,7 +22,9 @@ from tests.pdf_builders import (
     ROTATED_WORD,
     STRUCTURE_ACTUAL_TEXT,
     STRUCTURE_ALT,
+    TREE_ATTACHMENTS,
     write_associated_file_pdf,
+    write_attachment_tree_pdf,
     write_attachments_pdf,
     write_pdf,
     write_surfaces_pdf,
@@ -141,6 +143,40 @@ class TestAssociatedFiles:
             pdf.xref_set_key(page.xref, "AF", f"[{file_spec} 0 R]")
             pdf.save(tmp_path / "associated.pdf")
         assert load_document(tmp_path / "associated.pdf").surfaces == load_document(path).surfaces
+
+
+class TestAttachmentTree:
+    """PyMuPDF's attachment functions report no attachment in a split name tree."""
+
+    def test_attachments_in_a_split_tree_are_listed_in_tree_order(self, tmp_path: Path):
+        document = load_document(write_attachment_tree_pdf(tmp_path / "split.pdf", split=True))
+        labels = {s.ref: s.value for s in of_kind(document, SurfaceKind.EMBEDDED_FILE)}
+        expected = {}
+        for position, (key, (filename, description)) in enumerate(TREE_ATTACHMENTS.items()):
+            expected |= {
+                f"{position}/name": key,
+                f"{position}/filename": filename,
+                f"{position}/ufilename": filename,
+                f"{position}/description": description,
+            }
+        assert labels == expected
+
+    def test_a_split_tree_gives_the_surfaces_of_the_same_files_in_one_node(self, tmp_path: Path):
+        split = load_document(write_attachment_tree_pdf(tmp_path / "split.pdf", split=True))
+        flat = load_document(write_attachment_tree_pdf(tmp_path / "flat.pdf", split=False))
+        assert flat.surfaces
+        assert split.surfaces == flat.surfaces
+
+    def test_a_tree_referring_back_to_itself_lists_each_attachment_once(self, tmp_path: Path):
+        source = write_attachment_tree_pdf(tmp_path / "split.pdf", split=True)
+        looped = tmp_path / "looped.pdf"
+        with pymupdf.open(source) as pdf:
+            root = pdf.xref_get_key(pdf.pdf_catalog(), "Names/EmbeddedFiles")[1]
+            last_leaf = int(pdf.xref_get_key(int(root.split()[0]), "Kids")[1].split()[-3])
+            pdf.xref_set_key(last_leaf, "Kids", f"[{root}]")
+            pdf.save(looped)
+        expected = load_document(source).surfaces
+        assert load_document(looped).surfaces == expected
 
 
 class TestStructureTree:

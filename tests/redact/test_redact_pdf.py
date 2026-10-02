@@ -17,8 +17,11 @@ from tests.pdf_builders import (
     CONTACT_EMAIL,
     LAUNCH_CONTENT,
     LOOSE_CONTENT,
+    TREE_ATTACHMENT_CONTENT,
+    TREE_ATTACHMENTS,
     add_stream,
     write_associated_file_pdf,
+    write_attachment_tree_pdf,
     write_attachments_pdf,
     write_other_file_carriers_pdf,
     write_pdf,
@@ -27,6 +30,7 @@ from tests.pdf_builders import (
 
 PHONE = "+420 603 123 456"
 LINES = ["Jan Novak", f"e-mail {CONTACT_EMAIL}", f"tel. {PHONE}", "KEEP this line"]
+TREE_LABELS = [label for key, labels in TREE_ATTACHMENTS.items() for label in (key, *labels)]
 
 
 def detected(path: Path) -> Document:
@@ -39,18 +43,17 @@ def output_text(path: Path) -> str:
     return "\n".join(page.text for page in load_document(path).pages)
 
 
-def stored(path: Path) -> bytes:
-    """Every object's source and decompressed stream data, read independently of ingest."""
-    with pymupdf.open(path) as pdf:
-        return b"".join(
-            pdf.xref_object(xref, compressed=True).encode("latin-1")
-            + (pdf.xref_stream(xref) or b"" if pdf.xref_is_stream(xref) else b"")
-            for xref in range(1, pdf.xref_length())
-        )
-
-
 def layers(leaks: list) -> set[LeakLayer]:
     return {leak.layer for leak in leaks}
+
+
+def streams(pdf: pymupdf.Document) -> list[bytes]:
+    xrefs = range(1, pdf.xref_length())
+    return [pdf.xref_stream(xref) or b"" for xref in xrefs if pdf.xref_is_stream(xref)]
+
+
+def objects(pdf: pymupdf.Document) -> str:
+    return "".join(pdf.xref_object(xref) for xref in range(1, pdf.xref_length()))
 
 
 @pytest.fixture(params=[0, 90], ids=["upright", "rotated"])
@@ -174,8 +177,7 @@ class TestSurfaces:
             assert extract_surfaces(pdf) == []
 
     def test_attachments_named_with_diacritics_are_removed(self, tmp_path: Path):
-        # Redaction deletes attachments by the names PyMuPDF reports, which
-        # garble diacritics; the garbled name must still find the attachment.
+        # PyMuPDF reports these names garbled; no name may keep an attachment.
         source = write_attachments_pdf(tmp_path / "attachments.pdf")
         output = tmp_path / "out.pdf"
         redact_pdf(source, load_document(source), output)
@@ -215,7 +217,15 @@ class TestAssociatedFiles:
     """A file referred to from `/AF` or another carrier must not survive garbage collection."""
 
     # ASCII prefixes of the file's name and description; the rest is stored escaped.
-    LABELS = (b"faktura-Vesel", b"Faktura pro pan")
+    LABELS = ("faktura-Vesel", "Faktura pro pan")
+
+    @staticmethod
+    def carried(path: Path, content: bytes | None = None) -> tuple[bool, list[bool]]:
+        """Whether some stream holds `content`, and whether the objects hold each label."""
+        with pymupdf.open(path) as pdf:
+            in_streams = content is not None and any(content in data for data in streams(pdf))
+            source = objects(pdf)
+        return in_streams, [label in source for label in TestAssociatedFiles.LABELS]
 
     @pytest.mark.parametrize(
         ("carrier", "listed"),
@@ -228,15 +238,11 @@ class TestAssociatedFiles:
     )
     def test_file_and_labels_are_removed(self, tmp_path: Path, carrier: str | None, listed: bool):
         source = write_associated_file_pdf(tmp_path / "associated.pdf", carrier, listed=listed)
-        before = stored(source)
-        assert ASSOCIATED_CONTENT in before
-        assert all(label in before for label in self.LABELS)
+        assert self.carried(source, ASSOCIATED_CONTENT) == (True, [True, True])
         document = load_document(source)
         output = tmp_path / "out.pdf"
         redact_pdf(source, document, output)
-        after = stored(output)
-        assert ASSOCIATED_CONTENT not in after
-        assert not any(label in after for label in self.LABELS)
+        assert self.carried(output, ASSOCIATED_CONTENT) == (False, [False, False])
         with pymupdf.open(output) as pdf:
             assert extract_surfaces(pdf) == []
         assert find_leaks(output, document) == []
@@ -244,25 +250,48 @@ class TestAssociatedFiles:
     @pytest.mark.parametrize("carrier", ASSOCIATED_CARRIERS)
     def test_labels_of_an_external_file_are_removed(self, tmp_path: Path, carrier: str):
         source = write_associated_file_pdf(tmp_path / "external.pdf", carrier, embedded=False)
-        assert all(label in stored(source) for label in self.LABELS)
+        assert self.carried(source) == (False, [True, True])
         document = load_document(source)
         output = tmp_path / "out.pdf"
         redact_pdf(source, document, output)
-        assert not any(label in stored(output) for label in self.LABELS)
+        assert self.carried(output) == (False, [False, False])
         assert find_leaks(output, document) == []
 
     def test_files_outside_any_listed_carrier_are_removed(self, tmp_path: Path):
         source = write_other_file_carriers_pdf(tmp_path / "carriers.pdf")
-        before = stored(source)
-        assert LAUNCH_CONTENT in before and LOOSE_CONTENT in before
-        assert self.LABELS[0] in before
+        assert all(self.carried(source, content)[0] for content in (LAUNCH_CONTENT, LOOSE_CONTENT))
+        assert self.carried(source)[1][0]
         document = load_document(source)
         output = tmp_path / "out.pdf"
         redact_pdf(source, document, output)
-        after = stored(output)
-        assert LAUNCH_CONTENT not in after and LOOSE_CONTENT not in after
-        assert self.LABELS[0] not in after
+        assert not any(
+            self.carried(output, content)[0] for content in (LAUNCH_CONTENT, LOOSE_CONTENT)
+        )
+        assert not self.carried(output)[1][0]
         assert find_leaks(output, document) == []
+
+
+class TestAttachmentTree:
+    """Attachments are removed whether their name tree is one node or split over `Kids`."""
+
+    @pytest.fixture(params=[False, True], ids=["one-node", "split"])
+    def attachments_pdf(self, request: pytest.FixtureRequest, tmp_path: Path) -> Path:
+        return write_attachment_tree_pdf(tmp_path / "attachments.pdf", split=request.param)
+
+    def test_content_and_labels_are_removed(self, attachments_pdf: Path):
+        with pymupdf.open(attachments_pdf) as pdf:
+            assert sum(TREE_ATTACHMENT_CONTENT in stream for stream in streams(pdf)) == 2
+            assert all(label in objects(pdf) for label in TREE_LABELS)
+        output = attachments_pdf.with_name("out.pdf")
+        redact_pdf(attachments_pdf, load_document(attachments_pdf), output)
+        with pymupdf.open(output) as pdf:
+            assert not any(TREE_ATTACHMENT_CONTENT in stream for stream in streams(pdf))
+            assert not any(label in objects(pdf) for label in TREE_LABELS)
+            assert extract_surfaces(pdf) == []
+
+    def test_the_surface_layer_reports_attachments_left_in_the_file(self, attachments_pdf: Path):
+        leaks = find_leaks(attachments_pdf, load_document(attachments_pdf))
+        assert layers(leaks) == {LeakLayer.SURFACE}
 
 
 class TestLeakCheck:

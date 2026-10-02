@@ -546,8 +546,18 @@ Verified on saved files, one probe per kind of content under a box:
   `Kratochvíl`; descriptions (`/Desc`) are not affected. Ingest reads the file
   specification through MuPDF's `pdf_to_text_string` instead. Repairing the
   string (`encode("latin-1").decode("utf-8")`) would break silently once PyMuPDF
-  fixes the bug. Deleting by the garbled name still works, since the lookup
-  garbles the same way.
+  fixes the bug. Deleting by the garbled name works, since the lookup garbles
+  the same way, but redaction no longer deletes by name (next entry).
+- **PyMuPDF sees only a one-node attachment tree** (1.28.2). `embfile_count`,
+  `embfile_names`, `embfile_info` and `embfile_del` read only the `Names` array
+  of the `EmbeddedFiles` name tree's root. A tree split over `Kids`, which the
+  PDF specification allows (7.9.6), reports no attachment: ingest listed no
+  label, redaction deleted nothing and the attached file's content stayed in the
+  output, unseen by the leak check's surface scan. Probed with the same two files
+  in a one-node tree as control, which was removed. Ingest now walks the tree
+  itself (guarded against a node that refers back to an ancestor), and redaction
+  unlinks the whole `EmbeddedFiles` entry so garbage collection drops every file.
+  Seen on synthetic files only.
 - **Form field values leak twice.** The value is also drawn into the widget's
   appearance stream, so it shows up in `Page.text` as well as in the field.
 - PyMuPDF percent-encodes launch-link file paths (`C%3A/...`), and a `mailto:`

@@ -79,9 +79,16 @@ def _clear_bookmarks(pdf: pymupdf.Document) -> None:
 
 
 def _clear_embedded_files(pdf: pymupdf.Document) -> None:
-    """Remove every file attached to the document as a whole."""
-    for name in pdf.embfile_names():
-        pdf.embfile_del(name)
+    """Remove every file attached to the document as a whole.
+
+    The name tree listing them is unlinked whole, whatever its shape, and
+    garbage collection drops the files. PyMuPDF's `embfile_del` finds only the
+    files listed in the tree's root node, not those under its `Kids`.
+    """
+    trailer = mupdf.pdf_trailer(mupdf.pdf_document_from_fz_document(pdf.this))
+    names = mupdf.pdf_dict_getp(trailer, "Root/Names")
+    if mupdf.pdf_is_dict(names):
+        mupdf.pdf_dict_dels(names, "EmbeddedFiles")
 
 
 def _clear_associated_files(pdf: pymupdf.Document) -> None:

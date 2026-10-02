@@ -16,6 +16,9 @@ uv run python -m benchmark history run-a/results.json run-b/results.json --out c
 uv run python -m benchmark ocr --out ocr-results                    # every level, the oracle
 uv run python -m benchmark ocr --out ocr-results --levels clean,blur-2,skew-3
 uv run python -m benchmark ocr --out ocr-results --engines oracle,onnxtr   # uv sync --group ocr-onnxtr
+uv run python -m benchmark ocr --out ocr-results --engines oracle,kraken   # uv sync --group ocr-kraken
+uv run python -m benchmark ocr-margin --out margins --engines onnxtr,kraken --levels clean,skew-3
+uv run python -m benchmark ocr-probe scan.pdf --out probe --engines onnxtr,kraken [--truth t.json]
 ```
 
 Each document is rendered to a greyscale picture, degraded one factor at a
@@ -37,9 +40,23 @@ scored: a scan carries no links or metadata. Scores, per engine and level:
 
 The `oracle` engine reads the ground truth (and, when the leak check re-reads
 a redacted page, only the words still printed), so it bounds what OCR can
-give the rest of the pipeline. `onnxtr` is the first real engine; the release
-workflow runs both on one level per factor. Output:
+give the rest of the pipeline. `onnxtr` and `kraken` are the real engines; the
+release workflow runs the oracle and `onnxtr` on one level per factor. Output:
 `ocr-results.json`, `ocr-results.md`, `pdf/`, and `scans/<doc>.<level>[.<engine>].pdf`.
+
+`ocr-margin` measures how far an engine's word boxes must grow (its
+`box_margin`, a share of the box height on each side) to cover their words'
+ink: each engine reads every scan once, and its words are replayed through
+ingest with each candidate margin. It reports words with ink outside every
+box and boxes reaching a word on another line (`ocr-margins.json`, `.md`).
+
+`ocr-probe` reads one PDF that has no ground truth, such as a real or
+handwritten scan, and reports counts only: per page words, lines, mean
+confidence, seconds and entities by type, and whether the leak check passed.
+No text and no file name reach its output (`ocr-probe.json`, `.md`), so it can
+run on a document holding personal data. With `--truth`, a JSON list of each
+page's text (`scripts/make_mixed_sample.py --truth` writes one for the mixed
+sample), it adds the character error rate.
 
 ## Output
 

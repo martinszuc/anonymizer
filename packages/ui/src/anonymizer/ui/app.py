@@ -425,6 +425,9 @@ def main(argv: list[str] | None = None) -> int:
     api._attach(window)
     window.events.loaded += api._watch_drops
     log.debug("window created, starting the event loop")
+    # --debug enables the inspector (context menu, F12 where the platform has it);
+    # pywebview would also open it on every start.
+    webview.settings["OPEN_DEVTOOLS_IN_DEBUG"] = False
     webview.start(debug=args.debug, private_mode=True)
     log.info("window closed")
     return 0

@@ -13,6 +13,7 @@ blob SHA-1), and its SHA-256 is returned so it can be recorded in the catalog.
 from __future__ import annotations
 
 import hashlib
+import logging
 import shutil
 import urllib.request
 import zipfile
@@ -21,7 +22,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from anonymizer.core.log import step
 from anonymizer.core.resources.catalog import Catalog, Resource, ResourceFile
+
+log = logging.getLogger(__name__)
 
 CHUNK_SIZE = 1 << 20
 TIMEOUT_SECONDS = 60
@@ -103,10 +107,11 @@ def fetch_resource(
     for item in resource.files:
         target = directory / item.path
         if target.exists():
+            log.debug("%s: %s is stored, verifying", resource.id, item.path)
             sha256 = verify_file(item, target)
             present.append(item.path)
         else:
-            sha256 = _download(item, target, open_url, progress)
+            sha256 = _download(resource.id, item, target, open_url, progress)
             downloaded.append(item.path)
         if item.sha256 is None:
             pinned[item.path] = sha256
@@ -210,6 +215,7 @@ def verify_file(item: ResourceFile, path: Path) -> str:
 
 
 def _download(
+    resource_id: str,
     item: ResourceFile,
     target: Path,
     open_url: Opener,
@@ -218,17 +224,30 @@ def _download(
     target.parent.mkdir(parents=True, exist_ok=True)
     partial = target.with_name(target.name + ".part")
     hasher = _Hasher(item)
+    # The one place a connection is opened, so it is always on record.
+    log.info(
+        "network: downloading %s %s (%d bytes) from %s", resource_id, item.path, item.size, item.url
+    )
     try:
-        with open_url(item.url) as response, partial.open("wb") as output:
-            while chunk := response.read(CHUNK_SIZE):
-                hasher.update(chunk)
-                # Stop early instead of filling the disk with an unexpected payload.
-                if hasher.received > item.size:
-                    break
-                output.write(chunk)
-                if progress is not None:
-                    progress(item, hasher.received)
-        sha256 = hasher.check(item.path)
+        with step(log, "download", done_level=logging.INFO, resource=resource_id, file=item.path):
+            with open_url(item.url) as response, partial.open("wb") as output:
+                while chunk := response.read(CHUNK_SIZE):
+                    hasher.update(chunk)
+                    # Stop early instead of filling the disk with an unexpected payload.
+                    if hasher.received > item.size:
+                        break
+                    output.write(chunk)
+                    if progress is not None:
+                        progress(item, hasher.received)
+            sha256 = hasher.check(item.path)
+    except ChecksumError:
+        log.error(
+            "download rejected: %s %s does not match the catalog, file removed",
+            resource_id,
+            item.path,
+        )
+        partial.unlink(missing_ok=True)
+        raise
     except BaseException:
         partial.unlink(missing_ok=True)
         raise

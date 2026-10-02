@@ -20,11 +20,15 @@ detected, and export would no longer warn about them.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 from anonymizer.core.ingest import DEFAULT_OCR_DPI, OcrEngine, load_document
+from anonymizer.core.log import short_fingerprint
 from anonymizer.core.types import SCHEMA_VERSION, Document, Entity
+
+log = logging.getLogger(__name__)
 
 SESSION_FORMAT = "anonymizer-session"
 """Marker identifying a session file among other JSON files."""
@@ -67,6 +71,11 @@ def save_session(document: Document, path: Path | str) -> None:
     """
     content = json.dumps(session_to_dict(document), ensure_ascii=False, indent=2)
     Path(path).write_text(content, encoding="utf-8")
+    log.info(
+        "session saved: document=%s entities=%d",
+        short_fingerprint(document.fingerprint),
+        len(document.entities),
+    )
 
 
 def load_session(
@@ -118,6 +127,11 @@ def apply_session(document: Document, session_path: Path | str) -> Document:
         msg = f"unsupported session version {version}, expected {SCHEMA_VERSION}"
         raise ValueError(msg)
     if document.fingerprint != data.get("fingerprint"):
+        log.warning(
+            "session refused: it belongs to a different PDF (session %s, document %s)",
+            short_fingerprint(data.get("fingerprint")),
+            short_fingerprint(document.fingerprint),
+        )
         msg = "session belongs to a different PDF"
         raise ValueError(msg)
     _check_ocr_engine(data.get("ocr_engine"), document.ocr_engine)
@@ -125,6 +139,11 @@ def apply_session(document: Document, session_path: Path | str) -> Document:
     document.entities = [Entity.from_dict(entity) for entity in data.get("entities", [])]
     document.check_references()
     _check_covered_text(document)
+    log.info(
+        "session applied: document=%s entities=%d",
+        short_fingerprint(document.fingerprint),
+        len(document.entities),
+    )
     return document
 
 

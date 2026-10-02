@@ -13,10 +13,14 @@ morphological analyser or a model.
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Iterator
 
+from anonymizer.core.detect.base import describe
 from anonymizer.core.types import DetectionSource, Document, Entity, EntityType, Page
+
+log = logging.getLogger(__name__)
 
 
 def propagate_occurrences(document: Document) -> list[Entity]:
@@ -39,6 +43,9 @@ def propagate_occurrences(document: Document) -> list[Entity]:
         if entity.is_redactable and entity.text and entity.text not in types_by_text:
             types_by_text[entity.text] = entity.type
     texts = sorted(types_by_text, key=len, reverse=True)
+    log.debug(
+        "propagate: looking for %d distinct texts on %d pages", len(texts), len(document.pages)
+    )
 
     propagated: list[Entity] = []
     for page in document.pages:
@@ -48,7 +55,12 @@ def propagate_occurrences(document: Document) -> list[Entity]:
                 if any(start < other_end and other_start < end for other_start, other_end in taken):
                     continue
                 taken.append((start, end))
-                propagated.append(_occurrence(page, start, end, types_by_text[text]))
+                occurrence = _occurrence(page, start, end, types_by_text[text])
+                if log.isEnabledFor(logging.DEBUG):
+                    log.debug(
+                        "propagated further occurrence of a found text: %s", describe(occurrence)
+                    )
+                propagated.append(occurrence)
     return sorted(propagated, key=lambda entity: (entity.page_index, entity.span))
 
 

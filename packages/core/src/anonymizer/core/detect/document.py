@@ -8,10 +8,13 @@ entities it yields are re-attached to the surface.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import replace
 
 from anonymizer.core.detect.base import Detector
 from anonymizer.core.types import Document, Entity, Page, Surface
+
+log = logging.getLogger(__name__)
 
 
 def detect_surface(detector: Detector, surface: Surface) -> list[Entity]:
@@ -25,6 +28,9 @@ def detect_surface(detector: Detector, surface: Surface) -> list[Entity]:
         Entities whose offsets refer to `surface.value`, carrying the surface's
         id, page index and, if it is drawn on a page, its box.
     """
+    # The surface's own id is not logged: it is derived from where the carrier
+    # sits in the file, which can be a link target or a file name.
+    log.debug("scanning hidden item kind=%s on page %s", surface.kind, surface.page_index)
     transient = Page(index=surface.page_index or 0, width=0.0, height=0.0, text=surface.value)
     bboxes = [surface.bbox] if surface.bbox is not None else []
     return [

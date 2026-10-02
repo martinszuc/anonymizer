@@ -144,8 +144,8 @@ def _is_valid(found: re.Match[str]) -> bool:
     return _is_calendar_date(found["m_day"], month, found["m_year"])
 
 
-def _labelled_date_finder(labels: tuple[str, ...]) -> Finder:
-    """Build a finder for dates that directly follow one of the labels."""
+def _labelled_date_finder(name: str, labels: tuple[str, ...]) -> Finder:
+    """Build a finder, called `name` in logs, for dates that directly follow one of the labels."""
     # A label ending in a letter must end a word ("narozen", not "narozeniny");
     # one ending in a full stop may touch the date ("nar.12. 6. 1988").
     bounded = [label if label.endswith(r"\.") else rf"{label}(?!\w)" for label in labels]
@@ -159,11 +159,14 @@ def _labelled_date_finder(labels: tuple[str, ...]) -> Finder:
             if _is_valid(found):
                 yield Match.from_regex(found, EntityType.DATE, group="date")
 
+    find.__name__ = name
     return find
 
 
-find_czech_slovak_birth_dates = _labelled_date_finder(_CZECH_SLOVAK_LABELS)
+find_czech_slovak_birth_dates = _labelled_date_finder(
+    "find_czech_slovak_birth_dates", _CZECH_SLOVAK_LABELS
+)
 """Yield dates of birth after a Czech or Slovak label (`nar.`, `datum narození`, ...)."""
 
-find_english_birth_dates = _labelled_date_finder(_ENGLISH_LABELS)
+find_english_birth_dates = _labelled_date_finder("find_english_birth_dates", _ENGLISH_LABELS)
 """Yield dates of birth after an English label (`date of birth`, `DOB`, `born`)."""

@@ -35,6 +35,7 @@ from anonymizer.cli.commands import (
 )
 from anonymizer.core import __version__
 from anonymizer.core.ingest import OCR_ENGINES, load_ocr_engine
+from anonymizer.core.log import LEVEL_NAMES, configure_logging, resolve_level
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -45,15 +46,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("-V", "--version", action="version", version=__version__)
     commands = parser.add_subparsers(dest="command", required=True)
+    logging_options = _logging_options()
 
-    detect = commands.add_parser("detect", help="find personal data and save it for review")
+    detect = commands.add_parser(
+        "detect", parents=[logging_options], help="find personal data and save it for review"
+    )
     detect.add_argument("input", type=Path, help="PDF to scan")
     detect.add_argument("-o", "--output", type=Path, required=True, help="session file to write")
     _add_detection_options(detect)
     detect.add_argument("--show", action="store_true", help="list every item found")
     detect.add_argument("--force", action="store_true", help="replace an existing session file")
 
-    redact = commands.add_parser("redact", help="write a redacted copy of a PDF")
+    redact = commands.add_parser(
+        "redact", parents=[logging_options], help="write a redacted copy of a PDF"
+    )
     redact.add_argument("input", type=Path, help="PDF to redact")
     redact.add_argument("-o", "--output", type=Path, required=True, help="redacted PDF to write")
     redact.add_argument(
@@ -69,7 +75,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     redact.add_argument("--force", action="store_true", help="replace an existing output file")
 
-    check = commands.add_parser("check", help="run the leak check on a redacted PDF")
+    check = commands.add_parser(
+        "check", parents=[logging_options], help="run the leak check on a redacted PDF"
+    )
     check.add_argument("redacted", type=Path, help="redacted PDF to check")
     check.add_argument("--source", type=Path, required=True, help="the original PDF")
     check.add_argument("--session", type=Path, required=True, help="the review it came from")
@@ -77,6 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     inspect = commands.add_parser(
         "inspect",
+        parents=[logging_options],
         help="write an HTML view of the pages with what was found drawn on them",
     )
     inspect.add_argument("input", type=Path, help="PDF to show")
@@ -98,6 +107,29 @@ def build_parser() -> argparse.ArgumentParser:
     )
     inspect.add_argument("--force", action="store_true", help="replace an existing output file")
     return parser
+
+
+def _logging_options() -> argparse.ArgumentParser:
+    """Options every command takes; logs go to stderr, the command's own output to stdout."""
+    options = argparse.ArgumentParser(add_help=False)
+    options.add_argument(
+        "--debug",
+        action="store_true",
+        help="log every step and every detection (the log holds document text)",
+    )
+    options.add_argument(
+        "--log-level",
+        choices=LEVEL_NAMES,
+        help="how much to log to stderr (default: warning; the ANONYMIZER_LOG_LEVEL variable "
+        "also sets it, and --debug means debug)",
+    )
+    options.add_argument(
+        "--log-file",
+        type=Path,
+        metavar="PATH",
+        help="also append the log to this file; nothing is written to a file without it",
+    )
+    return options
 
 
 def _add_detection_options(parser: argparse.ArgumentParser) -> None:
@@ -153,6 +185,7 @@ def main(argv: list[str] | None = None) -> int:
         return exit_request.code if isinstance(exit_request.code, int) else EXIT_ERROR
     output = Output(out=sys.stdout, err=sys.stderr)
     try:
+        configure_logging(resolve_level(args.log_level, debug=args.debug), file=args.log_file)
         return _dispatch(args, output)
     except (
         CommandError,

@@ -12,14 +12,22 @@ PDF, a file dropped on the window) with DOM events on `window`, named
 from __future__ import annotations
 
 import argparse
+import functools
 import json
+import logging
+import platform
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import webview
+from anonymizer.core.log import LEVEL_NAMES, configure_logging, resolve_level, step
+from anonymizer.ui import __version__
 from anonymizer.ui.api import LANGUAGES, ReviewApi, ReviewError
 from webview.dom import DOMEventHandler
+
+log = logging.getLogger(__name__)
 
 STATIC_INDEX = Path(__file__).parent / "static" / "index.html"
 
@@ -31,6 +39,31 @@ _NOT_BUILT = """<!doctype html><meta charset="utf-8">
 <h2>The review window has not been built</h2>
 <p>Run <code>npm ci &amp;&amp; npm run build</code> in <code>packages/ui/frontend</code>,
 or start it with <code>--dev-server</code>.</p></body>"""
+
+
+def _logged[**P, R](call: Callable[P, R]) -> Callable[P, R]:
+    """Log a page call: its start and end at DEBUG, and why it failed.
+
+    A request the window refused (`ReviewError`) is a warning; anything else
+    is an error. The exception's message is never written (see `core.log`);
+    only its type and the frames it passed through. Arguments are not
+    logged: they are paths and ids the call's own module reports.
+    """
+
+    @functools.wraps(call)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        name = call.__name__
+        try:
+            with step(log, f"page call {name}"):
+                return call(*args, **kwargs)
+        except ReviewError:
+            log.warning("page call %s was refused", name, exc_info=True)
+            raise
+        except Exception:
+            log.exception("page call %s failed", name)
+            raise
+
+    return wrapper
 
 
 class WindowApi:
@@ -57,14 +90,17 @@ class WindowApi:
         """Give the API the window its dialogs open over; private so the page cannot."""
         self._window = window
 
+    @_logged
     def status(self) -> dict[str, Any]:
         """Describe the installation for the home screen; see `ReviewApi.status`."""
         return self._review.status()
 
+    @_logged
     def models(self) -> list[dict[str, Any]]:
         """Describe each feature's models and whether they are stored; see `ReviewApi.models`."""
         return self._review.models()
 
+    @_logged
     def download_models(self, feature: str) -> list[dict[str, Any]]:
         """Download a feature's models, telling the page how far it is.
 
@@ -74,6 +110,7 @@ class WindowApi:
         self._told_percent = -1
         return self._review.download_models(feature, self._download_progress)
 
+    @_logged
     def current_document(self) -> dict[str, Any] | None:
         """Describe the open document, or return None when nothing is open."""
         try:
@@ -81,6 +118,7 @@ class WindowApi:
         except ReviewError:
             return None
 
+    @_logged
     def choose_pdf(self, options: Any = None) -> dict[str, Any] | None:
         """Ask for a PDF and open it; None if the reviewer cancelled.
 
@@ -92,6 +130,7 @@ class WindowApi:
             return None
         return self._open(path, options)
 
+    @_logged
     def open_dropped(self, options: Any = None) -> dict[str, Any] | None:
         """Open the PDF last dropped on the window; None if there is none.
 
@@ -102,12 +141,14 @@ class WindowApi:
             return None
         return self._open(str(dropped), options)
 
+    @_logged
     def close_document(self) -> None:
         """Close the open document and return the window to its home screen."""
         self._review.close()
         self._dropped = None
         self._attached().title = "Anonymizer"
 
+    @_logged
     def choose_session(self) -> dict[str, Any] | None:
         """Ask for a session file, then for the PDF it reviewed; None if cancelled.
 
@@ -122,6 +163,7 @@ class WindowApi:
             return None
         return self._titled(self._review.open_session(pdf, session, self._progress))
 
+    @_logged
     def save_session_as(self) -> bool:
         """Ask where to save the review and write it; False if cancelled."""
         default = f"{Path(self._review.name).stem}-review.json"
@@ -131,6 +173,7 @@ class WindowApi:
         self._review.save_session(path)
         return True
 
+    @_logged
     def export_as(self, allow_pages_without_text: bool = False) -> dict[str, Any] | None:
         """Ask where to write the redacted copy and export it; None if cancelled.
 
@@ -142,20 +185,24 @@ class WindowApi:
             return None
         return self._review.export(path, allow_pages_without_text)
 
+    @_logged
     def page_image(self, index: int, dpi: int = 144) -> str:
         """Render a page of the open PDF; see `ReviewApi.page_image`."""
         return self._review.page_image(index, dpi)
 
+    @_logged
     def set_review(self, entity_id: str, state: str) -> dict[str, Any]:
         """Record the reviewer's decision on one entity; see `ReviewApi.set_review`."""
         return self._review.set_review(entity_id, state)
 
+    @_logged
     def add_region(
         self, page_index: int, x0: float, y0: float, x1: float, y1: float
     ) -> dict[str, Any]:
         """Add a region the reviewer drew; see `ReviewApi.add_region`."""
         return self._review.add_region(page_index, x0, y0, x1, y1)
 
+    @_logged
     def remove_entity(self, entity_id: str) -> None:
         """Remove an item the reviewer added; see `ReviewApi.remove_entity`."""
         self._review.remove_entity(entity_id)
@@ -202,9 +249,11 @@ class WindowApi:
         paths = [Path(file["pywebviewFullPath"]) for file in files if file.get("pywebviewFullPath")]
         pdf = next((path for path in paths if path.suffix.lower() == ".pdf"), None)
         if pdf is None:
+            log.warning("drop refused: none of the %d dropped file(s) is a PDF", len(paths))
             names = [path.name for path in paths]
             self._notify("drop-refused", names[0] if names else "")
             return
+        log.debug("PDF dropped on the window (%d file(s) in the drop)", len(paths))
         self._dropped = pdf
         self._notify("dropped", pdf.name)
 
@@ -215,6 +264,7 @@ class WindowApi:
         chosen = self._attached().create_file_dialog(
             dialog, save_filename=save_name, file_types=file_types
         )
+        log.debug("%s dialog: %s", dialog.name, "answered" if chosen else "cancelled")
         if not chosen:
             return None
         # The save dialog returns a plain string on some platforms.
@@ -284,7 +334,24 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="URL",
         help="load the frontend from a local Vite server (e.g. http://localhost:5173)",
     )
-    parser.add_argument("--debug", action="store_true", help="allow the web inspector")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="log every step and every detection (the log holds document text) and allow "
+        "the web inspector",
+    )
+    parser.add_argument(
+        "--log-level",
+        choices=LEVEL_NAMES,
+        help="how much to log to stderr (default: warning; the ANONYMIZER_LOG_LEVEL variable "
+        "also sets it, and --debug means debug)",
+    )
+    parser.add_argument(
+        "--log-file",
+        type=Path,
+        metavar="PATH",
+        help="also append the log to this file; nothing is written to a file without it",
+    )
     return parser
 
 
@@ -298,6 +365,13 @@ def main(argv: list[str] | None = None) -> int:
         The exit code: 0 once the window closes, 1 if the given PDF cannot be opened.
     """
     args = build_parser().parse_args(argv)
+    configure_logging(resolve_level(args.log_level, debug=args.debug), file=args.log_file)
+    log.info(
+        "anonymize-ui %s starting: python %s on %s",
+        __version__,
+        platform.python_version(),
+        platform.system(),
+    )
     review = ReviewApi(args.resource_root)
     title = "Anonymizer"
     if args.input is not None:
@@ -316,7 +390,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     api._attach(window)
     window.events.loaded += api._watch_drops
+    log.debug("window created, starting the event loop")
     webview.start(debug=args.debug, private_mode=True)
+    log.info("window closed")
     return 0
 
 

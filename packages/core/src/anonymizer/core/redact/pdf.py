@@ -17,16 +17,20 @@ full: an incremental save would keep every earlier revision of each object.
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from pathlib import Path
 
 import pymupdf
 from anonymizer.core.ingest.normalize import bbox_to_unrotated_rect
 from anonymizer.core.ingest.pdf import read_verified
+from anonymizer.core.log import short_fingerprint, step
 from anonymizer.core.redact.canvas import remove_off_page_content
 from anonymizer.core.redact.surfaces import clear_surfaces
 from anonymizer.core.types import BBox, Document
 from pymupdf import mupdf
+
+log = logging.getLogger(__name__)
 
 _BLACK = (0.0, 0.0, 0.0)
 _REMOVE_TOUCHED_DRAWINGS = mupdf.PDF_REDACT_LINE_ART_REMOVE_IF_TOUCHED
@@ -59,18 +63,35 @@ def redact_pdf(source: Path | str, document: Document, destination: Path | str) 
     data = read_verified(source, document)
     text_boxes = _page_text_boxes(document)
     region_boxes = _region_boxes(document)
-    with pymupdf.open(stream=data, filetype="pdf") as pdf:
+    with (
+        step(
+            log,
+            "redact",
+            document=short_fingerprint(document.fingerprint),
+            text_items=sum(len(boxes) for boxes in text_boxes.values()),
+            regions=sum(len(boxes) for boxes in region_boxes.values()),
+        ),
+        pymupdf.open(stream=data, filetype="pdf") as pdf,
+    ):
         if pdf.page_count != len(document.pages):
             msg = f"document has {len(document.pages)} pages, the file {pdf.page_count}"
             raise ValueError(msg)
         for index in range(pdf.page_count):
             page = pdf.load_page(index)
+            log.debug(
+                "page %d: blacking out %d text item(s), %d region(s)",
+                index,
+                len(text_boxes.get(index, [])),
+                len(region_boxes.get(index, [])),
+            )
             _black_out(page, text_boxes.get(index, []))
             _black_out_regions(page, region_boxes.get(index, []))
             if document.page(index).raster_dpi is not None:
+                log.debug("page %d: removing the text layer of a page OCR read", index)
                 _remove_text_layer(page)
             remove_off_page_content(page)
-        clear_surfaces(pdf)
+        with step(log, "clear hidden items"):
+            clear_surfaces(pdf)
         pdf.save(destination, garbage=4, deflate=True)
 
 

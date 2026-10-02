@@ -25,8 +25,10 @@ uv run python scripts/download.py fetch gliner-multi-v2.1
 anonymize redact cv.pdf -o cv-redacted.pdf --lang cs --ner
 ```
 
-The model is read from `models/` under `--resource-root` (default: the current
-directory) and never contacts the network.
+The model is read from `models/` under `--resource-root` (default: the folder chosen in the review window (*Manage models… → Change…*), else
+`./models` if the working directory has one (a checkout of this repository),
+else a per-user folder (`~/Library/Application Support/anonymizer` on macOS,
+`%LOCALAPPDATA%/anonymizer` on Windows, `~/.local/share/anonymizer` on Linux)) and never contacts the network.
 
 **Seeing what was found.** `inspect` writes one HTML file: every page as an image
 with the detected boxes drawn over it, coloured by type (hover for details, rejected

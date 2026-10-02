@@ -6,6 +6,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from anonymizer.core.resources import resolve_resource_root
+
 from benchmark.degrade import LEVELS, level_named
 from benchmark.ocr_run import ENGINES, ocr_markdown, run_ocr
 from benchmark.report import markdown
@@ -24,7 +26,9 @@ def main(argv: list[str] | None = None) -> int:
         help=f"comma-separated systems (default: {','.join(SYSTEMS)})",
     )
     run_parser.add_argument(
-        "--resource-root", type=Path, default=Path(), help="directory holding models/"
+        "--resource-root",
+        type=Path,
+        help="directory holding models/ (default: as for the CLI's --resource-root)",
     )
     ocr_parser = commands.add_parser("ocr", help="score OCR engines on degraded scans")
     ocr_parser.add_argument("--out", type=Path, required=True, help="directory for results")
@@ -40,12 +44,16 @@ def main(argv: list[str] | None = None) -> int:
         "--system", default="rules", choices=SYSTEMS, help="detector system (default: rules)"
     )
     ocr_parser.add_argument(
-        "--resource-root", type=Path, default=Path(), help="directory holding models/"
+        "--resource-root",
+        type=Path,
+        help="directory holding models/ (default: as for the CLI's --resource-root)",
     )
     history_parser = commands.add_parser("history", help="draw charts from several runs")
     history_parser.add_argument("results", type=Path, nargs="+", help="results.json files")
     history_parser.add_argument("--out", type=Path, required=True, help="directory for charts")
     args = parser.parse_args(argv)
+    if args.command != "history":
+        args.resource_root = resolve_resource_root(args.resource_root)
 
     if args.command == "history":
         from benchmark.history import draw

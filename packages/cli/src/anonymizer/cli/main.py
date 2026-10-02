@@ -36,6 +36,7 @@ from anonymizer.cli.commands import (
 from anonymizer.core import __version__
 from anonymizer.core.ingest import OCR_ENGINES, load_ocr_engine
 from anonymizer.core.log import LEVEL_NAMES, configure_logging, resolve_level
+from anonymizer.core.resources import resolve_resource_root
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -164,8 +165,8 @@ def _add_ocr_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--resource-root",
         type=Path,
-        default=Path(),
-        help="directory holding models/ (default: the current directory)",
+        help="directory holding models/ (default: the folder chosen in the review window, "
+        "else ./models if it exists, else a per-user folder)",
     )
 
 
@@ -180,6 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     """
     try:
         args = build_parser().parse_args(argv)
+        args.resource_root = resolve_resource_root(args.resource_root)
     except SystemExit as exit_request:
         # argparse exits for --help, --version and invalid arguments.
         return exit_request.code if isinstance(exit_request.code, int) else EXIT_ERROR

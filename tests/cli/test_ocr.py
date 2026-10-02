@@ -11,6 +11,7 @@ import pytest
 from anonymizer.cli import main as main_module
 from anonymizer.cli.main import main
 from anonymizer.core.ingest import OcrEngine, load_document
+from anonymizer.core.resources import choose_resource_root
 
 from tests.ocr_stand_in import InkReadingEngine
 from tests.pdf_builders import CONTACT_EMAIL, write_pdf, write_scanned_pdf
@@ -106,3 +107,11 @@ def test_review_made_without_ocr_is_refused_when_reading_with_ocr(
     assert main(redact) == 1
     assert "made without OCR" in capsys.readouterr().err
     assert not output.exists()
+
+
+def test_models_are_read_from_the_folder_chosen_in_the_window(
+    scan: Path, roots: list[tuple[str, Path]], tmp_path: Path
+):
+    choose_resource_root(tmp_path / "chosen")
+    assert main(["inspect", str(scan), "--ocr", "onnxtr", "--out", str(tmp_path / "r.html")]) == 0
+    assert roots == [("onnxtr", (tmp_path / "chosen").resolve())]

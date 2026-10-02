@@ -183,16 +183,20 @@ def detector_factories(systems: tuple[str, ...], resource_root: Path) -> dict[st
 
 def _totals(documents: dict[str, Any], systems: list[str]) -> dict[str, Any]:
     totals: dict[str, Any] = {}
+    words = sum(document["summary"]["words"] for document in documents.values())
     for system in systems:
         results = [document["systems"][system] for document in documents.values()]
         items = [ItemResult(**item) for result in results for item in result["items"]]
         by_type: dict[str, dict[str, int]] = {}
         for kind in sorted({item.type for item in items}):
             by_type[kind] = outcome_counts([item for item in items if item.type == kind])
+        false_alarms = sum(len(result["false_positives"]) for result in results)
         totals[system] = {
             "counts": outcome_counts(items),
             "by_type": by_type,
-            "false_positives": sum(len(result["false_positives"]) for result in results),
+            "false_positives": false_alarms,
+            "words": words,
+            "false_alarms_per_1000_words": round(1000 * false_alarms / words, 2) if words else 0.0,
             "decoys_removed": sum(len(result["decoys_removed"]) for result in results),
             "safe_documents": sum(result["safe"] for result in results),
             "leak_check_passed": sum(result["leak_check_passed"] for result in results),

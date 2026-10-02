@@ -125,6 +125,8 @@ def test_rules_only_run_writes_results_and_pictures(tmp_path):
     assert scores["leak_check_passed"]
     assert not scores["safe"]  # the name is still readable
     assert results["totals"]["rules"]["counts"]["found"] == 2
+    assert results["totals"]["rules"]["words"] == 9
+    assert results["totals"]["rules"]["false_alarms_per_1000_words"] == 0.0
     for picture in ("original", "rules.detected", "rules.redacted", "rules.collage"):
         assert (tmp_path / "images" / f"contact.{picture}.png").stat().st_size > 0
     assert "| rules | 2/3 |" in markdown(results)

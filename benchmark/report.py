@@ -29,6 +29,7 @@ def markdown(results: dict[str, Any]) -> str:
             "partial",
             "missed",
             "false alarms",
+            "per 1,000 words",
             "decoys removed",
             "safe documents",
             "leak check passed",
@@ -41,6 +42,7 @@ def markdown(results: dict[str, Any]) -> str:
                 str(total["counts"]["partial"]),
                 str(total["counts"]["missed"]),
                 str(total["false_positives"]),
+                f"{total['false_alarms_per_1000_words']:.1f}",
                 str(total["decoys_removed"]),
                 _ratio(total["safe_documents"], total["documents"]),
                 _ratio(total["leak_check_passed"], total["documents"]),
@@ -68,7 +70,12 @@ def markdown(results: dict[str, Any]) -> str:
     )
     lines += ["", "## Per document", ""]
     lines += _table(
-        ["document", "language", "kind", *(f"{system}: found / safe" for system in systems)],
+        [
+            "document",
+            "language",
+            "kind",
+            *(f"{system}: found / safe / false alarms" for system in systems),
+        ],
         [
             [
                 name,
@@ -76,7 +83,8 @@ def markdown(results: dict[str, Any]) -> str:
                 document["summary"]["kind"],
                 *(
                     f"{_ratio(scores['counts']['found'], scores['counts']['gold'])} / "
-                    f"{'yes' if scores['safe'] else '**no**'}"
+                    f"{'yes' if scores['safe'] else '**no**'} / "
+                    f"{len(scores['false_positives'])}"
                     for scores in (document["systems"][system] for system in systems)
                 ),
             ]

@@ -1,0 +1,30 @@
+# Slovak complaints policy of an invented shop: no personal data at all.
+# Capitalised role nouns (Predávajúci, Kupujúci, Spotrebiteľ), company and
+# authority names and products. Every finding here is a false alarm.
+language = "sk"
+kind = "terms"
+lines = [
+  "Reklamačný poriadok",
+  "Záhradná technika Tatry s.r.o.",
+  "Čl. I. Všeobecné ustanovenia",
+  "Tento reklamačný poriadok upravuje postup Predávajúceho a Kupujúceho pri uplatňovaní práv zo zodpovednosti za vady tovaru zakúpeného v internetovom obchode alebo v kamennej predajni. Predávajúcim je spoločnosť Záhradná technika Tatry s.r.o. Kupujúcim je fyzická alebo právnická osoba, ktorá s Predávajúcim uzatvorila kúpnu zmluvu. Ak je Kupujúci spotrebiteľom, má práva podľa Občianskeho zákonníka a zákona o ochrane spotrebiteľa.",
+  "Čl. II. Zodpovednosť za vady",
+  "Predávajúci zodpovedá za vady, ktoré má tovar pri prevzatí Kupujúcim, a za vady, ktoré sa vyskytnú v záručnej dobe. Záručná doba je dvadsaťštyri mesiacov a začína plynúť prevzatím tovaru. Na kosačku Robot Grass 300, záhradný traktor Horal a ďalšie stroje sa vzťahuje aj rozšírená záruka výrobcu podľa záručného listu. Predávajúci nezodpovedá za opotrebenie spôsobené obvyklým používaním.",
+  "Čl. III. Uplatnenie reklamácie",
+  "Reklamáciu uplatňuje Kupujúci v predajni alebo zaslaním tovaru na adresu prevádzky Predávajúceho. K reklamácii pripojí doklad o kúpe a popis vady. Predávajúci vydá Kupujúcemu potvrdenie o uplatnení reklamácie a rozhodne o spôsobe jej vybavenia ihneď, v zložitých prípadoch do troch pracovných dní. Reklamácia sa vybaví najneskôr do tridsiatich dní od jej uplatnenia; po uplynutí lehoty má Spotrebiteľ právo od zmluvy odstúpiť.",
+  "Čl. IV. Spôsoby vybavenia",
+  "Ak ide o vadu, ktorú možno odstrániť, má Kupujúci právo na jej bezplatné a včasné odstránenie. Namiesto odstránenia vady môže žiadať výmenu tovaru, ak tým Predávajúcemu nevzniknú neprimerané náklady. Ak ide o vadu neodstrániteľnú, má Kupujúci právo na výmenu tovaru alebo na odstúpenie od zmluvy. Servis zabezpečuje autorizovaný Servisný partner výrobcu.",
+  "Čl. V. Alternatívne riešenie sporov",
+  "Ak Predávajúci reklamáciu zamietne alebo na žiadosť o nápravu neodpovie do tridsiatich dní, môže Spotrebiteľ podať návrh na začatie alternatívneho riešenia sporu. Subjektom alternatívneho riešenia sporov je Slovenská obchodná inšpekcia alebo iná oprávnená právnická osoba zapísaná v zozname, ktorý vedie Ministerstvo hospodárstva Slovenskej republiky. Spotrebiteľ môže využiť aj platformu na riešenie sporov online.",
+  "Čl. VI. Záverečné ustanovenia",
+  "Tento reklamačný poriadok nadobúda účinnosť dňa 1. marca 2026. Kupujúci bol s reklamačným poriadkom oboznámený pred uzavretím zmluvy umiestnením na webovom sídle Predávajúceho a vyvesením v predajni.",
+]
+decoys = [
+  "Záhradná technika Tatry s.r.o.",
+  "Predávajúci",
+  "Kupujúci",
+  "Spotrebiteľ",
+  "Robot Grass 300",
+  "Slovenská obchodná inšpekcia",
+  "Ministerstvo hospodárstva Slovenskej republiky",
+]

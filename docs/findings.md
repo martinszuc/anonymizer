@@ -466,6 +466,15 @@ Verified on saved files, one probe per kind of content under a box:
   references, but reports only the standard keys and adds a `format` entry that is
   not in the file. Custom keys (`Company`) need the raw dictionary, and values
   stored as references need MuPDF's metadata lookup to decode.
+- **PyMuPDF garbles attachment names with diacritics** (1.28.2). `embfile_names`,
+  `embfile_info` (`name`, `filename`, `ufilename`) and `Annot.file_info`
+  (`filename`) take MuPDF's correctly decoded UTF-8 and map each byte to a
+  character, so a `/UF` stored as UTF-16BE comes back as `KratochvÃ­l` for
+  `Kratochvíl`; descriptions (`/Desc`) are not affected. Ingest reads the file
+  specification through MuPDF's `pdf_to_text_string` instead. Repairing the
+  string (`encode("latin-1").decode("utf-8")`) would break silently once PyMuPDF
+  fixes the bug. Deleting by the garbled name still works, since the lookup
+  garbles the same way.
 - **Form field values leak twice.** The value is also drawn into the widget's
   appearance stream, so it shows up in `Page.text` as well as in the field.
 - PyMuPDF percent-encodes launch-link file paths (`C%3A/...`), and a `mailto:`

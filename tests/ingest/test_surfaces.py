@@ -7,6 +7,9 @@ from anonymizer.core.ingest import load_document
 from anonymizer.core.types import BBox, Document, Surface, SurfaceKind
 
 from tests.pdf_builders import (
+    ATTACHMENT_DESCRIPTION,
+    ATTACHMENT_KEY,
+    ATTACHMENT_NAME,
     BOOKMARK_URI,
     CONTACT_EMAIL,
     INDIRECT_KEYWORDS,
@@ -15,6 +18,7 @@ from tests.pdf_builders import (
     ROTATED_WORD,
     STRUCTURE_ACTUAL_TEXT,
     STRUCTURE_ALT,
+    write_attachments_pdf,
     write_pdf,
     write_surfaces_pdf,
 )
@@ -72,6 +76,28 @@ class TestDocumentLevelSurfaces:
     def test_every_attachment_label_is_a_surface(self, document: Document):
         refs = {surface.ref for surface in of_kind(document, SurfaceKind.EMBEDDED_FILE)}
         assert refs == {"0/name", "0/filename", "0/ufilename", "0/description"}
+
+
+class TestAttachmentLabels:
+    """PyMuPDF's own readers return these names as UTF-8 bytes taken for Latin-1."""
+
+    @pytest.fixture
+    def attached(self, tmp_path: Path) -> Document:
+        return load_document(write_attachments_pdf(tmp_path / "attachments.pdf"))
+
+    def test_document_attachment_labels_keep_their_diacritics(self, attached: Document):
+        labels = {s.ref: s.value for s in of_kind(attached, SurfaceKind.EMBEDDED_FILE)}
+        assert labels == {
+            "0/name": ATTACHMENT_KEY,
+            "0/filename": ATTACHMENT_NAME,
+            "0/ufilename": ATTACHMENT_NAME,
+            "0/description": ATTACHMENT_DESCRIPTION,
+        }
+
+    def test_attachment_annotation_labels_keep_their_diacritics(self, attached: Document):
+        surfaces = of_kind(attached, SurfaceKind.EMBEDDED_FILE, page_index=0)
+        labels = {s.ref.split("/")[1]: s.value for s in surfaces}
+        assert labels == {"filename": ATTACHMENT_NAME, "description": ATTACHMENT_DESCRIPTION}
 
 
 class TestStructureTree:

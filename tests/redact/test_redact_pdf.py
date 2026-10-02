@@ -10,7 +10,12 @@ from anonymizer.core.ingest import extract_surfaces, load_document
 from anonymizer.core.redact import LeakLayer, find_leaks, redact_pdf
 from anonymizer.core.types import DetectionSource, Document, Entity, EntityType, ReviewState
 
-from tests.pdf_builders import CONTACT_EMAIL, write_pdf, write_surfaces_pdf
+from tests.pdf_builders import (
+    CONTACT_EMAIL,
+    write_attachments_pdf,
+    write_pdf,
+    write_surfaces_pdf,
+)
 
 PHONE = "+420 603 123 456"
 LINES = ["Jan Novak", f"e-mail {CONTACT_EMAIL}", f"tel. {PHONE}", "KEEP this line"]
@@ -148,6 +153,16 @@ class TestSurfaces:
         output = surfaces_pdf.with_name("out.pdf")
         redact_pdf(surfaces_pdf, document, output)
         with pymupdf.open(output) as pdf:
+            assert extract_surfaces(pdf) == []
+
+    def test_attachments_named_with_diacritics_are_removed(self, tmp_path: Path):
+        # Redaction deletes attachments by the names PyMuPDF reports, which
+        # garble diacritics; the garbled name must still find the attachment.
+        source = write_attachments_pdf(tmp_path / "attachments.pdf")
+        output = tmp_path / "out.pdf"
+        redact_pdf(source, load_document(source), output)
+        with pymupdf.open(output) as pdf:
+            assert pdf.embfile_count() == 0
             assert extract_surfaces(pdf) == []
 
     def test_cleared_output_passes_the_leak_check(self, surfaces_pdf: Path):

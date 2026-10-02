@@ -42,7 +42,7 @@ export function App() {
   const [status, setStatus] = useState<AppStatus | null>(null);
   // How the next PDF is opened; the model and OCR are on once their status says ready.
   const [options, setOptions] = useState<OpenOptions>({
-    language: null,
+    language: "auto",
     propagate: true,
     use_model: false,
     use_ocr: false,
@@ -472,6 +472,7 @@ export function App() {
             <Toolbar
               name={document.name}
               language={document.language}
+              languageRecognised={document.language_recognised}
               pageCount={document.pages.length}
               currentPage={currentPage}
               scale={scale}

@@ -39,7 +39,10 @@ export interface SurfaceInfo {
 
 export interface DocumentInfo {
   name: string;
+  /** What detection ran with; null when every language's rules ran. */
   language: string | null;
+  /** Whether the language was recognised from the text rather than chosen. */
+  language_recognised: boolean;
   pages: PageInfo[];
   entities: EntityInfo[];
   surfaces: SurfaceInfo[];
@@ -81,7 +84,7 @@ export interface AppStatus {
 
 /** How a PDF is opened; each is a detection option (see `ReviewApi.open_pdf`). */
 export interface OpenOptions {
-  /** Null runs every language's rules. */
+  /** A language code, "auto" to recognise it from the text, or null for every language's rules. */
   language: string | null;
   propagate: boolean;
   use_model: boolean;

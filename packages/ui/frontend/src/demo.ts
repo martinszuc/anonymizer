@@ -104,6 +104,7 @@ function demoDocument(readScans = false): DocumentInfo {
   return {
     name: "demo-cv.pdf",
     language: "cs",
+    language_recognised: true,
     pages: [
       { index: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT, has_text_layer: true, raster_dpi: null },
       {

@@ -68,9 +68,11 @@ export function Home({
           <OptionRow
             label="Language"
             note={
-              options.language === null
-                ? "Every language's rules run. Choosing one gives fewer false alarms."
-                : "Rules for this language, plus those that work in any (email, IBAN, cards, links)."
+              options.language === "auto"
+                ? "Recognised from the text. If it is unclear, every language's rules run."
+                : options.language === null
+                  ? "Every language's rules run. Choosing one gives fewer false alarms."
+                  : "Rules for this language, plus those that work in any (email, IBAN, cards, links)."
             }
           >
             <SegmentedControl
@@ -78,6 +80,7 @@ export function Home({
               value={options.language ?? "all"}
               onChange={(value) => onOptions({ ...options, language: value === "all" ? null : value })}
               segments={[
+                { value: "auto", label: "Auto" },
                 { value: "all", label: "All" },
                 ...languages.map((language) => ({ value: language.code, label: language.name })),
               ]}

@@ -44,8 +44,9 @@ from anonymizer.core.ingest import (
     pages_needing_ocr,
     read_pdf,
 )
+from anonymizer.core.language import AUTO
 from anonymizer.core.log import fields
-from anonymizer.core.pipeline import build_detector, run_detection
+from anonymizer.core.pipeline import build_detector, resolve_language, run_detection
 from anonymizer.core.redact import Leak, export_redacted
 from anonymizer.core.resources import (
     Catalog,
@@ -79,7 +80,8 @@ MAX_DPI = 400
 
 
 LANGUAGES = {"cs": "Czech", "sk": "Slovak", "en": "English"}
-"""Languages with their own rules (`detect.finders_for`); without one, every rule runs."""
+"""Languages with their own rules (`detect.finders_for`); without one, every rule runs.
+`language.AUTO` may be asked for as well: the language is recognised from the text."""
 
 OCR_ENGINE = "onnxtr"
 """The OCR engine the window offers (see `ingest.OCR_ENGINES`)."""
@@ -127,6 +129,7 @@ class _OpenDocument:
     source: Path
     document: Document
     pdf_bytes: bytes
+    language_recognised: bool = False
 
 
 class ReviewApi:
@@ -346,7 +349,8 @@ class ReviewApi:
 
         Args:
             path: The PDF to review.
-            language: BCP 47 tag selecting the rules; every rule runs when omitted.
+            language: BCP 47 tag selecting the rules, or `language.AUTO` to
+                recognise it from the text; every rule runs when omitted.
             propagate: Also mark further occurrences of the text found.
             use_model: Also run the name model (see `status`).
             progress: Told each step as it starts.
@@ -375,13 +379,16 @@ class ReviewApi:
                 ocr_progress=lambda done, total: report("ocr", done, total),
             )
         model = self._loaded_model(report) if use_model else None
+        resolved = resolve_language(document, language)
         run_detection(
             document,
-            build_detector(language, model=model),
+            build_detector(resolved, model=model),
             propagate=propagate,
             progress=lambda done, total: report("detecting", done, total),
         )
-        self._open = _OpenDocument(Path(path), document, pdf_bytes)
+        self._open = _OpenDocument(
+            Path(path), document, pdf_bytes, language_recognised=language == AUTO
+        )
         return self.document()
 
     def _loaded_model(self, report: Progress) -> Detector:
@@ -475,6 +482,7 @@ class ReviewApi:
         return {
             "name": current.source.name,
             "language": document.language,
+            "language_recognised": current.language_recognised,
             "pages": [_page_payload(page) for page in document.pages],
             "entities": [_entity_payload(entity) for entity in document.entities],
             "surfaces": [_surface_payload(surface) for surface in document.surfaces],

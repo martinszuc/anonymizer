@@ -131,7 +131,9 @@ xmp = { creator = "[[person:Jan Novák]]", title = "Dopis" }           # Dublin 
 ```
 
 A field's value is drawn on the page as well as stored in the field, so it
-plants two items: one on the page, one in the field. The annotation's author
+plants two items: one on the page, one in the field. MuPDF draws a value
+with Czech letters a little low, so the top of it is clipped in pictures;
+the text is unaffected. The annotation's author
 is its title, usually a person's name. Attachment contents are fixed neutral
 text: ingest never reads them, and redaction drops attachments whole.
 

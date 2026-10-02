@@ -74,13 +74,16 @@ its click redacts every member. Open, the occurrences follow indented by
 occurrence on the page; → and ← open and close it from the keyboard.
 
 **Models sheet.** A wide sheet (560 px) from *Manage models…* on the home
-screen: one section per feature (`--fill` card), its state on the right
+screen. Under the intro, a folder row (`--fill`, folder icon, the models folder
+in `--font-mono` footnote cut off with an ellipsis, full path on hover,
+*Change…* on the right, disabled while a download runs). Then one section per
+feature (`--fill` card), its state on the right
 (*Ready* in `--keep`, otherwise `--label-2`), each model as a name over a
 footnote line (size · licence · languages · source host). A missing Python
 package shows a `--warning` line with the install command in `--font-mono`.
 *Download <size>* is the primary button; while it runs, a progress bar
 (6 px track in `--fill-active`, fill in `--accent`, pill radius) with
-"received of total, then checked" replaces it. Other downloads are disabled.
+"received of total, then checked" replaces it. Features download side by side.
 
 **Page notices.** Above a page: a warning (`--warning` at 16 %, triangle icon)
 for a scan OCR did not read, since nothing on it was detected; a quiet note

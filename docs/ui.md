@@ -9,7 +9,7 @@ Visual design (tokens, components, box states) lives in
 [`packages/ui/frontend/DESIGN.md`](../packages/ui/frontend/DESIGN.md);
 package usage in [`packages/ui/README.md`](../packages/ui/README.md).
 
-## Status (after OCR in the window, 2026-10-01)
+## Status (after adding missed words, 2026-10-02)
 
 Works, for PDFs with a text layer and for scanned pages read by OCR:
 
@@ -52,7 +52,7 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   is one row in every order, scored by its text's best evidence (the highest
   model score among identical findings; a rule's or the reviewer's finding has
   no score and sorts last). Filter: decision (undecided, redacted, kept), found
-  by (rules, model, repeats, drawn), model score below 40–70 %. While anything is
+  by (rules, model, repeats, added: words and regions the reviewer added), model score below 40–70 %. While anything is
   filtered, boxes outside the filter are dimmed on the page (review mode only),
   the count reads "N of M", and *Keep N* keeps the undecided findings shown,
   with Undo on the toast; decisions already made are left alone. With nothing
@@ -69,6 +69,24 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   file exists only if the leak check passed. A sheet asks for consent first
   when pages have no text layer; a result sheet shows the counts and "Leak
   check: Passed", or "Nothing was written" with the leaks.
+- **Add a missed word or phrase**: in review mode, drag across words on the
+  page (as text is selected in any PDF viewer; the cursor is a text cursor
+  over words) or double-click one word. A drag may start on a box, so a
+  detected first name can be extended over a missed surname; a click without
+  a drag still toggles the box. A popover asks what it is (name, address,
+  email, phone, ID number, other; keys 1–6, guessed from the text: `@` →
+  email, digits → ID number or, with a leading `+`, phone, letters and digits
+  → address, else name); Return adds, Escape cancels. The selection is
+  widened to whole words in the core and trimmed of edge punctuation
+  (`Novák,` → `Novák`; the box still covers the comma), added `manual` and
+  `confirmed`, and its other occurrences are proposed as repeats (exact text,
+  whole words; not inflected forms) when the document was opened marking
+  repeats. A toast offers Undo; Cmd/Ctrl+Z removes the last item added
+  (word or region); × on its row or Delete removes it with the repeats only
+  it explained. Text already marked for redaction is refused; overlapping a
+  finding partly, or text inside a kept one, is allowed (the union of boxes is
+  removed). Works on OCR'd pages with OCR's words. A footer under the list
+  says how.
 - **Draw a region** over a photo, signature or stamp: the region tool (R) or
   holding Alt, then drag. The region is hatched in review mode, black in
   preview; a click selects it, Delete (or × in its sidebar row) removes it,
@@ -107,7 +125,7 @@ window*). Linux and Windows: the *Window tour* workflow opens the window and
 photographs it on every run (see *Window tour*); its first runs are the first
 time the window opens there.
 
-Not yet: adding a missed word, resizing a box, changing options on an open
+Not yet: resizing a box, changing options on an open
 document, remembered preferences, choosing an OCR engine (one is offered).
 See *Backlog*.
 
@@ -135,6 +153,8 @@ frontend/src/components  Toolbar, Sidebar, PageView, EmptyState, Toasts, control
 | `frontend/src/bridge.ts` | The method list the page may call; waits for `pywebviewready`; falls back to `demo.ts` in a plain browser under `npm run dev`. |
 | `frontend/src/review.ts` | Pure review rules (toggle, grouping, summary, render resolution, zoom). Unit-tested. |
 | `frontend/src/pageImages.ts` | Page image cache per document and resolution. |
+| `frontend/src/selection.ts` | Pure word-selection rules (hit test, nearest word, range, line highlight, type guess). Unit-tested in `selection.test.ts`. |
+| `frontend/src/pageWords.ts` | Page word cache per document, for selecting missed text. |
 | `frontend/src/demo.ts` | Synthetic stand-in for Python, development only (excluded from builds). |
 | `frontend/src/styles/tokens.css`, `app.css` | Tokens and component styles; see `DESIGN.md`. |
 | `tests/ui/test_api.py`, `tests/ui/test_app.py` | Python side, with pywebview stood in. |
@@ -153,6 +173,7 @@ FeatureModels { feature, title, installed, install_command, missing_bytes,
 PageInfo     { index, width, height, has_text_layer, raster_dpi }  # points; raster_dpi null unless OCR read it
 EntityInfo   { id, type, source, score, review, page_index, surface_id,
                text, is_region, boxes: [x0, y0, x1, y1][] }        # points, top-left origin
+WordInfo     { start, end, text, box: [x0, y0, x1, y1] }          # offsets into the page text
 SurfaceInfo  { id, kind, value, page_index, box | null }
 ```
 
@@ -174,7 +195,9 @@ Methods the page calls (all return promises in JS):
 | `open_dropped(options)` | `DocumentInfo \| null` | opens the PDF Python kept from the last drop; null if none |
 | `close_document()` | `None` | forgets the document, window title back to "Anonymizer" |
 | `add_region(page_index, x0, y0, x1, y1)` | `EntityInfo` | points, corners in any order; clipped to the page; `manual`, `confirmed` |
-| `remove_entity(entity_id)` | `None` | only `manual` items; a detected item is rejected instead |
+| `remove_entity(entity_id)` | `string[]` | only `manual` items; a detected item is rejected instead. Returns the ids removed: the item's, then its repeats (`propagated`, not confirmed) when no other finding marks the same text (`pipeline.remove_finding`) |
+| `page_words(index)` | `WordInfo[]` | a page's words in reading order (OCR's on a page OCR read); fetched once per page when it nears the viewport |
+| `add_finding(page_index, start, end, type)` | `EntityInfo[]` | a selection by word offsets, widened to whole words (`pipeline.add_finding`); the finding first, then its repeats; refuses a non-integer, a region type, text already marked for redaction |
 | `export_as(allow_pages_without_text)` | `ExportResult \| null` | save dialog; null = cancelled; raises (rejects) when scans OCR did not read remain and consent is false |
 | `choose_session()` | `DocumentInfo \| null` | asks for session, then PDF; reads it with the OCR engine the session names |
 | `save_session_as()` | `bool` | false = cancelled |
@@ -365,6 +388,7 @@ display (the script in a Linux container), not your desktop.
 | `session.save_session` / `apply_session` | save and reopen; same files as `anonymize detect` / `redact --session` |
 | `Document.adjust_span(entity_id, start, end)` | **not wired**: resizing a box to other words |
 | `Document.add_region`, `Document.remove_entity` | drawing and removing a region |
+| `pipeline.add_finding` (`Document.add_span`, `propagate_occurrences(document, marked)`), `pipeline.remove_finding` | adding a missed word with its repeats, and removing it with the repeats only it explained |
 | `redact.export_redacted` | export: temporary file, `redact_pdf`, `find_leaks`, rename only when clean; the CLI's `redact` uses the same function |
 | `ingest.load_ocr_engine`, `ocr_engine_installed`, `missing_ocr_files` | OCR on open, loaded once per session; its state on the home screen without loading it |
 | `ingest.pages_needing_ocr`, `Page.raster_dpi` | the page warning and export consent for scans OCR did not read; the "read by OCR" note |
@@ -376,11 +400,10 @@ display (the script in a Linux container), not your desktop.
 
 In suggested order. Each item names where it plugs in.
 
-1. **Add a missed word or phrase.** Needs the page's words in the payload
-   (new `page_words(index)` → text, offsets, boxes) and a core helper that
-   creates a `MANUAL` entity from a span (`Page.bboxes_for_span` gives the
-   boxes). UI: drag across words in review mode, a popover with a type
-   picker, then propagation of the new text (`propagate_occurrences`).
+1. **Done.** ~~Add a missed word or phrase.~~ Still open: inflected repeats
+   ("Novák" added, "Nováka" not proposed; needs a morphological analyser), and
+   the open document's *mark repeats* option is not stored in a session, so a
+   reopened review always proposes repeats of added text.
 2. **Resize a box** to fewer or more words → `Document.adjust_span`.
 3. **Change options on an open document:** re-run detection with another
    language or with the model, carrying decisions over by span. Opening
@@ -455,8 +478,8 @@ the repository, a test, a fixture or a commit message.
 8. **Done.** ~~Clicking a box both selects and toggles it.~~ Decided: a click still
    toggles by default; the toolbar's locate toggle (L) makes it only select and find
    the item.
-9. **Done** for regions: Cmd/Ctrl+Z removes the last region drawn since the document
-   opened. Undo of decisions stays in *Backlog*.
+9. **Done** for regions and added words: Cmd/Ctrl+Z removes the last item added since
+   the document opened. Undo of decisions stays in *Backlog*.
 10. **Done.** ~~Number the drawn regions.~~ Numbered in drawing order on the page and in
     the list; removing one closes the gap.
 
@@ -525,6 +548,9 @@ the repository, a test, a fixture or a commit message.
   before React re-renders, and a handler reading state sees the previous
   event's value. `setPointerCapture` is wrapped in try/catch; WebKit refuses it
   for synthetic pointers, which is how a probe script drives a drag.
+- A word selection that ends over a box would also fire that box's click and
+  toggle it; `PageView` swallows the one click after a drag (`onClickCapture`).
+  The selection starts only after the pointer moves 4 px, so a click stays a click.
 - `demo.ts` returns copies (`structuredClone`), as pywebview's JSON round trip
   does; returning its own objects let a mutation there change React state and
   duplicated a drawn region.

@@ -490,6 +490,29 @@ kbd {
   color: var(--danger);
 }
 
+/* On text the reviewer added, beside its switch: shown when the row is hovered or selected. */
+.row-remove[data-quiet] {
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.row:hover .row-remove[data-quiet],
+.row[data-selected="true"] .row-remove[data-quiet] {
+  opacity: 1;
+}
+
+/* How to add what detection missed, under the findings list. */
+.list-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 calc(-1 * var(--space-4));
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--hairline) solid var(--separator);
+  color: var(--label-2);
+  font-size: var(--text-caption);
+}
+
 .row-meta {
   font-size: var(--text-caption);
   color: var(--label-2);
@@ -868,6 +891,8 @@ kbd {
 .page {
   position: relative;
   flex: none;
+  user-select: none;
+  -webkit-user-select: none;
   background: var(--page);
   box-shadow: var(--shadow-page);
   border-radius: 2px;
@@ -1068,6 +1093,82 @@ kbd {
   stroke-dasharray: 4 3;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
+}
+
+/* Selecting text detection missed (DESIGN.md → Adding a missed word): a text
+   cursor over words in review mode, the selection as text selections look. */
+.canvas:not([data-previewing="true"]):not([data-drawing="true"]) .overlay[data-over-word="true"] {
+  cursor: text;
+}
+
+.word-selection {
+  fill: var(--accent);
+  fill-opacity: 0.28;
+  pointer-events: none;
+}
+
+.add-popover {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 304px;
+  padding: var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--elevated);
+  backdrop-filter: var(--material-popover);
+  box-shadow: var(--shadow-popover);
+  transform-origin: top left;
+  cursor: default;
+}
+
+.add-popover-text {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.type-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.type-option {
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control-height-small);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--fill);
+  color: var(--label);
+  font-size: var(--text-footnote);
+}
+
+.type-option:hover {
+  background: var(--fill-hover);
+}
+
+.type-option[aria-checked="true"] {
+  background: color-mix(in srgb, var(--type) 18%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--type);
+  font-weight: 600;
+}
+
+.add-popover-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.add-popover-hint {
+  flex: 1;
+  color: var(--label-2);
+  font-size: var(--text-caption);
 }
 
 .hidden-box {

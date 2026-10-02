@@ -1,0 +1,30 @@
+# Czech decision on a traffic offence. The official handling the case is a
+# person too. The car's registration plate identifies its driver without a
+# checksum or rule; reference numbers and dates of the offence are decoys.
+language = "cs"
+kind = "decision"
+lines = [
+  "Magistrát města Hradec Králové",
+  "Odbor dopravy, oddělení přestupků",
+  "Č. j.: MMHK/184522/2026, spisová značka: SZ 4410/2026/PŘ",
+  "Vyřizuje: Bc. [[person:Alena Doubravová]], tel. [[phone:495 707 412]]",
+  "Rozhodnutí",
+  "Magistrát města Hradec Králové jako příslušný správní orgán rozhodl takto: obviněný [[person:Vojtěch Sýkora]], nar. [[date:14. 2. 1958]], trvale bytem [[address:Gočárova třída 1754/48, 500 02 Hradec Králové]], se uznává vinným ze spáchání přestupku podle § 125c odst. 1 písm. f) zákona o silničním provozu, kterého se dopustil tím, že dne 7. 6. 2026 v 10:42 hod. řídil osobní automobil RZ [[id_number:4H2 7781]] rychlostí 87 km/h v úseku s nejvyšší dovolenou rychlostí 50 km/h.",
+  "Za to se mu ukládá pokuta ve výši 2 500 Kč a povinnost nahradit náklady řízení v paušální částce 1 000 Kč.",
+  "Odůvodnění",
+  "Přestupek zjistila hlídka Městské policie Hradec Králové měřením ověřeným rychloměrem. Obviněný se k věci vyjádřil při ústním jednání dne 2. 9. 2026, kde uvedl, že spěchal k lékaři. Svědkyně [[person:Hana Malinová]] potvrdila, že vozidlo řídil pan [[person:Sýkora]]. Námitky [[person:Vojtěcha Sýkory]] správní orgán neshledal důvodnými, neboť měření proběhlo v souladu s návodem výrobce.",
+  "Poučení o odvolání",
+  "Proti tomuto rozhodnutí lze podat odvolání do 15 dnů ode dne jeho oznámení ke Krajskému úřadu Královéhradeckého kraje podáním u Magistrátu města Hradec Králové.",
+  "Bc. [[person:Alena Doubravová]], oprávněná úřední osoba",
+  "Doručuje se: [[person:Vojtěch Sýkora]], [[address:Gočárova třída 1754/48, 500 02 Hradec Králové]]",
+]
+bookmarks = ["Rozhodnutí – [[person:Vojtěch Sýkora]]", "Odůvodnění", "Poučení o odvolání"]
+decoys = [
+  "Magistrát města Hradec Králové",
+  "MMHK/184522/2026",
+  "SZ 4410/2026/PŘ",
+  "Městské policie Hradec Králové",
+  "Krajskému úřadu Královéhradeckého kraje",
+  "7. 6. 2026",
+  "2 500 Kč",
+]

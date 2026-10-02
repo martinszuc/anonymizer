@@ -113,11 +113,16 @@ def test_filler_expands_to_the_requested_word_count(tmp_path):
 
 def test_shipped_documents_load_and_plant_items():
     specs = load_documents()
-    assert len(specs) >= 6
     # A document without planted items measures false alarms, so it lists decoys.
     assert all(spec.gold or spec.decoys for spec in specs)
-    assert sum(bool(spec.gold) for spec in specs) >= 6
-    assert {spec.language for spec in specs} >= {"cs", "sk", "en"}
+    assert sum(bool(spec.gold) for spec in specs) >= 15
+    # Every language has documents with and without personal data.
+    for language in ("cs", "sk", "en"):
+        assert any(spec.gold for spec in specs if spec.language == language), language
+        assert any(not spec.gold for spec in specs if spec.language == language), language
+    carriers = {item.carrier for spec in specs for item in spec.gold}
+    assert carriers >= {"page", "link", "metadata", "bookmark", "form_field", "annotation"}
+    assert carriers >= {"embedded_file", "xmp"}
 
 
 def test_long_document_puts_a_name_beyond_the_model_limit():

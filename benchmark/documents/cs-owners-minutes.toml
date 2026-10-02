@@ -1,0 +1,25 @@
+# Minutes of a Czech homeowners' association: neighbours named in every
+# case, by surname alone after "pan"/"paní", a married couple by the plural
+# surname, a surname that is also a common noun (Krejčí, tailor) and a
+# company named after a surname.
+language = "cs"
+kind = "minutes"
+lines = [
+  "Zápis ze shromáždění vlastníků jednotek",
+  "Společenství vlastníků jednotek Na Vyhlídce, Kolín",
+  "Datum a místo konání: 12. 5. 2026 v 18:00, společenská místnost v suterénu domu",
+  "Přítomni: [[person:Zdeněk Vrána]] (předseda výboru), [[person:Olga Benešová]], [[person:Miloš Musil]], Ing. [[person:Daniela Krejčí]], [[person:Pavel Zeman]]. Omluveni: manželé [[person:Dvořákovi]].",
+  "1. Zahájení. Shromáždění zahájil předseda výboru [[person:Zdeněk Vrána]], který konstatoval, že je přítomno 64 % hlasů a shromáždění je usnášeníschopné. Zapisovatelkou byla zvolena [[person:Olga Benešová]].",
+  "2. Oprava střechy. Pan [[person:Musil]] informoval o třech nabídkách na opravu střechy. Nejvýhodnější nabídku předložila firma Klempířství Hora s.r.o. za 486 000 Kč. Paní [[person:Krejčí]] navrhla doplnit zateplení půdy. Návrh byl přijat 58 % hlasů.",
+  "3. Dluhy na zálohách. Výbor eviduje nedoplatek u jednotky č. 7, jejímž vlastníkem je [[person:Pavel Zeman]]. Výbor pověřil pana [[person:Vránu]], aby s panem [[person:Zemanem]] dohodl splátkový kalendář.",
+  "4. Různé. [[person:Olze Benešové]] bylo poděkováno za vedení webových stránek domu. Příští shromáždění se bude konat na podzim.",
+  "Zapsala: [[person:Olga Benešová]]",
+  "Ověřil: [[person:Zdeněk Vrána]]",
+]
+decoys = [
+  "Společenství vlastníků jednotek Na Vyhlídce, Kolín",
+  "Klempířství Hora s.r.o.",
+  "486 000 Kč",
+  "12. 5. 2026",
+  "jednotky č. 7",
+]

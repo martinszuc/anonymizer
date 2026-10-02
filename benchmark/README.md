@@ -83,14 +83,27 @@ uv run python -m benchmark history history/*/benchmark-results.json --out charts
   unique to it. The leak check only verifies that *detected* items are gone;
   this is the measure of what was never detected.
 
-## Documents without personal data
+## Documents
 
-`cs-terms`, `cs-notice` and `sk-terms` plant nothing: terms and conditions
-and official instructions, full of capitalised role nouns ("Kupující",
-"Žadatel", "Vedoucí odboru"), company and authority names. Every finding in
-them is a false alarm, which is what ordinary documents produce most of; the
-documents with planted items are too dense with personal data to show it. A
-document without items lists decoys instead.
+Twenty-six documents: CVs, contracts (purchase, employment, flat rental),
+invoices, letters, e-mail printouts, minutes, a filled-in form, a power of
+attorney, an official decision and a hospital report, in Czech, Slovak and
+English. Names appear in several grammatical cases, alone after "pan" or
+"paní", with degrees, as first names or nicknames; addresses with and
+without a postcode, split over form fields; decoys sit beside them: company
+names, seats and IČOs, shared mailboxes, law citations, reference numbers
+and dates that are not dates of birth.
+
+Seven documents plant nothing: terms and conditions, a complaints policy, a
+privacy notice, an employee handbook, sports-hall rules and two notices from
+an office (`cs-terms`, `cs-notice`, `cs-gym-rules`, `cs-privacy-notice`,
+`sk-terms`, `sk-waste-notice`, `en-handbook`). They are full of capitalised
+role nouns ("Kupující", "Žadatel", "Poplatník", "Line Manager"), company and
+authority names. Every finding in them is a false alarm, which is what
+ordinary documents produce most of; the documents with planted items are
+too dense with personal data to show it. A document without items lists
+decoys instead. The later ones were written without looking at the name
+filter's role lists, so that they test the filter rather than mirror it.
 
 ## Adding a document
 

@@ -29,7 +29,6 @@ PARAGRAPH_GAP = 6.0
 FIXED_DATE = "D:20260101000000Z"
 # PyMuPDF creates its widget type constants at runtime.
 TEXT_FIELD: int = pymupdf.PDF_WIDGET_TYPE_TEXT  # pyright: ignore[reportAttributeAccessIssue]
-FIELD_WIDTH = 220.0
 FIELD_GAP = 8.0
 NOTE_SIZE = 20.0
 ATTACHMENT_CONTENT = b"Synthetic attachment of a benchmark document.\n"
@@ -101,7 +100,7 @@ _DUBLIN_CORE = {
 
 
 def _add_text_field(page: pymupdf.Page, label: pymupdf.Rect, name: str, value: str) -> None:
-    """Add a filled text field on the line of its label."""
+    """Add a filled text field after its label, up to the right margin."""
     # PyMuPDF's stubs declare a new widget's attributes as None.
     widget: Any = pymupdf.Widget()
     widget.field_name = name
@@ -110,7 +109,7 @@ def _add_text_field(page: pymupdf.Page, label: pymupdf.Rect, name: str, value: s
     widget.text_font = "Helv"
     widget.text_fontsize = FONT_SIZE
     left = label.x1 + FIELD_GAP
-    widget.rect = pymupdf.Rect(left, label.y0, left + FIELD_WIDTH, label.y1)
+    widget.rect = pymupdf.Rect(left, label.y0, PAGE.width - MARGIN, label.y1)
     page.add_widget(widget)
 
 

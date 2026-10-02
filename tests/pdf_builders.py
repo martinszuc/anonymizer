@@ -106,6 +106,13 @@ STRUCTURE_ACTUAL_TEXT = f"write to {CONTACT_EMAIL}"
 ATTACHMENT_KEY = "Kratochvíl"
 ATTACHMENT_NAME = "Kratochvíl-doklad.pdf"
 ATTACHMENT_DESCRIPTION = "Doklad paní Kratochvílové"
+ASSOCIATED_CONTENT = b"<Invoice><Buyer>Hana Vesela</Buyer></Invoice>"
+ASSOCIATED_NAME = "faktura-Veselá.xml"
+ASSOCIATED_DESCRIPTION = "Faktura pro paní Veselou"
+ASSOCIATED_CARRIERS = ("catalog", "page", "property list")
+"""Where `write_associated_file_pdf` can refer to its file from an `/AF` array."""
+LAUNCH_CONTENT = b"launched attachment of Hana Vesela"
+LOOSE_CONTENT = b"loose embedded stream of Hana Vesela"
 # Keyed by name-tree key; the files' labels and their content.
 TREE_ATTACHMENTS = {
     "jnovak-cv": ("jnovak-cv.txt", "CV of Jan Novak"),
@@ -220,6 +227,44 @@ def write_attachments_pdf(path: Path) -> Path:
     return path
 
 
+def write_associated_file_pdf(
+    path: Path, carrier: str | None, *, listed: bool = False, embedded: bool = True
+) -> Path:
+    """Write a one-page PDF whose embedded file is an associated file (PDF 2.0, PDF/A-3).
+
+    Args:
+        path: Where to write the PDF.
+        carrier: Which object refers to the file through its `/AF` array: one of
+            `ASSOCIATED_CARRIERS` (a property list is nested directly inside the
+            page's resources), or `None` for no `/AF` at all.
+        listed: Whether the document's attachment list names the file as well,
+            as Factur-X invoices do.
+        embedded: Whether the file is embedded; otherwise the specification
+            only names an external file.
+    """
+    document = pymupdf.open()
+    document.new_page()
+    file_spec = _add_file_spec(document, ASSOCIATED_CONTENT if embedded else None)
+    catalog = document.pdf_catalog()
+    if listed:
+        name = pymupdf.get_pdf_str(ASSOCIATED_NAME)
+        document.xref_set_key(
+            catalog, "Names", f"<< /EmbeddedFiles << /Names [{name} {file_spec} 0 R] >> >>"
+        )
+    associated = f"[{file_spec} 0 R]"
+    page = document[0]
+    if carrier == "catalog":
+        document.xref_set_key(catalog, "AF", associated)
+    elif carrier == "page":
+        document.xref_set_key(page.xref, "AF", associated)
+    elif carrier == "property list":
+        resources = int(document.xref_get_key(page.xref, "Resources")[1].split()[0])
+        document.xref_set_key(resources, "Properties", f"<< /MC0 << /AF {associated} >> >>")
+    document.save(path)
+    document.close()
+    return path
+
+
 def write_attachment_tree_pdf(path: Path, *, split: bool) -> Path:
     """Write a PDF with the two `TREE_ATTACHMENTS`, listed in one name-tree node or in two.
 
@@ -248,6 +293,56 @@ def write_attachment_tree_pdf(path: Path, *, split: bool) -> Path:
     document.save(path)
     document.close()
     return path
+
+
+def write_other_file_carriers_pdf(path: Path) -> Path:
+    """Write a PDF embedding files outside the attachment list and any `/AF` array.
+
+    A launch action run on opening carries a file specification that embeds a
+    file, whose stream has no `/Type` entry. A second embedded-file stream is
+    referred to by a key no reader knows, without a file specification at all.
+    """
+    document = pymupdf.open()
+    document.new_page()
+    launched = add_stream(document, "<< >>", LAUNCH_CONTENT)
+    loose = add_stream(document, "<< /Type /EmbeddedFile >>", LOOSE_CONTENT)
+    name = pymupdf.get_pdf_str(ASSOCIATED_NAME)
+    catalog = document.pdf_catalog()
+    document.xref_set_key(
+        catalog,
+        "OpenAction",
+        f"<< /S /Launch /F << /Type /Filespec /F {name} /UF {name}"
+        f" /EF << /F {launched} 0 R >> >> >>",
+    )
+    document.xref_set_key(catalog, "Extra", f"{loose} 0 R")
+    document.save(path)
+    document.close()
+    return path
+
+
+def _add_file_spec(document: pymupdf.Document, content: bytes | None) -> int:
+    """Add a file specification, embedding `content` unless it is `None`; return its number."""
+    label = pymupdf.get_pdf_str(ASSOCIATED_NAME)
+    description = pymupdf.get_pdf_str(ASSOCIATED_DESCRIPTION)
+    embedding = ""
+    if content is not None:
+        stream = add_stream(document, "<< /Type /EmbeddedFile >>", content)
+        embedding = f" /EF << /F {stream} 0 R /UF {stream} 0 R >>"
+    file_spec = document.get_new_xref()
+    document.update_object(
+        file_spec,
+        f"<< /Type /Filespec /F {label} /UF {label} /Desc {description}"
+        f" /AFRelationship /Data{embedding} >>",
+    )
+    return file_spec
+
+
+def add_stream(document: pymupdf.Document, dictionary: str, content: bytes) -> int:
+    """Add a compressed stream object; return its object number."""
+    xref = document.get_new_xref()
+    document.update_object(xref, dictionary)
+    document.update_stream(xref, content)
+    return xref
 
 
 def add_structure_tree(document: pymupdf.Document, page_xref: int, link_xref: int) -> None:

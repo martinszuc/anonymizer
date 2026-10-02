@@ -473,6 +473,22 @@ instead of the pipeline moves precision by 0.002 only.
   value was only drawn in the field's appearance.
 - One box per word leaves gaps that show how a value was grouped (a phone number
   as four blocks); an entity's boxes on one line are merged before redacting.
+- **Deleting an attachment does not delete the file while anything else refers
+  to it** (PyMuPDF 1.28.2). PDF 2.0 and PDF/A-3 *associated files* list file
+  specifications in an `/AF` array, on the catalog (Factur-X and ZUGFeRD keep
+  their invoice XML there) or on a page, annotation, XObject, structure element
+  or marked-content property list. With the file also referred to from catalog
+  `/AF`, `embfile_del` removed it from the attachment list, but the embedded
+  stream survived `save(garbage=4)` with its content readable; the control
+  without `/AF` lost the stream. The leak check passed that output: no surface
+  was listed for the `/AF`-only specification, and the object layer searches
+  only for entity text, which an unscanned attachment does not contain. Launch
+  actions and multimedia annotations can embed files too. Ingest now lists the
+  labels of every `/AF` specification (any carrier, no page); redaction removes
+  every `/AF` entry, empties every file specification holding `/EF` and every
+  stream typed `/EmbeddedFile`; the leak check reports any `/EF` left and any
+  embedded-file stream with content. Synthetic files only: none of the real
+  samples has `/AF`.
 
 ### Toolchain findings: what a redaction box really removes
 

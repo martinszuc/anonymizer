@@ -17,6 +17,14 @@ The structure tree of a tagged PDF is removed whole, which costs the output its
 accessibility tags. Pruning it instead is not enough: its replacement text can
 repeat redacted words, and its references to removed annotations keep those
 annotations, link targets included, alive through garbage collection.
+
+Removing the attachment list is not enough either. A file specification that
+any other object still refers to keeps its embedded stream alive through
+garbage collection: an associated-files array (`/AF`) of the catalog, a page,
+an XObject or any other dictionary, or a launch action or multimedia annotation.
+So every `/AF` entry is removed, every file specification that embeds a file is
+emptied, and every embedded-file stream left is emptied as well, whoever refers
+to it.
 """
 
 from __future__ import annotations
@@ -24,6 +32,7 @@ from __future__ import annotations
 from typing import cast
 
 import pymupdf
+from anonymizer.core.ingest.objects import dictionaries_with_key, embedded_file_streams
 from pymupdf import mupdf
 
 _TRAILER = -1
@@ -39,6 +48,9 @@ def clear_surfaces(pdf: pymupdf.Document) -> None:
     _clear_xmp(pdf)
     _clear_bookmarks(pdf)
     _clear_embedded_files(pdf)
+    _clear_associated_files(pdf)
+    _clear_embedded_file_specs(pdf)
+    _clear_embedded_file_streams(pdf)
     _clear_structure_tree(pdf)
     for page in pdf:
         _clear_links(page)
@@ -77,6 +89,36 @@ def _clear_embedded_files(pdf: pymupdf.Document) -> None:
     names = mupdf.pdf_dict_getp(trailer, "Root/Names")
     if mupdf.pdf_is_dict(names):
         mupdf.pdf_dict_dels(names, "EmbeddedFiles")
+
+
+def _clear_associated_files(pdf: pymupdf.Document) -> None:
+    """Remove every associated-files array, so garbage collection drops the files."""
+    for _xref, dictionary in dictionaries_with_key(pdf, "AF"):
+        mupdf.pdf_dict_dels(dictionary, "AF")
+
+
+def _clear_embedded_file_specs(pdf: pymupdf.Document) -> None:
+    """Empty every file specification that embeds a file, wherever it is referred to.
+
+    The labels, collection item and thumbnail go with the embedded file; the
+    type is kept so a reference to the specification stays well-formed.
+    """
+    for _xref, file_spec in dictionaries_with_key(pdf, "EF"):
+        keys = [
+            mupdf.pdf_to_name(mupdf.pdf_dict_get_key(file_spec, index))
+            for index in range(mupdf.pdf_dict_len(file_spec))
+        ]
+        for key in keys:
+            if key != "Type":
+                mupdf.pdf_dict_dels(file_spec, key)
+
+
+def _clear_embedded_file_streams(pdf: pymupdf.Document) -> None:
+    """Empty every embedded-file stream and drop its parameters (size, dates, checksum)."""
+    for xref in embedded_file_streams(pdf):
+        pdf.update_stream(xref, b"")
+        pdf.xref_set_key(xref, "Params", "null")
+        pdf.xref_set_key(xref, "DL", "null")
 
 
 def _clear_structure_tree(pdf: pymupdf.Document) -> None:

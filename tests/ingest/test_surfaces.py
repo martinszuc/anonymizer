@@ -8,6 +8,9 @@ from anonymizer.core.ingest import load_document
 from anonymizer.core.types import BBox, Document, Surface, SurfaceKind
 
 from tests.pdf_builders import (
+    ASSOCIATED_CARRIERS,
+    ASSOCIATED_DESCRIPTION,
+    ASSOCIATED_NAME,
     ATTACHMENT_DESCRIPTION,
     ATTACHMENT_KEY,
     ATTACHMENT_NAME,
@@ -20,6 +23,7 @@ from tests.pdf_builders import (
     STRUCTURE_ACTUAL_TEXT,
     STRUCTURE_ALT,
     TREE_ATTACHMENTS,
+    write_associated_file_pdf,
     write_attachment_tree_pdf,
     write_attachments_pdf,
     write_pdf,
@@ -101,6 +105,44 @@ class TestAttachmentLabels:
         surfaces = of_kind(attached, SurfaceKind.EMBEDDED_FILE, page_index=0)
         labels = {s.ref.split("/")[1]: s.value for s in surfaces}
         assert labels == {"filename": ATTACHMENT_NAME, "description": ATTACHMENT_DESCRIPTION}
+
+
+class TestAssociatedFiles:
+    @pytest.mark.parametrize("carrier", ASSOCIATED_CARRIERS)
+    def test_labels_are_listed_from_every_carrier(self, tmp_path: Path, carrier: str):
+        path = write_associated_file_pdf(tmp_path / "associated.pdf", carrier)
+        with pymupdf.open(path) as pdf:
+            page = pdf.load_page(0)
+            carriers = {
+                "catalog": pdf.pdf_catalog(),
+                "page": page.xref,
+                "property list": int(pdf.xref_get_key(page.xref, "Resources")[1].split()[0]),
+            }
+        labels = {s.ref: s.value for s in of_kind(load_document(path), SurfaceKind.EMBEDDED_FILE)}
+        ref = f"{carriers[carrier]}/af0"
+        assert labels == {
+            f"{ref}/filename": ASSOCIATED_NAME,
+            f"{ref}/ufilename": ASSOCIATED_NAME,
+            f"{ref}/description": ASSOCIATED_DESCRIPTION,
+        }
+
+    def test_a_file_in_the_attachment_list_is_listed_once(self, tmp_path: Path):
+        path = write_associated_file_pdf(tmp_path / "invoice.pdf", "catalog", listed=True)
+        refs = {s.ref for s in load_document(path).surfaces}
+        assert refs == {"0/name", "0/filename", "0/ufilename", "0/description"}
+
+    def test_a_file_of_an_attachment_annotation_is_listed_once(self, tmp_path: Path):
+        path = write_attachments_pdf(tmp_path / "attachments.pdf")
+        with pymupdf.open(path) as pdf:
+            page = pdf.load_page(0)
+            annot = page.annot_xrefs()[0][0]
+            # PyMuPDF writes the file specification inline; PDF/A-3 files share one object.
+            file_spec = pdf.get_new_xref()
+            pdf.update_object(file_spec, pdf.xref_get_key(annot, "FS")[1])
+            pdf.xref_set_key(annot, "FS", f"{file_spec} 0 R")
+            pdf.xref_set_key(page.xref, "AF", f"[{file_spec} 0 R]")
+            pdf.save(tmp_path / "associated.pdf")
+        assert load_document(tmp_path / "associated.pdf").surfaces == load_document(path).surfaces
 
 
 class TestAttachmentTree:

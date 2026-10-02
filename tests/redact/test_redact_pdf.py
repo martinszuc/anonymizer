@@ -1,21 +1,29 @@
 """Tests for blackbox redaction and the leakage check on its output."""
 
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 
 import pymupdf
 import pytest
 from anonymizer.core.detect import detect_document, structured_detector
 from anonymizer.core.ingest import extract_surfaces, load_document
-from anonymizer.core.redact import LeakLayer, find_leaks, redact_pdf
+from anonymizer.core.redact import Leak, LeakLayer, find_leaks, redact_pdf
 from anonymizer.core.types import DetectionSource, Document, Entity, EntityType, ReviewState
 
 from tests.pdf_builders import (
+    ASSOCIATED_CARRIERS,
+    ASSOCIATED_CONTENT,
     CONTACT_EMAIL,
+    LAUNCH_CONTENT,
+    LOOSE_CONTENT,
     TREE_ATTACHMENT_CONTENT,
     TREE_ATTACHMENTS,
+    add_stream,
+    write_associated_file_pdf,
     write_attachment_tree_pdf,
     write_attachments_pdf,
+    write_other_file_carriers_pdf,
     write_pdf,
     write_surfaces_pdf,
 )
@@ -205,6 +213,64 @@ class TestSurfaces:
         assert surfaces_pdf.read_bytes() == before
 
 
+class TestAssociatedFiles:
+    """A file referred to from `/AF` or another carrier must not survive garbage collection."""
+
+    # ASCII prefixes of the file's name and description; the rest is stored escaped.
+    LABELS = ("faktura-Vesel", "Faktura pro pan")
+
+    @staticmethod
+    def carried(path: Path, content: bytes | None = None) -> tuple[bool, list[bool]]:
+        """Whether some stream holds `content`, and whether the objects hold each label."""
+        with pymupdf.open(path) as pdf:
+            in_streams = content is not None and any(content in data for data in streams(pdf))
+            source = objects(pdf)
+        return in_streams, [label in source for label in TestAssociatedFiles.LABELS]
+
+    @pytest.mark.parametrize(
+        ("carrier", "listed"),
+        [
+            (None, True),
+            ("catalog", True),
+            *((carrier, False) for carrier in ASSOCIATED_CARRIERS),
+        ],
+        ids=["control", "invoice", *ASSOCIATED_CARRIERS],
+    )
+    def test_file_and_labels_are_removed(self, tmp_path: Path, carrier: str | None, listed: bool):
+        source = write_associated_file_pdf(tmp_path / "associated.pdf", carrier, listed=listed)
+        assert self.carried(source, ASSOCIATED_CONTENT) == (True, [True, True])
+        document = load_document(source)
+        output = tmp_path / "out.pdf"
+        redact_pdf(source, document, output)
+        assert self.carried(output, ASSOCIATED_CONTENT) == (False, [False, False])
+        with pymupdf.open(output) as pdf:
+            assert extract_surfaces(pdf) == []
+        assert find_leaks(output, document) == []
+
+    @pytest.mark.parametrize("carrier", ASSOCIATED_CARRIERS)
+    def test_labels_of_an_external_file_are_removed(self, tmp_path: Path, carrier: str):
+        source = write_associated_file_pdf(tmp_path / "external.pdf", carrier, embedded=False)
+        assert self.carried(source) == (False, [True, True])
+        document = load_document(source)
+        output = tmp_path / "out.pdf"
+        redact_pdf(source, document, output)
+        assert self.carried(output) == (False, [False, False])
+        assert find_leaks(output, document) == []
+
+    def test_files_outside_any_listed_carrier_are_removed(self, tmp_path: Path):
+        source = write_other_file_carriers_pdf(tmp_path / "carriers.pdf")
+        assert all(self.carried(source, content)[0] for content in (LAUNCH_CONTENT, LOOSE_CONTENT))
+        assert self.carried(source)[1][0]
+        document = load_document(source)
+        output = tmp_path / "out.pdf"
+        redact_pdf(source, document, output)
+        assert not any(
+            self.carried(output, content)[0] for content in (LAUNCH_CONTENT, LOOSE_CONTENT)
+        )
+        assert not self.carried(output)[1][0]
+        assert find_leaks(output, document) == []
+
+
 class TestAttachmentTree:
     """Attachments are removed whether their name tree is one node or split over `Kids`."""
 
@@ -278,6 +344,53 @@ class TestLeakCheck:
             pdf.saveIncr()
         leaks = find_leaks(revised, document)
         assert layers(leaks) == {LeakLayer.FILE_BYTES}
+
+
+class TestEmbeddedFileLeakCheck:
+    """Each case plants, in a clean output, a file only one part of the surface layer sees."""
+
+    @staticmethod
+    def leaks_with(
+        tmp_path: Path, key: str, plant: Callable[[pymupdf.Document], str]
+    ) -> list[Leak]:
+        """Redact a plain PDF, store what `plant` returns under a catalog key, then check it."""
+        source = write_pdf(tmp_path / "contact.pdf", [LINES])
+        document = load_document(source)
+        output = tmp_path / "out.pdf"
+        redact_pdf(source, document, output)
+        with pymupdf.open(output) as pdf:
+            pdf.xref_set_key(pdf.pdf_catalog(), key, plant(pdf))
+            pdf.save(tmp_path / "tampered.pdf")
+        return find_leaks(tmp_path / "tampered.pdf", document)
+
+    def test_labels_of_an_associated_file_are_reported(self, tmp_path: Path):
+        # An external file: a label, nothing embedded.
+        label = pymupdf.get_pdf_str("cv-Vesela.pdf")
+        leaks = self.leaks_with(tmp_path, "AF", lambda _: f"[<< /Type /Filespec /UF {label} >>]")
+        assert [leak.text for leak in leaks] == ["cv-Vesela.pdf"]
+        assert leaks[0].where.endswith("/af0/ufilename")
+
+    def test_an_unlabelled_file_specification_embedding_a_file_is_reported(self, tmp_path: Path):
+        def plant(pdf: pymupdf.Document) -> str:
+            return f"<< /EF << /F {add_stream(pdf, '<< >>', LAUNCH_CONTENT)} 0 R >> >>"
+
+        leaks = self.leaks_with(tmp_path, "Extra", plant)
+        assert [(leak.layer, leak.text) for leak in leaks] == [
+            (LeakLayer.SURFACE, "file specification embedding a file")
+        ]
+
+    @pytest.mark.parametrize(
+        ("content", "reported"),
+        [(LOOSE_CONTENT, ["embedded file"]), (b"", [])],
+        ids=["full", "empty"],
+    )
+    def test_an_embedded_file_stream_is_reported_unless_empty(
+        self, tmp_path: Path, content: bytes, reported: list[str]
+    ):
+        def plant(pdf: pymupdf.Document) -> str:
+            return f"{add_stream(pdf, '<< /Type /EmbeddedFile >>', content)} 0 R"
+
+        assert [leak.text for leak in self.leaks_with(tmp_path, "Extra", plant)] == reported
 
 
 class TestPreconditions:

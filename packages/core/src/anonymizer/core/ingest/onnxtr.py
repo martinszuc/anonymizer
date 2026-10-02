@@ -32,7 +32,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from anonymizer.core.ingest.ocr import OcrWord, PageImage
+from anonymizer.core.ingest.ocr import OCR_BOX_MARGIN, OcrWord, PageImage
 from anonymizer.core.resources import load_catalog, resource_status
 
 DETECTION_RESOURCE = "onnxtr-fast-base"
@@ -49,6 +49,7 @@ class OnnxtrEngine:
     """Reads a page with an OnnxTR predictor (see `load_onnxtr_engine`)."""
 
     name = "onnxtr"
+    box_margin = OCR_BOX_MARGIN
 
     def __init__(self, predictor: Any) -> None:
         self.predictor = predictor

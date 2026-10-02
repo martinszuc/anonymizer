@@ -13,7 +13,7 @@ so it can re-read a redacted page as the leak check does.
 
 from typing import NamedTuple, Self
 
-from anonymizer.core.ingest import OcrWord, PageImage
+from anonymizer.core.ingest import OCR_BOX_MARGIN, OcrWord, PageImage
 from anonymizer.core.types import BBox, Document, Page
 
 
@@ -34,6 +34,7 @@ class ScriptedEngine:
     """
 
     name = "stand-in"
+    box_margin = OCR_BOX_MARGIN
 
     def __init__(self, pages: list[list[ScriptedWord]]) -> None:
         self.pages = pages

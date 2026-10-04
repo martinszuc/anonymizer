@@ -1,4 +1,8 @@
-"""Command line: `uv run python -m experiments run --config experiments/configs/rq1-dev.toml`."""
+"""Command line: `uv run python -m experiments run --config experiments/configs/rq1-dev.toml`.
+
+`leaks scan.pdf --engines onnxtr --system rules+gliner --out leaks/` counts
+why the leak check fails on one document (`experiments.leaks`).
+"""
 
 from __future__ import annotations
 
@@ -8,10 +12,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from anonymizer.core.detect import load_gliner_detector
+from anonymizer.core.ingest import load_ocr_engine
+from anonymizer.core.pipeline import build_detector
 from anonymizer.core.resources import resolve_resource_root
 
 from experiments.config import load_config
 from experiments.datasets import DATASETS, load_corpus
+from experiments.leaks import breakdown, breakdown_markdown, write_breakdown
 from experiments.report import latex, markdown
 from experiments.run import run
 
@@ -35,7 +43,13 @@ def main(argv: list[str] | None = None) -> int:
     tables = commands.add_parser("tables", help="rewrite the tables of a stored results file")
     tables.add_argument("results", type=Path, help="<name>.json")
     datasets = commands.add_parser("datasets", help="count documents and gold spans per split")
-    for command in (run_parser, datasets):
+    leaks = commands.add_parser("leaks", help="count why the leak check fails on one PDF")
+    leaks.add_argument("pdf", type=Path, help="document to load, detect, redact and check")
+    leaks.add_argument("--out", type=Path, required=True, help="directory for leaks.json and .md")
+    leaks.add_argument("--engines", default="onnxtr", help="comma-separated OCR engines")
+    leaks.add_argument("--system", choices=("rules", "rules+gliner"), default="rules+gliner")
+    leaks.add_argument("--language", default="cs", help="detection language")
+    for command in (run_parser, datasets, leaks):
         command.add_argument(
             "--resource-root",
             type=Path,
@@ -50,6 +64,8 @@ def main(argv: list[str] | None = None) -> int:
     root = resolve_resource_root(args.resource_root)
     if args.command == "datasets":
         return _count(root)
+    if args.command == "leaks":
+        return _leaks(args, root)
     config = load_config(args.config)
     cache_dir = args.cache_dir or root / ".cache" / "experiments"
     results = run(config, resource_root=root, cache_dir=cache_dir, progress=print)
@@ -65,6 +81,16 @@ def _write_tables(results: dict[str, Any], folder: Path) -> None:
     name = str(results["name"])
     (folder / f"{name}.md").write_text(markdown(results), encoding="utf-8")
     (folder / f"{name}.tex").write_text(latex(results), encoding="utf-8")
+
+
+def _leaks(args: argparse.Namespace, root: Path) -> int:
+    model = load_gliner_detector(root) if args.system == "rules+gliner" else None
+    engines = {name: load_ocr_engine(name, root) for name in args.engines.split(",")}
+    detector = build_detector(args.language, model=model)
+    results = breakdown(args.pdf, engines, detector, args.language)
+    write_breakdown(results, args.out)
+    print(breakdown_markdown(results))
+    return 0
 
 
 def _count(root: Path) -> int:

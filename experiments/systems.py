@@ -61,7 +61,7 @@ class SystemConfig:
         threshold: The name model's minimum score.
         labels: Prompt label → entity type.
         distractors: Labels asked for whose spans are dropped.
-        names_only: Cut the model's person spans back to the name.
+        names_only: Cut the model's person and address spans back to the value.
         propagate: Mark further occurrences of what was found.
         language: `dataset` (the corpus's language), `auto` (recognised from
             the text, as the review window does) or `none` (every rule).

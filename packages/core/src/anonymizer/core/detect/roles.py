@@ -1,10 +1,11 @@
-"""Person spans from a name model, cut back to the name.
+"""Person and address spans from a name model, cut back to the value.
 
 The name model tags capitalised role nouns as persons: "Kupující" (buyer),
-"Žadatel" (applicant), "Vedoucí odboru" (head of department). Contracts, terms
-and official letters repeat them on every page, so they made up most of the
-false alarms in review. A name, by contrast, is capitalised word by word. So
-every person span a model reports passes two steps:
+"Žadatel" (applicant), "Vedoucí odboru" (head of department), "Adult",
+"Student". Contracts, terms, official letters and forms repeat them on every
+page, so they made up most of the false alarms in review. A name, by
+contrast, is capitalised word by word. So every person span a model reports
+passes two steps:
 
 1. Lowercase words at its edges are trimmed: "pan Novák" becomes "Novák",
    "Starosta města" becomes "Starosta". Abbreviations (`doc.`, `prof.`) and
@@ -14,9 +15,18 @@ every person span a model reports passes two steps:
    language is dropped: "Kupujícímu", "Zákonný zástupce".
 
 Role nouns that are also common surnames (Starosta, Žák, Kupec, Svědek,
-Soudce) are left off the lists: dropping a real name leaks it, while a role
-left in costs one click in review. Rules are not filtered; their evidence is a
-pattern or a checksum, not capitalisation.
+Soudce; Child, Nurse, Judge, Clerk) are left off the lists: dropping a real
+name leaks it, while a role left in costs one click in review.
+
+The same model tags the labels of a form's address fields as addresses: "Post
+Code", "Contact Address", "Telephone Number", the column and row headers next
+to the handwritten values. Field-label words at the edges of an address span
+are trimmed ("Post Code AB1 2CD" becomes "AB1 2CD"), and a span of nothing
+else is dropped. The words name a field, never a place, so one list serves
+every language: forms are often bilingual.
+
+Rules are not filtered; their evidence is a pattern or a checksum, not
+capitalisation.
 """
 
 from __future__ import annotations
@@ -229,7 +239,55 @@ SLOVAK_ROLE_WORDS = frozenset(
 )
 """Slovak role nouns and the adjectives used with them, in every case."""
 
-_ROLE_WORDS_BY_LANGUAGE = {"cs": CZECH_ROLE_WORDS, "sk": SLOVAK_ROLE_WORDS, "en": frozenset()}
+ENGLISH_ROLE_WORDS = frozenset(
+    {
+        *("adult", "adults", "minor", "minors", "children", "student", "students"),
+        *("pupil", "pupils", "applicant", "applicants", "claimant", "respondent"),
+        *("defendant", "plaintiff", "tenant", "tenants", "landlord", "employee"),
+        *("employees", "employer", "client", "clients", "patient", "patients"),
+        *("customer", "customers", "buyer", "seller", "vendor", "purchaser"),
+        *("guardian", "carer", "carers", "parent", "parents", "mother", "father"),
+        *("spouse", "partner", "member", "members", "resident", "residents"),
+        *("occupant", "beneficiary", "signatory", "recipient", "teacher", "doctor"),
+        *("worker", "practitioner", "officer", "manager", "staff", "representative"),
+        *("referrer", "person", "persons", "people", "individual", "name", "surname"),
+        *("forename", "signature", "gender", "sex", "next", "kin", "emergency"),
+        *("contact", "social", "care", "risk"),
+    }
+)
+"""English role nouns, and the words of a form's fields about a person
+("Gender", "Next of Kin", "Adult at Risk")."""
+
+_ROLE_WORDS_BY_LANGUAGE = {
+    "cs": CZECH_ROLE_WORDS,
+    "sk": SLOVAK_ROLE_WORDS,
+    "en": ENGLISH_ROLE_WORDS,
+}
+
+ADDRESS_LABEL_HEADS = frozenset(
+    {
+        *("address", "addresses", "code", "postcode", "zip", "zipcode", "number", "no"),
+        *("telephone", "phone", "mobile", "tel", "email", "e-mail", "fax"),
+        *("adresa", "adresy", "adrese", "adresu", "adresou", "bydliště", "bydlisko"),
+        *("bydliska", "psč", "telefon", "telefonu", "telefón", "telefónu", "číslo"),
+        *("čísla", "mobil", "sídlo", "sídla", "pobyt", "pobytu"),
+    }
+)
+"""Words that end the label of an address field: "Post Code", "Adresa", "PSČ"."""
+
+ADDRESS_LABEL_WORDS = ADDRESS_LABEL_HEADS | frozenset(
+    {
+        *("home", "contact", "postal", "post", "permanent", "current", "previous"),
+        *("residential", "correspondence", "registered", "mailing", "work"),
+        *("trvalé", "trvalý", "trvalého", "trvalém", "kontaktní", "kontaktná"),
+        *("korespondenční", "korešpondenčná", "doručovací", "doručovacia"),
+        *("poštovní", "poštová", "poštové", "telefonní", "telefónne", "mobilní"),
+        *("mobilné", "místo", "miesto", "směrovací", "smerovacie"),
+    }
+)
+"""Every word of an address field's label. A word that only qualifies the
+field ("Home", "Post") is trimmed only together with the word it qualifies:
+"Home Farm" may be a place, "Home Address" is a label."""
 
 _WORD = re.compile(r"\S+")
 _LETTERS = re.compile(r"[^\W\d_]+")
@@ -285,6 +343,60 @@ def cut_to_name(
     return start, end
 
 
+def cut_to_address(text: str, start: int, end: int) -> tuple[int, int] | None:
+    """Trim the labels of address fields off an address span; `None` if nothing else is left.
+
+    A label is a run of `ADDRESS_LABEL_WORDS` ending in one of
+    `ADDRESS_LABEL_HEADS` ("Post Code", "Telephone Number"), at either edge of
+    the span. Words with no letter or digit at the edges go with it.
+
+    Args:
+        text: The text the span refers to.
+        start: First offset of the span.
+        end: Offset one past the span.
+
+    Returns:
+        The trimmed span, or `None` when the span holds only labels.
+    """
+    words = [
+        (match.start(), match.end())
+        for match in _WORD.finditer(text, start, end)
+        if any(character.isalnum() for character in match.group())
+    ]
+    keys = [_label_key(text[slice(*word)]) for word in words]
+    first = _label_length(keys)
+    last = len(words) - _label_length(keys[first:][::-1], head_first=True)
+    if first >= last:
+        return None
+    start, end = words[first][0], words[last - 1][1]
+    while start < end and text[start] in _EDGE:
+        start += 1
+    while end > start and text[end - 1] in _EDGE:
+        end -= 1
+    return start, end
+
+
+def _label_key(word: str) -> str:
+    return word.strip(_EDGE).rstrip(".").lower()
+
+
+def _label_length(keys: list[str], *, head_first: bool = False) -> int:
+    """Number of leading keys that form an address label.
+
+    Read forwards, a label ends at its last head word; read backwards
+    (`head_first`), it must start with one.
+    """
+    length = 0
+    for index, key in enumerate(keys):
+        if key not in ADDRESS_LABEL_WORDS:
+            break
+        if head_first and index == 0 and key not in ADDRESS_LABEL_HEADS:
+            break
+        if head_first or key in ADDRESS_LABEL_HEADS:
+            length = index + 1
+    return length
+
+
 def _letters(word: str) -> str:
     match = _LETTERS.search(word)
     return match.group(0) if match else ""
@@ -300,9 +412,11 @@ def _is_trimmable(word: str) -> bool:
 
 
 class NamesOnly:
-    """Wraps a model detector and cuts its person spans back to the name.
+    """Wraps a model detector and cuts its spans back to the value.
 
-    Other entity types pass unchanged.
+    Person spans are cut to the name (`cut_to_name`), address spans lose the
+    labels of address fields (`cut_to_address`). Other entity types pass
+    unchanged.
 
     Attributes:
         detector: The wrapped model detector.
@@ -325,7 +439,7 @@ class NamesOnly:
         return self.detector.name
 
     def detect(self, page: Page) -> list[Entity]:
-        """Return the wrapped detector's entities, person spans cut to the name.
+        """Return the wrapped detector's entities, person and address spans cut to the value.
 
         Args:
             page: Page to scan; offsets refer to `page.text`.
@@ -335,20 +449,22 @@ class NamesOnly:
         """
         kept: list[Entity] = []
         for entity in self.detector.detect(page):
-            if entity.type is not EntityType.PERSON:
+            if entity.type is EntityType.PERSON:
+                cut = cut_to_name(page.text, *entity.span, self.role_words)
+            elif entity.type is EntityType.ADDRESS:
+                cut = cut_to_address(page.text, *entity.span)
+            else:
                 kept.append(entity)
                 continue
-            start, end = entity.span
-            cut = cut_to_name(page.text, start, end, self.role_words)
             if cut is None:
                 if log.isEnabledFor(logging.DEBUG):
-                    log.debug("dropped, no name in the span: %s", describe(entity))
+                    log.debug("dropped, no value in the span: %s", describe(entity))
                 continue
-            if cut != (start, end):
+            if cut != entity.span:
                 entity.start, entity.end = cut
                 entity.text = page.text[cut[0] : cut[1]]
                 entity.bboxes = page.bboxes_for_span(*cut)
                 if log.isEnabledFor(logging.DEBUG):
-                    log.debug("trimmed to the name: %s", describe(entity))
+                    log.debug("trimmed to the value: %s", describe(entity))
             kept.append(entity)
         return kept

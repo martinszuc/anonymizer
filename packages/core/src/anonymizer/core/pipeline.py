@@ -64,16 +64,17 @@ def build_detector(
 ) -> Detector:
     """Return the rules for a language, combined with a model detector if one is given.
 
-    The model's person spans are cut back to the name (`detect.NamesOnly`), with
-    the role words of the same language.
+    The model's person spans are cut back to the name and its address spans
+    lose the labels of address fields (`detect.NamesOnly`), with the role
+    words of the same language.
 
     Args:
         language: BCP 47 tag selecting the rules and role words; every list
             applies for `None`.
         model: A loaded model detector (see `detect.load_gliner_detector`).
-        names_only: Cut the model's person spans back to the name. Every
-            client keeps the default; the evaluation turns it off to measure
-            what the filter is worth.
+        names_only: Cut the model's person and address spans back to the
+            value. Every client keeps the default; the evaluation turns it
+            off to measure what the filter is worth.
 
     Returns:
         The detector to run over a document.

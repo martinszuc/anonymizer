@@ -1,27 +1,48 @@
-import { CircleCheck, ShieldAlert, TriangleAlert } from "lucide-react";
+import { ChevronRight, CircleCheck, FileOutput, ShieldAlert, TriangleAlert } from "lucide-react";
 
-import { exportSummary, leakLayerLabel, pageList } from "../review";
-import type { ExportResult } from "../types";
+import {
+  exportStages,
+  exportStatus,
+  exportSummary,
+  leakSections,
+  pageList,
+  plural,
+  type ExportPlan,
+  type LeakRow,
+} from "../review";
+import type { ExportProgress, ExportResult, LeakInfo } from "../types";
 import { Button } from "./Button";
 import { Sheet } from "./Sheet";
+import { TaskProgress } from "./TaskProgress";
 
-export type ExportStep =
+/** Which sheet of an export is up. */
+export type ExportSheet =
   | { kind: "confirm-pages"; pages: number[] }
-  | { kind: "result"; result: ExportResult };
+  /** Running; `progress` is null until Python's first step (the save dialog may still be open). */
+  | { kind: "progress"; plan: ExportPlan; progress: ExportProgress | null }
+  /** The leak check refused the copy; nothing is written until the reviewer saves it anyway. */
+  | { kind: "leaks"; result: ExportResult }
+  /** Written; `accepted` holds the leaks the reviewer saved it with. */
+  | { kind: "result"; result: ExportResult; accepted: LeakInfo[] };
 
 interface ExportSheetsProps {
-  step: ExportStep | null;
+  sheet: ExportSheet | null;
   busy: boolean;
   onExportAnyway: () => void;
+  onSaveAnyway: () => void;
+  /** Show where a leak lies: select its finding, or scroll to its page. */
+  onShowLeak: (row: LeakRow) => void;
   onClose: () => void;
 }
 
-/** The sheets around an export: consent for unreadable pages, then the outcome. */
-export function ExportSheets({ step, busy, onExportAnyway, onClose }: ExportSheetsProps) {
+/** The sheets around an export: consent for unreadable pages, progress, leaks, the outcome. */
+export function ExportSheets({ sheet, busy, onExportAnyway, onSaveAnyway, onShowLeak, onClose }: ExportSheetsProps) {
+  // Nothing can stop an export once it runs; Escape must not hide it.
+  const ignore = () => {};
   return (
     <>
       <Sheet
-        open={step?.kind === "confirm-pages"}
+        open={sheet?.kind === "confirm-pages"}
         title="Some pages cannot be redacted"
         icon={<TriangleAlert size={28} />}
         tone="warning"
@@ -37,26 +58,55 @@ export function ExportSheets({ step, busy, onExportAnyway, onClose }: ExportShee
           </>
         }
       >
-        {step?.kind === "confirm-pages" && (
+        {sheet?.kind === "confirm-pages" && (
           <p>
-            {capitalised(pageList(step.pages))} {step.pages.length === 1 ? "is a scan" : "are scans"}{" "}
-            OCR did not read. Nothing on {step.pages.length === 1 ? "it" : "them"} was detected, so{" "}
-            {step.pages.length === 1 ? "it goes" : "they go"} into the copy unredacted, and the leak
+            {capitalised(pageList(sheet.pages))} {sheet.pages.length === 1 ? "is a scan" : "are scans"}{" "}
+            OCR did not read. Nothing on {sheet.pages.length === 1 ? "it" : "them"} was detected, so{" "}
+            {sheet.pages.length === 1 ? "it goes" : "they go"} into the copy unredacted, and the leak
             check cannot see that.
           </p>
         )}
       </Sheet>
       <Sheet
-        open={step?.kind === "result"}
-        title={step?.kind === "result" && !step.result.written ? "Nothing was written" : "Exported"}
-        icon={
-          step?.kind === "result" && !step.result.written ? (
-            <ShieldAlert size={28} />
-          ) : (
-            <CircleCheck size={28} />
-          )
+        open={sheet?.kind === "progress" && sheet.progress !== null}
+        title="Exporting"
+        icon={<FileOutput size={28} />}
+        onClose={ignore}
+      >
+        {sheet?.kind === "progress" && (
+          <div className="export-progress" aria-busy="true">
+            <TaskProgress
+              status={exportStatus(sheet.progress, sheet.plan)}
+              stages={exportStages(sheet.progress, sheet.plan)}
+            />
+          </div>
+        )}
+      </Sheet>
+      <Sheet
+        open={sheet?.kind === "leaks"}
+        title="Possible leaks in the copy"
+        icon={<ShieldAlert size={28} />}
+        tone="warning"
+        size="wide"
+        onClose={onClose}
+        actions={
+          <>
+            <Button data-default onClick={onClose}>
+              Don’t Save
+            </Button>
+            <Button disabled={busy} onClick={onSaveAnyway}>
+              Save Anyway
+            </Button>
+          </>
         }
-        tone={step?.kind === "result" && !step.result.written ? "danger" : "success"}
+      >
+        {sheet?.kind === "leaks" && <LeaksBody leaks={sheet.result.leaks} onShow={onShowLeak} />}
+      </Sheet>
+      <Sheet
+        open={sheet?.kind === "result"}
+        title="Exported"
+        icon={<CircleCheck size={28} />}
+        tone="success"
         onClose={onClose}
         actions={
           <Button variant="primary" onClick={onClose}>
@@ -64,33 +114,56 @@ export function ExportSheets({ step, busy, onExportAnyway, onClose }: ExportShee
           </Button>
         }
       >
-        {step?.kind === "result" && <ResultBody result={step.result} />}
+        {sheet?.kind === "result" && <ResultBody result={sheet.result} accepted={sheet.accepted} />}
       </Sheet>
     </>
   );
 }
 
-function ResultBody({ result }: { result: ExportResult }) {
-  if (!result.written) {
-    return (
-      <>
-        <p>
-          The leak check found personal data still readable in the redacted copy, so it was
-          deleted. Your original and your decisions are unchanged.
-        </p>
-        <ul className="sheet-leaks">
-          {result.leaks.map((leak, index) => (
-            <li key={index}>
-              <span className="sheet-leak-where">
-                {leakLayerLabel(leak.layer)} · {leak.page === null ? leak.where : `Page ${leak.page}`}
-              </span>
-              <span className="mono">{leak.text}</span>
-            </li>
-          ))}
-        </ul>
-      </>
-    );
-  }
+function LeaksBody({ leaks, onShow }: { leaks: LeakInfo[]; onShow: (row: LeakRow) => void }) {
+  return (
+    <>
+      <p>
+        The leak check found {plural(leaks.length, "place")} in the redacted copy that may still
+        show personal data. Nothing is saved yet: save it anyway, or go back and look.
+      </p>
+      {leakSections(leaks).map((section) => (
+        <section key={section.kind} className="leak-section" aria-label={section.title}>
+          <h3 className="leak-section-title">{section.title}</h3>
+          <p className="leak-section-note">{section.note}</p>
+          <ul className="leak-rows">
+            {section.rows.map((row) => (
+              <li key={row.key}>
+                {row.page !== null || row.entityId !== null ? (
+                  <button type="button" className="leak-row" title="Show it" onClick={() => onShow(row)}>
+                    <LeakText row={row} />
+                    <ChevronRight size={14} aria-hidden />
+                  </button>
+                ) : (
+                  <div className="leak-row">
+                    <LeakText row={row} />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      <p className="sheet-hint">The check can be turned off in Settings.</p>
+    </>
+  );
+}
+
+function LeakText({ row }: { row: LeakRow }) {
+  return (
+    <span className="leak-row-text">
+      <span className="leak-row-title">{row.title}</span>
+      <span className="leak-row-where">{row.where}</span>
+    </span>
+  );
+}
+
+function ResultBody({ result, accepted }: { result: ExportResult; accepted: LeakInfo[] }) {
   return (
     <>
       <p className="sheet-file">{result.name}</p>
@@ -103,7 +176,13 @@ function ResultBody({ result }: { result: ExportResult }) {
         ))}
         <div>
           <dt>Leak check</dt>
-          <dd className="sheet-passed">Passed</dd>
+          {accepted.length > 0 ? (
+            <dd className="sheet-warned">Saved with {plural(accepted.length, "warning")}</dd>
+          ) : result.leak_check === "passed" ? (
+            <dd className="sheet-passed">Passed</dd>
+          ) : (
+            <dd>Off</dd>
+          )}
         </div>
       </dl>
       {result.pages_without_text.length > 0 && (

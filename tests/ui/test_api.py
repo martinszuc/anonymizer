@@ -9,6 +9,8 @@ import pytest
 from anonymizer.core import pipeline
 from anonymizer.core.ingest import load_document
 from anonymizer.core.redact import Leak, LeakLayer
+from anonymizer.core.redact import export as export_module
+from anonymizer.core.settings import read_settings
 from anonymizer.core.types import DetectionSource, Document, Entity, EntityType, Page
 from anonymizer.ui import api
 from anonymizer.ui.api import MAX_DPI, ReviewApi, ReviewError
@@ -241,6 +243,7 @@ class TestExport:
             "not_reviewed": 1,
             "hidden_removed": 0,
             "pages_without_text": [],
+            "leak_check": "passed",
             "leaks": [],
         }
         text = output_text(destination)
@@ -255,10 +258,68 @@ class TestExport:
         monkeypatch.setattr(api, "export_redacted", lambda *_, **__: [on_page, in_object])
         result = review.export(str(pdf.with_name("cv-redacted.pdf")))
         assert result["written"] is False
+        assert result["leak_check"] == "failed"
         assert result["leaks"] == [
-            {"layer": "page_text", "where": "page 0", "page": 1, "text": CONTACT_EMAIL},
-            {"layer": "object", "where": "object 7", "page": None, "text": CONTACT_EMAIL},
+            {
+                "layer": "page_text",
+                "where": "page 0",
+                "page": 1,
+                "text": CONTACT_EMAIL,
+                "entity_id": "e1",
+                "kind": "text",
+            },
+            {
+                "layer": "object",
+                "where": "object 7",
+                "page": None,
+                "text": CONTACT_EMAIL,
+                "entity_id": "e1",
+                "kind": "text",
+            },
         ]
+
+    def test_tells_each_step(self, review: ReviewApi, pdf: Path):
+        told: list[str] = []
+        review.export(
+            str(pdf.with_name("cv-redacted.pdf")),
+            progress=lambda step, _done, _total: told.append(step),
+        )
+        assert told[:4] == ["redacting", "redacting", "clearing", "saving"]
+        assert told[4:] == [layer.value for layer in LeakLayer if layer is not LeakLayer.OCR]
+
+
+class TestLeakCheckSetting:
+    def test_is_on_by_default(self):
+        assert ReviewApi().status()["settings"] == {"leak_check": True}
+
+    def test_turned_off_it_is_kept_for_later_runs(self):
+        assert ReviewApi().set_leak_check(False)["settings"] == {"leak_check": False}
+        assert ReviewApi().status()["settings"] == {"leak_check": False}
+        assert read_settings() == {"leak_check": False}
+
+    def test_turned_off_export_writes_without_checking(
+        self, review: ReviewApi, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        def no_check(*_: object, **__: object) -> list[Leak]:
+            raise AssertionError("the check was run")
+
+        monkeypatch.setattr(export_module, "find_leaks", no_check)
+        review.set_leak_check(False)
+        destination = pdf.with_name("cv-redacted.pdf")
+        result = review.export(str(destination))
+        assert (result["written"], result["leak_check"]) == (True, "off")
+        assert CONTACT_EMAIL not in output_text(destination)
+
+    def test_an_export_may_leave_the_check_out_while_it_is_on(self, review: ReviewApi, pdf: Path):
+        result = review.export(str(pdf.with_name("cv-redacted.pdf")), check=False)
+        assert result["leak_check"] == "off"
+        assert review.status()["settings"] == {"leak_check": True}
+
+    @pytest.mark.parametrize("value", [0, "false", None])
+    def test_only_a_boolean_is_accepted(self, value: object):
+        with pytest.raises(ReviewError, match="true or false"):
+            ReviewApi().set_leak_check(value)  # type: ignore[arg-type]
+        assert read_settings() == {}
 
     def test_pages_without_text_need_consent(self, tmp_path: Path):
         reviewer = ReviewApi()

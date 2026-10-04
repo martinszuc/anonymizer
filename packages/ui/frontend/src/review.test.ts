@@ -28,6 +28,10 @@ import {
   sortedBy,
   type ListView,
   openStatus,
+  exportStages,
+  exportStatus,
+  leakSections,
+  scannedPages,
   pagesWithoutText,
   regionNumbers,
   renderDpi,
@@ -35,7 +39,7 @@ import {
   summarize,
   toggled,
 } from "./review";
-import type { DocumentInfo, EntityInfo } from "./types";
+import type { DocumentInfo, EntityInfo, LeakInfo } from "./types";
 
 function entity(overrides: Partial<EntityInfo>): EntityInfo {
   return {
@@ -221,6 +225,7 @@ describe("export helpers", () => {
     not_reviewed: 3,
     hidden_removed: 6,
     pages_without_text: [],
+    leak_check: "passed" as const,
     leaks: [],
   };
 
@@ -476,5 +481,123 @@ describe("the findings list", () => {
     expect(scoreRange(findings.slice(0, 2))).toBe("35–92 %");
     expect(scoreRange([findings[1] as EntityInfo])).toBe("92 %");
     expect(scoreRange([findings[3] as EntityInfo])).toBeNull();
+  });
+});
+
+describe("export progress", () => {
+  const checked = { check: true, scannedPages: 0 };
+
+  it("lists the stages, each pending until Python's first step", () => {
+    expect(exportStages(null, checked).map((stage) => [stage.label, stage.state])).toEqual([
+      ["Redacting the pages", "pending"],
+      ["Removing hidden data", "pending"],
+      ["Writing the copy", "pending"],
+      ["Checking the copy for leaks", "pending"],
+    ]);
+  });
+
+  it("re-reads scans only when the check runs and OCR read some", () => {
+    const stages = (plan: { check: boolean; scannedPages: number }) =>
+      exportStages(null, plan).map((stage) => stage.key);
+    expect(stages({ check: true, scannedPages: 2 })).toContain("reread");
+    expect(stages({ check: false, scannedPages: 2 })).toEqual(["redact", "clear", "save"]);
+  });
+
+  it("marks the stage a leak layer belongs to as current", () => {
+    const progress = { step: "object" as const, done: 0, total: 0 };
+    expect(exportStages(progress, checked).map((stage) => stage.state)).toEqual([
+      "done",
+      "done",
+      "done",
+      "current",
+    ]);
+  });
+
+  it("says what runs now and counts pages", () => {
+    const status = exportStatus({ step: "redacting", done: 3, total: 12 }, checked);
+    expect(status.label).toBe("Removing what you marked from each page");
+    expect(status.count).toBe("3 of 12 pages");
+  });
+
+  it("fills one bar across the whole export", () => {
+    const at = (step: "redacting" | "saving" | "file_bytes", done = 0, total = 0) =>
+      exportStatus({ step, done, total }, checked).fraction ?? -1;
+    expect(exportStatus(null, checked).fraction).toBe(0);
+    expect(at("redacting", 0, 4)).toBe(0);
+    expect(at("redacting", 4, 4)).toBeGreaterThan(at("redacting", 2, 4));
+    expect(at("saving")).toBeGreaterThan(at("redacting", 4, 4));
+    expect(at("file_bytes")).toBeLessThan(1);
+  });
+
+  it("gives re-reading scans most of the bar", () => {
+    const plan = { check: true, scannedPages: 10 };
+    expect(exportStatus({ step: "ocr", done: 0, total: 10 }, plan).fraction).toBeLessThan(0.5);
+    expect(exportStatus({ step: "ocr", done: 10, total: 10 }, plan).fraction).toBe(1);
+  });
+
+  it("counts the pages OCR read", () => {
+    const page = { index: 0, width: 1, height: 1, has_text_layer: false };
+    const document = {
+      pages: [
+        { ...page, raster_dpi: 300 },
+        { ...page, index: 1, raster_dpi: null },
+      ],
+    } as DocumentInfo;
+    expect(scannedPages(document)).toBe(1);
+  });
+});
+
+describe("leakSections", () => {
+  const leak = (fields: Partial<LeakInfo>): LeakInfo => ({
+    layer: "page_text",
+    where: "page 0",
+    page: 1,
+    text: "Novák",
+    entity_id: "e1",
+    kind: "text",
+    ...fields,
+  });
+
+  it("puts faults of redaction before text found again", () => {
+    const sections = leakSections([
+      leak({}),
+      leak({ kind: "leftover", layer: "surface", where: "metadata Author", page: null, text: "Jan", entity_id: null }),
+      leak({ kind: "under_box", layer: "region", where: "page 0 region", text: "drawing" }),
+    ]);
+    expect(sections.map((section) => section.kind)).toEqual(["under_box", "leftover", "text"]);
+  });
+
+  it("makes one row of a text however many places hold it", () => {
+    const [section] = leakSections([
+      leak({ page: 4 }),
+      leak({ page: 1 }),
+      leak({ layer: "ocr", page: 2 }),
+      leak({ layer: "object", where: "object 7", page: null }),
+      leak({ layer: "file_bytes", where: "the file's bytes", page: null }),
+    ]);
+    expect(section?.rows).toEqual([
+      {
+        key: "text:Novák",
+        title: "Novák",
+        where: "Pages 1 and 4 · Page 2, read by OCR · in the file's data",
+        page: 1,
+        entityId: "e1",
+      },
+    ]);
+  });
+
+  it("counts repeats of something left in one place", () => {
+    const left = leak({ kind: "under_box", layer: "ocr", where: "page 0 under a box", text: "word 'Adult'" });
+    const [section] = leakSections([left, left]);
+    expect(section?.rows.map((row) => [row.title, row.where])).toEqual([
+      ["word 'Adult' ×2", "Page 1 · Re-read by OCR"],
+    ]);
+  });
+
+  it("names where hidden content lies when it is on no page", () => {
+    const [section] = leakSections([
+      leak({ kind: "leftover", layer: "surface", where: "metadata Author", page: null, text: "Jan", entity_id: null }),
+    ]);
+    expect(section?.rows[0]).toMatchObject({ where: "Hidden data · metadata Author", page: null, entityId: null });
   });
 });

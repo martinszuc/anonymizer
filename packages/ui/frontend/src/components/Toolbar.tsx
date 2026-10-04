@@ -9,6 +9,7 @@ import {
   Maximize2,
   Minus,
   Plus,
+  Settings,
   SquareDashedMousePointer,
 } from "lucide-react";
 
@@ -35,6 +36,7 @@ interface ToolbarProps {
   onSave: () => void;
   onPreview: () => void;
   onExport: () => void;
+  onSettings: () => void;
   onDrawTool: () => void;
   onLocate: () => void;
   onClose: () => void;
@@ -139,6 +141,13 @@ export function Toolbar(props: ToolbarProps) {
           aria-label="Open"
           title={`Open a PDF (${shortcut("O")})`}
           onClick={props.onOpen}
+        />
+        <Button
+          variant="plain"
+          icon={<Settings size={16} />}
+          aria-label="Settings"
+          title={`Settings (${shortcut(",")})`}
+          onClick={props.onSettings}
         />
         <Button title={`Save the review to continue later (${shortcut("S")})`} onClick={props.onSave}>
           Save Review

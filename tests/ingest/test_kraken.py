@@ -100,7 +100,19 @@ def engine_reading(records: list[_Record], lines: int | None = None) -> KrakenEn
     return KrakenEngine(segmenter, _Recognizer(records), "segmentation", "recognition")
 
 
-IMAGE = PageImage(width=200, height=100, dpi=72, samples=bytes(200 * 100 * 3))
+WHITE = 255
+IMAGE = PageImage(width=300, height=100, dpi=72, samples=bytes([WHITE]) * (300 * 100 * 3))
+
+
+def with_black_bar(x0: int, y0: int, x1: int, y1: int) -> PageImage:
+    """The white test picture with a solid black rectangle, as a redaction box leaves."""
+    rows = []
+    for y in range(IMAGE.height):
+        row = bytearray([WHITE] * IMAGE.width * 3)
+        if y0 <= y < y1:
+            row[x0 * 3 : x1 * 3] = bytes(3 * (x1 - x0))
+        rows.append(bytes(row))
+    return PageImage(IMAGE.width, IMAGE.height, IMAGE.dpi, b"".join(rows))
 
 
 class TestWords:
@@ -120,6 +132,15 @@ class TestWords:
             pytest.approx((205, 10, 240, 30)),
         ]
         assert words[1].confidence == pytest.approx((0.6 + 0.7 + 0.8 + 0.5 + 0.6) / 5)
+
+    def test_widening_stops_half_a_line_height_beside_a_word(self):
+        # "Jan" spans 100-130 and "Brno" 250-290 on a line 20 pixels high: across
+        # the wide gap (or a redaction box in it) each widens by 10 pixels only.
+        record = _Record("Jan" + " " * 12 + "Brno")
+        assert [word.box for word in words_of_lines([record])] == [
+            pytest.approx((100, 10, 140, 30)),
+            pytest.approx((240, 10, 290, 30)),
+        ]
 
     def test_a_box_is_never_narrowed_to_a_shorter_line_outline(self):
         class _ShortOutline(_Record):
@@ -163,12 +184,38 @@ class TestRead:
         (word,) = engine.read(IMAGE)
         assert word.text == "Brno"
         ((picture, segmentation_config),) = engine.segmenter.seen
-        assert picture.size == (200, 100)
+        assert picture.size == (300, 100)
         assert picture.mode == "RGB"
         assert segmentation_config == "segmentation"
         ((_picture, segmentation, recognition_config),) = engine.recognizer.seen
         assert segmentation.lines == ["line"]
         assert recognition_config == "recognition"
+
+    def test_a_letter_read_on_a_black_bar_is_dropped(self):
+        # "Jan" is read where the picture is white, "o" on a solid black bar.
+        engine = engine_reading([_Record("Jan"), _Record("o", left=200)])
+        assert [word.text for word in engine.read(with_black_bar(195, 5, 215, 35))] == ["Jan"]
+        assert [word.text for word in engine.read(IMAGE)] == ["Jan", "o"]
+
+    def test_a_box_crossed_by_a_bar_keeps_the_rows_beside_it_with_most_ink(self):
+        # The line reaches from y 10 to 40; a black bar fills rows 22 to 34, so
+        # the rows above it (with the letters) are kept, not the few below it.
+        engine = engine_reading([_Record("Jan", bottom=40)])
+        picture = with_black_bar(50, 22, 250, 34)
+        letters = with_black_bar(105, 14, 125, 18)
+        picture = PageImage(
+            IMAGE.width,
+            IMAGE.height,
+            IMAGE.dpi,
+            bytes(min(a, b) for a, b in zip(picture.samples, letters.samples, strict=True)),
+        )
+        (word,) = engine.read(picture)
+        assert word.box == pytest.approx((100, 10, 130, 22))
+
+    def test_an_underline_through_a_box_is_not_a_bar(self):
+        engine = engine_reading([_Record("Jan")])
+        (word,) = engine.read(with_black_bar(50, 25, 250, 27))
+        assert word.box == pytest.approx((100, 10, 130, 30))
 
     def test_a_page_without_lines_is_not_recognized(self):
         engine = engine_reading([_Record("never")], lines=0)

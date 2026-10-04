@@ -15,12 +15,25 @@ such a box clips about half of the first and the last letter. On the clean
 scanned benchmark 1,910 of 1,928 words had ink outside these boxes, and
 growing them by a share of their height reached the next line long before
 it covered the letters (`python -m benchmark ocr-margin`). Each word is
-therefore widened sideways to the middle of the spaces before and after it,
-and the first and last word of a line to the ends of the line's polygon,
-which the segmenter fits to the ink. The boxes of a line then tile it
-without gaps, so a redaction covers the spaces beside a value as well. A
-line whose characters carry no positions becomes one word over the whole
-line, which redacts more than needed rather than leaving part of a value.
+therefore widened sideways towards the middle of the spaces before and after
+it, and the first and last word of a line towards the ends of the line's
+polygon, which the segmenter fits to the ink; by at most `MAX_WIDENING` of
+its height, which covers half a letter. Unbounded, a word beside a redaction
+box spread over the box when the leak check re-read the page, since the box
+reads as no word, and the check rightly reported a word under a box. A line
+whose characters carry no positions becomes one word over the whole line,
+which redacts more than needed rather than leaving part of a value.
+
+Redaction boxes confuse the re-read of a redacted page in two more ways.
+The segmenter stretches a line's polygon over a black bar above or below
+it, so a word's box reached into the bar, and the recognizer reads a bar as
+a stray letter. A box crossed by a band of solid ink rows at least
+`MIN_BAR` of its height tall is therefore cut to the stretch of rows beside
+the band that holds the most ink, and a word whose box is solid throughout
+is dropped. Letters never fill a row of their box and an underline or a
+table rule is thinner than a bar, so a first reading of a page is
+unchanged, as the benchmark confirms. A word read across a bar as one
+(`IČO ███ Brno` read as one word) still covers it.
 
 The model returns text in Unicode NFD (the form it was trained on). Lines
 are split into words before normalization, since the cuts count NFD code
@@ -41,6 +54,7 @@ coremltools, which has wheels for macOS and Linux x86-64 only.
 
 from __future__ import annotations
 
+import dataclasses
 import re
 from collections.abc import Iterable, Sequence
 from pathlib import Path
@@ -55,13 +69,20 @@ _SEGMENTATION_FILE = "blla.mlmodel"
 _RECOGNITION_FILE = "medium.safetensors"
 _WORD = re.compile(r"\S+")
 
-BOX_MARGIN = 0.05
-"""Share of a word box's height added on each side of it, once widened.
+MAX_WIDENING = 0.5
+"""Most a word box is widened sideways on each side, as a share of its height."""
 
-Measured on the clean scanned benchmark: 83 of 1,928 words kept ink outside
-the widened boxes, 9 with this margin, none with 10 %; boxes reaching a word
-on another line rose from 18 to 76 with it, and to 290 at 10 %.
-"""
+SOLID_INK = 0.95
+"""Share of dark pixels above which a row of a word's box is solid ink."""
+
+MIN_BAR = 0.25
+"""Least height of a band of solid rows, as a share of the box's, that is a bar."""
+
+# A pixel darker than this grey level is ink, as in the scanned benchmark.
+_DARK = 100
+
+BOX_MARGIN = 0.05
+"""Share of a word box's height added on each side of it, once widened (see findings)."""
 
 
 class KrakenEngine:
@@ -98,7 +119,60 @@ class KrakenEngine:
         if not segmentation.lines:
             return []
         records = self.recognizer.predict(picture, segmentation, self.recognition_config)
-        return words_of_lines(records)
+        import numpy as np  # pyright: ignore[reportMissingImports]
+
+        pixels = np.frombuffer(image.samples, dtype=np.uint8).reshape(image.height, image.width, 3)
+        ink = pixels.min(axis=2) < _DARK
+        words: list[OcrWord] = []
+        for word in words_of_lines(records):
+            box = _beside_bars(word.box, ink)
+            if box is not None:
+                words.append(dataclasses.replace(word, box=box))
+        return words
+
+
+def _beside_bars(box: Box, ink: Any) -> Box | None:
+    """Cut a box crossed by a black bar to the rows beside it holding most ink.
+
+    Args:
+        box: Word box in pixels.
+        ink: Boolean picture, true where a pixel is ink.
+
+    Returns:
+        The box, cut if a bar crosses it; `None` if it lies inside a bar.
+    """
+    x0, y0, x1, y1 = box
+    left, right = max(int(x0), 0), max(int(x1 + 0.5), 0)
+    top, bottom = max(int(y0), 0), max(int(y1 + 0.5), 0)
+    window = ink[top:bottom, left:right]
+    if window.size == 0:
+        return box
+    row_ink = window.sum(axis=1)
+    solid = row_ink >= SOLID_INK * window.shape[1]
+    bars = [(start, end) for start, end in _runs(solid) if end - start >= MIN_BAR * len(solid)]
+    if not bars:
+        return box
+    in_bar = [False] * len(solid)
+    for start, end in bars:
+        in_bar[start:end] = [True] * (end - start)
+    beside = [(start, end) for start, end in _runs([not row for row in in_bar])]
+    if not beside:
+        return None
+    start, end = max(beside, key=lambda run: int(row_ink[run[0] : run[1]].sum()))
+    return (x0, max(y0, top + start), x1, min(y1, top + end))
+
+
+def _runs(flags: Sequence[bool]) -> list[tuple[int, int]]:
+    """Return the `(start, end)` of every run of true values."""
+    runs: list[tuple[int, int]] = []
+    start: int | None = None
+    for index, flag in enumerate([*flags, False]):
+        if flag and start is None:
+            start = index
+        elif not flag and start is not None:
+            runs.append((start, index))
+            start = None
+    return runs
 
 
 def words_of_lines(records: Iterable[Any]) -> list[OcrWord]:
@@ -150,17 +224,19 @@ Box = tuple[float, float, float, float]
 
 
 def _widened(boxes: list[Box], record: Any) -> list[Box]:
-    """Widen a line's word boxes, left to right, to the middle of the spaces between them.
+    """Widen a line's word boxes, left to right, towards the middle of the spaces between them.
 
-    The first word reaches the left end of the line's polygon and the last
-    its right end. A box is never narrowed.
+    The first word reaches towards the left end of the line's polygon and the
+    last towards its right end, each side by at most `MAX_WIDENING` of the
+    box's height. A box is never narrowed.
     """
     line_left, _top, line_right, _bottom = _enclose(record.boundary)
     widened: list[Box] = []
     for index, (x0, y0, x1, y1) in enumerate(boxes):
+        reach = MAX_WIDENING * (y1 - y0)
         left = line_left if index == 0 else (boxes[index - 1][2] + x0) / 2
         right = line_right if index == len(boxes) - 1 else (x1 + boxes[index + 1][0]) / 2
-        widened.append((min(left, x0), y0, max(right, x1), y1))
+        widened.append((min(max(left, x0 - reach), x0), y0, max(min(right, x1 + reach), x1), y1))
     return widened
 
 

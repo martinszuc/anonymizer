@@ -9,6 +9,7 @@ import pytest
 from anonymizer.core.detect import detect_document, structured_detector
 from anonymizer.core.ingest import extract_surfaces, load_document
 from anonymizer.core.redact import Leak, LeakLayer, find_leaks, redact_pdf
+from anonymizer.core.redact.leakage import _without_binary_bodies
 from anonymizer.core.types import DetectionSource, Document, Entity, EntityType, ReviewState
 
 from tests.pdf_builders import (
@@ -594,3 +595,18 @@ class TestBinaryData:
         planted, document, decoded = self._planted(tmp_path, "<< >>", raw, "/ASCII85Decode")
         assert decoded and self.NAME.encode() not in decoded
         assert find_leaks(planted, document) == []
+
+    FILTERED = b"1 0 obj << /Filter /FlateDecode >> stream\n"
+
+    @pytest.mark.parametrize(
+        ("data", "searched"),
+        [
+            (FILTERED + b">> stream\n(Jana) endstream", False),
+            (FILTERED + b"x endstream 2 0 obj << >> stream\n(Jana)", True),
+        ],
+        ids=["keyword-inside-a-skipped-body", "body-without-end"],
+    )
+    def test_odd_stream_syntax(self, data: bytes, searched: bool):
+        # A stream keyword inside a skipped body starts no stream of its own;
+        # a body the file cuts off before `endstream` is searched whole.
+        assert ("(Jana)" in _without_binary_bodies(data)) is searched

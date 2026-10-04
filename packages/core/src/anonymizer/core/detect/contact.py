@@ -3,7 +3,9 @@
 Neither pattern implements its full specification. An RFC 5322 address parser
 accepts constructs that never occur in documents, and phone numbers are written
 too freely to be parsed strictly; the patterns aim for the shapes that appear in
-real paperwork and accept OCR spacing.
+real paperwork and accept OCR spacing. `find_ocr_emails` additionally accepts
+the space an OCR reader puts after a period inside an address; it runs on
+pages read by OCR only.
 
 Telephone numbers carry no checksum anywhere, so they are recognised by locale:
 `find_czech_phone_numbers` for CZ/SK, `find_nanp_phone_numbers` for the North
@@ -24,6 +26,24 @@ _EMAIL_PATTERN = re.compile(
     r"@"
     r"[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*"
     r"\.[A-Za-z]{2,}"
+    r"(?![A-Za-z0-9\-])"
+)
+
+# PP-OCR recognizers put a space after every period, inside an address too:
+# `tereza.prochazkova@example.com` is read as `tereza. prochazkova@example. com`,
+# and the strict pattern then matches `prochazkova@...` or nothing, leaving the
+# rest readable. A space is accepted only right after a period and before a
+# lowercase letter or digit, so a following sentence (capitalised) is not
+# taken in. In a text layer the same space is real, which is why this pattern
+# is kept to pages read by OCR. The lookbehind refuses to start inside any word,
+# diacritics included, so a word before the split is taken whole or not at all.
+_OCR_SPLIT = r"(?<=\.) (?=[a-z0-9])"
+_OCR_EMAIL_PATTERN = re.compile(
+    r"(?<![\w.%+\-])"
+    rf"[A-Za-z0-9._%+\-]+(?:{_OCR_SPLIT}[A-Za-z0-9._%+\-]+)*"
+    r"@"
+    rf"[A-Za-z0-9\-]+(?:\.(?:{_OCR_SPLIT})?[A-Za-z0-9\-]+)*"
+    rf"\.(?:{_OCR_SPLIT})?[A-Za-z]{{2,}}"
     r"(?![A-Za-z0-9\-])"
 )
 
@@ -53,6 +73,19 @@ def find_emails(text: str) -> Iterator[Match]:
         One match per address, in order of appearance.
     """
     for found in _EMAIL_PATTERN.finditer(text):
+        yield Match.from_regex(found, EntityType.EMAIL)
+
+
+def find_ocr_emails(text: str) -> Iterator[Match]:
+    """Yield the email addresses in OCR output, joined across a space after a period.
+
+    Args:
+        text: Text read by OCR.
+
+    Yields:
+        One match per address, in order of appearance, spaces included.
+    """
+    for found in _OCR_EMAIL_PATTERN.finditer(text):
         yield Match.from_regex(found, EntityType.EMAIL)
 
 

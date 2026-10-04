@@ -11,12 +11,13 @@ from pathlib import Path
 
 import pymupdf
 import pytest
+from anonymizer.core.detect import Detector, RuleDetector, finders_for
 from anonymizer.core.ingest import load_document, render_page
 from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import LeakKind, LeakLayer, export_redacted, find_leaks, redact_pdf
 from anonymizer.core.types import BBox, DetectionSource, Document, Entity, EntityType, ReviewState
 
-from tests.ocr_stand_in import InkReadingEngine, layout_of
+from tests.ocr_stand_in import InkReadingEngine, ScriptedWord, layout_of
 from tests.pdf_builders import CONTACT_EMAIL, write_pdf, write_scanned_pdf
 
 PHONE = "+420 603 123 456"
@@ -258,3 +259,47 @@ def test_mixed_document_with_a_link_passes(tmp_path: Path):
     assert any(entity.surface_id for entity in document.entities)
     assert [page.raster_dpi is not None for page in document.pages] == [False, True]
     assert export_redacted(tmp_path / "mixed.pdf", document, tmp_path / "out.pdf", ocr=engine) == []
+
+
+class TestAddressSplitByOcr:
+    """An engine reading `a. b@c. d`, as kraken does, must not leave a fragment readable."""
+
+    EMAIL = "tereza.prochazkova@example.com"
+    PIECES = ("tereza.", "prochazkova@example.", "com")
+
+    def engine(self, tmp_path: Path, lines: list[str]) -> InkReadingEngine:
+        original = load_document(write_pdf(tmp_path / "original.pdf", [lines]))
+        words: list[ScriptedWord] = []
+        for word in layout_of(original.pages[0]):
+            if word.text != self.EMAIL:
+                words.append(word)
+                continue
+            # Cut the word's box in proportion to the characters of each piece.
+            width = (word.bbox.x1 - word.bbox.x0) / len(word.text)
+            left = word.bbox.x0
+            for piece in self.PIECES:
+                right = left + width * len(piece)
+                box = BBox(left, word.bbox.y0, right, word.bbox.y1)
+                words.append(word._replace(text=piece, bbox=box))
+                left = right
+        return InkReadingEngine([words])
+
+    def readable_after(self, detector: Detector, tmp_path: Path) -> set[str]:
+        lines = [f"Kontakt: {self.EMAIL}", f"Telefon: {PHONE}"]
+        scan = write_scanned_pdf(tmp_path / "scan.pdf", [lines])
+        engine = self.engine(tmp_path, lines)
+        document = load_document(scan, language="cs", ocr=engine)
+        run_detection(document, detector)
+        output = tmp_path / "out.pdf"
+        redact_pdf(scan, document, output)
+        with pymupdf.open(output) as pdf:
+            return {word.text for word in engine.read(render_page(pdf[0], 150))}
+
+    def test_every_piece_is_redacted(self, tmp_path: Path):
+        readable = self.readable_after(build_detector("cs"), tmp_path)
+        assert readable.isdisjoint(self.PIECES)
+        assert "Kontakt:" in readable
+
+    def test_control_strict_rules_leave_the_first_piece(self, tmp_path: Path):
+        strict = RuleDetector(finders_for("cs"))
+        assert "tereza." in self.readable_after(strict, tmp_path)

@@ -239,16 +239,26 @@ class RuleDetector:
 
     Attributes:
         finders: Finder functions applied to the page text.
+        ocr_finders: Finders applied in addition to pages read by OCR, whose
+            text carries the reader's misreadings.
     """
 
-    def __init__(self, finders: Sequence[Finder], name: str = "rules") -> None:
+    def __init__(
+        self,
+        finders: Sequence[Finder],
+        name: str = "rules",
+        ocr_finders: Sequence[Finder] = (),
+    ) -> None:
         """Initialize the detector.
 
         Args:
             finders: Finder functions applied to the page text.
             name: Identifier used in logs and evaluation reports.
+            ocr_finders: Finders applied in addition to pages with
+                `Page.raster_dpi` set.
         """
         self.finders = tuple(finders)
+        self.ocr_finders = tuple(ocr_finders)
         self._name = name
 
     @property
@@ -266,8 +276,11 @@ class RuleDetector:
             Entities in reading order, with geometry resolved from page words;
             see `merge_entities` for overlapping matches.
         """
+        finders = self.finders
+        if page.raster_dpi is not None:
+            finders += self.ocr_finders
         entities = []
-        for finder in self.finders:
+        for finder in finders:
             for match in finder(page.text):
                 entity = Entity(
                     type=match.type,

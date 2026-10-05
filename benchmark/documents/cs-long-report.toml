@@ -1,5 +1,5 @@
 # Long Czech minutes: the author's name sits after word 400, beyond the
-# 384 words GLiNER reads at once. Guards the windowing in GlinerDetector.
+# 384 tokens GLiNER reads at once. Guards the windowing in GlinerDetector.
 language = "cs"
 kind = "minutes"
 lines = [

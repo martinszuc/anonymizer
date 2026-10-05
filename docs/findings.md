@@ -461,6 +461,56 @@ instead of the pipeline moves precision by 0.002 only.
 - **Recognising the language** instead of giving it changed no CNEC or UNER-SK document;
   5 of the 40 REDACT records (code-switched) were recognised as another language or none.
 
+### 2026-10-04 · GLiNER windows counted in the model's tokens
+
+Seen 2026-10-02 running rules + GLiNER on OCR text (OnnxTR and Kraken) of a
+10-page handwritten scan: `Sentence of length 409 has been truncated to 384`.
+Windows were 120 whitespace-separated words. GLiNER splits words with
+`\w+(?:[-_]\w+)*|\S`, so every punctuation mark is a token, and OCR of
+handwriting is full of them. Tokens past 384 are dropped; the overlap rescues
+an inner window, but the tail of a page's last window was never read.
+
+- **Not only handwriting.** Counted over the old windows: 2 of 117 on the
+  REDACT sample exceeded the limit (longest 437 tokens); none on CNEC dtest
+  (longest 159), UNER-SK dev (146) or the benchmark. Ordinary prose averages
+  1.24 tokens per word on the benchmark documents.
+- **The encoder adds no second limit.** The mDeBERTa tokenizer has no maximum
+  length and the encoder uses relative positions only; a synthetic window of
+  379 GLiNER tokens and 1,698 subwords was read whole, the name at its end
+  found. The 512-subword limit the code assumed does not apply.
+- **Fix** (commit `09ab6dc`): windows of 150 GLiNER tokens with 40 shared,
+  about the old 120 and 30 words on ordinary prose. Longest window is now 150
+  on every corpus; windows per corpus: CNEC 230 → 202, UNER-SK 141 → 134,
+  REDACT 117 → 153.
+
+Benchmark (26 documents, 224 items), rules + GLiNER:
+
+| | found | false alarms | safe documents | leak check passed |
+|---|---|---|---|---|
+| words (before) | 199/224 | 44 | 17/26 | 25/26 |
+| GLiNER tokens | 198/224 | 45 | 17/26 | 25/26 |
+
+Development corpora (`experiments/results/rq1-dev.md`; person, partial match):
+
+| | CNEC found | CNEC P / R | UNER-SK found | UNER-SK P / R | REDACT found | REDACT P / R |
+|---|---|---|---|---|---|---|
+| words (before) | 430/524 | 0.909 / 0.821 | 185/276 | 0.828 / 0.670 | 200/219 | 0.647 / 0.913 |
+| GLiNER tokens | 427/524 | 0.911 / 0.815 | 186/276 | 0.829 / 0.674 | 201/219 | 0.649 / 0.918 |
+
+- **Every change is within its interval**, and on the benchmark and CNEC
+  none can come from truncation: no window there was over the limit. They
+  come from moved window boundaries. On the benchmark three one-word names
+  flipped (one surname now found, a first name and a surname now missed) and
+  one phrase became an address false alarm. None lies at a window edge; the
+  words around them changed (one name had 32 words of context before it in
+  its last window, now 50). The model's verdict on a one-word name depends
+  on its context, so any change to window boundaries moves about one to
+  three names either way. That is the noise floor for comparing window
+  settings.
+- Address precision moved both ways, recall 1.0 throughout: CNEC 0.615 → 0.651,
+  REDACT 0.539 → 0.500.
+- The window counts above came from a one-off count over the loaded pages
+  (old and new `_windows`, the splitter's pattern); only counts were printed.
 ### 2026-10-04 · Form headers tagged as persons and addresses (`handwritten-scan-sample.pdf`)
 
 A 10-page scanned form with handwritten entries, read by OnnxTR, language

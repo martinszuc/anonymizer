@@ -213,13 +213,14 @@ def main(argv: list[str] | None = None) -> int:
 def _dispatch(args: argparse.Namespace, output: Output) -> int:
     """Run the command the arguments name."""
     ocr = load_ocr_engine(args.ocr, args.resource_root) if args.ocr else None
+    ner_root = args.resource_root if getattr(args, "ner", False) else None
     if args.command == "detect":
         return run_detect(
             args.input,
             args.output,
             language=args.lang,
             propagate=args.propagate,
-            ner_root=args.resource_root if args.ner else None,
+            ner_root=ner_root,
             show=args.show,
             force=args.force,
             output=output,
@@ -232,7 +233,7 @@ def _dispatch(args: argparse.Namespace, output: Output) -> int:
             session=args.session,
             language=args.lang,
             propagate=args.propagate,
-            ner_root=args.resource_root if args.ner else None,
+            ner_root=ner_root,
             allow_pages_without_text=args.allow_pages_without_text,
             force=args.force,
             output=output,
@@ -245,7 +246,7 @@ def _dispatch(args: argparse.Namespace, output: Output) -> int:
             session=args.session,
             language=args.lang,
             propagate=args.propagate,
-            ner_root=args.resource_root if args.ner else None,
+            ner_root=ner_root,
             dpi=args.dpi,
             force=args.force,
             output=output,

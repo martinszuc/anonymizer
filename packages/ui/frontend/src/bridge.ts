@@ -14,6 +14,8 @@ import type {
 /** The methods of `anonymizer.ui.app.WindowApi`; every call returns a promise. */
 export interface ReviewBridge {
   status(): Promise<AppStatus>;
+  /** Turns the leak check of later exports on or off, kept for later runs. */
+  set_leak_check(enabled: boolean): Promise<AppStatus>;
   /** Each feature's models and whether they are stored. */
   models(): Promise<FeatureModels[]>;
   /** Downloads a feature's models from their official sources, verified; progress as events. */
@@ -28,8 +30,10 @@ export interface ReviewBridge {
   close_document(): Promise<void>;
   choose_session(): Promise<DocumentInfo | null>;
   save_session_as(): Promise<boolean>;
-  /** Null when the reviewer cancelled the save dialog. */
+  /** Null when the reviewer cancelled the save dialog; steps arrive as `anonymizer:export` events. */
   export_as(allowPagesWithoutText: boolean): Promise<ExportResult | null>;
+  /** Writes the copy the leak check just refused, to the file chosen for it, without checking again. */
+  export_unchecked(): Promise<ExportResult>;
   page_image(index: number, dpi: number): Promise<string>;
   set_review(entityId: string, state: ReviewState): Promise<EntityInfo>;
   /** One decision on several entities, all or none; returns them in the order given. */

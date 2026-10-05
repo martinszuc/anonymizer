@@ -4,7 +4,11 @@ import type {
   Box,
   DocumentInfo,
   EntityInfo,
+  ExportProgress,
   ExportResult,
+  ExportStep,
+  LeakInfo,
+  LeakKind,
   OpenProgress,
   OpenStep,
   PageInfo,
@@ -461,6 +465,192 @@ const LEAK_LAYERS: Record<string, string> = {
 
 export function leakLayerLabel(layer: string): string {
   return LEAK_LAYERS[layer] ?? layer;
+}
+
+/** A leak, or several of one text, as a row of the export's warning sheet. */
+export interface LeakRow {
+  key: string;
+  /** What was found: the text, or what is left ("drawing", "page thumbnail"). */
+  title: string;
+  /** Where it was found, in words. */
+  where: string;
+  /** 1-based page to show, or null when it lies in no page. */
+  page: number | null;
+  /** A finding to select, when one is involved. */
+  entityId: string | null;
+}
+
+export interface LeakSection {
+  kind: LeakKind;
+  title: string;
+  /** What it means and what the reviewer can do. */
+  note: string;
+  rows: LeakRow[];
+}
+
+const LEAK_SECTIONS: Record<LeakKind, { title: string; note: string }> = {
+  under_box: {
+    title: "Left under a box",
+    note: "Redaction did not remove what lies under these boxes. Look at the page before saving.",
+  },
+  leftover: {
+    title: "Hidden content still in the file",
+    note: "Export removes these whatever was found, so they should be gone.",
+  },
+  text: {
+    title: "Redacted text found again",
+    note:
+      "Text you redacted also appears in these places. Mark it if it is the same personal data; " +
+      "a common word or an OCR misreading is harmless.",
+  },
+};
+
+/** The order sections appear in: faults of redaction first, then what the reviewer judges. */
+const LEAK_ORDER: LeakKind[] = ["under_box", "leftover", "text"];
+
+/**
+ * The leak check's findings as the warning sheet lists them. A redacted text is one row
+ * however many places hold it; anything else is a row per place, repeats counted.
+ */
+export function leakSections(leaks: LeakInfo[]): LeakSection[] {
+  return LEAK_ORDER.map((kind) => {
+    const ofKind = leaks.filter((leak) => leak.kind === kind);
+    const rows = kind === "text" ? textRows(ofKind) : placeRows(ofKind);
+    return { kind, ...LEAK_SECTIONS[kind], rows };
+  }).filter((section) => section.rows.length > 0);
+}
+
+function textRows(leaks: LeakInfo[]): LeakRow[] {
+  const byText = new Map<string, LeakInfo[]>();
+  for (const leak of leaks) byText.set(leak.text, [...(byText.get(leak.text) ?? []), leak]);
+  return [...byText].map(([text, found]) => {
+    const pagesOf = (layer: string) =>
+      [...new Set(found.filter((leak) => leak.layer === layer && leak.page !== null).map((leak) => leak.page as number))].sort(
+        (a, b) => a - b,
+      );
+    const onPages = pagesOf("page_text");
+    const reread = pagesOf("ocr");
+    const where = [
+      onPages.length > 0 ? pagesLabel(onPages) : null,
+      reread.length > 0 ? `${pagesLabel(reread)}, read by OCR` : null,
+      found.some((leak) => leak.page === null) ? "in the file's data" : null,
+    ].filter((part) => part !== null);
+    const pages = [...onPages, ...reread];
+    return {
+      key: `text:${text}`,
+      title: text,
+      where: where.join(" · "),
+      page: pages.length > 0 ? Math.min(...pages) : null,
+      entityId: found.find((leak) => leak.entity_id !== null)?.entity_id ?? null,
+    };
+  });
+}
+
+function placeRows(leaks: LeakInfo[]): LeakRow[] {
+  const rows = new Map<string, LeakRow & { count: number }>();
+  for (const leak of leaks) {
+    const where =
+      leak.page === null
+        ? `${leakLayerLabel(leak.layer)} · ${leak.where}`
+        : `Page ${leak.page} · ${leakLayerLabel(leak.layer)}`;
+    const key = `${leak.kind}:${where}:${leak.text}`;
+    const row = rows.get(key);
+    if (row) row.count += 1;
+    else rows.set(key, { key, title: leak.text, where, page: leak.page, entityId: leak.entity_id, count: 1 });
+  }
+  return [...rows.values()].map(({ count, ...row }) => (count > 1 ? { ...row, title: `${row.title} ×${count}` } : row));
+}
+
+/** "Page 3" or "Pages 1, 4 and 9". */
+function pagesLabel(pages: number[]): string {
+  const listed = pageList(pages);
+  return listed.charAt(0).toUpperCase() + listed.slice(1);
+}
+
+/** What an export will do, known before it starts: whether it checks, and the scans OCR re-reads. */
+export interface ExportPlan {
+  check: boolean;
+  scannedPages: number;
+}
+
+/** The scanned pages the leak check re-reads: those OCR read when the document opened. */
+export function scannedPages(document: DocumentInfo): number {
+  return document.pages.filter((page) => page.raster_dpi !== null).length;
+}
+
+const CHECK_STEPS: ExportStep[] = ["page_text", "region", "off_page_text", "surface", "thumbnail", "object", "file_bytes"];
+
+/** The stages the export sheet lists, each covering one or more of Python's steps. */
+const EXPORT_STAGES: { key: string; label: string; steps: ExportStep[] }[] = [
+  { key: "redact", label: "Redacting the pages", steps: ["redacting"] },
+  { key: "clear", label: "Removing hidden data", steps: ["clearing"] },
+  { key: "save", label: "Writing the copy", steps: ["saving"] },
+  { key: "check", label: "Checking the copy for leaks", steps: CHECK_STEPS },
+  { key: "reread", label: "Re-reading the scans with OCR", steps: ["ocr"] },
+];
+
+const EXPORT_STATUS: Record<ExportStep, string> = {
+  redacting: "Removing what you marked from each page",
+  clearing: "Removing links, metadata, attachments and other hidden data",
+  saving: "Writing the redacted file",
+  page_text: "Searching each page's text for what was redacted",
+  region: "Checking that nothing is left under drawn regions",
+  off_page_text: "Looking for text outside the visible page",
+  surface: "Checking that hidden data is gone",
+  thumbnail: "Looking for page thumbnails",
+  object: "Searching the file's objects for redacted text",
+  file_bytes: "Searching the file's raw bytes for redacted text",
+  ocr: "Reading the redacted scans again with OCR",
+};
+
+/** Python's steps in the order an export runs them. */
+function exportSteps(plan: ExportPlan): ExportStep[] {
+  return EXPORT_STAGES.filter((stage) => isPlanned(stage.key, plan)).flatMap((stage) => stage.steps);
+}
+
+function isPlanned(stage: string, plan: ExportPlan): boolean {
+  if (stage === "check") return plan.check;
+  if (stage === "reread") return plan.check && plan.scannedPages > 0;
+  return true;
+}
+
+/** A step's share of the bar: re-reading a scan with OCR takes far longer than anything else. */
+function stepWeight(step: ExportStep, plan: ExportPlan): number {
+  if (step === "redacting") return 2;
+  if (step === "ocr") return 3 * plan.scannedPages;
+  return 1;
+}
+
+export interface StageState {
+  key: string;
+  label: string;
+  state: "done" | "current" | "pending";
+}
+
+/** The export's stages with how far each is; all pending before Python's first step. */
+export function exportStages(progress: ExportProgress | null, plan: ExportPlan): StageState[] {
+  const stages = EXPORT_STAGES.filter((stage) => isPlanned(stage.key, plan));
+  const current = progress ? stages.findIndex((stage) => stage.steps.includes(progress.step)) : -1;
+  return stages.map((stage, index) => ({
+    key: stage.key,
+    label: stage.label,
+    state: current === -1 || index > current ? "pending" : index === current ? "current" : "done",
+  }));
+}
+
+/** The status line and the bar of the whole export, which always counts. */
+export function exportStatus(progress: ExportProgress | null, plan: ExportPlan): OpenStatus {
+  if (!progress) return { label: "Preparing the export", count: null, fraction: 0 };
+  const steps = exportSteps(plan);
+  const index = Math.max(steps.indexOf(progress.step), 0);
+  const total = steps.reduce((sum, step) => sum + stepWeight(step, plan), 0);
+  const before = steps.slice(0, index).reduce((sum, step) => sum + stepWeight(step, plan), 0);
+  const within = progress.total > 0 ? Math.min(progress.done / progress.total, 1) : 0;
+  return {
+    label: EXPORT_STATUS[progress.step],
+    count: progress.total > 0 ? `${progress.done} of ${plural(progress.total, "page")}` : null,
+    fraction: Math.min((before + within * stepWeight(progress.step, plan)) / total, 1),
+  };
 }
 
 /** A drag across a page, in page points: normalised and clamped to the page. */

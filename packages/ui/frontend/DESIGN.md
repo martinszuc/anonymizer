@@ -156,19 +156,25 @@ line; the **drop area** (dashed `--separator` border, `--elevated`, *Open PDF…
 primary; while a file is dragged over the window: `--accent` border on
 `--accent-fill`, "Drop to open"); a **Detection** card of option rows (label,
 one-line note in `--label-2`, control on the right: the language segmented (*Auto* first, the default)
-control, setting switches); *Continue a saved review…* as a plain button; a
+control, setting switches); *Manage models…* and *Settings…* as plain buttons
+under it; *Continue a saved review…* as a plain button; a
 footer "Works offline · version". The model's row says why
 its switch is disabled and what to run.
 
-**Opening.** An `--elevated` card (360 px): a status line (what is running
+**Task progress** (`TaskProgress`, while a PDF opens and while it exports). A status line (what is running
 now, weight 500; "3 of 12 pages" in `--label-2` on the right when the step
 counts pages), a 6 px bar (`--accent` on `--fill-active`, the same as a
 download's; while a model loads, a segment sweeps across instead, or a still
 dimmed bar under reduced motion), then the step list under a hairline: done
 (check, `--keep`), current (spinning loader, `--accent`, label in `--label`),
-pending (circle, `--label-3`). Shown from Python's first progress event until
-the document opens; a model step appears only when the model is used, and OCR
-runs inside *Reading the pages*.
+pending (circle, `--label-3`). **Opening** puts it in an `--elevated` card
+(360 px), shown from Python's first progress event until the document opens; a
+model step appears only when the model is used, and OCR runs inside *Reading
+the pages*. **Exporting** puts it in a sheet without actions (an export cannot
+be stopped, and Escape does not hide it), shown from Python's first export
+step; there the bar always counts, across the whole export, with re-reading
+scans weighted heaviest, and the stages are redacting, hidden data, writing,
+checking and re-reading (the last two only when the check runs).
 
 **Drop overlay.** Over an open document while a file is dragged: dashed
 `--accent` border on `--accent-fill` below the toolbar, a pill "Drop to open
@@ -183,8 +189,23 @@ below the toolbar only. Icon in a tinted circle (`success` → `--keep`, `warnin
 `danger`), title, body, actions right-aligned with the default last. Escape closes;
 focus goes to the action marked `data-default`, otherwise the last one; mark Cancel
 when the other choice carries a risk. While a sheet is open, window shortcuts are off.
-Used for export: consent for pages without a text layer, then the result (summary
-rows and "Leak check: Passed", or the leaks and "Nothing was written").
+A sheet without actions shows a running task. Used for export: consent for pages
+without a text layer, progress, the leak check's findings, then the result (summary
+rows and "Leak check: Passed", "Off", or "Saved with N warnings" in `--warning`).
+
+**Leak findings** (wide `warning` sheet, *Don't Save* default, *Save Anyway*).
+Sections in order: left under a box, hidden content still in the file, redacted
+text found again; each a semibold title, a footnote saying what it means, and rows
+on `--fill` (scrolling past 220 px), hairlines between. A row is the text or what
+is left, with where in `--text-caption` `--label-2`; a text found in several places
+is one row. A row with a page or a finding is a button (hover `--fill-hover`,
+chevron in `--label-3`) that closes the sheet and selects the finding or scrolls
+to the page.
+
+**Settings** (wide sheet, *Done*). Sections titled like the home screen's
+*Detection*: *Export* (an option card with the leak-check switch, its note saying
+what on and off do) and *Models* (the models folder with *Change…*, then *Manage
+models…*). Opened from the home screen, the toolbar's gear, or Cmd/Ctrl+,.
 
 **Toast.** Bottom centre, `--elevated` with blur, icon + one line, 4 s; errors use
 `--danger` for the icon only. An optional action (*Undo*) follows the message as

@@ -47,6 +47,14 @@ PageProgress = Callable[[int, int], None]
 Called once with 0 done before the first page, then after each page.
 """
 
+StepProgress = Callable[[str, int, int], None]
+"""Told as a task of several steps goes: the step that is running, then for a
+step that goes page by page the pages done so far and the pages in all (both 0
+for a step without pages).
+
+Called as each step starts and, for a step with pages, after each page.
+"""
+
 
 class EntityType(StrEnum):
     """Category of detected personal data."""

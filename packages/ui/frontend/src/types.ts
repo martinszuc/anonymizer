@@ -56,13 +56,26 @@ export interface DocumentInfo {
   surfaces: SurfaceInfo[];
 }
 
+/**
+ * What a leak means (`core.redact.LeakKind`): a text marked for redaction found again (a missed
+ * occurrence or a chance match, for the reviewer to judge); something left under a box or region;
+ * something removed whatever was found (hidden data, a thumbnail) still there.
+ */
+export type LeakKind = "text" | "under_box" | "leftover";
+
 export interface LeakInfo {
   layer: string;
   where: string;
   /** 1-based page the leak lies on; null outside the pages (hidden data, objects, file bytes). */
   page: number | null;
   text: string;
+  /** The finding whose text or box it is; null when no finding is involved (hidden data). */
+  entity_id: string | null;
+  kind: LeakKind;
 }
+
+/** The leak check's verdict on an export; `off` when it did not run. */
+export type LeakCheck = "passed" | "failed" | "off";
 
 /** What `ReviewApi.export` did; nothing was written unless `written`. */
 export interface ExportResult {
@@ -75,6 +88,7 @@ export interface ExportResult {
   hidden_removed: number;
   /** 1-based numbers of scanned pages left unredacted because OCR did not read them. */
   pages_without_text: number[];
+  leak_check: LeakCheck;
   leaks: LeakInfo[];
 }
 
@@ -88,6 +102,8 @@ export interface AppStatus {
   models_folder: string;
   model: { state: ModelState; missing: string[] };
   ocr: { engine: string; state: ModelState; missing: string[] };
+  /** Preferences kept between runs. */
+  settings: { leak_check: boolean };
 }
 
 /** How a PDF is opened; each is a detection option (see `ReviewApi.open_pdf`). */
@@ -146,6 +162,32 @@ export type OpenStep = "loading_ocr" | "reading" | "ocr" | "loading_model" | "de
 export interface OpenProgress {
   step: OpenStep;
   /** Pages done so far, of `total`; both 0 for a step that has no pages (loading a model). */
+  done: number;
+  total: number;
+}
+
+/**
+ * A step of an export, told by Python as it starts: redaction (`redacting` page by page,
+ * `clearing` hidden data, `saving`), then each layer of the leak check by its `LeakLayer` value
+ * (`ocr` page by page).
+ */
+export type ExportStep =
+  | "redacting"
+  | "clearing"
+  | "saving"
+  | "page_text"
+  | "region"
+  | "off_page_text"
+  | "surface"
+  | "thumbnail"
+  | "object"
+  | "file_bytes"
+  | "ocr";
+
+/** How far an export is, told by Python as it goes. */
+export interface ExportProgress {
+  step: ExportStep;
+  /** Pages done so far, of `total`; both 0 for a step without pages. */
   done: number;
   total: number;
 }

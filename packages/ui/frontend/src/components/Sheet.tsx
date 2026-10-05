@@ -11,7 +11,8 @@ interface SheetProps {
   /** Wide for lists, such as the models. */
   size?: "regular" | "wide";
   children: ReactNode;
-  actions: ReactNode;
+  /** Buttons along the bottom; none while a task runs that cannot be stopped. */
+  actions?: ReactNode;
   onClose: () => void;
 }
 
@@ -76,9 +77,11 @@ export function Sheet({
               {title}
             </h2>
             <div className="sheet-body">{children}</div>
-            <div ref={actionsRef} className="sheet-actions">
-              {actions}
-            </div>
+            {actions && (
+              <div ref={actionsRef} className="sheet-actions">
+                {actions}
+              </div>
+            )}
           </motion.section>
         </motion.div>
       )}

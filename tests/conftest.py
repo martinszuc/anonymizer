@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from anonymizer.core import settings
 from anonymizer.core.log import reset_logging
 from anonymizer.core.resources import location
 
@@ -23,6 +24,6 @@ def user_folders(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.M
     file into their home directory.
     """
     home = tmp_path_factory.mktemp("user")
-    monkeypatch.setattr(location, "settings_file", lambda: home / "config" / "settings.json")
+    monkeypatch.setattr(settings, "settings_file", lambda: home / "config" / "settings.json")
     monkeypatch.setattr(location, "user_resource_root", lambda: home / "data")
     return home

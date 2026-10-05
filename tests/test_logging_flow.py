@@ -125,7 +125,7 @@ def test_a_leak_found_by_name_or_locator_is_logged_without_where(layer: LeakLaye
     # A file's name and a link's target are what these layers locate a leak by.
     stream = io.StringIO()
     configure_logging(logging.DEBUG, stream=stream)
-    _layer("test layer", lambda: [Leak(layer, f"{FILE_STEM}.pdf", "leaked text")])
+    _layer(layer, lambda: [Leak(layer, f"{FILE_STEM}.pdf", "leaked text")])
     assert "leaked text" in stream.getvalue()
     assert FILE_STEM not in stream.getvalue()
 

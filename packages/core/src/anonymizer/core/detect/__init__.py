@@ -28,6 +28,7 @@ from anonymizer.core.detect.contact import (
     find_czech_phone_numbers,
     find_emails,
     find_nanp_phone_numbers,
+    find_ocr_emails,
 )
 from anonymizer.core.detect.document import detect_document, detect_surface
 from anonymizer.core.detect.gliner import (
@@ -40,7 +41,7 @@ from anonymizer.core.detect.iban import find_ibans, is_valid_iban, normalize_iba
 from anonymizer.core.detect.propagate import propagate_occurrences
 from anonymizer.core.detect.roles import NamesOnly, cut_to_address, cut_to_name, role_words_for
 from anonymizer.core.detect.titles import extend_with_titles
-from anonymizer.core.detect.url import find_urls
+from anonymizer.core.detect.url import find_ocr_urls, find_urls
 
 LANGUAGE_INDEPENDENT_FINDERS: tuple[Finder, ...] = (
     find_emails,
@@ -49,6 +50,14 @@ LANGUAGE_INDEPENDENT_FINDERS: tuple[Finder, ...] = (
     find_urls,
 )
 """Finders whose evidence does not depend on the document's language."""
+
+OCR_FINDERS: tuple[Finder, ...] = (find_ocr_emails, find_ocr_urls)
+"""Finders run in addition on pages read by OCR, in every language.
+
+They accept the space OCR puts after a period inside an address, which in a
+text layer would be a real space; the strict finders still run beside them and
+`merge_entities` keeps the longer match.
+"""
 
 _CZECH_SLOVAK_FINDERS: tuple[Finder, ...] = (
     find_birth_numbers,
@@ -114,7 +123,7 @@ def detector_for(language: str | None) -> RuleDetector:
         A detector over the applicable finders.
     """
     tag = _primary_subtag(language) if language else "all"
-    return RuleDetector(finders_for(language), name=f"rules:{tag}")
+    return RuleDetector(finders_for(language), name=f"rules:{tag}", ocr_finders=OCR_FINDERS)
 
 
 def structured_detector() -> RuleDetector:
@@ -123,11 +132,12 @@ def structured_detector() -> RuleDetector:
     Returns:
         A detector for structured identifiers and contact details in any locale.
     """
-    return RuleDetector(STRUCTURED_FINDERS, name="structured-rules")
+    return RuleDetector(STRUCTURED_FINDERS, name="structured-rules", ocr_finders=OCR_FINDERS)
 
 
 __all__ = [
     "LANGUAGE_INDEPENDENT_FINDERS",
+    "OCR_FINDERS",
     "OVERLAP_PRIORITY",
     "RULE_LANGUAGES",
     "STRUCTURED_FINDERS",
@@ -155,6 +165,8 @@ __all__ = [
     "find_english_birth_dates",
     "find_ibans",
     "find_nanp_phone_numbers",
+    "find_ocr_emails",
+    "find_ocr_urls",
     "find_urls",
     "find_us_addresses",
     "finders_for",

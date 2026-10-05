@@ -8,7 +8,9 @@ Three shapes are recognised: an address with a scheme, one starting with `www.`,
 and a host followed by a path, the form CVs print profiles in. A bare domain
 without a path (`jannovak.cz`) is not: it is indistinguishable from technology
 names such as `Node.js` or `ASP.NET`. `mailto:` and `tel:` targets are left to
-the email and phone finders.
+the email and phone finders. `find_ocr_urls` additionally accepts the space an
+OCR reader puts after a period inside an address; it runs on pages read by OCR
+only.
 """
 
 from __future__ import annotations
@@ -27,6 +29,23 @@ _URL_PATTERN = re.compile(
     r"(?:https?|ftp)://[^\s<>\"'`]+"
     r"|www\.[^\s<>\"'`]+"
     r"|(?:[a-z0-9\-]+\.)+[a-z]{2,}/[^\s<>\"'`]*"
+    r")",
+    re.IGNORECASE,
+)
+
+# PP-OCR recognizers put a space after every period, inside an address too
+# (`https://www. linkedin. com/in/...`); the strict pattern then stops at the
+# space. A space is accepted only right after a period and before a lowercase
+# letter or digit, compared case-sensitively, so a following sentence is not
+# taken in. In a text layer the same space is real, so this is for OCR only.
+_OCR_SPLIT = r"(?<=\.) (?-i:(?=[a-z0-9]))"
+_OCR_TOKEN = r"[^\s<>\"'`]+"
+_OCR_URL_PATTERN = re.compile(
+    r"(?<![\w@.\-/])"
+    r"(?:"
+    rf"(?:https?|ftp)://{_OCR_TOKEN}(?:{_OCR_SPLIT}{_OCR_TOKEN})*"
+    rf"|www\.(?:{_OCR_SPLIT})?{_OCR_TOKEN}(?:{_OCR_SPLIT}{_OCR_TOKEN})*"
+    rf"|(?:[a-z0-9\-]+\.(?:{_OCR_SPLIT})?)+[a-z]{{2,}}/[^\s<>\"'`]*(?:{_OCR_SPLIT}{_OCR_TOKEN})*"
     r")",
     re.IGNORECASE,
 )
@@ -58,9 +77,27 @@ def find_urls(text: str) -> Iterator[Match]:
         One match per address, in order of appearance, without the punctuation
         of the surrounding sentence.
     """
-    for found in _URL_PATTERN.finditer(text):
+    yield from _trimmed_matches(_URL_PATTERN, text)
+
+
+def find_ocr_urls(text: str) -> Iterator[Match]:
+    """Yield the web addresses in OCR output, joined across a space after a period.
+
+    Args:
+        text: Text read by OCR.
+
+    Yields:
+        One match per address, in order of appearance, spaces included and
+        without the punctuation of the surrounding sentence.
+    """
+    yield from _trimmed_matches(_OCR_URL_PATTERN, text)
+
+
+def _trimmed_matches(pattern: re.Pattern[str], text: str) -> Iterator[Match]:
+    """Yield a pattern's matches without the punctuation of the surrounding sentence."""
+    for found in pattern.finditer(text):
         url = _trim(found.group(0))
-        if not _URL_PATTERN.fullmatch(url):
+        if not pattern.fullmatch(url):
             continue
         yield Match(
             type=EntityType.URL,

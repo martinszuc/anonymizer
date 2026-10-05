@@ -2,7 +2,7 @@
 
 import pytest
 from anonymizer.core.detect import structured_detector
-from anonymizer.core.detect.url import find_urls
+from anonymizer.core.detect.url import find_ocr_urls, find_urls
 from anonymizer.core.types import EntityType, Page
 
 
@@ -77,3 +77,57 @@ def test_url_wins_over_an_email_inside_it():
     text = "https://example.com/?mail=jan.novak@example.com"
     entities = structured_detector().detect(Page(0, 595, 842, text=text))
     assert [(entity.type, entity.text) for entity in entities] == [(EntityType.URL, text)]
+
+
+def ocr_urls(text: str) -> list[str]:
+    return [match.text for match in find_ocr_urls(text)]
+
+
+@pytest.mark.parametrize(
+    "variant",
+    [
+        "https://www. linkedin. com/in/jordan-ellis-demo",
+        "https://github. com/tereza-prochazkova-demo",
+        "www. example. cz",
+        "github. com/jnovak",
+        "cz. linkedin. com/in/jan-novak",
+        "ftp://files. example. com/cv. pdf",
+        "https://www.linkedin.com/in/jan-novak-123",  # no split at all
+    ],
+)
+def test_ocr_finder_joins_a_url_split_after_a_period(variant):
+    assert ocr_urls(variant) == [variant]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            "Profil: https://www. linkedin. com/in/jordan-ellis-demo.",
+            "https://www. linkedin. com/in/jordan-ellis-demo",
+        ),
+        ("(viz github. com/jnovak), tel.", "github. com/jnovak"),
+        # The next sentence starts with a capital letter and is not taken in.
+        ("Web: https://example.com/a. Další řádek", "https://example.com/a"),
+    ],
+)
+def test_ocr_finder_matches_the_whole_url_in_running_text(text, expected):
+    assert ocr_urls(text) == [expected]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Node. js",  # a bare domain stays out, split or not
+        "www. Example. cz",  # a capital after the space
+        "https://example.com/a  b",
+        "tereza. prochazkova@example. com",
+        "www.",
+    ],
+)
+def test_ocr_finder_rejects_other_gaps(value):
+    assert value not in ocr_urls(value)
+
+
+def test_strict_finder_stops_at_the_space():
+    assert urls("https://www. linkedin. com/in/jan") == ["https://www"]

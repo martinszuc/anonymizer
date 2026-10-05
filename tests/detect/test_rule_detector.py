@@ -106,3 +106,38 @@ def test_detector_attaches_geometry_from_page_words():
 
 def test_detector_has_a_name():
     assert structured_detector().name == "structured-rules"
+
+
+SPLIT_TEXT = "e-mail tereza. prochazkova@example. com, tel. +420 777 123 456, www. example. cz"
+
+
+def _found(page: Page) -> dict[EntityType, str | None]:
+    return {entity.type: entity.text for entity in structured_detector().detect(page)}
+
+
+def test_addresses_split_by_ocr_are_matched_whole_on_a_page_read_by_ocr():
+    page = Page(0, 595, 842, text=SPLIT_TEXT, has_text_layer=False, raster_dpi=300)
+    assert _found(page) == {
+        EntityType.EMAIL: "tereza. prochazkova@example. com",
+        EntityType.PHONE: "+420 777 123 456",
+        EntityType.URL: "www. example. cz",
+    }
+
+
+def test_a_text_layer_is_not_joined_across_spaces():
+    # The space is real in a text layer; only the strict rules run there.
+    assert _found(Page(0, 595, 842, text=SPLIT_TEXT)) == {EntityType.PHONE: "+420 777 123 456"}
+
+
+def test_a_split_address_is_one_entity_covering_every_word():
+    text = "tereza. prochazkova@example. com"
+    pieces = [("tereza.", 10), ("prochazkova@example.", 60), ("com", 180)]
+    words = []
+    for piece, left in pieces:
+        start = text.index(piece)
+        box = BBox(left, 10, left + 5 * len(piece), 22)
+        words.append(Word(piece, box, start, start + len(piece)))
+    page = Page(0, 595, 842, text=text, words=words, has_text_layer=False, raster_dpi=300)
+    (entity,) = structured_detector().detect(page)
+    assert entity.span == (0, len(text))
+    assert entity.bboxes == [word.bbox for word in words]

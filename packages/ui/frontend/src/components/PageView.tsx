@@ -239,6 +239,7 @@ function Page({
     if (!drag.current) {
       const list = pageWords.current;
       setOverWord(selecting && list !== null && wordAt(list, toPoints(event)) !== -1);
+      setHoveredId(hoveredBox(event.target));
       return;
     }
     drag.current.box = dragBox(drag.current.start, toPoints(event), page);
@@ -336,6 +337,9 @@ function Page({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          // Scrolling moves the page under a still pointer without a pointer
+          // event; the next move shows the popover of whatever box is there.
+          onWheel={() => setHoveredId(null)}
           onDoubleClick={onDoubleClick}
           onClickCapture={(event) => {
             if (!swallowClick.current) return;
@@ -369,7 +373,6 @@ function Page({
               selected={entity.id === selectedId}
               dimmed={shownIds !== null && !shownIds.has(entity.id)}
               locating={locating}
-              onHover={setHoveredId}
               onToggle={onToggle}
               onSelect={onSelect}
             />
@@ -440,12 +443,11 @@ interface RedactionProps {
   /** Outside the list's filter: drawn faint in review mode. */
   dimmed: boolean;
   locating: boolean;
-  onHover: (entityId: string) => void;
   onToggle: (entity: EntityInfo) => void;
   onSelect: (entity: EntityInfo) => void;
 }
 
-function Redaction({ entity, hatch, selected, dimmed, locating, onHover, onToggle, onSelect }: RedactionProps) {
+function Redaction({ entity, hatch, selected, dimmed, locating, onToggle, onSelect }: RedactionProps) {
   return (
     <g
       className="redaction"
@@ -456,7 +458,6 @@ function Redaction({ entity, hatch, selected, dimmed, locating, onHover, onToggl
       data-propagated={entity.source === "propagated"}
       data-selected={selected}
       data-dimmed={dimmed}
-      onMouseEnter={() => onHover(entity.id)}
       onClick={() => {
         onSelect(entity);
         // A drawn region is removed and hidden data always goes: a click only selects them.
@@ -476,6 +477,16 @@ function Redaction({ entity, hatch, selected, dimmed, locating, onHover, onToggl
       ))}
     </g>
   );
+}
+
+/**
+ * The box under the pointer, read from the topmost element on every move: the
+ * popover goes as soon as the pointer leaves a box for the bare page, and
+ * follows the top box where boxes overlap.
+ */
+function hoveredBox(target: EventTarget): string | null {
+  if (!(target instanceof Element)) return null;
+  return target.closest(".redaction")?.getAttribute("data-entity-id") ?? null;
 }
 
 function HiddenBox({ id, box: [x0, y0, x1, y1], selected }: { id: string; box: Box; selected: boolean }) {

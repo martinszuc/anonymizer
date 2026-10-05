@@ -604,6 +604,57 @@ branch's own fix alone:
   and the REDACT sample (`rq1-dev.toml`): their model output holds no
   one-character span, and no verdict depended on a short text.
 
+### 2026-10-05 · Addresses OCR split at a period (synthetic)
+
+kraken's recognizer (PP-OCRv6) puts a space after every period, inside
+addresses too: `tereza.prochazkova@example.com` is read as
+`tereza. prochazkova@example. com`. The email rule then matched
+`prochazkova@example.com` or nothing, the URL rule stopped at
+`https://www`, and the rest stayed readable in the redacted picture while
+the leak check passed.
+
+`find_ocr_emails` and `find_ocr_urls` accept a space right after a period
+and before a lowercase letter or digit, and run beside the strict rules on
+pages with `raster_dpi` set only. In a text layer the space is real, and
+joining across it would take in the word before an address or a lowercase
+word after it (`jan@firma.cz. tel` is matched whole on a scan; review
+removes `tel`). A searchable scan, whose text layer another program's OCR
+wrote, has no `raster_dpi` and keeps the strict rules.
+
+`benchmark ocr` on the four documents with an address where the problem
+showed (CS, EN, SK CV and SK letter), oracle and kraken, rules only.
+Before: `a715d9c` (`feat/ocr-kraken`); after: the same with this fix. The
+full run over 26 documents and OnnxTR is still to do.
+
+| level | readable after | partly after | found |
+|---|---|---|---|
+| clean | 13 → 11 | 0 → 0 | 13/28 → 13/28 |
+| jpeg 50 | 11 → 11 | 1 → 0 | 14/28 → 14/28 |
+| skew 1° | 11 → 11 | 2 → 0 | 13/28 → 13/28 |
+
+(The oracle leaves 10 readable at every level in both runs; the leak check
+passed on every scan, before and after.)
+
+- **Items left readable, whole or in part: 38 → 33** over the 12 kraken
+  scans. On clean scans one item each in the CS and SK CV was readable
+  whole and is now removed; at jpeg 50 and skew 1° the three partly
+  readable ones are removed whole. Only the email and URL rules changed,
+  so these are addresses.
+- **"Found" cannot show it:** the scorer locates a planted item by its
+  exact words in the OCR text, and `tereza. prochazkova@example. com` is
+  not `tereza.prochazkova@example.com`, so a split item counts as missed
+  whatever detection does. The residue columns are the measure here.
+- kraken still leaves one item more than the oracle at every level; not
+  examined.
+- **Born-digital text is unchanged** (`benchmark run --systems rules`,
+  before and after): 86/224 found, 14 false alarms, leak check 26/26; the
+  new finders do not run on text-layer pages.
+- **A misread `@` is out of reach:** the mixed sample's page 3 is read as
+  `ondrej. dvorakGexample. com` and OnnxTR read `@example` as
+  `(mexampie`; with no `@` there is nothing to anchor a match on.
+- Not measured: false alarms the joined patterns could add on scanned pages
+  (the scanned benchmark does not count them).
+
 
 ### Toolchain findings: redaction
 

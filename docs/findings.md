@@ -511,6 +511,7 @@ Development corpora (`experiments/results/rq1-dev.md`; person, partial match):
   REDACT 0.539 → 0.500.
 - The window counts above came from a one-off count over the loaded pages
   (old and new `_windows`, the splitter's pattern); only counts were printed.
+
 ### 2026-10-04 · Form headers tagged as persons and addresses (`handwritten-scan-sample.pdf`)
 
 A 10-page scanned form with handwritten entries, read by OnnxTR, language
@@ -537,6 +538,72 @@ every word outside a common-word list masked.
   ("Employee" in `en-handbook`), leak check passed 25/26 → 26/26. `rq1-dev`:
   CNEC 2.0 and UNER-SK identical; on the REDACT sample address precision
   0.539 → 0.553 (partial match) with recall 27/27 unchanged.
+
+### 2026-10-04 · Leak check on a handwritten scan (`handwritten-scan-sample.pdf`)
+
+Ten scanned pages, rules + GLiNER, read by OnnxTR and by kraken (the
+`feat/ocr-kraken` branch). The scan may hold real personal data, so it was
+inspected only by counts: `python -m experiments leaks` groups every report
+of the leak check by layer, page and text (named by a salted hash) and says
+where each OCR occurrence lies. The check failed with both engines.
+
+Measured before `bc75769` (which also reached `main` meanwhile and searches
+each text once, so the merged code reports fewer rows); "after" is this
+branch's own fix alone:
+
+| reports | OnnxTR before | after | kraken before | after |
+|---|---|---|---|---|
+| objects | 0 | 0 | 99 | 0 |
+| file bytes | 0 | 0 | 11 | 0 |
+| OCR re-read | 16 | 16 | 83 | 34 |
+| leak check passed | no | no | no | no |
+
+- **One report per entity, not per leak** (before `bc75769`). A text found
+  by the model and propagated reported the same occurrence once per entity:
+  OnnxTR's 16 reports are two occurrences of one name (8 entities each).
+- **One- and two-letter texts matched by chance** (kraken only). GLiNER
+  tagged a lone capital letter as a street address and propagation marked
+  the letter in six more places; a two-letter span was tagged as a person.
+  The letter matched PDF names and operators and the samples of the page
+  pictures (84 object reports; 78 of the 99 lay in picture data, counted by
+  a throwaway script before the command existed), compressed bytes (7), and
+  other words on the OCR layer (42); the two-letter text 15, 3 and 9 more.
+  A three-letter name matched compressed bytes once. `bc75769` stops most
+  of this (no single characters, nothing under four characters in objects
+  and file bytes, no image or font streams). **On top of it:** a model span
+  of one character is dropped, so propagation no longer spreads it; a text
+  of two characters counts on a page only as a word of its own (the two
+  letters began longer words at 9 of the OCR reports); and the file bytes
+  skip the bodies of filtered or picture streams, where a literal match is
+  chance at any length.
+- **An inflected form was left, and the refusal is right** (both engines).
+  A five-letter name was detected twice; the page also holds it four times
+  as the first letters of a six-letter capitalised word, the form detection
+  missed (see *False alarms from the name model* for "Žadatel").
+- **The re-read found a name where ingest read another word** (both
+  engines): the five-letter name, as a word of its own, at ink no box
+  touched, where ingest had read a different word. Both engines read the
+  same name at the same place on re-reading, so it is probably written
+  there and was misread at ingest: a detection miss the check found by
+  chance, kept as a leak (only a person can tell). Each engine reads the
+  same picture identically twice; the boxes elsewhere on the page change
+  what it reads. kraken shows the same for a three-letter name and, after
+  the fix, for the two-letter span on two pages: dropping the one-letter
+  boxes moved which occurrences the re-read found (21 of kraken's 34).
+- **Words under a box** (kraken, 4 left, 5 before): a re-read word half
+  black fill and half untouched ink (fill share 0.50–0.53). kraken widens a
+  word to the middle of the space beside it and to the end of its line, so
+  a word next to a box reaches into it; before the fix one more was a
+  one-character word read on solid fill (0.97). Not changed here.
+- One match spanned two re-read words across a line break (kraken, before
+  only: the whitespace-insensitive comparison exists for spans broken
+  across lines).
+- **Nothing else moved** (this branch before the merge): the 26 benchmark
+  documents scored exactly as before (rules 86/224 found, rules + GLiNER
+  199/224, leak check 26/26 and 25/26), and so did CNEC dtest, UNER-SK dev
+  and the REDACT sample (`rq1-dev.toml`): their model output holds no
+  one-character span, and no verdict depended on a short text.
+
 
 ### Toolchain findings: redaction
 

@@ -86,6 +86,22 @@ decoding is greedy, highest score first (checked on 123 CNEC windows). Every
 step after the model runs again on every run. A rerun from a warm cache takes
 seconds and does not load the model.
 
+## Leak check breakdown
+
+```sh
+uv run python -m experiments leaks scan.pdf --out leaks/ --engines onnxtr --system rules+gliner
+```
+
+Loads one PDF with each OCR engine, detects, redacts and runs the leak check,
+then counts why it failed (`leaks.py`): reports grouped by layer, page and
+text, each text named by a hash salted afresh on every run, with its length
+and shape, the entities behind it by source and type, where each OCR
+occurrence lies (beginning a longer word, inside a word, across words, a
+word of its own read the same or differently at ingest) and, for a word
+under a box, its share of black fill and untouched ink. It prints no text and
+no file name, so it can run on a real scan; its output stays out of the
+repository, since it describes one person's document.
+
 ## Tests
 
 `tests/experiments/` runs the loaders, metrics, cache and a whole run on

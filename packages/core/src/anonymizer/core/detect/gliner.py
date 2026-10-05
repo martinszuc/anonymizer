@@ -1,7 +1,7 @@
 """Name and address detection with GLiNER, a zero-shot span model.
 
 GLiNER is prompted with plain-text labels ("person") and returns character
-spans with a score. Three properties of the model shape this module:
+spans with a score. Four properties of the model shape this module:
 
 - It reads at most 384 of its own tokens and drops the rest with only a
   warning, so a name on the lower half of a page would never be seen. Pages
@@ -10,6 +10,10 @@ spans with a score. Three properties of the model shape this module:
   much of it that 120 words came to 409 tokens.
 - Its spans can stop inside a word ("s.r.o" for "s.r.o."). Spans are widened
   to whole words, since a cut word leaks the remainder in the text layer.
+- On a badly read scan it tags lone letters, such as a preposition starting
+  a sentence, as an address or a person. A span with fewer than two letters
+  or digits identifies no one, and propagation would mark the letter
+  wherever it stands alone, so it is dropped.
 - Its configuration names the encoder by Hub id, and the `gliner` package
   resolves that id when loading. `load_gliner` points it at the local copy
   from the resource catalog, so loading never touches the network.
@@ -81,6 +85,7 @@ edge is seen whole by the next."""
 # written as escapes because they look like a comma and backticks.
 _OFFLINE_VARIABLES = ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE")
 
+_MIN_CHARACTERS = 2
 _EDGE_PUNCTUATION = ",;:!?()[]{}\"'„“”\u201a\u2018\u2019«»"
 
 # gliner's WhitespaceTokenSplitter, the splitter the pinned model's config
@@ -207,6 +212,9 @@ class GlinerDetector:
             )
             return None
         start, end = widened
+        if sum(character.isalnum() for character in page.text[start:end]) < _MIN_CHARACTERS:
+            log.debug("%s: dropped span of one character", self.name)
+            return None
         entity = Entity(
             type=kind,
             page_index=page.index,

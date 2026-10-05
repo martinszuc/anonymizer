@@ -14,9 +14,9 @@ import pytest
 from anonymizer.core.ingest import load_document, render_page
 from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import LeakKind, LeakLayer, export_redacted, find_leaks, redact_pdf
-from anonymizer.core.types import BBox, Document, EntityType, ReviewState
+from anonymizer.core.types import BBox, DetectionSource, Document, Entity, EntityType, ReviewState
 
-from tests.ocr_stand_in import InkReadingEngine
+from tests.ocr_stand_in import InkReadingEngine, layout_of
 from tests.pdf_builders import CONTACT_EMAIL, write_pdf, write_scanned_pdf
 
 PHONE = "+420 603 123 456"
@@ -140,6 +140,73 @@ class TestLeaks:
         assert [(leak.layer, leak.text) for leak in leaks] == [
             (LeakLayer.OCR, "text layer word 'stamp'")
         ]
+
+
+def scanned_with_word_redacted(
+    tmp_path: Path, lines: list[str], word: str, reread: dict[str, str] | None = None
+) -> tuple[Path, Document, InkReadingEngine]:
+    """Scan `lines`, redact the first whole-word `word` alone and return what to check.
+
+    `reread` renames words in the second reading, as an engine reading the
+    same ink differently would.
+    """
+    scan = write_scanned_pdf(tmp_path / "scan.pdf", [lines])
+    layout = layout_of(load_document(write_pdf(tmp_path / "original.pdf", [lines])).pages[0])
+    renamed = [entry._replace(text=(reread or {}).get(entry.text, entry.text)) for entry in layout]
+    engine = InkReadingEngine([layout, renamed])
+    document = load_document(scan, ocr=engine)
+    page = document.pages[0]
+    found = next(entry for entry in page.words if entry.text == word)
+    document.entities = [
+        Entity(
+            type=EntityType.PERSON,
+            page_index=0,
+            start=found.start,
+            end=found.end,
+            text=word,
+            bboxes=[found.bbox],
+            source=DetectionSource.MODEL,
+        )
+    ]
+    output = tmp_path / "out.pdf"
+    redact_pdf(scan, document, output)
+    return output, document, engine
+
+
+class TestShortTargets:
+    """One or two characters occur by chance inside the other words OCR reads."""
+
+    def test_inside_another_word_is_not_a_leak(self, tmp_path: Path):
+        output, document, engine = scanned_with_word_redacted(
+            tmp_path, ["pan Li", "Lisabon je daleko"], "Li"
+        )
+        assert find_leaks(output, document, ocr=engine) == []
+
+    def test_read_again_as_a_word_is_a_leak(self, tmp_path: Path):
+        output, document, engine = scanned_with_word_redacted(
+            tmp_path, ["pan Li", "a Li je daleko"], "Li"
+        )
+        leaks = find_leaks(output, document, ocr=engine)
+        assert [(leak.layer, leak.text) for leak in leaks] == [(LeakLayer.OCR, "Li")]
+
+    def test_three_letters_keep_matching_inside_words(self, tmp_path: Path):
+        # An inflected name ("Janem") still names the person.
+        output, document, engine = scanned_with_word_redacted(
+            tmp_path, ["pan Jan", "s Janem"], "Jan"
+        )
+        leaks = find_leaks(output, document, ocr=engine)
+        assert [(leak.layer, leak.text) for leak in leaks] == [(LeakLayer.OCR, "Jan")]
+
+
+def test_a_text_the_reread_finds_where_ingest_read_another_word_is_a_leak(tmp_path: Path):
+    # Untouched ink, far from every box, read as the redacted name the second
+    # time: either ingest misread the name there or the re-read misreads
+    # another word, and only a person can tell which.
+    output, document, engine = scanned_with_word_redacted(
+        tmp_path, ["pan Novak", "KEEP", "Nowak dal"], "Novak", reread={"Nowak": "Novak"}
+    )
+    leaks = find_leaks(output, document, ocr=engine)
+    assert [(leak.layer, leak.text) for leak in leaks] == [(LeakLayer.OCR, "Novak")]
 
 
 class TestWithoutEngine:

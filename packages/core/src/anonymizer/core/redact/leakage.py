@@ -9,7 +9,9 @@ Eight layers, because each misses something the others catch:
    occurrence starts where a word starts and may run on into a longer word,
    so an inflected form of a detected name ("Nováka" for "Novák") counts,
    while "25" inside "1925" does not. A single character identifies no one
-   and is not searched for.
+   and is not searched for, and a text of two characters counts only as a
+   word of its own: two letters begin unrelated words by chance ("Li" in
+   "Lisabon").
 2. **Regions.** A region has no text to search for, so nothing may remain
    inside its box: no word and no drawing apart from the black fill itself.
    Image pixels under a box are not re-read here; their removal is verified by
@@ -39,7 +41,10 @@ Eight layers, because each misses something the others catch:
 7. **File bytes.** An incremental save appends new object revisions and leaves
    the old ones in the file, where the object table no longer points but any
    text editor still shows them. The raw bytes are searched as well, with the
-   same literal-string limit, digit rule and shortest text as layer 6.
+   same literal-string limit, digit rule and shortest text as layer 6. The
+   body of a stream with a filter or of a picture is left out: its bytes are
+   compressed, encoded or pixels, which store no text literally, so a match
+   there is chance.
 8. **OCR.** A page OCR read keeps its content in pixels, which no layer above
    reads. Its text layer must be empty, and the engine that read it re-reads
    the redacted page at the same resolution: no redacted text may be found
@@ -97,9 +102,14 @@ _BLACK = (0.0, 0.0, 0.0)
 # Shortest texts, without whitespace, searched for in a page's words and in the file's data.
 _SHORTEST_WORDS = 2
 _SHORTEST_LITERAL = 4
+# Shortest text a copy may run on from into a longer word, as an inflected name does.
+_SHORTEST_RUN_ON = 3
 # Streams of pixels and glyph outlines, where any short byte sequence turns up by chance.
 _BINARY_SUBTYPES = frozenset({"/Image", "/Type1C", "/CIDFontType0C", "/OpenType"})
 _FONT_PROGRAM_KEYS = ("Length1", "Length2", "Length3")
+# A stream's keyword after its dictionary, and the entries that make its body binary.
+_STREAM_START = re.compile(rb">>\s*stream\r?\n")
+_BINARY_BODY = re.compile(rb"/Filter\b|/Subtype\s*/Image\b")
 
 
 class _Target(NamedTuple):
@@ -480,13 +490,38 @@ def _file_byte_leaks(path: Path, targets: list[_Target]) -> list[Leak]:
     """Find entity text anywhere in the raw file, earlier revisions included."""
     if not targets:
         return []
-    content = _latin1(path.read_bytes())
+    content = _without_binary_bodies(path.read_bytes())
     # Not the file's name: the copy is checked under a temporary one.
     return [
         Leak(LeakLayer.FILE_BYTES, "the file's bytes", target.text, target.entity_id)
         for target in targets
         if target.literal.search(content)
     ]
+
+
+def _without_binary_bodies(data: bytes) -> str:
+    """Return a file's bytes without the body of any stream with a filter or of a picture.
+
+    Each stream's dictionary is read back to its object's `obj` keyword. A
+    body is skipped up to the first `endstream`, so a binary body that holds
+    the keyword by chance leaves its remainder searched, which can only add
+    matches.
+    """
+    parts: list[bytes] = []
+    position = 0
+    for start in _STREAM_START.finditer(data):
+        if start.start() < position:
+            continue
+        end = data.find(b"endstream", start.end())
+        if end < 0:
+            break
+        header = data[max(data.rfind(b"obj", position, start.start()), position) : start.end()]
+        parts.append(data[position : start.end()])
+        if not _BINARY_BODY.search(header):
+            parts.append(data[start.end() : end])
+        position = end
+    parts.append(data[position:])
+    return _latin1(b"".join(parts))
 
 
 def _ocr_leaks(
@@ -580,12 +615,17 @@ def _word_pattern(text: str) -> re.Pattern[str]:
     """Match a text in extracted text where a word starts, with any whitespace inside it.
 
     The match may run on into a longer word, as Czech inflects by its endings,
-    but a text ending in a digit must not continue into another number.
+    but a text ending in a digit must not continue into another number. A
+    text of two characters must end where a word ends, with whitespace only
+    where it has some, since two letters begin many unrelated words.
     """
     compact = _compact(text)
     body = r"\s*".join(re.escape(character) for character in compact)
     before = r"(?<!\w)" if re.match(r"\w", compact) else ""
     after = r"(?!\d)(?!\.\d)" if compact[-1:].isdigit() else ""
+    if len(compact) < _SHORTEST_RUN_ON:
+        body = r"\s*".join(re.escape(word) for word in text.split())
+        after += r"(?!\w)" if re.search(r"\w$", compact) else ""
     return re.compile(before + body + after)
 
 

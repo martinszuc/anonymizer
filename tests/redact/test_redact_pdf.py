@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pymupdf
 import pytest
-from anonymizer.core.detect import detect_document, structured_detector
+from anonymizer.core.detect import detect_document, detector_for
 from anonymizer.core.ingest import extract_surfaces, load_document
 from anonymizer.core.redact import Leak, LeakKind, LeakLayer, find_leaks, redact_pdf
 from anonymizer.core.redact.leakage import _without_binary_bodies
@@ -36,7 +36,7 @@ TREE_LABELS = [label for key, labels in TREE_ATTACHMENTS.items() for label in (k
 
 def detected(path: Path) -> Document:
     document = load_document(path)
-    document.entities = detect_document(structured_detector(), document)
+    document.entities = detect_document(detector_for(None), document)
     return document
 
 

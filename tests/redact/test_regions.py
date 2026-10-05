@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pymupdf
 import pytest
-from anonymizer.core.detect import detect_document, structured_detector
+from anonymizer.core.detect import detect_document, detector_for
 from anonymizer.core.ingest import load_document
 from anonymizer.core.redact import LeakKind, LeakLayer, find_leaks, redact_pdf
 from anonymizer.core.types import BBox, DetectionSource, Document, Entity, EntityType, ReviewState
@@ -139,7 +139,7 @@ class TestWhatARegionRemoves:
 class TestTextBoxesKeepWhatIsBehindThem:
     def test_background_behind_a_redacted_word_survives(self, source: Path):
         document = load_document(source)
-        document.entities = detect_document(structured_detector(), document)
+        document.entities = detect_document(detector_for(None), document)
         assert [entity.type for entity in document.entities] == [EntityType.EMAIL]
         output = redacted(source, document)
         assert CONTACT_EMAIL not in load_document(output).pages[0].text

@@ -1,7 +1,7 @@
 """Tests for web address detection."""
 
 import pytest
-from anonymizer.core.detect import structured_detector
+from anonymizer.core.detect import detector_for
 from anonymizer.core.detect.url import find_ocr_urls, find_urls
 from anonymizer.core.types import EntityType, Page
 
@@ -75,7 +75,7 @@ def test_ignores_non_urls(value):
 
 def test_url_wins_over_an_email_inside_it():
     text = "https://example.com/?mail=jan.novak@example.com"
-    entities = structured_detector().detect(Page(0, 595, 842, text=text))
+    entities = detector_for(None).detect(Page(0, 595, 842, text=text))
     assert [(entity.type, entity.text) for entity in entities] == [(EntityType.URL, text)]
 
 

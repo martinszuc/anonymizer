@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.4.0 (2026-10-05)
+
+## What's Changed
+* fix: review window issues from manual testing by @martinszuc in https://github.com/martinszuc/anonymizer/pull/46
+* test: compare library loggers with their state before configuring by @martinszuc in https://github.com/martinszuc/anonymizer/pull/48
+* feat: widen detected names over academic titles by @martinszuc in https://github.com/martinszuc/anonymizer/pull/49
+* feat: group identical findings in the review list by @martinszuc in https://github.com/martinszuc/anonymizer/pull/53
+* feat: opening progress, locate-only clicks and a models folder by @martinszuc in https://github.com/martinszuc/anonymizer/pull/54
+* feat: fewer false alarms from the name model by @martinszuc in https://github.com/martinszuc/anonymizer/pull/55
+* feat: keep the names model's uncertain findings in one click by @martinszuc in https://github.com/martinszuc/anonymizer/pull/56
+* feat: recognise the document language from its text by @martinszuc in https://github.com/martinszuc/anonymizer/pull/57
+* feat: search, sort and filter the findings list by @martinszuc in https://github.com/martinszuc/anonymizer/pull/58
+* feat: add a missed word or phrase in the review window by @martinszuc in https://github.com/martinszuc/anonymizer/pull/59
+* feat: grow the benchmark to 26 documents with hidden leaks in seven carriers by @martinszuc in https://github.com/martinszuc/anonymizer/pull/60
+* fix: read attachment names with diacritics correctly by @martinszuc in https://github.com/martinszuc/anonymizer/pull/62
+* feat: evaluation harness in experiments/ with first RQ1 results by @martinszuc in https://github.com/martinszuc/anonymizer/pull/61
+* feat: add a dev task that starts Vite and the review window by @martinszuc in https://github.com/martinszuc/anonymizer/pull/63
+* fix: remove attachments listed in a split name tree by @martinszuc in https://github.com/martinszuc/anonymizer/pull/64
+* fix: remove files referred to as associated files (/AF) by @martinszuc in https://github.com/martinszuc/anonymizer/pull/65
+* docs: mention the dev task in the READMEs and CLAUDE.md by @martinszuc in https://github.com/martinszuc/anonymizer/pull/66
+* fix: keep the web inspector from opening by itself under --debug by @martinszuc in https://github.com/martinszuc/anonymizer/pull/67
+* fix: cut explanatory copy from the models sheet and reword the home footer by @martinszuc in https://github.com/martinszuc/anonymizer/pull/68
+* fix: keep the selected box's outline visible in redacted preview by @martinszuc in https://github.com/martinszuc/anonymizer/pull/69
+* feat: show export progress, make the leak check a warning, add Settings by @martinszuc in https://github.com/martinszuc/anonymizer/pull/73
+* fix: drop form headers the name model tags as persons and addresses by @martinszuc in https://github.com/martinszuc/anonymizer/pull/72
+* fix: size GLiNER windows in the model's own tokens by @martinszuc in https://github.com/martinszuc/anonymizer/pull/70
+* fix: stop the leak check matching short texts by chance by @martinszuc in https://github.com/martinszuc/anonymizer/pull/71
+* fix(ui): close the hover popover when the pointer leaves a box by @martinszuc in https://github.com/martinszuc/anonymizer/pull/74
+
+
+**Full Changelog**: https://github.com/martinszuc/anonymizer/compare/v0.3.0...v0.4.0
+
 ## 0.3.0 (2026-10-02)
 
 ## What's Changed

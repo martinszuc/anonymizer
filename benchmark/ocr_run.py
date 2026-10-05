@@ -8,9 +8,12 @@ For every document, level and engine, a run writes under its output directory:
     scans/<doc>.<level>.pdf                  its degraded, picture-only scan
     scans/<doc>.<level>.<engine>.pdf         the redacted scan
 
-Only items on the page are scored: a scan carries no links or metadata. The
-`oracle` engine reads the ground truth and bounds what OCR can give the rest
-of the pipeline. `onnxtr` is the first real engine (models from the catalog,
+Only items on the page are scored: a scan carries no links or metadata. An
+item is located in the OCR text by its ground-truth boxes
+(`ocr_score.item_locations`), so an item OCR read split or misread still
+counts as found when a detected span covers it. The `oracle` engine
+reads the ground truth and bounds what OCR can give the rest of the
+pipeline. `onnxtr` is the first real engine (models from the catalog,
 `uv sync --group ocr-onnxtr`).
 """
 
@@ -38,14 +41,20 @@ from anonymizer.core.redact import find_leaks, redact_pdf
 from anonymizer.core.resources import load_catalog
 
 from benchmark.degrade import LEVELS, Level
-from benchmark.ocr_score import box_scores, item_residue, residue_counts, text_errors
+from benchmark.ocr_score import (
+    box_scores,
+    item_locations,
+    item_residue,
+    residue_counts,
+    text_errors,
+)
 from benchmark.render import render
 from benchmark.run import DetectorFactory, detector_factories, git_commit, machine
 from benchmark.scans import OracleEngine, TruthPage, scan_document
 from benchmark.score import score_detection
 from benchmark.spec import DocumentSpec, load_documents
 
-OCR_RESULTS_SCHEMA = 1
+OCR_RESULTS_SCHEMA = 2
 
 EngineFactory = Callable[[list[TruthPage]], OcrEngine]
 """Gives the engine for one scan, from its ground truth if the engine needs it."""
@@ -151,7 +160,8 @@ def _run_one(
     on_page = dataclasses.replace(
         spec, gold=tuple(item for item in spec.gold if item.carrier == "page")
     )
-    detection = score_detection(on_page, document)
+    locations = item_locations(truth, document.pages, on_page.gold)
+    detection = score_detection(on_page, document, locations)
 
     redacted = output / "scans" / f"{spec.name}.{level.name}.{engine_name}.pdf"
     redact_pdf(scan, document, redacted)

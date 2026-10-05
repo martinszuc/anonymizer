@@ -14,6 +14,14 @@
   from OCR boxes, such a word would leave that ink in the picture. Ink, not
   the font's box, is the measure: OCR boxes hug the ink, while the original's
   word boxes span the font's full height.
+- **Locating items.** A planted item is placed in the OCR text by where it is
+  printed: the OCR words whose box centre lies in one of its ground-truth
+  word boxes. Where they hold the item's exact words, those are its span (so
+  a label read glued to a value stays outside it); otherwise the span runs
+  from the first such word to the last, less punctuation at its edges the
+  item does not have, so an item read split or misread
+  (`jan. novak@example. com,`) is still located and an entity must cover all
+  of it to find it. An item OCR read nothing of is missed.
 - **Residue.** After redaction the ink inside each planted item's ground-truth
   word boxes is counted in the output picture and compared with the scan. An
   item is *readable* when a word keeps at least half of its ink, *partly
@@ -32,7 +40,8 @@ from pathlib import Path
 from anonymizer.core.types import BBox, Page
 from rapidfuzz.distance import Levenshtein
 
-from benchmark.scans import TruthPage, ink_inside, ink_under_boxes
+from benchmark.scans import TruthPage, covers, ink_inside, ink_under_boxes
+from benchmark.score import Location
 from benchmark.spec import GoldItem
 
 BOXED_IOU = 0.5
@@ -108,6 +117,50 @@ def item_residue(
     return shares
 
 
+def item_locations(
+    truth: Sequence[TruthPage], read: Sequence[Page], items: Sequence[GoldItem]
+) -> dict[int, Location | None]:
+    """Locate each planted page item in the OCR text by its ground-truth boxes.
+
+    Args:
+        truth: The ground truth, one page per scanned page.
+        read: The pages as OCR read them.
+        items: The planted page items.
+
+    Returns:
+        Per item index, its page and span in that page's text, or None when
+        no OCR word lies on it.
+    """
+    locations: dict[int, Location | None] = {}
+    for index, location in enumerate(_locate(truth, items)):
+        if location is None:
+            locations[index] = None
+            continue
+        page_index, word_indices = location
+        page = read[page_index]
+        boxes = [truth[page_index].words[word].corners for word in word_indices]
+        on_item = [
+            word
+            for word in page.words
+            if any(covers(corners, *_centre(word.bbox)) for corners in boxes)
+        ]
+        if not on_item:
+            locations[index] = None
+            continue
+        start, end = min(word.start for word in on_item), max(word.end for word in on_item)
+        exact = [
+            (match.start(), match.end())
+            for match in _item_pattern(items[index]).finditer(page.text)
+            if match.start() < end and start < match.end()
+        ]
+        if exact:
+            start, end = max(exact, key=lambda span: min(span[1], end) - max(span[0], start))
+        else:
+            start, end = _trimmed(page.text, start, end, items[index].text)
+        locations[index] = (page_index, start, end)
+    return locations
+
+
 def residue_counts(shares: Sequence[float]) -> dict[str, int]:
     """Count readable and partly readable items from their ink shares."""
     return {
@@ -141,9 +194,7 @@ def _locate(
     seen: Counter[str] = Counter()
     found: list[tuple[int, list[int]] | None] = []
     for item in items:
-        pattern = re.compile(
-            r"(?<!\w)" + r"\s+".join(re.escape(word) for word in item.text.split()) + r"(?!\w)"
-        )
+        pattern = _item_pattern(item)
         occurrences = [
             (page_index, match.start(), match.end())
             for page_index, page in enumerate(truth)
@@ -163,6 +214,26 @@ def _locate(
         ]
         found.append((page_index, indices))
     return found
+
+
+def _item_pattern(item: GoldItem) -> re.Pattern[str]:
+    """An item's exact words as whole words, any whitespace between them."""
+    return re.compile(
+        r"(?<!\w)" + r"\s+".join(re.escape(word) for word in item.text.split()) + r"(?!\w)"
+    )
+
+
+def _trimmed(text: str, start: int, end: int, item: str) -> tuple[int, int]:
+    """Drop punctuation OCR read into the edge words (`com,`) that the item does not have."""
+    while end - start > 1 and not text[start].isalnum() and text[start] != item[0]:
+        start += 1
+    while end - start > 1 and not text[end - 1].isalnum() and text[end - 1] != item[-1]:
+        end -= 1
+    return start, end
+
+
+def _centre(box: BBox) -> tuple[float, float]:
+    return (box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2
 
 
 def _area(box: BBox) -> float:

@@ -1,20 +1,28 @@
 """The scanned benchmark: degradations, ground truth, OCR scores and an oracle run."""
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
 import pymupdf
 import pytest
 from anonymizer.core.ingest import load_document
-from anonymizer.core.types import BBox, EntityType, Page, Word
+from anonymizer.core.types import BBox, Document, Entity, EntityType, Page, Word
 from PIL import Image, ImageChops, ImageDraw
 
 from benchmark.degrade import LEVELS, Level, level_named
 from benchmark.ocr_run import ocr_markdown, run_ocr
-from benchmark.ocr_score import box_scores, item_residue, residue_counts, text_errors
+from benchmark.ocr_score import (
+    box_scores,
+    item_locations,
+    item_residue,
+    residue_counts,
+    text_errors,
+)
 from benchmark.render import render
-from benchmark.scans import TruthPage, TruthWord, scan_document
+from benchmark.scans import TruthPage, TruthWord, covers, scan_document
+from benchmark.score import Outcome, score_detection
 from benchmark.spec import DocumentSpec, GoldItem
 
 EMAIL = "jana.dvorakova@example.com"
@@ -160,6 +168,96 @@ class TestBoxScores:
         empty = Page(0, 595, 842, "", [], has_text_layer=False, raster_dpi=300)
         scores = box_scores(scan, [truth], [empty])
         assert (scores["boxed"], scores["ink_covered"]) == (0, 0)
+
+
+LINE = f"Pište na {EMAIL}, tel. {PHONE}."
+ON_PAGE = DocumentSpec(
+    name="tiny",
+    language="cs",
+    kind="letter",
+    lines=(LINE,),
+    gold=(GoldItem(EntityType.EMAIL, EMAIL, "page"), GoldItem(EntityType.PHONE, PHONE, "page")),
+)
+
+
+def _printed(fragment: str) -> BBox:
+    """Where a fragment of `LINE` is printed: one line, every character 5 points wide."""
+    offset = LINE.index(fragment)
+    return BBox(50 + 5 * offset, 100, 50 + 5 * (offset + len(fragment)), 112)
+
+
+def _ocr(text: str, printed: Sequence[str] | None = None) -> Page:
+    """A page OCR read as `text`, each word at the fragment of `LINE` it was read from."""
+    fragments = printed or text.split()
+    page = _page(text, [_printed(fragment) for fragment in fragments])
+    return Page(0, 595, 842, text, page.words, has_text_layer=False, raster_dpi=300)
+
+
+def _over(page: Page, text: str, kind: EntityType) -> Entity:
+    start = page.text.index(text)
+    return Entity(type=kind, page_index=0, start=start, end=start + len(text), text=text)
+
+
+def _located(page: Page, index: int, truth: TruthPage) -> str | None:
+    """The OCR text an item was located at, None if nowhere."""
+    location = item_locations([truth], [page], ON_PAGE.gold)[index]
+    return None if location is None else page.text[location[1] : location[2]]
+
+
+class TestItemLocations:
+    TRUTH = _truth(LINE, [_printed(word) for word in LINE.split()])
+    SPLIT = "Pište na jana. dvorakova@example. com, tel. +420 777 123 456."
+
+    def _scores(self, page: Page, entities: list[Entity]) -> list[tuple[Outcome, bool]]:
+        locations = item_locations([self.TRUTH], [page], ON_PAGE.gold)
+        return score_detection(ON_PAGE, Document(pages=[page], entities=entities), locations)
+
+    def test_an_address_read_split_at_its_periods_is_located_whole(self):
+        assert _located(_ocr(self.SPLIT), 0, self.TRUTH) == "jana. dvorakova@example. com"
+
+    def test_an_entity_covering_the_split_address_finds_it(self):
+        page = _ocr(self.SPLIT)
+        email = _over(page, "jana. dvorakova@example. com", EntityType.EMAIL)
+        document = Document(pages=[page], entities=[email])
+        assert self._scores(page, [email])[0] == ("found", True)
+        # Control: located by its exact words, the split address is missed.
+        assert score_detection(ON_PAGE, document)[0] == ("missed", False)
+
+    def test_an_entity_on_part_of_the_split_address_is_partial(self):
+        page = _ocr(self.SPLIT)
+        part = _over(page, "dvorakova@example. com", EntityType.EMAIL)
+        assert self._scores(page, [part])[0] == ("partial", True)
+
+    def test_a_misread_item_is_located_by_where_it_is_printed(self):
+        text = "Pište na jana.dvorakova@exarnple.com, tel. +420 777 123 456."
+        page = _ocr(text, LINE.split())
+        misread = _over(page, "jana.dvorakova@exarnple.com", EntityType.EMAIL)
+        assert self._scores(page, [misread])[0] == ("found", True)
+
+    def test_a_label_read_glued_to_a_value_stays_outside_it(self):
+        text = "Pište na jana.dvorakova@example.com, tel.+420 777 123 456."
+        page = _ocr(text, [*LINE.split()[:3], "tel. +420", "777", "123", "456."])
+        assert _located(page, 1, self.TRUTH) == PHONE
+        assert self._scores(page, [_over(page, PHONE, EntityType.PHONE)])[1] == ("found", True)
+
+    def test_an_item_ocr_read_nothing_of_is_missed(self):
+        page = _ocr("Pište na tel. +420 777 123 456.")
+        assert _located(page, 0, self.TRUTH) is None
+        assert self._scores(page, [])[0] == ("missed", False)
+
+    def test_words_of_the_next_line_are_not_taken_in(self):
+        page = _ocr(self.SPLIT)
+        # A grown box of the next line reaches into the item's line; its centre does not.
+        below = Word("Novák", BBox(100, 106, 140, 125), len(page.text) + 1, len(page.text) + 6)
+        page = Page(0, 595, 842, f"{page.text}\nNovák", [*page.words, below], False, raster_dpi=300)
+        assert _located(page, 0, self.TRUTH) == "jana. dvorakova@example. com"
+
+    def test_a_skewed_box_covers_its_middle_but_not_the_corners_of_its_frame(self):
+        # A 40 x 10 box turned by 30 degrees about its top left corner.
+        corners = ((0.0, 0.0), (34.64, 20.0), (29.64, 28.66), (-5.0, 8.66))
+        assert covers(corners, 14.8, 14.3)
+        assert not covers(corners, 30.0, 2.0)
+        assert not covers(corners, -4.0, 27.0)
 
 
 class TestScan:

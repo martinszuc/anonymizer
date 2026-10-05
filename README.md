@@ -44,12 +44,19 @@ Tasks are defined in `[tool.poe.tasks]` in `pyproject.toml`, and CI runs the sam
 uv run anonymize detect cv.pdf -o review.json --lang cs --show
 uv run anonymize redact cv.pdf -o cv-redacted.pdf --session review.json
 uv run anonymize inspect cv.pdf -o cv.html --lang cs   # pages with the found items drawn on
+uv run anonymize redact photo.jpg -o photo-redacted.pdf --ocr onnxtr --lang cs
 ```
+
+A photo or a scanned image (JPEG, PNG or TIFF; not HEIC, so export iPhone
+photos as JPEG) is accepted wherever a PDF is. It is turned upright by its EXIF
+orientation, wrapped into a PDF holding only its pixels (no EXIF, GPS or other
+metadata reaches the output), read with OCR, which an image always needs, and
+redacted into a PDF. A multi-page TIFF gives one page per frame.
 
 See [`packages/cli/README.md`](packages/cli/README.md) for reviewing without a UI.
 
 The review window needs its frontend built once (Node 22). It opens on a home
-screen: drop a PDF or open one, with the language and the name model chosen
+screen: drop a PDF or an image or open one, with the language and the name model chosen
 there (`--resource-root` says where `models/` is, as for the CLI; see *Models and
 datasets* for the default):
 
@@ -182,6 +189,9 @@ PP-OCRv6 line recognizer, which also reads handwriting (optional: CLI `--ocr
 kraken`; not offered in the window yet).
 Searchable scans (a picture under an invisible text layer) are redacted through
 that layer; see `docs/findings.md`.
+Images (JPEG, PNG, TIFF) are read as scanned pages: wrapped into a PDF from their
+pixels only, upright by their EXIF orientation, and redacted into a PDF. Photos
+are read as they are taken: no perspective correction or dewarping.
 Detection quality is measured on development data only so far
 (`experiments/results/`, the benchmark for each release).
 Next: a Czech/Slovak name model trained in this repository, compared with existing

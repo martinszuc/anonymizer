@@ -12,6 +12,7 @@ from anonymizer.cli import main as main_module
 from anonymizer.cli.main import main
 from anonymizer.core.ingest import OcrEngine, load_document
 from anonymizer.core.resources import choose_resource_root
+from anonymizer.core.session import save_session
 
 from tests.ocr_stand_in import InkReadingEngine
 from tests.pdf_builders import CONTACT_EMAIL, write_pdf, write_scanned_pdf
@@ -102,7 +103,8 @@ def test_review_made_without_ocr_is_refused_when_reading_with_ocr(
 ):
     """Read now, the scans would pass as redacted although nothing on them was detected."""
     session, output = scan.with_name("review.json"), scan.with_name("out.pdf")
-    assert main(["detect", str(scan), "-o", str(session)]) == 0
+    # Saved by the core: `detect` refuses a document it can read nothing of.
+    save_session(load_document(scan), session)
     redact = ["redact", str(scan), "-o", str(output), "--session", str(session), "--ocr", "onnxtr"]
     assert main(redact) == 1
     assert "made without OCR" in capsys.readouterr().err

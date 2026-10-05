@@ -14,6 +14,11 @@ To see what was found drawn on the pages:
 
     anonymize inspect cv.pdf -o cv.html [--session review.json]
 
+A photo or a scanned image (JPEG, PNG, TIFF) is accepted wherever a PDF is,
+read with OCR, and redacted into a PDF:
+
+    anonymize redact photo.jpg -o photo-redacted.pdf --ocr onnxtr
+
 Exit codes: 0 success, 1 error, 2 invalid arguments, 3 leak check failed.
 """
 
@@ -43,7 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
     """Define the command line."""
     parser = argparse.ArgumentParser(
         prog="anonymize",
-        description="Detect and redact personal data in PDF documents, offline.",
+        description="Detect and redact personal data in PDF documents and images, offline.",
     )
     parser.add_argument("-V", "--version", action="version", version=__version__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -52,17 +57,19 @@ def build_parser() -> argparse.ArgumentParser:
     detect = commands.add_parser(
         "detect", parents=[logging_options], help="find personal data and save it for review"
     )
-    detect.add_argument("input", type=Path, help="PDF to scan")
+    detect.add_argument("input", type=Path, help="PDF or image (JPEG, PNG, TIFF) to scan")
     detect.add_argument("-o", "--output", type=Path, required=True, help="session file to write")
     _add_detection_options(detect)
     detect.add_argument("--show", action="store_true", help="list every item found")
     detect.add_argument("--force", action="store_true", help="replace an existing session file")
 
     redact = commands.add_parser(
-        "redact", parents=[logging_options], help="write a redacted copy of a PDF"
+        "redact", parents=[logging_options], help="write a redacted copy of a PDF or an image"
     )
-    redact.add_argument("input", type=Path, help="PDF to redact")
-    redact.add_argument("-o", "--output", type=Path, required=True, help="redacted PDF to write")
+    redact.add_argument("input", type=Path, help="PDF or image (JPEG, PNG, TIFF) to redact")
+    redact.add_argument(
+        "-o", "--output", type=Path, required=True, help="redacted PDF to write (also for an image)"
+    )
     redact.add_argument(
         "--session",
         type=Path,
@@ -80,7 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
         "check", parents=[logging_options], help="run the leak check on a redacted PDF"
     )
     check.add_argument("redacted", type=Path, help="redacted PDF to check")
-    check.add_argument("--source", type=Path, required=True, help="the original PDF")
+    check.add_argument("--source", type=Path, required=True, help="the original PDF or image")
     check.add_argument("--session", type=Path, required=True, help="the review it came from")
     _add_ocr_options(check)
 
@@ -89,7 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
         parents=[logging_options],
         help="write an HTML view of the pages with what was found drawn on them",
     )
-    inspect.add_argument("input", type=Path, help="PDF to show")
+    inspect.add_argument("input", type=Path, help="PDF or image (JPEG, PNG, TIFF) to show")
     inspect.add_argument(
         "-o",
         "--output",
@@ -162,8 +169,8 @@ def _add_ocr_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--ocr",
         choices=sorted(OCR_ENGINES),
-        help="read scanned pages with this OCR engine (install with uv sync --group "
-        "ocr-<engine>, fetch its models with scripts/download.py)",
+        help="read scanned pages and images with this OCR engine (install with uv sync "
+        "--group ocr-<engine>, fetch its models with scripts/download.py); an image needs it",
     )
     parser.add_argument(
         "--resource-root",

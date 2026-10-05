@@ -22,7 +22,7 @@ from benchmark.ocr_score import (
 )
 from benchmark.render import render
 from benchmark.scans import TruthPage, TruthWord, covers, scan_document
-from benchmark.score import Outcome, score_detection
+from benchmark.score import Outcome, false_positives, score_detection
 from benchmark.spec import DocumentSpec, GoldItem
 
 EMAIL = "jana.dvorakova@example.com"
@@ -252,6 +252,18 @@ class TestItemLocations:
         page = Page(0, 595, 842, f"{page.text}\nNovák", [*page.words, below], False, raster_dpi=300)
         assert _located(page, 0, self.TRUTH) == "jana. dvorakova@example. com"
 
+    def test_false_alarms_leave_out_an_item_read_split(self):
+        page = _ocr(self.SPLIT)
+        entities = [
+            _over(page, "jana. dvorakova@example. com", EntityType.EMAIL),
+            _over(page, "Pište", EntityType.PERSON),
+        ]
+        document = Document(pages=[page], entities=entities)
+        locations = item_locations([self.TRUTH], [page], ON_PAGE.gold)
+        assert false_positives(ON_PAGE, document, locations) == ["Pište"]
+        # Control: by exact words, the split address counts as a false alarm too.
+        assert len(false_positives(ON_PAGE, document)) == 2
+
     def test_a_skewed_box_covers_its_middle_but_not_the_corners_of_its_frame(self):
         # A 40 x 10 box turned by 30 degrees about its top left corner.
         corners = ((0.0, 0.0), (34.64, 20.0), (29.64, 28.66), (-5.0, 8.66))
@@ -320,8 +332,10 @@ def test_oracle_run_end_to_end(tmp_path: Path):
             "partly_after": 0,
         }
         assert (total["safe_documents"], total["leak_check_passed"]) == (1, 1)
+        assert total["false_positives"] == 0
     report = ocr_markdown(results)
     assert "## oracle" in report
+    assert "| found | false alarms |" in report
     assert "| skew-3 | 0.0% |" in report
 
 

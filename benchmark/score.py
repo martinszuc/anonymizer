@@ -106,13 +106,18 @@ def score_detection(
     return results
 
 
-def false_positives(spec: DocumentSpec, document: Document) -> list[str]:
+def false_positives(
+    spec: DocumentSpec, document: Document, locations: Locations | None = None
+) -> list[str]:
     """Return the distinct texts of page entities overlapping no planted item.
 
     Distinct, because one wrong text repeated through a document is one mistake
     for the detector, and repeated filler would otherwise dominate the count.
+    `locations` places the page items, as in `score_detection`.
     """
-    planted = [location for location in _page_locations(spec, document).values() if location]
+    if locations is None:
+        locations = _page_locations(spec, document)
+    planted = [location for location in locations.values() if location]
     wrong = (
         " ".join(entity.text.split())
         for entity in _on_carrier(document.entities, "page")

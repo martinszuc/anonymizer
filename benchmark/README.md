@@ -37,6 +37,8 @@ scored: a scan carries no links or metadata. Scores, per engine and level:
   it is printed: the OCR words whose box centre lies in its ground-truth
   boxes. Read split or misread (`jan. novak@example. com`), it is still
   located, and found only when one detected span covers all of it.
+- **false alarms** — as below: distinct detected texts on the OCR text
+  overlapping no planted item.
 - **readable / partly after** — ink left in each item's ground-truth boxes in
   the redacted picture: half a word or more, or more than a trace. Counted in
   pixels, so it does not depend on the engine being scored.

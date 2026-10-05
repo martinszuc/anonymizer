@@ -61,13 +61,15 @@ from pathlib import Path
 from typing import Any
 
 from anonymizer.core.ingest.ocr import OcrWord, PageImage
-from anonymizer.core.resources import load_catalog, resource_status
+from anonymizer.core.resources import load_catalog, missing_resources
 
 SEGMENTATION_RESOURCE = "kraken-blla"
 RECOGNITION_RESOURCE = "kraken-ppocr-v6-medium"
 _SEGMENTATION_FILE = "blla.mlmodel"
 _RECOGNITION_FILE = "medium.safetensors"
 _WORD = re.compile(r"\S+")
+
+Box = tuple[float, float, float, float]
 
 MAX_WIDENING = 0.5
 """Most a word box is widened sideways on each side, as a share of its height."""
@@ -112,6 +114,7 @@ class KrakenEngine:
         Returns:
             Words with boxes in pixels of `image`, lines in kraken's reading order.
         """
+        import numpy as np  # pyright: ignore[reportMissingImports]
         from PIL import Image  # pyright: ignore[reportMissingImports]
 
         picture = Image.frombytes("RGB", (image.width, image.height), image.samples)
@@ -119,8 +122,6 @@ class KrakenEngine:
         if not segmentation.lines:
             return []
         records = self.recognizer.predict(picture, segmentation, self.recognition_config)
-        import numpy as np  # pyright: ignore[reportMissingImports]
-
         pixels = np.frombuffer(image.samples, dtype=np.uint8).reshape(image.height, image.width, 3)
         ink = pixels.min(axis=2) < _DARK
         words: list[OcrWord] = []
@@ -220,9 +221,6 @@ def _line_words(record: Any, block: int, line: int) -> list[OcrWord]:
     ]
 
 
-Box = tuple[float, float, float, float]
-
-
 def _widened(boxes: list[Box], record: Any) -> list[Box]:
     """Widen a line's word boxes, left to right, towards the middle of the spaces between them.
 
@@ -268,12 +266,7 @@ def missing_kraken_files(root: Path) -> list[str]:
     Returns:
         Ids in download order; empty when the engine can be loaded.
     """
-    catalog = load_catalog()
-    return [
-        resource.id
-        for resource in catalog.with_requirements(RECOGNITION_RESOURCE)
-        if resource_status(resource, root) != "present"
-    ]
+    return missing_resources(load_catalog(), RECOGNITION_RESOURCE, root)
 
 
 def load_kraken_engine(root: Path) -> KrakenEngine:

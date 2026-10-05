@@ -4,6 +4,7 @@ The command line, the review window and the benchmark all settle the language
 (recognising it from the text when asked to), build a detector for it, run it
 over a loaded document and mark further occurrences; text a reviewer adds is
 marked again the same way.
+
 Keeping those steps here means a client cannot drift from the others: an option
 one of them forgets is a bug in one place, and the benchmark measures exactly
 what the tools ship. Writing the redacted copy is `redact.export_redacted`.

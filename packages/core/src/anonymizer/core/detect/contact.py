@@ -29,14 +29,11 @@ _EMAIL_PATTERN = re.compile(
     r"(?![A-Za-z0-9\-])"
 )
 
-# PP-OCR recognizers put a space after every period, inside an address too:
-# `tereza.prochazkova@example.com` is read as `tereza. prochazkova@example. com`,
-# and the strict pattern then matches `prochazkova@...` or nothing, leaving the
-# rest readable. A space is accepted only right after a period and before a
-# lowercase letter or digit, so a following sentence (capitalised) is not
-# taken in. In a text layer the same space is real, which is why this pattern
-# is kept to pages read by OCR. The lookbehind refuses to start inside any word,
-# diacritics included, so a word before the split is taken whole or not at all.
+# PP-OCR recognizers put a space after every period, inside an address too
+# (`tereza. prochazkova@example. com`). A space is accepted only after a period
+# and before a lowercase letter or digit, so a following capitalised sentence is
+# not taken in; a text layer's space is real, so this runs on OCR pages only.
+# The lookbehind refuses to start inside any word, diacritics included.
 _OCR_SPLIT = r"(?<=\.) (?=[a-z0-9])"
 _OCR_EMAIL_PATTERN = re.compile(
     r"(?<![\w.%+\-])"
@@ -47,20 +44,16 @@ _OCR_EMAIL_PATTERN = re.compile(
     r"(?![A-Za-z0-9\-])"
 )
 
-# Czech and Slovak subscriber numbers are nine digits, conventionally written in
-# groups of three. The country code 420 / 421 may be written with `+`, with `00`,
-# or bare, as OCR produces when it drops the plus. Slovak numbers written for
-# domestic use start with a trunk `0` instead (`0918 446 150`). Without these
-# prefixes a 12-digit number matched only its first nine digits, leaving the rest
-# unredacted.
+# Nine digits, conventionally in groups of three. The country code 420 / 421 may
+# be written with `+`, with `00`, or bare (OCR drops the plus); a Slovak domestic
+# number starts with a trunk `0` instead (`0918 446 150`). The prefixes are part
+# of the pattern so a longer number is never matched only in part.
 _PHONE_PATTERN = re.compile(
     r"(?<![\d+])"
     r"(?:(?:(?:\+|00)\s?)?42[01]\s?|0)?"
     r"\d{3}\s?\d{3}\s?\d{3}"
     r"(?!\d)"
 )
-
-_MIN_PHONE_DIGITS = 9
 
 
 def find_emails(text: str) -> Iterator[Match]:
@@ -99,9 +92,7 @@ def find_czech_phone_numbers(text: str) -> Iterator[Match]:
         One match per number, in order of appearance.
     """
     for found in _PHONE_PATTERN.finditer(text):
-        digits = re.sub(r"\D", "", found[0])
-        if len(digits) >= _MIN_PHONE_DIGITS:
-            yield Match.from_regex(found, EntityType.PHONE)
+        yield Match.from_regex(found, EntityType.PHONE)
 
 
 # North American numbers are 3-3-4 with an optional country code. Separators and

@@ -2,9 +2,9 @@
 
 A session holds the reviewer's decisions, not the document: every entity with
 its review state, the snippet it covers, and the fingerprint of the original
-file (a PDF or an image). Pages and surfaces are read again from the original when the session is
-opened, so the file carries only the marked snippets rather than a second copy
-of the whole text.
+file (a PDF or an image). Pages and surfaces are read again from the original
+when the session is opened, so the file carries only the marked snippets rather
+than a second copy of the whole text.
 
 Opening a session verifies that it belongs to the given file and that every
 entity still covers the same text at the same place. A mismatch means the file
@@ -118,10 +118,7 @@ def apply_session(document: Document, session_path: Path | str) -> Document:
     Raises:
         ValueError: As `load_session`.
     """
-    data = json.loads(Path(session_path).read_text(encoding="utf-8"))
-    if not isinstance(data, dict) or data.get("format") != SESSION_FORMAT:
-        msg = "not a session file"
-        raise ValueError(msg)
+    data = _read_session(session_path)
     version = data.get("schema_version")
     if version != SCHEMA_VERSION:
         msg = f"unsupported session version {version}, expected {SCHEMA_VERSION}"
@@ -159,12 +156,16 @@ def session_ocr_engine(session_path: Path | str) -> str | None:
     Raises:
         ValueError: If the file is not a session.
     """
+    engine = _read_session(session_path).get("ocr_engine")
+    return str(engine) if engine is not None else None
+
+
+def _read_session(session_path: Path | str) -> dict[str, Any]:
     data = json.loads(Path(session_path).read_text(encoding="utf-8"))
     if not isinstance(data, dict) or data.get("format") != SESSION_FORMAT:
         msg = "not a session file"
         raise ValueError(msg)
-    engine = data.get("ocr_engine")
-    return str(engine) if engine is not None else None
+    return data
 
 
 def _check_ocr_engine(recorded: str | None, used: str | None) -> None:

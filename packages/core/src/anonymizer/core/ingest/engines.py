@@ -15,7 +15,7 @@ from pathlib import Path
 from anonymizer.core.ingest import kraken, onnxtr
 from anonymizer.core.ingest.ocr import OcrEngine
 from anonymizer.core.log import step
-from anonymizer.core.resources import load_catalog, resource_status
+from anonymizer.core.resources import load_catalog, missing_resources
 
 log = logging.getLogger(__name__)
 
@@ -60,12 +60,7 @@ def missing_ocr_files(name: str, root: Path) -> list[str]:
     Returns:
         Ids in download order; empty when the engine can be loaded.
     """
-    catalog = load_catalog()
-    return [
-        resource.id
-        for resource in catalog.with_requirements(OCR_ENGINE_RESOURCES[name][-1])
-        if resource_status(resource, root) != "present"
-    ]
+    return missing_resources(load_catalog(), OCR_ENGINE_RESOURCES[name][-1], root)
 
 
 def load_ocr_engine(name: str, root: Path) -> OcrEngine:

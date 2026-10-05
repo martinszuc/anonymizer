@@ -14,6 +14,7 @@ from anonymizer.core.resources.fetch import (
     Progress,
     fetch_resource,
     fetch_with_requirements,
+    missing_resources,
     resource_status,
     verify_resource,
 )
@@ -39,6 +40,7 @@ __all__ = [
     "fetch_resource",
     "fetch_with_requirements",
     "load_catalog",
+    "missing_resources",
     "resolve_resource_root",
     "resource_status",
     "settings_file",

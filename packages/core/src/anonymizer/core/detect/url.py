@@ -33,11 +33,8 @@ _URL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# PP-OCR recognizers put a space after every period, inside an address too
-# (`https://www. linkedin. com/in/...`); the strict pattern then stops at the
-# space. A space is accepted only right after a period and before a lowercase
-# letter or digit, compared case-sensitively, so a following sentence is not
-# taken in. In a text layer the same space is real, so this is for OCR only.
+# The space PP-OCR puts after a period (`https://www. linkedin. com/in/...`), as
+# in `contact._OCR_SPLIT`; the lookahead is case-sensitive inside an IGNORECASE pattern.
 _OCR_SPLIT = r"(?<=\.) (?-i:(?=[a-z0-9]))"
 _OCR_TOKEN = r"[^\s<>\"'`]+"
 _OCR_URL_PATTERN = re.compile(

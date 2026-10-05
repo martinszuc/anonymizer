@@ -198,6 +198,24 @@ def resource_status(resource: Resource, root: Path) -> str:
     return "present" if found == len(resource.files) else "partial"
 
 
+def missing_resources(catalog: Catalog, resource_id: str, root: Path) -> list[str]:
+    """Return the ids of a resource and its requirements not fully stored under a root.
+
+    Args:
+        catalog: The catalog holding the resource.
+        resource_id: The resource that is needed.
+        root: Storage root holding `models/` (see `scripts/download.py`).
+
+    Returns:
+        Ids in download order; empty when everything is stored.
+    """
+    return [
+        resource.id
+        for resource in catalog.with_requirements(resource_id)
+        if resource_status(resource, root) != "present"
+    ]
+
+
 def verify_file(item: ResourceFile, path: Path) -> str:
     """Hash a stored file and compare it with the catalog.
 

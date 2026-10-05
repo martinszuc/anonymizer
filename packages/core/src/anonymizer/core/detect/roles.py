@@ -334,13 +334,8 @@ def cut_to_name(
     capitalised = [text[slice(*word)] for word in words if not _is_trimmable(text[slice(*word)])]
     if all(_letters(word).lower() in role_words for word in capitalised):
         return None
-    # Both edge words hold letters, so the stripping below stops inside them.
-    start, end = words[0][0], words[-1][1]
-    while start < end and text[start] in _EDGE:
-        start += 1
-    while end > start and text[end - 1] in _EDGE:
-        end -= 1
-    return start, end
+    # Both edge words hold letters, so the stripping stops inside them.
+    return _strip_edges(text, words[0][0], words[-1][1])
 
 
 def cut_to_address(text: str, start: int, end: int) -> tuple[int, int] | None:
@@ -368,7 +363,10 @@ def cut_to_address(text: str, start: int, end: int) -> tuple[int, int] | None:
     last = len(words) - _label_length(keys[first:][::-1], head_first=True)
     if first >= last:
         return None
-    start, end = words[first][0], words[last - 1][1]
+    return _strip_edges(text, words[first][0], words[last - 1][1])
+
+
+def _strip_edges(text: str, start: int, end: int) -> tuple[int, int]:
     while start < end and text[start] in _EDGE:
         start += 1
     while end > start and text[end - 1] in _EDGE:

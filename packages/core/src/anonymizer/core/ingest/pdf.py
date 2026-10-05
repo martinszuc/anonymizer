@@ -14,6 +14,7 @@ so are pages mostly covered by pictures with only a few visible words over
 them: a scan with a page number or a scanner's stamp, whose content is in the
 picture. Invisible text over a picture is a producer's OCR layer (a
 searchable scan) and is used as the text layer.
+
 Such pages need OCR: given an engine, they are read through it (see `ocr`);
 without one they keep only what the text layer had. The thresholds are a
 heuristic, not yet checked on real scans. Strings outside the text layer are
@@ -193,11 +194,11 @@ def document_from_bytes(
             if ocr is not None:
                 pages = _read_scans(pdf, pages, ocr, ocr_dpi, ocr_progress)
             surfaces = extract_surfaces(pdf)
-        read_by_ocr = any(page.raster_dpi is not None for page in pages)
+        read_by_ocr = sum(page.raster_dpi is not None for page in pages)
         unread = len(pages_needing_ocr(Document(pages=pages)))
         outcome.update(
             pages=len(pages),
-            read_by_ocr=sum(page.raster_dpi is not None for page in pages),
+            read_by_ocr=read_by_ocr,
             hidden_items=len(surfaces),
             hidden_kinds=counts(Counter(surface.kind for surface in surfaces)),
         )

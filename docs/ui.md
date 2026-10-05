@@ -9,7 +9,7 @@ Visual design (tokens, components, box states) lives in
 [`packages/ui/frontend/DESIGN.md`](../packages/ui/frontend/DESIGN.md);
 package usage in [`packages/ui/README.md`](../packages/ui/README.md).
 
-## Status (after adding missed words, 2026-10-02)
+## Status (after the export sheets and Settings, 2026-10-04)
 
 Works, for PDFs with a text layer and for scanned pages read by OCR:
 
@@ -65,10 +65,22 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   on its page. A file with attachments gets a warning: their contents are
   never opened or checked.
 - **Export** (Cmd/Ctrl+E, the primary toolbar action): save dialog (default
-  `<name>-redacted.pdf`), written through core's `export_redacted`, so the
-  file exists only if the leak check passed. A sheet asks for consent first
-  when pages have no text layer; a result sheet shows the counts and "Leak
-  check: Passed", or "Nothing was written" with the leaks.
+  `<name>-redacted.pdf`), written through core's `export_redacted`. A sheet
+  asks for consent first when pages have no text layer. While it runs, a
+  sheet shows what is happening now ("Searching the file's objects for
+  redacted text", "Reading the redacted scans again with OCR, 2 of 5
+  pages") above one bar for the whole export and its stages. When the leak
+  check finds something, nothing is written yet: a sheet lists the findings
+  in three groups (left under a box; hidden content still in the file;
+  redacted text found again, one row per text with every place it was
+  found), each row taking the reviewer to its finding or page, and offers
+  *Save Anyway*, which writes the same copy to the chosen file without
+  checking again (`export_unchecked`). The result sheet shows the counts and
+  the check's outcome: Passed, Off, or Saved with N warnings.
+- **Settings** (*Settings…* on the home screen, the toolbar's gear,
+  Cmd/Ctrl+,): the leak check on or off (on by default; off, export writes
+  the copy as redaction made it, faster and without warnings), and the
+  models folder with *Manage models…*. Kept in the settings file.
 - **Add a missed word or phrase**: in review mode, drag across words on the
   page (as text is selected in any PDF viewer; the cursor is a text cursor
   over words) or double-click one word. A drag may start on a box, so a
@@ -179,14 +191,16 @@ SurfaceInfo  { id, kind, value, page_index, box | null }
 
 `ReviewApi.export()` returns `ExportResult { written, name, redacted, regions,
 kept, not_reviewed, hidden_removed, pages_without_text: number[] (1-based scans OCR did not read),
-leaks: { layer, where, page: number | null (1-based), text }[] }`; nothing was
-written unless `written`.
+leak_check: passed | failed | off, leaks: { layer, where, page: number | null (1-based), text,
+entity_id: string | null, kind: text | under_box | leftover }[] }`; nothing was
+written unless `written`. `AppStatus` carries `settings: { leak_check }`.
 
 Methods the page calls (all return promises in JS):
 
 | Method | Returns | Notes |
 |---|---|---|
-| `status()` | `AppStatus` | version, languages with their own rules, `models_folder`, the states of the model and of OCR (`ocr: {engine, state, missing}`); loads neither |
+| `status()` | `AppStatus` | version, languages with their own rules, `models_folder`, the states of the model and of OCR (`ocr: {engine, state, missing}`), `settings`; loads neither |
+| `set_leak_check(enabled)` | `AppStatus` | turns the leak check of later exports on or off, kept in the settings file; only a boolean is accepted |
 | `choose_models_folder()` | `AppStatus \| null` | folder dialog; stores models there from now on (settings file); null = cancelled; rejects while a download runs |
 | `models()` | `FeatureModels[]` | each feature's models and whether they are stored; nothing is hashed |
 | `download_models(feature)` | `FeatureModels[]` | `names` or `ocr`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while one of its models is already downloading or when a checksum fails |
@@ -198,7 +212,8 @@ Methods the page calls (all return promises in JS):
 | `remove_entity(entity_id)` | `string[]` | only `manual` items; a detected item is rejected instead. Returns the ids removed: the item's, then its repeats (`propagated`, not confirmed) when no other finding marks the same text (`pipeline.remove_finding`) |
 | `page_words(index)` | `WordInfo[]` | a page's words in reading order (OCR's on a page OCR read); fetched once per page when it nears the viewport |
 | `add_finding(page_index, start, end, type)` | `EntityInfo[]` | a selection by word offsets, widened to whole words (`pipeline.add_finding`); the finding first, then its repeats; refuses a non-integer, a region type, text already marked for redaction |
-| `export_as(allow_pages_without_text)` | `ExportResult \| null` | save dialog; null = cancelled; raises (rejects) when scans OCR did not read remain and consent is false |
+| `export_as(allow_pages_without_text)` | `ExportResult \| null` | save dialog; null = cancelled; raises (rejects) when scans OCR did not read remain and consent is false; checks for leaks when the setting says so; steps as `anonymizer:export` |
+| `export_unchecked()` | `ExportResult` | writes the copy the leak check just refused, to the file chosen for it, without checking again; Python keeps that path, so the page passes none; rejects unless the last export of this document was refused |
 | `choose_session()` | `DocumentInfo \| null` | asks for session, then PDF; reads it with the OCR engine the session names |
 | `save_session_as()` | `bool` | false = cancelled |
 | `page_image(index, dpi)` | `data:` PNG URL | dpi clamped to 36..400 in Python |
@@ -214,6 +229,7 @@ Python tells the page about what it did not ask for with DOM events on
 | Event | Detail | When |
 |---|---|---|
 | `anonymizer:progress` | `{step, done, total}`: step `loading_ocr` / `reading` / `ocr` / `loading_model` / `detecting`; pages done and in all, both 0 for a step without pages | a step of opening a PDF (or a saved review) starts, and after each page OCR reads or detection scans |
+| `anonymizer:export` | `{step, done, total}`: step `redacting` / `clearing` / `saving`, then each leak layer (`page_text`, `region`, `off_page_text`, `surface`, `thumbnail`, `object`, `file_bytes`, `ocr`); pages for `redacting` and `ocr`, else both 0 | a step of an export starts, and after each page redacted or re-read |
 | `anonymizer:download` | `{feature, received, total}` (bytes) | a download progresses, at most once per whole percent |
 | `anonymizer:dropped` | the file's name | a PDF was dropped; the page calls `open_dropped` |
 | `anonymizer:drop-refused` | the file's name | something other than a PDF was dropped |
@@ -235,8 +251,9 @@ page's own drag listeners only draw the highlight.
   `data:` URLs); the window runs with `private_mode=True`; a session file is
   written only on the reviewer's Save. Do not add "recent files" or caches
   that persist paths or content: a file name can itself be personal data.
-  The one file the window keeps between runs is the settings file, holding
-  the models folder the reviewer chose and nothing about any document.
+  The one file the window keeps between runs is the settings file
+  (`core.settings`), holding the models folder and whether export checks for
+  leaks, and nothing about any document.
 - **Logs hold no file names, paths or exception messages**, and document text
   only at DEBUG (`docs/logging.md`). A new `ReviewApi` method logs counts and
   ids; a new `WindowApi` method gets `@_logged`.
@@ -534,10 +551,18 @@ the repository, a test, a fixture or a commit message.
     export sheet.
     **Partly done:** overlapping or nested regions no longer fail the region layer (each
     region's fill was reported as a drawing left inside the other), and the sheet numbers
-    pages from 1 (`page` in the leak payload). Advice per layer is still open. Another
+    pages from 1 (`page` in the leak payload). Another
     cause found on the benchmark: a detected word whose inflected form was not detected
     ("Žadatel" found, "Žadatelem" not) is still in the page text, so the page-text layer
     refuses. Right for a surname; for a role noun, rejecting the finding clears it.
+    **Done (2026-10-04):** a refused copy can be saved anyway, and the check can be
+    turned off in Settings. On a handwritten scan the check had listed about a hundred
+    rows: "1" and "25" counted inside longer numbers, two-character texts matched image
+    data, every repeat was its own row, and the file layer named the temporary copy.
+    The check now counts a copy where a word starts, skips single characters on pages
+    and texts under four characters, image and font streams in the file's data, and
+    searches each text once; each leak says what it means (`LeakKind`), and the sheet
+    groups by it, one row per text, each row leading to its finding or page.
 
 ## Known gotchas
 

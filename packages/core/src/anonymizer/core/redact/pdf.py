@@ -27,7 +27,7 @@ from anonymizer.core.ingest.pdf import read_verified
 from anonymizer.core.log import short_fingerprint, step
 from anonymizer.core.redact.canvas import remove_off_page_content
 from anonymizer.core.redact.surfaces import clear_surfaces
-from anonymizer.core.types import BBox, Document
+from anonymizer.core.types import BBox, Document, StepProgress
 from pymupdf import mupdf
 
 log = logging.getLogger(__name__)
@@ -36,7 +36,13 @@ _BLACK = (0.0, 0.0, 0.0)
 _REMOVE_TOUCHED_DRAWINGS = mupdf.PDF_REDACT_LINE_ART_REMOVE_IF_TOUCHED
 
 
-def redact_pdf(source: Path | str, document: Document, destination: Path | str) -> None:
+def redact_pdf(
+    source: Path | str,
+    document: Document,
+    destination: Path | str,
+    *,
+    progress: StepProgress | None = None,
+) -> None:
     """Write a redacted copy of a PDF.
 
     Every page-text entity and region review did not reject is blacked out
@@ -49,6 +55,8 @@ def redact_pdf(source: Path | str, document: Document, destination: Path | str) 
         source: PDF the document was loaded from.
         document: The loaded document with its reviewed entities.
         destination: Path of the redacted copy; must differ from `source`.
+        progress: Told each step as it starts: `redacting` (page by page),
+            `clearing` (hidden items), `saving`.
 
     Raises:
         FileNotFoundError: If `source` does not exist.
@@ -60,6 +68,7 @@ def redact_pdf(source: Path | str, document: Document, destination: Path | str) 
     if source.resolve() == destination.resolve():
         msg = "the redacted copy must not overwrite its source"
         raise ValueError(msg)
+    report = progress or (lambda _step, _done, _total: None)
     data = read_verified(source, document)
     text_boxes = _page_text_boxes(document)
     region_boxes = _region_boxes(document)
@@ -76,6 +85,7 @@ def redact_pdf(source: Path | str, document: Document, destination: Path | str) 
         if pdf.page_count != len(document.pages):
             msg = f"document has {len(document.pages)} pages, the file {pdf.page_count}"
             raise ValueError(msg)
+        report("redacting", 0, pdf.page_count)
         for index in range(pdf.page_count):
             page = pdf.load_page(index)
             log.debug(
@@ -90,8 +100,11 @@ def redact_pdf(source: Path | str, document: Document, destination: Path | str) 
                 log.debug("page %d: removing the text layer of a page OCR read", index)
                 _remove_text_layer(page)
             remove_off_page_content(page)
+            report("redacting", index + 1, pdf.page_count)
+        report("clearing", 0, 0)
         with step(log, "clear hidden items"):
             clear_surfaces(pdf)
+        report("saving", 0, 0)
         pdf.save(destination, garbage=4, deflate=True)
 
 

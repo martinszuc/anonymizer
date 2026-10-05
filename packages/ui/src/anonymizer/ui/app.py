@@ -87,6 +87,9 @@ class WindowApi:
         # The last whole percent told to the page per feature, so a download of
         # a gigabyte sends a hundred events rather than a thousand.
         self._told_percent: dict[str, int] = {}
+        # Where the last export the leak check refused was going, and whether it
+        # allowed unread scans: saving it anyway reuses them, so that call takes no path.
+        self._refused_export: tuple[str, bool] | None = None
 
     def _attach(self, window: webview.Window) -> None:
         """Give the API the window its dialogs open over; private so the page cannot."""
@@ -96,6 +99,11 @@ class WindowApi:
     def status(self) -> dict[str, Any]:
         """Describe the installation for the home screen; see `ReviewApi.status`."""
         return self._review.status()
+
+    @_logged
+    def set_leak_check(self, enabled: bool) -> dict[str, Any]:
+        """Turn the leak check on or off for later exports; see `ReviewApi.set_leak_check`."""
+        return self._review.set_leak_check(enabled)
 
     @_logged
     def models(self) -> list[dict[str, Any]]:
@@ -159,6 +167,7 @@ class WindowApi:
         """Close the open document and return the window to its home screen."""
         self._review.close()
         self._dropped = None
+        self._refused_export = None
         self._attached().title = "Anonymizer"
 
     @_logged
@@ -174,6 +183,7 @@ class WindowApi:
         pdf = self._ask(webview.FileDialog.OPEN, _PDF_TYPES)
         if pdf is None:
             return None
+        self._refused_export = None
         return self._titled(self._review.open_session(pdf, session, self._progress))
 
     @_logged
@@ -190,13 +200,33 @@ class WindowApi:
     def export_as(self, allow_pages_without_text: bool = False) -> dict[str, Any] | None:
         """Ask where to write the redacted copy and export it; None if cancelled.
 
-        See `ReviewApi.export` for the result and for pages without a text layer.
+        Each step is told to the page as `anonymizer:export`. See
+        `ReviewApi.export` for the result and for pages without a text layer.
         """
+        self._refused_export = None
         default = f"{Path(self._review.name).stem}-redacted.pdf"
         path = self._ask(webview.FileDialog.SAVE, _PDF_TYPES, default)
         if path is None:
             return None
-        return self._review.export(path, allow_pages_without_text)
+        result = self._review.export(path, allow_pages_without_text, self._export_progress)
+        if not result["written"]:
+            self._refused_export = (path, bool(allow_pages_without_text))
+        return result
+
+    @_logged
+    def export_unchecked(self) -> dict[str, Any]:
+        """Write the copy the leak check refused, where it was going, without checking again.
+
+        The reviewer has seen the leaks and decided to keep the copy. Redaction
+        makes the same file again; nothing else is left out.
+        """
+        if self._refused_export is None:
+            msg = "there is no refused export to save"
+            raise ReviewError(msg)
+        (path, allow_pages_without_text), self._refused_export = self._refused_export, None
+        return self._review.export(
+            path, allow_pages_without_text, self._export_progress, check=False
+        )
 
     @_logged
     def page_image(self, index: int, dpi: int = 144) -> str:
@@ -238,6 +268,7 @@ class WindowApi:
         return self._review.remove_entity(entity_id)
 
     def _open(self, path: str, options: Any) -> dict[str, Any]:
+        self._refused_export = None
         language, propagate, use_model, use_ocr = _open_options(options)
         payload = self._review.open_pdf(
             path, language, propagate, use_model, self._progress, use_ocr
@@ -247,6 +278,10 @@ class WindowApi:
     def _progress(self, step: str, done: int, total: int) -> None:
         """Tell the page which step of opening a PDF is running, and on which page."""
         self._notify("progress", {"step": step, "done": done, "total": total})
+
+    def _export_progress(self, step: str, done: int, total: int) -> None:
+        """Tell the page which step of an export is running, and on which page."""
+        self._notify("export", {"step": step, "done": done, "total": total})
 
     def _download_progress(self, feature: str, received: int, total: int) -> None:
         """Tell the page how far a download is, once per whole percent."""

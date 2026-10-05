@@ -73,6 +73,47 @@ def test_the_temporary_copy_is_removed_when_the_check_crashes(
     assert sorted(path.name for path in pdf.parent.iterdir()) == ["cv.pdf"]
 
 
+def test_without_the_check_the_copy_is_written_as_redaction_made_it(
+    pdf: Path, document: Document, monkeypatch: pytest.MonkeyPatch
+):
+    def no_check(*_: object, **__: object) -> list[Leak]:
+        raise AssertionError("the check was run")
+
+    monkeypatch.setattr(export_module, "find_leaks", no_check)
+    destination = pdf.with_name("cv-redacted.pdf")
+    destination.write_bytes(b"old export")
+    assert export_redacted(pdf, document, destination, check=False) == []
+    assert CONTACT_EMAIL not in page_text(destination)
+    assert sorted(path.name for path in pdf.parent.iterdir()) == ["cv-redacted.pdf", "cv.pdf"]
+
+
+def test_progress_tells_redaction_then_each_layer(pdf: Path, document: Document):
+    told: list[tuple[str, int, int]] = []
+    export_redacted(
+        pdf, document, pdf.with_name("cv-redacted.pdf"), progress=lambda *step: told.append(step)
+    )
+    layers = [layer.value for layer in LeakLayer if layer is not LeakLayer.OCR]
+    assert told == [
+        ("redacting", 0, 1),
+        ("redacting", 1, 1),
+        ("clearing", 0, 0),
+        ("saving", 0, 0),
+        *((layer, 0, 0) for layer in layers),
+    ]
+
+
+def test_without_the_check_progress_ends_with_saving(pdf: Path, document: Document):
+    told: list[str] = []
+    export_redacted(
+        pdf,
+        document,
+        pdf.with_name("cv-redacted.pdf"),
+        check=False,
+        progress=lambda step, _done, _total: told.append(step),
+    )
+    assert told[-1] == "saving"
+
+
 def test_refuses_to_overwrite_the_source(pdf: Path, document: Document):
     original = pdf.read_bytes()
     with pytest.raises(ValueError, match="must not overwrite its source"):

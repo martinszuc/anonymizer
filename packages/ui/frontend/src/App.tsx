@@ -2,11 +2,12 @@ import { MotionConfig } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { connect, errorMessage, type ReviewBridge } from "./bridge";
-import { ExportSheets, type ExportStep } from "./components/ExportSheets";
+import { ExportSheets, type ExportSheet } from "./components/ExportSheets";
 import { Home } from "./components/Home";
 import { ModelsSheet } from "./components/ModelsSheet";
 import { Opening } from "./components/Opening";
 import { PageView, type WordSelection } from "./components/PageView";
+import { SettingsSheet } from "./components/SettingsSheet";
 import { Sidebar, type SidebarTab } from "./components/Sidebar";
 import { Toasts, type Toast } from "./components/Toasts";
 import { Toolbar } from "./components/Toolbar";
@@ -24,8 +25,10 @@ import {
   lastAdded,
   pagesWithoutText,
   plural,
+  scannedPages,
   steppedZoom,
   toggled,
+  type LeakRow,
   type ListView,
 } from "./review";
 import { selectionSpan } from "./selection";
@@ -36,6 +39,7 @@ import type {
   FeatureModels,
   DownloadProgress,
   EntityInfo,
+  ExportProgress,
   OpenOptions,
   OpenProgress,
   SurfaceInfo,
@@ -75,8 +79,10 @@ export function App() {
   const [selectedSurfaceId, setSelectedSurfaceId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [exportStep, setExportStep] = useState<ExportStep | null>(null);
+  const [exportSheet, setExportSheet] = useState<ExportSheet | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [savingSetting, setSavingSetting] = useState(false);
   // The region tool, or Alt held down: a drag on a page draws a region.
   const [drawTool, setDrawTool] = useState(false);
   const [altHeld, setAltHeld] = useState(false);
@@ -235,7 +241,7 @@ export function App() {
       setPreviewing(false);
       setDrawTool(false);
       setSelection(null);
-      setExportStep(null);
+      setExportSheet(null);
     } catch (error) {
       reportError(errorMessage(error));
     }
@@ -260,6 +266,11 @@ export function App() {
       const name = (event as CustomEvent<string>).detail;
       onPythonEvent.current.reportError(`Only PDF files can be opened${name ? `, not ${name}` : ""}`);
     };
+    const onExport = (event: Event) => {
+      const progress = (event as CustomEvent<ExportProgress>).detail;
+      // Only a running export shows its steps; a late event changes nothing after it ends.
+      setExportSheet((current) => (current?.kind === "progress" ? { ...current, progress } : current));
+    };
     const onDownload = (event: Event) => {
       const progress = (event as CustomEvent<DownloadProgress>).detail;
       // A late event must not bring back a download that has finished.
@@ -268,11 +279,13 @@ export function App() {
       );
     };
     window.addEventListener("anonymizer:progress", onProgress);
+    window.addEventListener("anonymizer:export", onExport);
     window.addEventListener("anonymizer:download", onDownload);
     window.addEventListener("anonymizer:dropped", onDropped);
     window.addEventListener("anonymizer:drop-refused", onRefused);
     return () => {
       window.removeEventListener("anonymizer:progress", onProgress);
+      window.removeEventListener("anonymizer:export", onExport);
       window.removeEventListener("anonymizer:download", onDownload);
       window.removeEventListener("anonymizer:dropped", onDropped);
       window.removeEventListener("anonymizer:drop-refused", onRefused);
@@ -323,25 +336,74 @@ export function App() {
   function startExport() {
     if (!document || exporting) return;
     const pages = pagesWithoutText(document);
-    if (pages.length > 0) setExportStep({ kind: "confirm-pages", pages });
+    if (pages.length > 0) setExportSheet({ kind: "confirm-pages", pages });
     else void runExport(false);
   }
 
+  /** Export through the save dialog; the progress sheet appears with Python's first step. */
   async function runExport(allowPagesWithoutText: boolean) {
-    if (!bridge) return;
-    setExportStep(null);
+    if (!bridge || !document) return;
+    const plan = { check: status?.settings.leak_check ?? true, scannedPages: scannedPages(document) };
+    setExportSheet({ kind: "progress", plan, progress: null });
     setExporting(true);
     try {
       const result = await bridge.export_as(allowPagesWithoutText);
-      if (result) setExportStep({ kind: "result", result });
+      if (!result) setExportSheet(null);
+      else if (result.written) setExportSheet({ kind: "result", result, accepted: [] });
+      else setExportSheet({ kind: "leaks", result });
     } catch (error) {
+      setExportSheet(null);
       reportError(errorMessage(error));
     } finally {
       setExporting(false);
     }
   }
 
-  const closeExport = useCallback(() => setExportStep(null), []);
+  /** Write the copy the leak check refused, after the reviewer has seen what it found. */
+  async function saveAnyway() {
+    if (!bridge || exportSheet?.kind !== "leaks") return;
+    const accepted = exportSheet.result.leaks;
+    setExportSheet({ kind: "progress", plan: { check: false, scannedPages: 0 }, progress: null });
+    setExporting(true);
+    try {
+      const result = await bridge.export_unchecked();
+      setExportSheet({ kind: "result", result, accepted });
+    } catch (error) {
+      setExportSheet(null);
+      reportError(errorMessage(error));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  /** Leave the leak sheet for the place a leak lies: its finding, or its page. */
+  function showLeak(row: LeakRow) {
+    setExportSheet(null);
+    const entity = document?.entities.find((item) => item.id === row.entityId);
+    if (entity && entity.page_index !== null) {
+      select(entity);
+      return;
+    }
+    if (row.page !== null) {
+      canvasRef.current
+        ?.querySelector(`[data-page-index="${row.page - 1}"]`)
+        ?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+  }
+
+  const closeExport = useCallback(() => setExportSheet(null), []);
+
+  async function setLeakCheck(enabled: boolean) {
+    if (!bridge) return;
+    setSavingSetting(true);
+    try {
+      setStatus(await bridge.set_leak_check(enabled));
+    } catch (error) {
+      reportError(errorMessage(error));
+    } finally {
+      setSavingSetting(false);
+    }
+  }
 
   async function addRegion(pageIndex: number, box: Box) {
     if (!bridge) return;
@@ -488,14 +550,15 @@ export function App() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       // A sheet is modal: its own keys only.
-      if (exportStep) return;
+      if (exportSheet || settingsOpen || modelsOpen) return;
       if (event.key === "Alt") setAltHeld(true);
       if (!hasCommand(event)) {
         onPlainKey(event);
         return;
       }
       const key = event.key.toLowerCase();
-      if (key === "o") void (event.shiftKey ? openReview() : openPdf());
+      if (key === ",") setSettingsOpen(true);
+      else if (key === "o") void (event.shiftKey ? openReview() : openPdf());
       else if (key === "s" && document) void save();
       else if ((key === "=" || key === "+") && document) zoomBy(1);
       else if (key === "-" && document) zoomBy(-1);
@@ -577,6 +640,7 @@ export function App() {
               onSave={save}
               onPreview={() => setPreviewing((value) => !value)}
               onExport={startExport}
+              onSettings={() => setSettingsOpen(true)}
               onDrawTool={() => setDrawTool((value) => !value)}
               onLocate={() => setLocating((value) => !value)}
               onClose={() => void closeDocument()}
@@ -638,14 +702,30 @@ export function App() {
               onOpen={openPdf}
               onOpenReview={openReview}
               onModels={() => void openModels()}
+              onSettings={() => setSettingsOpen(true)}
             />
           )
         )}
         <ExportSheets
-          step={exportStep}
+          sheet={exportSheet}
           busy={exporting}
           onExportAnyway={() => void runExport(true)}
+          onSaveAnyway={() => void saveAnyway()}
+          onShowLeak={showLeak}
           onClose={closeExport}
+        />
+        <SettingsSheet
+          open={settingsOpen}
+          status={status}
+          saving={savingSetting}
+          downloading={Object.keys(downloads).length > 0}
+          onLeakCheck={(enabled) => void setLeakCheck(enabled)}
+          onChangeFolder={() => void chooseModelsFolder()}
+          onModels={() => {
+            setSettingsOpen(false);
+            void openModels();
+          }}
+          onClose={() => setSettingsOpen(false)}
         />
         <ModelsSheet
           open={modelsOpen}

@@ -511,6 +511,32 @@ Development corpora (`experiments/results/rq1-dev.md`; person, partial match):
   REDACT 0.539 → 0.500.
 - The window counts above came from a one-off count over the loaded pages
   (old and new `_windows`, the splitter's pattern); only counts were printed.
+### 2026-10-04 · Form headers tagged as persons and addresses (`handwritten-scan-sample.pdf`)
+
+A 10-page scanned form with handwritten entries, read by OnnxTR, language
+recognised as `en`, `rules+gliner` as shipped. Entity texts were printed with
+every word outside a common-word list masked.
+
+- **The name model tagged the form's headers, not its entries.** 14 model
+  spans held printed labels only: as persons "Adult" (6 times, scores up to
+  0.92), "Adult at Risk", "Gender", "PERSON"; as addresses "Address", "Home
+  Address", "Contact Address", "Post Code", "Telephone Number". Two more
+  address spans joined a label to the value beside it ("Post Code" plus the
+  postcode). Spans of masked words, the entries, were tagged as well.
+- **English had no role words**, so `NamesOnly` let every English role noun
+  through, and it never looked at address spans.
+- **Fixed:** an English role list (`ENGLISH_ROLE_WORDS`), and address-field
+  labels trimmed from the edges of a model's address span, which is dropped
+  when nothing else is left (`cut_to_address`). A qualifying word ("Home",
+  "Post") is trimmed only together with the word it qualifies ("Address",
+  "Code"), since "Home Farm" may be a place. After it, none of the 14 header
+  spans is left, the two joined spans keep only the value, and the masked
+  spans are unchanged. Two "Social Care …" person spans were dropped as
+  well: their third word is a role word joined by a slash to a common word.
+- **Measured:** benchmark found 199/224 before and after, false alarms 44 → 43
+  ("Employee" in `en-handbook`), leak check passed 25/26 → 26/26. `rq1-dev`:
+  CNEC 2.0 and UNER-SK identical; on the REDACT sample address precision
+  0.539 → 0.553 (partial match) with recall 27/27 unchanged.
 
 ### Toolchain findings: redaction
 

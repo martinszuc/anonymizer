@@ -67,6 +67,7 @@ from anonymizer.core.resources import (
     resource_status,
 )
 from anonymizer.core.session import apply_session, save_session, session_ocr_engine
+from anonymizer.core.settings import read_settings, write_setting
 from anonymizer.core.types import (
     BBox,
     DetectionSource,
@@ -75,6 +76,7 @@ from anonymizer.core.types import (
     EntityType,
     Page,
     ReviewState,
+    StepProgress,
     Surface,
 )
 from anonymizer.ui import __version__
@@ -101,6 +103,9 @@ done and the pages in all (both 0 for a step without pages)."""
 
 Downloaded = Callable[[str, int, int], None]
 """Told a download's progress: the feature, bytes received so far, bytes in all."""
+
+LEAK_CHECK_SETTING = "leak_check"
+"""Whether export checks the copy for leaks; on unless the reviewer turned it off."""
 
 
 @dataclass(frozen=True)
@@ -179,6 +184,7 @@ class ReviewApi:
         # Loaded on first use and kept: loading takes seconds, detecting does not.
         self._model: Detector | None = None
         self._ocr: dict[str, OcrEngine] = {}
+        self._leak_check = read_settings().get(LEAK_CHECK_SETTING) is not False
 
     def status(self) -> dict[str, Any]:
         """Describe what this installation can do, for the home screen.
@@ -188,9 +194,10 @@ class ReviewApi:
 
         Returns:
             The version, the languages with their own rules, the folder models
-            are stored in, and the states of the name model and of the OCR
-            engine: `ready`, `not_installed` (the optional dependencies are
-            missing) or `files_missing` (with the catalog ids to fetch).
+            are stored in, the states of the name model and of the OCR
+            engine (`ready`, `not_installed`: the optional dependencies are
+            missing, or `files_missing`, with the catalog ids to fetch), and
+            the settings (`leak_check`).
         """
         model_missing = missing_gliner_files(self._resource_root)
         ocr_missing = missing_ocr_files(OCR_ENGINE, self._resource_root)
@@ -207,7 +214,29 @@ class ReviewApi:
                 "state": _state(ocr_engine_installed(OCR_ENGINE), ocr_missing),
                 "missing": ocr_missing,
             },
+            "settings": {"leak_check": self._leak_check},
         }
+
+    def set_leak_check(self, enabled: bool) -> dict[str, Any]:
+        """Turn the leak check of every later export on or off, in this run and later ones.
+
+        Args:
+            enabled: Whether export checks the copy before writing it.
+
+        Returns:
+            The installation as `status()` describes it.
+
+        Raises:
+            ReviewError: If `enabled` is not a boolean or the choice cannot be saved.
+        """
+        if not isinstance(enabled, bool):
+            msg = "the leak check is turned on or off with true or false"
+            raise ReviewError(msg)
+        with _as_review_error():
+            write_setting(LEAK_CHECK_SETTING, enabled)
+        self._leak_check = enabled
+        log.info("leak check turned %s", "on" if enabled else "off")
+        return self.status()
 
     def models(self) -> list[dict[str, Any]]:
         """Describe the models each feature needs and whether they are stored.
@@ -697,7 +726,13 @@ class ReviewApi:
         with _as_review_error():
             save_session(current.document, path)
 
-    def export(self, path: str, allow_pages_without_text: bool = False) -> dict[str, Any]:
+    def export(
+        self,
+        path: str,
+        allow_pages_without_text: bool = False,
+        progress: StepProgress | None = None,
+        check: bool | None = None,
+    ) -> dict[str, Any]:
         """Write the redacted copy, keeping it only if the leak check passes.
 
         Undecided items are redacted, rejected ones kept, and every hidden
@@ -710,19 +745,30 @@ class ReviewApi:
                 were not read by OCR. Nothing on such a page is detected, so
                 it reaches the output unredacted while the leak check still
                 passes.
+            progress: Told each step of the export as it starts (see
+                `export_redacted`).
+            check: Run the leak check; the setting (`set_leak_check`) decides
+                when omitted. False writes the copy whatever it holds, as
+                when the reviewer saves a copy the check refused.
 
         Returns:
             What the export did: whether the copy was written, the counts of
             redacted, kept and not reviewed items and of hidden items removed,
-            the pages left unredacted, and the leaks that stopped it.
+            the pages left unredacted, the leak check's outcome (`passed`,
+            `failed` or `off`) and the leaks that stopped it.
 
         Raises:
             ReviewError: If pages have no text layer and that was not allowed,
                 the path is the original, or the original changed on disk.
         """
         current = self._current()
+        checked = self._leak_check if check is None else check
         unreadable = [index + 1 for index in pages_needing_ocr(current.document)]
-        log.info("export requested: unread_scan_pages=%d", len(unreadable))
+        log.info(
+            "export requested: unread_scan_pages=%d leak_check=%s",
+            len(unreadable),
+            "on" if checked else "off",
+        )
         if unreadable and allow_pages_without_text:
             log.warning(
                 "exporting with %d scanned page(s) OCR has not read; they stay unredacted",
@@ -732,10 +778,14 @@ class ReviewApi:
             listed = ", ".join(str(page) for page in unreadable)
             msg = f"page {listed} is a scan OCR has not read; nothing on it would be redacted"
             raise ReviewError(msg)
-        ocr = self._engine_that_read(current.document)
+        ocr = self._engine_that_read(current.document) if checked else None
         with _as_review_error():
-            leaks = export_redacted(current.source, current.document, path, ocr=ocr)
-        return _export_payload(Path(path).name, current.document, leaks, unreadable)
+            leaks = export_redacted(
+                current.source, current.document, path, ocr=ocr, check=checked, progress=progress
+            )
+        return _export_payload(
+            Path(path).name, current.document, leaks, unreadable, checked=checked
+        )
 
     def _engine_that_read(self, document: Document) -> OcrEngine | None:
         """Return the loaded engine that read the document, for the leak check to re-read with."""
@@ -803,7 +853,7 @@ def _entity_payload(entity: Entity) -> dict[str, Any]:
 
 
 def _export_payload(
-    name: str, document: Document, leaks: list[Leak], unreadable: list[int]
+    name: str, document: Document, leaks: list[Leak], unreadable: list[int], *, checked: bool
 ) -> dict[str, Any]:
     # A finding in hidden data goes with it, whatever its review says: export
     # clears every hidden item.
@@ -821,6 +871,7 @@ def _export_payload(
         "not_reviewed": sum(entity.review is ReviewState.PENDING for entity in applied),
         "hidden_removed": len(document.surfaces),
         "pages_without_text": unreadable,
+        "leak_check": "off" if not checked else "failed" if leaks else "passed",
         "leaks": [
             {
                 "layer": leak.layer.value,
@@ -828,6 +879,8 @@ def _export_payload(
                 # 1-based, as the window numbers pages; the core counts from 0.
                 "page": None if leak.page_index is None else leak.page_index + 1,
                 "text": leak.text,
+                "entity_id": leak.entity_id,
+                "kind": leak.kind.value,
             }
             for leak in leaks
         ],

@@ -106,7 +106,7 @@ export interface AppStatus {
   settings: { leak_check: boolean };
 }
 
-/** How a PDF is opened; each is a detection option (see `ReviewApi.open_pdf`). */
+/** How a document is opened; each is a detection option (see `ReviewApi.open_pdf`). */
 export interface OpenOptions {
   /** A language code, "auto" to recognise it from the text, or null for every language's rules. */
   language: string | null;
@@ -155,10 +155,10 @@ export interface DownloadProgress {
   total: number;
 }
 
-/** A step of opening a PDF, told by Python as it starts. */
+/** A step of opening a document, told by Python as it starts. */
 export type OpenStep = "loading_ocr" | "reading" | "ocr" | "loading_model" | "detecting";
 
-/** How far opening a PDF is, told by Python as it goes. */
+/** How far opening a document is, told by Python as it goes. */
 export interface OpenProgress {
   step: OpenStep;
   /** Pages done so far, of `total`; both 0 for a step that has no pages (loading a model). */

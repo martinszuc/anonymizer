@@ -20,6 +20,7 @@ from anonymizer.ui import app
 from anonymizer.ui.api import ReviewApi, ReviewError
 from anonymizer.ui.app import WindowApi, main
 
+from tests.image_builders import encode, upright_scan
 from tests.ocr_stand_in import InkReadingEngine
 from tests.pdf_builders import CONTACT_EMAIL, write_pdf, write_scanned_pdf
 from tests.ui.test_api import LINES, NameModel
@@ -191,6 +192,21 @@ class TestDialogs:
         assert payload["name"] == "cv.pdf"
         assert window.title == "cv.pdf — Anonymizer"
         assert window.asked[0]["dialog"] == webview.FileDialog.OPEN
+
+    def test_choose_pdf_offers_images_and_export_writes_a_pdf(self, tmp_path: Path):
+        photo = tmp_path / "photo.png"
+        photo.write_bytes(encode(upright_scan(LINES), "PNG"))
+        window = StandInWindow(answers=[(str(photo),), None])
+        api = attached(window)
+        payload = api.choose_pdf({"language": "cs"})
+        assert payload is not None
+        assert payload["name"] == "photo.png"
+        offered = window.asked[0]["file_types"]
+        assert offered[0] == "Documents (*.pdf;*.jpg;*.jpeg;*.png;*.tif;*.tiff)"
+        assert "Images (*.jpg;*.jpeg;*.png;*.tif;*.tiff)" in offered
+        api.export_as()
+        assert window.asked[1]["save_filename"] == "photo-redacted.pdf"
+        assert window.asked[1]["file_types"] == ("PDF documents (*.pdf)",)
 
     def test_cancelled_dialogs_change_nothing(self, pdf: Path):
         api = attached(StandInWindow(answers=[None, None]))
@@ -391,11 +407,22 @@ class TestDrop:
         assert window.title == "cv.pdf — Anonymizer"
         assert api.open_dropped() is None  # used once
 
-    def test_a_drop_without_a_pdf_is_refused(self):
+    def test_a_dropped_image_is_opened(self, tmp_path: Path):
+        photo = tmp_path / "photo.JPG"
+        photo.write_bytes(encode(upright_scan(LINES), "JPEG"))
         window = StandInWindow()
         api = attached(window)
-        api._on_drop(drop_event("/tmp/photo.png"))
-        assert window.events_told() == [("drop-refused", "photo.png")]
+        api._on_drop(drop_event(str(photo)))
+        assert window.events_told() == [("dropped", "photo.JPG")]
+        payload = api.open_dropped()
+        assert payload is not None
+        assert payload["pages"][0]["has_text_layer"] is False
+
+    def test_a_drop_without_a_pdf_or_an_image_is_refused(self):
+        window = StandInWindow()
+        api = attached(window)
+        api._on_drop(drop_event("/tmp/letter.docx", "/tmp/photo.heic"))
+        assert window.events_told() == [("drop-refused", "letter.docx")]
         assert api.open_dropped() is None
 
     def test_a_drop_without_paths_is_refused(self):

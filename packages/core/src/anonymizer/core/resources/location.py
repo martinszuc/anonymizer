@@ -11,21 +11,21 @@ in this order:
    on macOS, `%LOCALAPPDATA%/anonymizer` on Windows, `~/.local/share/anonymizer`
    on Linux).
 
-The settings file holds the chosen folder and nothing else: no document, no
-file name. Neither path is ever logged, as a path can name its user.
+The choice is kept in the settings file (`core.settings`). Neither path is
+ever logged, as a path can name its user.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 
 import platformdirs
+from anonymizer.core import settings
+from anonymizer.core.settings import APP_NAME
 
 log = logging.getLogger(__name__)
 
-APP_NAME = "anonymizer"
 _MODELS_ROOT_KEY = "models_root"
 
 
@@ -34,26 +34,13 @@ def user_resource_root() -> Path:
     return Path(platformdirs.user_data_dir(APP_NAME, appauthor=False))
 
 
-def settings_file() -> Path:
-    """Return the file the chosen storage root is kept in."""
-    return Path(platformdirs.user_config_dir(APP_NAME, appauthor=False)) / "settings.json"
-
-
 def chosen_resource_root() -> Path | None:
     """Return the storage root chosen in the review window, if one was.
 
     An unreadable or malformed settings file counts as no choice: models are
     then looked for where they would be without it.
     """
-    path = settings_file()
-    try:
-        settings = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return None
-    except (OSError, ValueError):
-        log.warning("the settings file cannot be read; using the default models folder")
-        return None
-    chosen = settings.get(_MODELS_ROOT_KEY) if isinstance(settings, dict) else None
+    chosen = settings.read_settings().get(_MODELS_ROOT_KEY)
     return Path(chosen) if isinstance(chosen, str) and chosen else None
 
 
@@ -66,13 +53,7 @@ def choose_resource_root(root: Path) -> None:
     Raises:
         OSError: If the settings file cannot be written.
     """
-    path = settings_file()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    staging = path.with_name(path.name + ".part")
-    staging.write_text(
-        json.dumps({_MODELS_ROOT_KEY: str(root.resolve())}, indent=2) + "\n", encoding="utf-8"
-    )
-    staging.replace(path)
+    settings.write_setting(_MODELS_ROOT_KEY, str(root.resolve()))
     log.info("models folder chosen")
 
 

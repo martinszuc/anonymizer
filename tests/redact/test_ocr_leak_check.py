@@ -13,7 +13,7 @@ import pymupdf
 import pytest
 from anonymizer.core.ingest import load_document, render_page
 from anonymizer.core.pipeline import build_detector, run_detection
-from anonymizer.core.redact import LeakLayer, export_redacted, find_leaks, redact_pdf
+from anonymizer.core.redact import LeakKind, LeakLayer, export_redacted, find_leaks, redact_pdf
 from anonymizer.core.types import BBox, DetectionSource, Document, Entity, EntityType, ReviewState
 
 from tests.ocr_stand_in import InkReadingEngine, layout_of
@@ -66,6 +66,19 @@ class TestPassing:
         assert export_redacted(scan, detected(scan, engine), output, ocr=engine) == []
         assert output.exists()
 
+    def test_progress_counts_the_pages_re_read(
+        self, scan: Path, engine: InkReadingEngine, tmp_path: Path
+    ):
+        told: list[tuple[str, int, int]] = []
+        export_redacted(
+            scan,
+            detected(scan, engine),
+            tmp_path / "out.pdf",
+            ocr=engine,
+            progress=lambda *step: told.append(step),
+        )
+        assert [step for step in told if step[0] == LeakLayer.OCR] == [("ocr", 0, 1), ("ocr", 1, 1)]
+
     def test_kept_value_is_not_reported(self, scan: Path, engine: InkReadingEngine, tmp_path: Path):
         document = detected(scan, engine)
         for entity in document.entities:
@@ -84,6 +97,11 @@ class TestLeaks:
         leaks = find_leaks(scan, document, ocr=engine)
         assert {leak.layer for leak in leaks} == {LeakLayer.OCR}
         assert {leak.text for leak in leaks} >= {CONTACT_EMAIL, PHONE}
+        # The values are read again, and so is every word under their boxes.
+        assert {leak.kind for leak in leaks if leak.text == CONTACT_EMAIL} == {LeakKind.TEXT}
+        assert {leak.kind for leak in leaks if leak.where.endswith("under a box")} == {
+            LeakKind.UNDER_BOX
+        }
 
     def test_word_left_under_a_region_is_found(self, scan: Path, engine: InkReadingEngine):
         document = detected(scan, engine)

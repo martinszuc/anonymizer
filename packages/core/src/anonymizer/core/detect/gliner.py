@@ -3,9 +3,11 @@
 GLiNER is prompted with plain-text labels ("person") and returns character
 spans with a score. Four properties of the model shape this module:
 
-- It reads at most 384 words and drops the rest with only a warning, so a
-  name on the lower half of a page would never be seen. Pages are therefore
-  scanned in overlapping windows.
+- It reads at most 384 of its own tokens and drops the rest with only a
+  warning, so a name on the lower half of a page would never be seen. Pages
+  are therefore scanned in overlapping windows, counted in those tokens:
+  punctuation is a token of its own, and OCR text of handwriting holds so
+  much of it that 120 words came to 409 tokens.
 - Its spans can stop inside a word ("s.r.o" for "s.r.o."). Spans are widened
   to whole words, since a cut word leaks the remainder in the text layer.
 - On a badly read scan it tags lone letters, such as a preposition starting
@@ -65,14 +67,19 @@ DEFAULT_THRESHOLD = 0.3
 """Below GLiNER's own default (0.5) because detection is recall-first; a false
 positive costs a click in review. To be tuned on development data only."""
 
-WINDOW_WORDS = 120
-"""Words per window. GLiNER's limit is 384 of its own tokens, which split off
-punctuation, and the encoder's is 512 subword tokens; Czech averages about two
-subwords per word, so 120 whitespace-separated words stay well inside both."""
+MODEL_MAX_TOKENS = 384
+"""GLiNER's `max_len` in the pinned model's config; tokens past it are dropped.
+The encoder sets no limit of its own: its tokenizer has no maximum length and
+it uses relative positions only."""
 
-OVERLAP_WORDS = 30
-"""Words shared by consecutive windows, so a name cut by one window's edge is
-seen whole by the next."""
+WINDOW_TOKENS = 150
+"""GLiNER tokens per window. About 120 words of ordinary prose, which averages
+1.24 tokens per word on the benchmark documents; the model limit is the
+ceiling, not the target."""
+
+OVERLAP_TOKENS = 40
+"""GLiNER tokens shared by consecutive windows, so a name cut by one window's
+edge is seen whole by the next."""
 
 # Czech and Slovak also quote with single low-9 and single turned commas,
 # written as escapes because they look like a comma and backticks.
@@ -80,7 +87,10 @@ _OFFLINE_VARIABLES = ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE")
 
 _MIN_CHARACTERS = 2
 _EDGE_PUNCTUATION = ",;:!?()[]{}\"'„“”\u201a\u2018\u2019«»"
-_WORD = re.compile(r"\S+")
+
+# gliner's WhitespaceTokenSplitter, the splitter the pinned model's config
+# selects (by leaving `words_splitter_type` at its default).
+_GLINER_TOKEN = re.compile(r"\w+(?:[-_]\w+)*|\S")
 
 
 class SpanModel(Protocol):
@@ -260,12 +270,19 @@ def widen_to_words(text: str, start: int, end: int) -> tuple[int, int] | None:
 
 
 def _windows(text: str) -> Iterator[_Window]:
-    words = [match.span() for match in _WORD.finditer(text)]
-    step = WINDOW_WORDS - OVERLAP_WORDS
-    for first in range(0, len(words), step):
-        chunk = words[first : first + WINDOW_WORDS]
+    """Split text into windows of at most `WINDOW_TOKENS` GLiNER tokens.
+
+    A window starts and ends on a token boundary, which may fall between a
+    word and its punctuation, or inside a run of dots with no space; the
+    overlap gives the next window the whole word, and spans are widened to
+    whole words anyway.
+    """
+    tokens = [match.span() for match in _GLINER_TOKEN.finditer(text)]
+    step = WINDOW_TOKENS - OVERLAP_TOKENS
+    for first in range(0, len(tokens), step):
+        chunk = tokens[first : first + WINDOW_TOKENS]
         yield _Window(chunk[0][0], chunk[-1][1])
-        if first + WINDOW_WORDS >= len(words):
+        if first + WINDOW_TOKENS >= len(tokens):
             return
 
 

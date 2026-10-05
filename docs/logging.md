@@ -18,7 +18,7 @@ ANONYMIZER_LOG_LEVEL=info uv run anonymize-ui
 
 | Option | Effect |
 | --- | --- |
-| `--debug` | Level `debug`, and in the window the web inspector too |
+| `--debug` | Level `debug`, and in the window the web inspector, available from the context menu (Inspect Element) or F12 where the platform has it; it does not open by itself |
 | `--log-level {debug,info,warning,error}` | The level; beats `--debug` and the environment |
 | `ANONYMIZER_LOG_LEVEL` | The level when no option names one |
 | `--log-file PATH` | Also append to this file (UTF-8) |

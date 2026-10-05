@@ -16,8 +16,9 @@ from typing import Any
 import pytest
 from anonymizer.core.detect import CombinedDetector, merge_entities, structured_detector
 from anonymizer.core.detect.gliner import (
-    OVERLAP_WORDS,
-    WINDOW_WORDS,
+    MODEL_MAX_TOKENS,
+    OVERLAP_TOKENS,
+    WINDOW_TOKENS,
     GlinerDetector,
     gliner_installed,
     load_gliner,
@@ -29,13 +30,22 @@ from anonymizer.core.detect.gliner import (
 from anonymizer.core.resources import load_catalog
 from anonymizer.core.types import BBox, DetectionSource, Entity, EntityType, Page, Word
 
+# gliner 0.2.x's WhitespaceTokenSplitter, the splitter the pinned model's
+# config selects; written out so the tests do not need the optional package.
+GLINER_TOKEN = re.compile(r"\w+(?:[-_]\w+)*|\S")
+
+
+def _gliner_tokens(text: str) -> list[re.Match[str]]:
+    return list(GLINER_TOKEN.finditer(text))
+
 
 class StandInModel:
     """Finds fixed strings in each text it receives, like GLiNER would.
 
     Spans are returned with offsets into the window text, exactly as the real
     model reports them. `cut` shortens a span to imitate GLiNER stopping
-    inside a word.
+    inside a word. Like GLiNER, it reads only the first 384 of its tokens
+    and warns when it drops the rest.
     """
 
     def __init__(self, found: dict[str, str], score: float = 0.9, cut: int = 0) -> None:
@@ -52,9 +62,16 @@ class StandInModel:
         self.labels = labels
         results = []
         for text in texts:
+            tokens = _gliner_tokens(text)
+            if len(tokens) > MODEL_MAX_TOKENS:
+                warnings.warn(
+                    f"Sentence of length {len(tokens)} has been truncated to {MODEL_MAX_TOKENS}",
+                    stacklevel=2,
+                )
+            read = text[: tokens[:MODEL_MAX_TOKENS][-1].end()] if tokens else ""
             spans = []
             for needle, label in self.found.items():
-                for match in re.finditer(re.escape(needle), text):
+                for match in re.finditer(re.escape(needle), read):
                     spans.append(
                         {
                             "start": match.start(),
@@ -160,7 +177,7 @@ def _filler(count: int, start: int = 0) -> str:
 
 
 def test_name_beyond_the_model_limit_is_found():
-    # GLiNER alone would stop after 384 words and never see this name.
+    # GLiNER alone would stop after 384 tokens and never see this name.
     text = f"{_filler(500)} Petra Nováková {_filler(10, 500)}"
     model = StandInModel({"Petra Nováková": "person"})
     entities = GlinerDetector(model).detect(_page(text))
@@ -168,12 +185,43 @@ def test_name_beyond_the_model_limit_is_found():
     assert text[entities[0].span[0] : entities[0].span[1]] == "Petra Nováková"
 
 
-def test_every_window_stays_within_the_word_budget():
+def test_every_window_stays_within_the_token_budget():
     model = StandInModel({})
     GlinerDetector(model).detect(_page(_filler(1000)))
     windows = model.calls[0]
     assert len(windows) > 1
-    assert all(len(window.split()) <= WINDOW_WORDS for window in windows)
+    assert all(len(_gliner_tokens(window)) <= WINDOW_TOKENS for window in windows)
+
+
+def _punctuated_filler(count: int) -> str:
+    # Handwriting read by OCR: every word carries punctuation, which GLiNER
+    # counts as tokens of its own (4 per word here).
+    return " ".join(f"slovo{i}.,;" for i in range(count))
+
+
+def test_punctuation_heavy_windows_stay_within_the_model_limit():
+    model = StandInModel({})
+    GlinerDetector(model).detect(_page(_punctuated_filler(400)))
+    assert max(len(_gliner_tokens(window)) for window in model.calls[0]) <= MODEL_MAX_TOKENS
+
+
+def test_name_in_the_last_words_of_a_punctuation_heavy_page_is_found():
+    text = f"{_punctuated_filler(400)} Petra Nováková."
+    model = StandInModel({"Petra Nováková": "person"})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # a truncated window fails the test
+        entities = GlinerDetector(model).detect(_page(text))
+    assert _texts(entities) == ["Petra Nováková"]
+
+
+def test_a_word_longer_than_a_window_is_still_split():
+    # One "word" without spaces, e.g. a dotted line, is many GLiNER tokens.
+    text = f"Podpis: {'.' * 1000} Jan Novák"
+    model = StandInModel({"Jan Novák": "person"})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        entities = GlinerDetector(model).detect(_page(text))
+    assert _texts(entities) == ["Jan Novák"]
 
 
 def test_windows_cover_every_word():
@@ -185,7 +233,7 @@ def test_windows_cover_every_word():
 
 
 def test_name_in_the_overlap_is_reported_once():
-    step = WINDOW_WORDS - OVERLAP_WORDS
+    step = WINDOW_TOKENS - OVERLAP_TOKENS
     text = f"{_filler(step + 5)} Jan Novák {_filler(200, 1000)}"
     model = StandInModel({"Jan Novák": "person"})
     entities = GlinerDetector(model).detect(_page(text))
@@ -195,7 +243,7 @@ def test_name_in_the_overlap_is_reported_once():
 def test_name_cut_by_a_window_edge_keeps_the_whole_name():
     # The first window ends after "Jan"; the stand-in reports "Jan" there and
     # the full name in the next window. Only the full name survives.
-    text = f"{_filler(WINDOW_WORDS - 1)} Jan Novák {_filler(50, 1000)}"
+    text = f"{_filler(WINDOW_TOKENS - 1)} Jan Novák {_filler(50, 1000)}"
     model = StandInModel({"Jan Novák": "person", "Jan": "person"})
     entities = GlinerDetector(model).detect(_page(text))
     assert _texts(entities) == ["Jan Novák"]
@@ -291,6 +339,8 @@ def test_known_warnings_are_hidden_only_inside_the_block(caplog):
     tokenizer_logger = logging.getLogger("transformers.tokenization_utils_tokenizers")
     regex_message = "The tokenizer you are loading with an incorrect regex pattern: ..."
     jit_message = "`torch.jit.script` is deprecated. Please switch to `torch.compile`."
+    # GLiNER's notice that it dropped words is a recall gap and must stay visible.
+    truncation_message = "Sentence of length 409 has been truncated to 384"
     with caplog.at_level(logging.WARNING), warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         with without_known_warnings():
@@ -298,12 +348,16 @@ def test_known_warnings_are_hidden_only_inside_the_block(caplog):
             warnings.warn(jit_message, FutureWarning, stacklevel=1)
             tokenizer_logger.warning("an unrelated tokenizer problem")
             warnings.warn("an unrelated deprecation", FutureWarning, stacklevel=1)
+            warnings.warn(truncation_message, UserWarning, stacklevel=1)
         tokenizer_logger.warning(regex_message)
     assert [record.getMessage() for record in caplog.records] == [
         "an unrelated tokenizer problem",
         regex_message,
     ]
-    assert [str(warning.message) for warning in caught] == ["an unrelated deprecation"]
+    assert [str(warning.message) for warning in caught] == [
+        "an unrelated deprecation",
+        truncation_message,
+    ]
 
 
 def test_loading_forces_offline_mode(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
@@ -356,3 +410,28 @@ def test_real_model_finds_czech_names_offline():
     page = _page("Včera volal Petře Novákové a poslal Janu Svobodovi smlouvu.")
     found = {entity.text for entity in detector.detect(page) if entity.type is EntityType.PERSON}
     assert {"Petře Novákové", "Janu Svobodovi"} <= found
+
+
+@pytest.mark.model
+def test_real_model_reads_the_end_of_a_punctuation_heavy_page():
+    pytest.importorskip("gliner")
+    try:
+        detector = load_gliner_detector(REPOSITORY)
+    except FileNotFoundError:
+        pytest.skip("GLiNER not fetched")
+    from gliner.data_processing.tokenizer import (  # pyright: ignore[reportMissingImports]
+        WhitespaceTokenSplitter,
+    )
+
+    # The splitter written out above must be the one gliner uses.
+    sample = "Ing. J.Novák-Svobodová, (tel.: 777/123) e_mail; s.r.o.…"
+    assert [token for token, _, _ in WhitespaceTokenSplitter()(sample)] == GLINER_TOKEN.findall(
+        sample
+    )
+    # Synthetic, shaped like OCR of handwriting; the name comes last.
+    page = _page(f"{_punctuated_filler(400)} Smlouvu podepsal Petr Svoboda.")
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        found = {entity.text for entity in detector.detect(page)}
+    assert not [warning for warning in caught if "truncated" in str(warning.message)]
+    assert "Petr Svoboda" in found

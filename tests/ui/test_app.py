@@ -13,13 +13,15 @@ import pytest
 import webview
 from anonymizer.core.ingest import load_document
 from anonymizer.core.log import configure_logging
+from anonymizer.core.redact import Leak, LeakLayer
+from anonymizer.core.redact import export as export_module
 from anonymizer.ui import api as api_module
 from anonymizer.ui import app
 from anonymizer.ui.api import ReviewApi, ReviewError
 from anonymizer.ui.app import WindowApi, main
 
 from tests.ocr_stand_in import InkReadingEngine
-from tests.pdf_builders import write_pdf, write_scanned_pdf
+from tests.pdf_builders import CONTACT_EMAIL, write_pdf, write_scanned_pdf
 from tests.ui.test_api import LINES, NameModel
 
 BRIDGE = Path(__file__).parents[2] / "packages/ui/frontend/src/bridge.ts"
@@ -155,6 +157,14 @@ class TestMain:
         assert stand_in.created["url"] == "http://localhost:5173"
         assert stand_in.started == {"debug": True, "private_mode": True}
 
+    def test_debug_enables_the_inspector_without_opening_it(
+        self, stand_in: StandInWebview, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setitem(webview.settings, "OPEN_DEVTOOLS_IN_DEBUG", True)
+        main(["--debug"])
+        assert stand_in.started == {"debug": True, "private_mode": True}
+        assert webview.settings["OPEN_DEVTOOLS_IN_DEBUG"] is False
+
     def test_loads_the_built_frontend(
         self, stand_in: StandInWebview, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ):
@@ -243,6 +253,55 @@ class TestExportDialog:
         api.choose_pdf({"language": "cs"})
         assert api.export_as() is None
         assert sorted(path.name for path in pdf.parent.iterdir()) == ["cv.pdf"]
+
+    def test_tells_the_page_each_step(self, pdf: Path):
+        window = StandInWindow(answers=[(str(pdf),), str(pdf.with_name("chosen.pdf"))])
+        api = attached(window)
+        api.choose_pdf({"language": "cs"})
+        api.export_as()
+        told = [detail for name, detail in window.events_told() if name == "export"]
+        assert told[0] == {"step": "redacting", "done": 0, "total": 1}
+        assert told[-1] == {"step": "file_bytes", "done": 0, "total": 0}
+
+    def test_a_refused_copy_is_saved_where_it_was_going_without_a_second_check(
+        self, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        leak = Leak(LeakLayer.PAGE_TEXT, "page 0", CONTACT_EMAIL, "e1", page_index=0)
+        monkeypatch.setattr(export_module, "find_leaks", lambda *_, **__: [leak])
+        destination = pdf.with_name("chosen.pdf")
+        api = attached(StandInWindow(answers=[(str(pdf),), str(destination)]))
+        api.choose_pdf({"language": "cs"})
+        refused = api.export_as()
+        assert refused is not None
+        assert (refused["written"], refused["leak_check"]) == (False, "failed")
+        assert not destination.exists()
+        saved = api.export_unchecked()
+        assert (saved["written"], saved["leak_check"]) == (True, "off")
+        assert destination.exists()
+        with pytest.raises(ReviewError, match="no refused export"):
+            api.export_unchecked()
+
+    def test_nothing_refused_cannot_be_saved(self, pdf: Path):
+        destination = pdf.with_name("chosen.pdf")
+        api = attached(StandInWindow(answers=[(str(pdf),), str(destination)]))
+        api.choose_pdf({"language": "cs"})
+        assert api.export_as() is not None
+        with pytest.raises(ReviewError, match="no refused export"):
+            api.export_unchecked()
+
+    def test_closing_forgets_a_refused_export(self, pdf: Path, monkeypatch: pytest.MonkeyPatch):
+        leak = Leak(LeakLayer.PAGE_TEXT, "page 0", CONTACT_EMAIL, "e1", page_index=0)
+        monkeypatch.setattr(export_module, "find_leaks", lambda *_, **__: [leak])
+        api = attached(StandInWindow(answers=[(str(pdf),), str(pdf.with_name("chosen.pdf"))]))
+        api.choose_pdf({"language": "cs"})
+        api.export_as()
+        api.close_document()
+        with pytest.raises(ReviewError, match="no refused export"):
+            api.export_unchecked()
+
+    def test_the_leak_check_setting_is_forwarded(self):
+        api = WindowApi(ReviewApi())
+        assert api.set_leak_check(False)["settings"] == {"leak_check": False}
 
     def test_passes_consent_for_pages_without_text(self, tmp_path: Path):
         mixed = write_pdf(tmp_path / "mixed.pdf", [LINES, []])

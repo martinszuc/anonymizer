@@ -8,7 +8,9 @@ import type {
   Box,
   DocumentInfo,
   EntityInfo,
+  ExportProgress,
   ExportResult,
+  LeakInfo,
   ModelState,
   FeatureModels,
   OpenOptions,
@@ -207,6 +209,25 @@ function progress(step: OpenStep, done = 0, total = 0) {
   window.dispatchEvent(new CustomEvent("anonymizer:progress", { detail }));
 }
 
+/** Tell the page how far an export is, as `WindowApi._export_progress` does. */
+function exportProgress(step: ExportProgress["step"], done = 0, total = 0) {
+  const detail: ExportProgress = { step, done, total };
+  window.dispatchEvent(new CustomEvent("anonymizer:export", { detail }));
+}
+
+const CHECK_LAYERS: ExportProgress["step"][] = [
+  "page_text",
+  "region",
+  "off_page_text",
+  "surface",
+  "thumbnail",
+  "object",
+  "file_bytes",
+];
+
+/** Kept in memory only, as a stand-in for the settings file. */
+let leakCheck = true;
+
 /**
  * The home screen's model and OCR states can be tried with `?model=not_installed`,
  * `?model=files_missing`, `?ocr=not_installed` or `?ocr=files_missing` in the address.
@@ -237,6 +258,7 @@ function demoStatus(): AppStatus {
       state: ocrState,
       missing: ocrState === "files_missing" ? ["onnxtr-fast-base", "onnxtr-parseq-multilingual-v1"] : [],
     },
+    settings: { leak_check: leakCheck },
   };
 }
 
@@ -290,6 +312,63 @@ function requestedState(parameter: string): ModelState {
   return requested === "not_installed" || requested === "files_missing" ? requested : "ready";
 }
 
+/** Run through an export's steps, as Python tells them. */
+async function demoExport(document: DocumentInfo, check: boolean) {
+  for (let page = 0; page <= document.pages.length; page += 1) {
+    exportProgress("redacting", page, document.pages.length);
+    await pause();
+  }
+  exportProgress("clearing");
+  await pause();
+  exportProgress("saving");
+  await pause();
+  if (!check) return;
+  for (const layer of CHECK_LAYERS) {
+    exportProgress(layer);
+    await pause();
+  }
+  const scans = document.pages.filter((page) => page.raster_dpi !== null).length;
+  if (scans === 0) return;
+  for (let page = 0; page <= scans; page += 1) {
+    exportProgress("ocr", page, scans);
+    await pause();
+    await pause();
+  }
+}
+
+function exportResult(
+  document: DocumentInfo,
+  unreadable: number[],
+  leakCheck: ExportResult["leak_check"],
+  leaks: LeakInfo[],
+): ExportResult {
+  const applied = document.entities.filter((entity) => entity.review !== "rejected");
+  return {
+    written: leaks.length === 0,
+    name: "demo-cv-redacted.pdf",
+    redacted: applied.filter((entity) => !entity.is_region).length,
+    regions: applied.filter((entity) => entity.is_region).length,
+    kept: document.entities.length - applied.length,
+    not_reviewed: applied.filter((entity) => entity.review === "pending").length,
+    hidden_removed: document.surfaces.length,
+    pages_without_text: unreadable,
+    leak_check: leakCheck,
+    leaks,
+  };
+}
+
+/** One leak of each kind, built from the demo's own synthetic findings. */
+function demoLeaks(document: DocumentInfo): LeakInfo[] {
+  const redacted = document.entities.find((entity) => entity.review !== "rejected" && entity.text !== null);
+  const text = redacted?.text ?? "Jana Dvořáková";
+  return [
+    { layer: "page_text", where: "page 0", page: 1, text, entity_id: redacted?.id ?? null, kind: "text" },
+    { layer: "object", where: "object 12", page: null, text, entity_id: redacted?.id ?? null, kind: "text" },
+    { layer: "file_bytes", where: "the file's bytes", page: null, text, entity_id: redacted?.id ?? null, kind: "text" },
+    { layer: "surface", where: "metadata Author", page: null, text: "J. Dvořáková", entity_id: null, kind: "leftover" },
+  ];
+}
+
 export function demoBridge(): ReviewBridge {
   let current: DocumentInfo | null = null;
   /** Page 2 is a scan: its words exist once "OCR" has read it. */
@@ -297,6 +376,8 @@ export function demoBridge(): ReviewBridge {
     pageContent(index === 0 ? PAGE_ONE : current?.pages[1]?.raster_dpi ? PAGE_TWO : []);
   let dropped = false;
   let ocrLoaded = false;
+  // The last export the leak check refused, which the reviewer may save anyway.
+  let refused = false;
   const open = async (options?: OpenOptions) => {
     if (options?.use_ocr && !ocrLoaded) {
       progress("loading_ocr");
@@ -375,6 +456,11 @@ export function demoBridge(): ReviewBridge {
       await pause();
       return renderPage(index, dpi);
     },
+    set_leak_check: async (enabled: boolean) => {
+      await pause();
+      leakCheck = enabled;
+      return demoStatus();
+    },
     export_as: async (allowPagesWithoutText: boolean): Promise<ExportResult | null> => {
       await pause();
       if (!current) throw new Error("no document is open");
@@ -384,18 +470,17 @@ export function demoBridge(): ReviewBridge {
       if (unreadable.length > 0 && !allowPagesWithoutText) {
         throw new Error(`page ${unreadable.join(", ")} is a scan OCR has not read; nothing on it would be redacted`);
       }
-      const applied = current.entities.filter((entity) => entity.review !== "rejected");
-      return {
-        written: true,
-        name: "demo-cv-redacted.pdf",
-        redacted: applied.filter((entity) => !entity.is_region).length,
-        regions: applied.filter((entity) => entity.is_region).length,
-        kept: current.entities.length - applied.length,
-        not_reviewed: applied.filter((entity) => entity.review === "pending").length,
-        hidden_removed: current.surfaces.length,
-        pages_without_text: unreadable,
-        leaks: [],
-      };
+      await demoExport(current, leakCheck);
+      // Keeping a finding stands in for a review that leaves something behind.
+      const leaks = leakCheck && current.entities.some((entity) => entity.review === "rejected") ? demoLeaks(current) : [];
+      refused = leaks.length > 0;
+      return exportResult(current, unreadable, leakCheck ? (refused ? "failed" : "passed") : "off", leaks);
+    },
+    export_unchecked: async (): Promise<ExportResult> => {
+      if (!current || !refused) throw new Error("there is no refused export to save");
+      refused = false;
+      await demoExport(current, false);
+      return exportResult(current, [], "off", []);
     },
     add_region: async (pageIndex, x0, y0, x1, y1) => {
       if (!current) throw new Error("no document is open");

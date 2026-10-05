@@ -461,6 +461,84 @@ instead of the pipeline moves precision by 0.002 only.
 - **Recognising the language** instead of giving it changed no CNEC or UNER-SK document;
   5 of the 40 REDACT records (code-switched) were recognised as another language or none.
 
+### 2026-10-04 · GLiNER windows counted in the model's tokens
+
+Seen 2026-10-02 running rules + GLiNER on OCR text (OnnxTR and Kraken) of a
+10-page handwritten scan: `Sentence of length 409 has been truncated to 384`.
+Windows were 120 whitespace-separated words. GLiNER splits words with
+`\w+(?:[-_]\w+)*|\S`, so every punctuation mark is a token, and OCR of
+handwriting is full of them. Tokens past 384 are dropped; the overlap rescues
+an inner window, but the tail of a page's last window was never read.
+
+- **Not only handwriting.** Counted over the old windows: 2 of 117 on the
+  REDACT sample exceeded the limit (longest 437 tokens); none on CNEC dtest
+  (longest 159), UNER-SK dev (146) or the benchmark. Ordinary prose averages
+  1.24 tokens per word on the benchmark documents.
+- **The encoder adds no second limit.** The mDeBERTa tokenizer has no maximum
+  length and the encoder uses relative positions only; a synthetic window of
+  379 GLiNER tokens and 1,698 subwords was read whole, the name at its end
+  found. The 512-subword limit the code assumed does not apply.
+- **Fix** (commit `09ab6dc`): windows of 150 GLiNER tokens with 40 shared,
+  about the old 120 and 30 words on ordinary prose. Longest window is now 150
+  on every corpus; windows per corpus: CNEC 230 → 202, UNER-SK 141 → 134,
+  REDACT 117 → 153.
+
+Benchmark (26 documents, 224 items), rules + GLiNER:
+
+| | found | false alarms | safe documents | leak check passed |
+|---|---|---|---|---|
+| words (before) | 199/224 | 44 | 17/26 | 25/26 |
+| GLiNER tokens | 198/224 | 45 | 17/26 | 25/26 |
+
+Development corpora (`experiments/results/rq1-dev.md`; person, partial match):
+
+| | CNEC found | CNEC P / R | UNER-SK found | UNER-SK P / R | REDACT found | REDACT P / R |
+|---|---|---|---|---|---|---|
+| words (before) | 430/524 | 0.909 / 0.821 | 185/276 | 0.828 / 0.670 | 200/219 | 0.647 / 0.913 |
+| GLiNER tokens | 427/524 | 0.911 / 0.815 | 186/276 | 0.829 / 0.674 | 201/219 | 0.649 / 0.918 |
+
+- **Every change is within its interval**, and on the benchmark and CNEC
+  none can come from truncation: no window there was over the limit. They
+  come from moved window boundaries. On the benchmark three one-word names
+  flipped (one surname now found, a first name and a surname now missed) and
+  one phrase became an address false alarm. None lies at a window edge; the
+  words around them changed (one name had 32 words of context before it in
+  its last window, now 50). The model's verdict on a one-word name depends
+  on its context, so any change to window boundaries moves about one to
+  three names either way. That is the noise floor for comparing window
+  settings.
+- Address precision moved both ways, recall 1.0 throughout: CNEC 0.615 → 0.651,
+  REDACT 0.539 → 0.500.
+- The window counts above came from a one-off count over the loaded pages
+  (old and new `_windows`, the splitter's pattern); only counts were printed.
+
+### 2026-10-04 · Form headers tagged as persons and addresses (`handwritten-scan-sample.pdf`)
+
+A 10-page scanned form with handwritten entries, read by OnnxTR, language
+recognised as `en`, `rules+gliner` as shipped. Entity texts were printed with
+every word outside a common-word list masked.
+
+- **The name model tagged the form's headers, not its entries.** 14 model
+  spans held printed labels only: as persons "Adult" (6 times, scores up to
+  0.92), "Adult at Risk", "Gender", "PERSON"; as addresses "Address", "Home
+  Address", "Contact Address", "Post Code", "Telephone Number". Two more
+  address spans joined a label to the value beside it ("Post Code" plus the
+  postcode). Spans of masked words, the entries, were tagged as well.
+- **English had no role words**, so `NamesOnly` let every English role noun
+  through, and it never looked at address spans.
+- **Fixed:** an English role list (`ENGLISH_ROLE_WORDS`), and address-field
+  labels trimmed from the edges of a model's address span, which is dropped
+  when nothing else is left (`cut_to_address`). A qualifying word ("Home",
+  "Post") is trimmed only together with the word it qualifies ("Address",
+  "Code"), since "Home Farm" may be a place. After it, none of the 14 header
+  spans is left, the two joined spans keep only the value, and the masked
+  spans are unchanged. Two "Social Care …" person spans were dropped as
+  well: their third word is a role word joined by a slash to a common word.
+- **Measured:** benchmark found 199/224 before and after, false alarms 44 → 43
+  ("Employee" in `en-handbook`), leak check passed 25/26 → 26/26. `rq1-dev`:
+  CNEC 2.0 and UNER-SK identical; on the REDACT sample address precision
+  0.539 → 0.553 (partial match) with recall 27/27 unchanged.
+
 ### 2026-10-04 · Leak check on a handwritten scan (`handwritten-scan-sample.pdf`)
 
 Ten scanned pages, rules + GLiNER, read by OnnxTR and by kraken (the
@@ -469,6 +547,10 @@ inspected only by counts: `python -m experiments leaks` groups every report
 of the leak check by layer, page and text (named by a salted hash) and says
 where each OCR occurrence lies. The check failed with both engines.
 
+Measured before `bc75769` (which also reached `main` meanwhile and searches
+each text once, so the merged code reports fewer rows); "after" is this
+branch's own fix alone:
+
 | reports | OnnxTR before | after | kraken before | after |
 |---|---|---|---|---|
 | objects | 0 | 0 | 99 | 0 |
@@ -476,9 +558,9 @@ where each OCR occurrence lies. The check failed with both engines.
 | OCR re-read | 16 | 16 | 83 | 34 |
 | leak check passed | no | no | no | no |
 
-- **One report per entity, not per leak.** A text found by the model and
-  propagated reports the same occurrence once per entity: OnnxTR's 16
-  reports are two occurrences of one name (8 entities each).
+- **One report per entity, not per leak** (before `bc75769`). A text found
+  by the model and propagated reported the same occurrence once per entity:
+  OnnxTR's 16 reports are two occurrences of one name (8 entities each).
 - **One- and two-letter texts matched by chance** (kraken only). GLiNER
   tagged a lone capital letter as a street address and propagation marked
   the letter in six more places; a two-letter span was tagged as a person.
@@ -486,17 +568,18 @@ where each OCR occurrence lies. The check failed with both engines.
   pictures (84 object reports; 78 of the 99 lay in picture data, counted by
   a throwaway script before the command existed), compressed bytes (7), and
   other words on the OCR layer (42); the two-letter text 15, 3 and 9 more.
-  A three-letter name matched compressed bytes once. **Fixed:** a model span
-  of one character is dropped; a text of fewer than three characters counts
-  only as a word of its own on the page text and OCR layers and is not
-  searched in objects or file bytes, where syntax holds every such string;
-  picture samples and the bodies of filtered or picture streams are not
-  searched, since they store no text literally.
+  A three-letter name matched compressed bytes once. `bc75769` stops most
+  of this (no single characters, nothing under four characters in objects
+  and file bytes, no image or font streams). **On top of it:** a model span
+  of one character is dropped, so propagation no longer spreads it; a text
+  of two characters counts on a page only as a word of its own (the two
+  letters began longer words at 9 of the OCR reports); and the file bytes
+  skip the bodies of filtered or picture streams, where a literal match is
+  chance at any length.
 - **An inflected form was left, and the refusal is right** (both engines).
   A five-letter name was detected twice; the page also holds it four times
   as the first letters of a six-letter capitalised word, the form detection
-  missed (see *False alarms from the name model* for "Žadatel"). Its 8 and 9
-  reports remain.
+  missed (see *False alarms from the name model* for "Žadatel").
 - **The re-read found a name where ingest read another word** (both
   engines): the five-letter name, as a word of its own, at ink no box
   touched, where ingest had read a different word. Both engines read the
@@ -515,11 +598,12 @@ where each OCR occurrence lies. The check failed with both engines.
 - One match spanned two re-read words across a line break (kraken, before
   only: the whitespace-insensitive comparison exists for spans broken
   across lines).
-- **Nothing else moved:** the 26 benchmark documents score exactly as
-  before (rules 86/224 found, rules + GLiNER 199/224, leak check 26/26 and
-  25/26), and so do CNEC dtest, UNER-SK dev and the REDACT sample
-  (`rq1-dev.toml`): their model output holds no one-character span, and no
-  verdict depended on a short text.
+- **Nothing else moved** (this branch before the merge): the 26 benchmark
+  documents scored exactly as before (rules 86/224 found, rules + GLiNER
+  199/224, leak check 26/26 and 25/26), and so did CNEC dtest, UNER-SK dev
+  and the REDACT sample (`rq1-dev.toml`): their model output holds no
+  one-character span, and no verdict depended on a short text.
+
 
 ### Toolchain findings: redaction
 

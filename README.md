@@ -97,7 +97,9 @@ so the refusal and the clearing of hidden items cannot regress unnoticed.
 
 For a PDF: a redacted copy in which the detected text is removed from the file,
 not covered, and every link, metadata field, attachment, bookmark, annotation and
-form field is cleared. A copy is written only if the leak check passes. A
+form field is cleared. The CLI writes a copy only if the leak check passes; the
+review window shows what the check found and lets the reviewer save the copy
+anyway, or turn the check off in its settings. A
 `review.json` session file records what was found and each decision; it holds
 snippets of personal data, so treat it like the original. The leak check proves
 the *detected* items are gone; what detection missed is what the benchmark

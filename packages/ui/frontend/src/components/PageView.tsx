@@ -289,6 +289,11 @@ function Page({
   };
 
   const highlighted = dragged ?? selected;
+  // SVG paints in order: the selected box last, so no box overlapping it hides its outline.
+  const drawOrder = [
+    ...entities.filter((entity) => entity.id !== selectedId),
+    ...entities.filter((entity) => entity.id === selectedId),
+  ];
 
   return (
     <section className="page-slot" data-page-index={page.index} aria-label={`Page ${page.index + 1}`}>
@@ -356,7 +361,7 @@ function Page({
                   />
                 ),
             )}
-          {entities.map((entity) => (
+          {drawOrder.map((entity) => (
             <Redaction
               key={entity.id}
               entity={entity}

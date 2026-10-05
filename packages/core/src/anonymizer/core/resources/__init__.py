@@ -21,9 +21,9 @@ from anonymizer.core.resources.location import (
     choose_resource_root,
     chosen_resource_root,
     resolve_resource_root,
-    settings_file,
     user_resource_root,
 )
+from anonymizer.core.settings import settings_file
 
 __all__ = [
     "Catalog",

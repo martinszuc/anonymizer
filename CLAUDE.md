@@ -82,14 +82,17 @@ docstrings, not here; they go stale in two places.
   identifiers beat free-form patterns; URLs beat everything, since anything
   overlapping a URL lies inside it), then span length. Add a type to
   `OVERLAP_PRIORITY` rather than special-casing a caller.
-- GLiNER reads at most 384 words and silently drops the rest; `GlinerDetector`
-  scans a page in overlapping windows and widens spans to whole words. Its
+- GLiNER reads at most 384 of its own tokens (punctuation counts as one) and
+  drops the rest with only a warning; `GlinerDetector` scans a page in
+  overlapping windows counted in those tokens and widens spans to whole words. Its
   dependencies are the optional `ner` extra (`uv sync --group ner`); tests use a
   stand-in model, and the real one only runs under `@pytest.mark.model`.
-- A model's person spans pass `detect.NamesOnly` (`roles.py`, applied by
-  `build_detector`): lowercase edge words trimmed, spans of role nouns only
-  ("Kupující", "Žadatel") dropped. Role nouns that are also surnames (Starosta,
-  Žák) stay off its lists; measure any change on the benchmark's documents
+- A model's person and address spans pass `detect.NamesOnly` (`roles.py`,
+  applied by `build_detector`): lowercase edge words trimmed, spans of role
+  nouns only ("Kupující", "Adult") dropped; address-field labels ("Post Code",
+  "Telephone Number") trimmed from address spans, which are dropped when
+  nothing else is left. Role nouns that are also surnames (Starosta, Žák,
+  Child) stay off its lists; measure any change on the benchmark's documents
   without personal data and on the development corpora (`docs/findings.md`).
 
 - Every model and dataset is an entry in `core/resources/catalog.toml`: official

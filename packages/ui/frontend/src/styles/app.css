@@ -1025,11 +1025,30 @@ kbd {
   fill-opacity: 0.25;
 }
 
-.redaction[data-selected="true"] rect {
+/* Drawn regions: hatched in review mode, so what they cover stays visible;
+   preview mode draws them black like everything redacted. */
+.canvas:not([data-previewing="true"]) .redaction[data-type="region"] rect {
+  fill-opacity: 1;
+  stroke: var(--label-2);
+  stroke-dasharray: none;
+}
+
+/* Selected: the same outline in both modes. Last, and as specific as the mode
+   and region rules above (0,4,1), so neither paints it black, hides it (a kept
+   box in preview) or greys it (a drawn region). */
+.canvas .overlay .redaction[data-selected="true"] rect {
+  --selected-stroke: 2.5px;
   stroke: var(--accent);
-  stroke-width: 2.5px;
+  stroke-opacity: 1;
+  stroke-width: var(--selected-stroke);
   stroke-dasharray: none;
   animation: pulse 0.9s var(--ease-out) 1;
+}
+
+/* A stroke straddles the edge; on a black box its inner half disappears, so
+   preview widens it to leave a visible band outside the box. */
+.canvas[data-previewing="true"] .overlay .redaction[data-selected="true"][data-redacted="true"] rect {
+  --selected-stroke: 5px;
 }
 
 @keyframes pulse {
@@ -1038,17 +1057,9 @@ kbd {
     stroke-opacity: 0.2;
   }
   100% {
-    stroke-width: 2.5px;
+    stroke-width: var(--selected-stroke, 2.5px);
     stroke-opacity: 1;
   }
-}
-
-/* Drawn regions: hatched in review mode, so what they cover stays visible;
-   preview mode draws them black like everything redacted. */
-.canvas:not([data-previewing="true"]) .redaction[data-type="region"] rect {
-  fill-opacity: 1;
-  stroke: var(--label-2);
-  stroke-dasharray: none;
 }
 
 .hatch-line {
@@ -1414,20 +1425,22 @@ kbd {
   box-shadow: var(--shadow-control);
 }
 
-.opening-status {
+/* A task's progress: status line, bar, stages (TaskProgress: opening, export) */
+
+.task-status {
   display: flex;
   justify-content: space-between;
   gap: var(--space-4);
   font-weight: 500;
 }
 
-.opening-count {
+.task-count {
   color: var(--label-2);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.opening-steps {
+.task-steps {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -1437,7 +1450,7 @@ kbd {
   list-style: none;
 }
 
-.opening-steps li {
+.task-steps li {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -1445,20 +1458,20 @@ kbd {
   transition: color var(--duration) var(--ease-out);
 }
 
-.opening-steps li[data-state="current"] {
+.task-steps li[data-state="current"] {
   color: var(--label);
   font-weight: 500;
 }
 
-.opening-steps li[data-state="current"] svg {
+.task-steps li[data-state="current"] svg {
   color: var(--accent);
 }
 
-.opening-steps li[data-state="done"] {
+.task-steps li[data-state="done"] {
   color: var(--label-2);
 }
 
-.opening-steps li[data-state="done"] svg {
+.task-steps li[data-state="done"] svg {
   color: var(--keep);
 }
 
@@ -1607,30 +1620,121 @@ kbd {
   font-size: var(--text-footnote);
 }
 
-.sheet-leaks {
+.sheet-summary .sheet-warned {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.sheet-hint {
+  font-size: var(--text-footnote);
+  color: var(--label-3);
+}
+
+/* Export: progress inside a sheet, and the leak check's findings */
+
+.export-progress {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-row);
-  background: color-mix(in srgb, var(--danger) 8%, transparent);
-  list-style: none;
+  gap: var(--space-4);
   text-align: left;
 }
 
-.sheet-leaks li {
+.leak-section {
   display: flex;
   flex-direction: column;
-  overflow-wrap: anywhere;
+  gap: var(--space-2);
+  text-align: left;
+}
+
+.leak-section-title {
+  font-size: var(--text-body);
+  font-weight: 600;
   color: var(--label);
+}
+
+.leak-section-note {
+  font-size: var(--text-footnote);
+}
+
+.leak-rows {
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius-row);
+  background: var(--fill);
+  list-style: none;
+  overflow: auto;
+}
+
+.leak-rows li + li {
+  border-top: var(--hairline) solid var(--separator);
+}
+
+.leak-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--label);
+  font: inherit;
+  text-align: left;
+}
+
+button.leak-row {
+  cursor: pointer;
+}
+
+button.leak-row:hover {
+  background: var(--fill-hover);
+}
+
+button.leak-row:focus-visible {
+  border-radius: var(--radius-row);
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.leak-row svg {
+  flex: none;
+  color: var(--label-3);
+}
+
+.leak-row-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.leak-row-title {
+  overflow-wrap: anywhere;
   -webkit-user-select: text;
   user-select: text;
 }
 
-.sheet-leak-where {
+.leak-row-where {
   font-size: var(--text-caption);
   color: var(--label-2);
+}
+
+/* Settings: sections of option cards */
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  text-align: left;
+}
+
+.options-links {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
 }
 
 .sheet-actions {

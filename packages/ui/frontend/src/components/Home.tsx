@@ -1,4 +1,4 @@
-import { FileLock2, FileUp, ShieldCheck } from "lucide-react";
+import { FileLock2, FileUp, Settings, ShieldCheck } from "lucide-react";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 
@@ -19,6 +19,7 @@ interface HomeProps {
   onOpen: () => void;
   onOpenReview: () => void;
   onModels: () => void;
+  onSettings: () => void;
 }
 
 /** The window with no document: open one, and choose how it is scanned. */
@@ -31,6 +32,7 @@ export function Home({
   onOpen,
   onOpenReview,
   onModels,
+  onSettings,
 }: HomeProps) {
   const languages = status?.languages ?? [];
   const modelReady = status?.model.state === "ready";
@@ -116,9 +118,14 @@ export function Home({
             />
           </OptionRow>
         </div>
-        <Button variant="plain" onClick={onModels}>
-          Manage models…
-        </Button>
+        <div className="options-links">
+          <Button variant="plain" onClick={onModels}>
+            Manage models…
+          </Button>
+          <Button variant="plain" icon={<Settings size={15} />} onClick={onSettings}>
+            Settings…
+          </Button>
+        </div>
       </section>
 
       <Button variant="plain" disabled={busy} onClick={onOpenReview}>
@@ -127,13 +134,14 @@ export function Home({
 
       <footer className="home-footer">
         <ShieldCheck size={14} aria-hidden />
-        Everything stays on this computer{status ? ` · version ${status.version}` : ""}
+        Works offline{status ? ` · version ${status.version}` : ""}
       </footer>
     </motion.main>
   );
 }
 
-function OptionRow({ label, note, children }: { label: string; note: ReactNode; children: ReactNode }) {
+/** A labelled option with a note under its label and its control on the right. */
+export function OptionRow({ label, note, children }: { label: string; note: ReactNode; children: ReactNode }) {
   return (
     <div className="option-row">
       <div className="option-text">

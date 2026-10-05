@@ -1,9 +1,9 @@
-import { Check, Circle, LoaderCircle } from "lucide-react";
 import { motion } from "motion/react";
 
 import { gentle } from "../motion";
 import { openStatus } from "../review";
 import type { OpenProgress, OpenStep } from "../types";
+import { TaskProgress } from "./TaskProgress";
 
 interface OpeningProps {
   /** The dropped file's name; unknown when it came from the open dialog. */
@@ -35,7 +35,11 @@ export function Opening({ name, progress, usesModel, usesOcr }: OpeningProps) {
   );
   const listed = LISTED_AS[progress.step] ?? progress.step;
   const current = steps.findIndex((item) => item.step === listed);
-  const status = openStatus(progress);
+  const stages = steps.map((item, index) => ({
+    key: item.step,
+    label: item.label,
+    state: index < current ? ("done" as const) : index === current ? ("current" as const) : ("pending" as const),
+  }));
   return (
     <motion.main
       className="opening"
@@ -46,37 +50,7 @@ export function Opening({ name, progress, usesModel, usesOcr }: OpeningProps) {
     >
       <h1>{name ? `Opening ${name}` : "Opening the document"}</h1>
       <div className="opening-card">
-        <div className="opening-status" aria-live="polite">
-          <span>{status.label}</span>
-          {status.count && <span className="opening-count">{status.count}</span>}
-        </div>
-        <div
-          className="progress-track"
-          role="progressbar"
-          aria-label={status.label}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={status.fraction === null ? undefined : Math.round(status.fraction * 100)}
-          data-indeterminate={status.fraction === null}
-        >
-          <div
-            className="progress-fill"
-            style={status.fraction === null ? undefined : { width: `${status.fraction * 100}%` }}
-          />
-        </div>
-        <ol className="opening-steps">
-          {steps.map((item, index) => {
-            const state = index < current ? "done" : index === current ? "current" : "pending";
-            return (
-              <li key={item.step} data-state={state}>
-                {state === "done" && <Check size={16} aria-hidden />}
-                {state === "current" && <LoaderCircle size={16} className="spinning" aria-hidden />}
-                {state === "pending" && <Circle size={16} aria-hidden />}
-                <span>{item.label}</span>
-              </li>
-            );
-          })}
-        </ol>
+        <TaskProgress status={openStatus(progress)} stages={stages} />
       </div>
     </motion.main>
   );

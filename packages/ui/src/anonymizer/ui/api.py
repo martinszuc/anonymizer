@@ -1,4 +1,4 @@
-"""What the review window asks of the core: open a PDF, show its pages, record decisions.
+"""What the review window asks of the core: open a document, show its pages, record decisions.
 
 The window's JavaScript reaches these methods through `WindowApi` (`app.py`),
 and pywebview passes arguments and results as JSON, so every result here is
@@ -7,11 +7,11 @@ shell around `ReviewApi`, which is tested on its own. Methods here take file
 paths, so the page never calls them directly; `WindowApi` passes on the paths
 the reviewer chose in a dialog.
 
-The PDF is read into memory once; the document is loaded from those bytes and
-pages are rendered from them. Reading the path again instead would draw a file
-that changed on disk under boxes computed for the old one. Export reads the
-path again, and the core refuses it if the file no longer matches the
-fingerprint.
+The file (a PDF or an image) is read into memory once; the document is
+loaded from those bytes and pages are rendered from the PDF they are read as.
+Reading the path again instead would draw a file that changed on disk under
+boxes computed for the old one. Export reads the path again, and the core
+refuses it if the file no longer matches the fingerprint.
 """
 
 from __future__ import annotations
@@ -37,12 +37,13 @@ from anonymizer.core.detect.gliner import GLINER_RESOURCE
 from anonymizer.core.ingest import (
     OCR_ENGINE_RESOURCES,
     OcrEngine,
+    as_pdf,
     document_from_bytes,
     load_ocr_engine,
     missing_ocr_files,
     ocr_engine_installed,
     pages_needing_ocr,
-    read_pdf,
+    read_source,
 )
 from anonymizer.core.language import AUTO
 from anonymizer.core.log import fields
@@ -136,7 +137,7 @@ class ReviewError(Exception):
 
 @dataclass
 class _OpenDocument:
-    """The document under review, its file, and the exact bytes it was loaded from."""
+    """The document under review, its file, and the PDF it was read as, from one read."""
 
     source: Path
     document: Document
@@ -384,10 +385,13 @@ class ReviewApi:
         progress: Progress | None = None,
         use_ocr: bool = False,
     ) -> dict[str, Any]:
-        """Open a PDF and propose redactions for it.
+        """Open a PDF or an image and propose redactions for it.
+
+        An image has no text layer: without OCR nothing on it is detected,
+        and its pages are reported as scans OCR has not read.
 
         Args:
-            path: The PDF to review.
+            path: The PDF, JPEG, PNG or TIFF file to review.
             language: BCP 47 tag selecting the rules, or `language.AUTO` to
                 recognise it from the text; every rule runs when omitted.
             propagate: Also mark further occurrences of the text found.
@@ -410,13 +414,14 @@ class ReviewApi:
         ocr = self._loaded_ocr(OCR_ENGINE, report) if use_ocr else None
         report("reading", 0, 0)
         with _as_review_error():
-            pdf_bytes = read_pdf(path)
+            source_bytes = read_source(path)
             document = document_from_bytes(
-                pdf_bytes,
+                source_bytes,
                 language=language,
                 ocr=ocr,
                 ocr_progress=lambda done, total: report("ocr", done, total),
             )
+            pdf_bytes = as_pdf(source_bytes)
         model = self._loaded_model(report) if use_model else None
         resolved = resolve_language(document, language)
         run_detection(
@@ -465,14 +470,14 @@ class ReviewApi:
     def open_session(
         self, pdf_path: str, session_path: str, progress: Progress | None = None
     ) -> dict[str, Any]:
-        """Reopen a saved review of a PDF.
+        """Reopen a saved review of a PDF or an image.
 
         A review of scanned pages records the OCR engine that read them; the
-        PDF is read with that engine again, since the review's offsets refer
+        file is read with that engine again, since the review's offsets refer
         to what it read.
 
         Args:
-            pdf_path: The original PDF.
+            pdf_path: The original PDF or image.
             session_path: The session file saved from a review of it.
             progress: Told each step as it starts.
 
@@ -490,17 +495,18 @@ class ReviewApi:
         ocr = self._loaded_ocr(engine, report) if engine is not None else None
         report("reading", 0, 0)
         with _as_review_error():
-            pdf_bytes = read_pdf(pdf_path)
+            source_bytes = read_source(pdf_path)
             scanned = document_from_bytes(
-                pdf_bytes, ocr=ocr, ocr_progress=lambda done, total: report("ocr", done, total)
+                source_bytes, ocr=ocr, ocr_progress=lambda done, total: report("ocr", done, total)
             )
+            pdf_bytes = as_pdf(source_bytes)
             document = apply_session(scanned, session_path)
         self._open = _OpenDocument(Path(pdf_path), document, pdf_bytes)
         return self.document()
 
     @property
     def name(self) -> str:
-        """File name of the open PDF, for the window title and default file names.
+        """File name of the open document, for the window title and default file names.
 
         Raises:
             ReviewError: If no document is open.

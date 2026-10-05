@@ -2,11 +2,11 @@
 
 A session holds the reviewer's decisions, not the document: every entity with
 its review state, the snippet it covers, and the fingerprint of the original
-PDF. Pages and surfaces are read again from the original when the session is
+file (a PDF or an image). Pages and surfaces are read again from the original when the session is
 opened, so the file carries only the marked snippets rather than a second copy
 of the whole text.
 
-Opening a session verifies that it belongs to the given PDF and that every
+Opening a session verifies that it belongs to the given file and that every
 entity still covers the same text at the same place. A mismatch means the file
 or its extraction changed, and a review applied to different text cannot be
 trusted, so the session is refused instead. Pages OCR read must therefore be
@@ -98,7 +98,7 @@ def load_session(
 
     Raises:
         ValueError: If the file is not a session of this schema version, it
-            belongs to a different PDF, an entity refers to a missing page or
+            belongs to a different file, an entity refers to a missing page or
             surface, or an entity no longer covers the text it recorded.
     """
     return apply_session(load_document(pdf_path, ocr=ocr, ocr_dpi=ocr_dpi), session_path)
@@ -128,11 +128,11 @@ def apply_session(document: Document, session_path: Path | str) -> Document:
         raise ValueError(msg)
     if document.fingerprint != data.get("fingerprint"):
         log.warning(
-            "session refused: it belongs to a different PDF (session %s, document %s)",
+            "session refused: it belongs to a different file (session %s, document %s)",
             short_fingerprint(data.get("fingerprint")),
             short_fingerprint(document.fingerprint),
         )
-        msg = "session belongs to a different PDF"
+        msg = "session belongs to a different file"
         raise ValueError(msg)
     _check_ocr_engine(data.get("ocr_engine"), document.ocr_engine)
     document.language = data.get("language")

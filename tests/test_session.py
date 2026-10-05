@@ -106,7 +106,7 @@ class TestSlimFile:
 class TestRefusals:
     def test_session_for_another_pdf_is_refused(self, tmp_path: Path, session: Path):
         other = write_pdf(tmp_path / "other.pdf", [["something", "else"]])
-        with pytest.raises(ValueError, match="different PDF"):
+        with pytest.raises(ValueError, match="different file"):
             load_session(session, other)
 
     def test_non_session_json_is_refused(self, tmp_path: Path, pdf: Path):

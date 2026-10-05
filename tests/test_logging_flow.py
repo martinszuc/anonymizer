@@ -185,7 +185,7 @@ class TestWarningsAndMilestones:
         session = tmp_path / "review.json"
         save_session(document, session)
         other = load_document(write_pdf(tmp_path / "other.pdf", [["Something else"]]))
-        with pytest.raises(ValueError, match="different PDF"):
+        with pytest.raises(ValueError, match="different file"):
             apply_session(other, session)
         assert "WARNING" in stream.getvalue()
         assert "session refused" in stream.getvalue()

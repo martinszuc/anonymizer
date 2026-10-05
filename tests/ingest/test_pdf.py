@@ -7,6 +7,7 @@ import pymupdf
 import pytest
 from anonymizer.core.detect import structured_detector
 from anonymizer.core.ingest import (
+    UnsupportedFileError,
     document_from_bytes,
     load_document,
     normalize_text,
@@ -105,6 +106,12 @@ class TestLoadDocument:
     def test_non_pdf_file_raises(self, tmp_path: Path):
         broken = tmp_path / "broken.pdf"
         broken.write_text("not a pdf", encoding="utf-8")
+        with pytest.raises(UnsupportedFileError):
+            load_document(broken)
+
+    def test_damaged_pdf_raises(self, tmp_path: Path):
+        broken = tmp_path / "broken.pdf"
+        broken.write_bytes(b"%PDF-1.7\n" + bytes(64))
         with pytest.raises(pymupdf.FileDataError):
             load_document(broken)
 

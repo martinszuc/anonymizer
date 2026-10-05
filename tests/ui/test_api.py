@@ -109,13 +109,13 @@ class TestOpenPdf:
         # Loading and rendering use the same bytes, so a change on disk
         # between them cannot put boxes over another file's content.
         reads: list[str] = []
-        read_pdf = api.read_pdf
+        read_source = api.read_source
 
         def counting_read(path: str) -> bytes:
             reads.append(path)
-            return read_pdf(path)
+            return read_source(path)
 
-        monkeypatch.setattr(api, "read_pdf", counting_read)
+        monkeypatch.setattr(api, "read_source", counting_read)
         ReviewApi().open_pdf(str(pdf))
         assert reads == [str(pdf)]
 
@@ -208,7 +208,7 @@ class TestSessions:
         session = tmp_path / "review.json"
         review.save_session(str(session))
         other = write_pdf(tmp_path / "other.pdf", [["a different document"]])
-        with pytest.raises(ReviewError, match="different PDF"):
+        with pytest.raises(ReviewError, match="different file"):
             ReviewApi().open_session(str(other), str(session))
 
     def test_unwritable_destination(self, review: ReviewApi, tmp_path: Path):

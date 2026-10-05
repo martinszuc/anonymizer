@@ -1,5 +1,10 @@
 """Word and geometry extraction from a PDF's text layer.
 
+An image file is read as the PDF `image.as_pdf` wraps it into: pictures
+only, so every page of it needs OCR. Its fingerprint is that of the image
+file, and the same bytes always give the same PDF, so a session or a
+redaction refuses a different image as they refuse a different PDF.
+
 PyMuPDF reports word boxes in the page's **unrotated** coordinate system while
 `page.rect` reflects the rotation, so boxes on a rotated page are mapped through
 `page.rotation_matrix` before they enter the data contract (see `normalize`).
@@ -24,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 import pymupdf
+from anonymizer.core.ingest.image import as_pdf, image_format
 from anonymizer.core.ingest.layout import PlacedWord, assemble
 from anonymizer.core.ingest.normalize import unrotated_rect_to_bbox
 from anonymizer.core.ingest.ocr import DEFAULT_OCR_DPI, OcrEngine, read_page
@@ -106,10 +112,10 @@ def load_document(
     ocr: OcrEngine | None = None,
     ocr_dpi: int = DEFAULT_OCR_DPI,
 ) -> Document:
-    """Read a PDF into a `Document`.
+    """Read a PDF or an image into a `Document`.
 
     Args:
-        path: Path to the PDF file.
+        path: Path to the PDF, JPEG, PNG or TIFF file.
         language: BCP 47 tag the detectors will be configured for, recorded on
             the document.
         ocr: Engine that reads the pages needing OCR; without one they stay
@@ -121,9 +127,10 @@ def load_document(
 
     Raises:
         FileNotFoundError: If `path` does not exist.
+        UnsupportedFileError: If the file is of another type or a damaged image.
         pymupdf.FileDataError: If the file is not a readable PDF.
     """
-    return document_from_bytes(read_pdf(path), language=language, ocr=ocr, ocr_dpi=ocr_dpi)
+    return document_from_bytes(read_source(path), language=language, ocr=ocr, ocr_dpi=ocr_dpi)
 
 
 def document_from_bytes(
@@ -134,14 +141,15 @@ def document_from_bytes(
     ocr_dpi: int = DEFAULT_OCR_DPI,
     ocr_progress: PageProgress | None = None,
 ) -> Document:
-    """Read a PDF held in memory into a `Document`.
+    """Read a PDF or an image held in memory into a `Document`.
 
     A caller that needs the file again (to render or redact it) keeps these
     bytes rather than reading the path twice: the file could change in
     between, and boxes computed for one version would land on another.
 
     Args:
-        data: The PDF file's bytes.
+        data: The file's bytes: a PDF, or a JPEG, PNG or TIFF image, told
+            apart by content.
         language: BCP 47 tag the detectors will be configured for, recorded on
             the document.
         ocr: Engine that reads the pages needing OCR; without one they stay
@@ -153,11 +161,14 @@ def document_from_bytes(
             text layer is read too fast to be worth telling.
 
     Returns:
-        A document with one page per PDF page, every string found outside the
-        text layer as a surface, and the fingerprint of `data`. Neither a path
-        nor a file name is recorded: both can be personal data.
+        A document with one page per PDF page (per image frame), every
+        string found outside the text layer as a surface, and the
+        fingerprint of `data`. Neither a path nor a file name is recorded:
+        both can be personal data.
 
     Raises:
+        UnsupportedFileError: If the bytes are of another type or a damaged
+            image.
         pymupdf.FileDataError: If the bytes are not a readable PDF.
     """
     digest = fingerprint(data)
@@ -167,9 +178,10 @@ def document_from_bytes(
         done_level=logging.INFO,
         document=short_fingerprint(digest),
         size=len(data),
+        format=(image_format(data) or "PDF").lower(),
         ocr=ocr.name if ocr is not None else None,
     ) as outcome:
-        with pymupdf.open(stream=data, filetype="pdf") as pdf:
+        with pymupdf.open(stream=as_pdf(data), filetype="pdf") as pdf:
             pages = [extract_page(pdf.load_page(index), index) for index in range(pdf.page_count)]
             for page in pages:
                 log.debug(
@@ -223,11 +235,11 @@ def _read_scans(
     return read
 
 
-def read_pdf(path: Path | str) -> bytes:
-    """Read a PDF file's bytes.
+def read_source(path: Path | str) -> bytes:
+    """Read the bytes of a file to review: a PDF or an image.
 
     Args:
-        path: Path to the PDF file.
+        path: Path to the file.
 
     Returns:
         The file's content.
@@ -244,18 +256,20 @@ def read_pdf(path: Path | str) -> bytes:
 
 
 def read_verified(path: Path | str, document: Document) -> bytes:
-    """Read the PDF a document was loaded from, refusing any other file.
+    """Read the file a document was loaded from as a PDF, refusing any other file.
 
     Boxes computed for one file land on unrelated content in another, even one
     with the same number of pages, and nothing would report it. The check runs
-    on the bytes returned, so the file cannot change between check and use.
+    on the bytes the PDF is made from, so the file cannot change between
+    check and use.
 
     Args:
-        path: Path to the PDF file.
+        path: Path to the PDF or image file.
         document: Document loaded from it.
 
     Returns:
-        The file's content.
+        A PDF's content, or the PDF an image is wrapped into (`as_pdf`),
+        identical to the one the document was read from.
 
     Raises:
         FileNotFoundError: If `path` does not exist.
@@ -265,11 +279,11 @@ def read_verified(path: Path | str, document: Document) -> bytes:
     if document.fingerprint is None:
         msg = "document carries no fingerprint; load it from the file with load_document"
         raise ValueError(msg)
-    data = read_pdf(path)
+    data = read_source(path)
     if fingerprint(data) != document.fingerprint:
         msg = "document was loaded from a different file than the one given"
         raise ValueError(msg)
-    return data
+    return as_pdf(data)
 
 
 def fingerprint(data: bytes) -> str:

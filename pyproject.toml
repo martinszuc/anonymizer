@@ -18,9 +18,6 @@ dev = [
     "pre-commit>=4.0",
     "pytest-cov>=7.1.0",
     "poethepoet>=0.48.0",
-    # Screen capture and WebP encoding for scripts/ui_tour.py; CCITT and CMYK
-    # scan fixtures in the tests.
-    "pillow>=11",
     # The scanned benchmark: seeded noise and edit distance (character error rate).
     "numpy>=2",
     "rapidfuzz>=3",

@@ -1385,6 +1385,35 @@ kbd {
   min-width: 280px;
 }
 
+/* Choices under an option (the OCR engines), indented as part of its row. */
+.option-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 var(--space-5) var(--space-4) calc(var(--space-5) + var(--space-4));
+}
+
+.option-choices + .option-row {
+  border-top: var(--hairline) solid var(--separator);
+}
+
+.option-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  cursor: default;
+}
+
+.option-choice input {
+  flex: none;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.option-choice[data-disabled="true"] .option-label {
+  color: var(--label-2);
+}
+
 .home-footer {
   display: flex;
   align-items: center;
@@ -1838,6 +1867,12 @@ button.leak-row:focus-visible {
 .model-feature-title {
   color: var(--label);
   font-weight: 600;
+}
+
+.model-feature-description {
+  margin: 0;
+  font-size: var(--text-footnote);
+  color: var(--label-2);
 }
 
 .model-feature-state {

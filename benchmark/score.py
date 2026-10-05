@@ -3,11 +3,12 @@
 The generator wraps paragraphs, so an item may be split over lines; every
 comparison tolerates whitespace.
 
-- **Detection.** A page item is located in the ingested page text; it is
-  *found* when one entity's span covers it, *partial* when entities only
-  overlap it, *missed* otherwise. On a surface (no page position) an item is
-  found when an entity's text contains it, partial when an entity's text lies
-  inside it.
+- **Detection.** A page item is located in the ingested page text by its
+  words (a scan's caller can locate it by its ground-truth boxes instead, as
+  `ocr_score.item_locations` does); it is *found* when one entity's span
+  covers it, *partial* when entities only overlap it, *missed* otherwise. On
+  a surface (no page position) an item is found when an entity's text
+  contains it, partial when an entity's text lies inside it.
 - **False positives.** Page entities overlapping no planted item.
 - **Residue.** After redaction the output is read again, pages and surfaces.
   An item is *readable* when its whole text is still there; a *fragment* is a
@@ -20,6 +21,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from typing import Any, Literal
 
@@ -30,6 +32,12 @@ from benchmark.spec import DocumentSpec, GoldItem
 Outcome = Literal["found", "partial", "missed"]
 
 _WORD = re.compile(r"\w{3,}")
+
+Location = tuple[int, int, int]
+"""Page index, start and end of a planted item in the ingested page text."""
+
+Locations = Mapping[int, Location | None]
+"""Where each planted page item lies, by its index in `DocumentSpec.gold`; None if nowhere."""
 
 
 def compact(text: str) -> str:
@@ -79,9 +87,15 @@ class DocumentResult:
         }
 
 
-def score_detection(spec: DocumentSpec, document: Document) -> list[tuple[Outcome, bool]]:
-    """Return, per planted item, its outcome and whether the type matched."""
-    locations = _page_locations(spec, document)
+def score_detection(
+    spec: DocumentSpec, document: Document, locations: Locations | None = None
+) -> list[tuple[Outcome, bool]]:
+    """Return, per planted item, its outcome and whether the type matched.
+
+    `locations` places the page items; by default each is found by its words.
+    """
+    if locations is None:
+        locations = _page_locations(spec, document)
     results: list[tuple[Outcome, bool]] = []
     for index, item in enumerate(spec.gold):
         entities = _on_carrier(document.entities, item.carrier)
@@ -92,13 +106,18 @@ def score_detection(spec: DocumentSpec, document: Document) -> list[tuple[Outcom
     return results
 
 
-def false_positives(spec: DocumentSpec, document: Document) -> list[str]:
+def false_positives(
+    spec: DocumentSpec, document: Document, locations: Locations | None = None
+) -> list[str]:
     """Return the distinct texts of page entities overlapping no planted item.
 
     Distinct, because one wrong text repeated through a document is one mistake
     for the detector, and repeated filler would otherwise dominate the count.
+    `locations` places the page items, as in `score_detection`.
     """
-    planted = [location for location in _page_locations(spec, document).values() if location]
+    if locations is None:
+        locations = _page_locations(spec, document)
+    planted = [location for location in locations.values() if location]
     wrong = (
         " ".join(entity.text.split())
         for entity in _on_carrier(document.entities, "page")
@@ -171,10 +190,6 @@ def outcome_counts(items: tuple[ItemResult, ...] | list[ItemResult]) -> dict[str
         "with_fragments": sum(bool(item.fragments_after) for item in items),
         "left_in_carrier": sum(item.left_in_carrier for item in items),
     }
-
-
-Location = tuple[int, int, int]
-"""Page index, start and end of a planted item in the ingested page text."""
 
 
 def _page_locations(spec: DocumentSpec, document: Document) -> dict[int, Location | None]:

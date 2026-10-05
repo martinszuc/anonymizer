@@ -259,6 +259,11 @@ def _grey_picture(pdf_path: Path, page_index: int, modified: int) -> tuple[np.nd
     return levels, scale
 
 
+def covers(corners: Corners, x: float, y: float) -> bool:
+    """Whether a point (points) lies inside a word's box on the scanned page."""
+    return bool(_inside(np.array(corners), np.array([x]), np.array([y]))[0])
+
+
 def _inside(polygon: np.ndarray, xs: np.ndarray, ys: np.ndarray) -> np.ndarray:
     """Whether points lie inside a convex polygon whose corners run clockwise on screen."""
     inside = np.ones(xs.shape, dtype=bool)

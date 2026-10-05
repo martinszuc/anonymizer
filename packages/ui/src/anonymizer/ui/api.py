@@ -36,6 +36,7 @@ from anonymizer.core.detect.base import describe
 from anonymizer.core.detect.gliner import GLINER_RESOURCE
 from anonymizer.core.ingest import (
     OCR_ENGINE_RESOURCES,
+    OCR_ENGINES,
     OcrEngine,
     as_pdf,
     document_from_bytes,
@@ -93,8 +94,28 @@ LANGUAGES = {"cs": "Czech", "sk": "Slovak", "en": "English"}
 """Languages with their own rules (`detect.finders_for`); without one, every rule runs.
 `language.AUTO` may be asked for as well: the language is recognised from the text."""
 
-OCR_ENGINE = "onnxtr"
-"""The OCR engine the window offers (see `ingest.OCR_ENGINES`)."""
+DEFAULT_OCR_ENGINE = "onnxtr"
+"""The engine the home screen starts with: the faster one, and the one offered first."""
+
+
+@dataclass(frozen=True)
+class _OcrChoice:
+    """How the window names an OCR engine and what it tells the reviewer it is for."""
+
+    title: str
+    description: str
+
+
+OCR_CHOICES = {
+    "onnxtr": _OcrChoice("OnnxTR", "Fast. Reads printed text, not handwriting."),
+    # docs/findings.md, kraken on the scanned benchmark: about half OnnxTR's
+    # character error rate on print, and about four times slower on the CPU.
+    "kraken": _OcrChoice(
+        "kraken",
+        "Also reads handwriting and misreads print less, but takes about four times as long.",
+    ),
+}
+"""Every engine of `ingest.OCR_ENGINES`, as the window offers it."""
 
 Progress = Callable[[str, int, int], None]
 """Told each step of opening a PDF as it starts and, page by page, as it goes: the
@@ -114,21 +135,35 @@ class _Feature:
     """Something the window can do once its models are stored and its package installed."""
 
     title: str
+    description: str
     resource_id: str
     group: str
     installed: Callable[[], bool]
 
 
+def _ocr_feature(engine: str) -> _Feature:
+    choice = OCR_CHOICES[engine]
+    return _Feature(
+        f"Scanned pages: {choice.title}",
+        choice.description,
+        OCR_ENGINE_RESOURCES[engine][-1],
+        f"ocr-{engine}",
+        lambda: ocr_engine_installed(engine),
+    )
+
+
 FEATURES = {
-    "names": _Feature("Names and addresses", GLINER_RESOURCE, "ner", lambda: gliner_installed()),
-    "ocr": _Feature(
-        "Scanned pages",
-        OCR_ENGINE_RESOURCES[OCR_ENGINE][-1],
-        f"ocr-{OCR_ENGINE}",
-        lambda: ocr_engine_installed(OCR_ENGINE),
+    "names": _Feature(
+        "Names and addresses",
+        "Finds names and addresses the rules cannot.",
+        GLINER_RESOURCE,
+        "ner",
+        lambda: gliner_installed(),
     ),
+    **{f"ocr-{engine}": _ocr_feature(engine) for engine in OCR_ENGINES},
 }
-"""The features whose models the window can download, by the name the page uses."""
+"""The features whose models the window can download, by the name the page uses: the
+name model, then one per OCR engine (`ocr-<engine>`, as its dependency group is named)."""
 
 
 class ReviewError(Exception):
@@ -195,13 +230,12 @@ class ReviewApi:
 
         Returns:
             The version, the languages with their own rules, the folder models
-            are stored in, the states of the name model and of the OCR
+            are stored in, the state of the name model and of every OCR
             engine (`ready`, `not_installed`: the optional dependencies are
-            missing, or `files_missing`, with the catalog ids to fetch), and
-            the settings (`leak_check`).
+            missing, or `files_missing`, with the catalog ids to fetch), the
+            OCR engine offered first, and the settings (`leak_check`).
         """
         model_missing = missing_gliner_files(self._resource_root)
-        ocr_missing = missing_ocr_files(OCR_ENGINE, self._resource_root)
         return {
             "version": __version__,
             "languages": [{"code": code, "name": name} for code, name in LANGUAGES.items()],
@@ -211,11 +245,23 @@ class ReviewApi:
                 "missing": model_missing,
             },
             "ocr": {
-                "engine": OCR_ENGINE,
-                "state": _state(ocr_engine_installed(OCR_ENGINE), ocr_missing),
-                "missing": ocr_missing,
+                "default": DEFAULT_OCR_ENGINE,
+                "engines": [self._ocr_engine_status(engine) for engine in OCR_ENGINES],
             },
             "settings": {"leak_check": self._leak_check},
+        }
+
+    def _ocr_engine_status(self, engine: str) -> dict[str, Any]:
+        missing = missing_ocr_files(engine, self._resource_root)
+        feature = FEATURES[f"ocr-{engine}"]
+        return {
+            "name": engine,
+            "title": OCR_CHOICES[engine].title,
+            "description": feature.description,
+            "feature": f"ocr-{engine}",
+            "state": _state(ocr_engine_installed(engine), missing),
+            "missing": missing,
+            "install_command": f"uv sync --group {feature.group}",
         }
 
     def set_leak_check(self, enabled: bool) -> dict[str, Any]:
@@ -243,8 +289,9 @@ class ReviewApi:
         """Describe the models each feature needs and whether they are stored.
 
         Returns:
-            Per feature: its key and title, whether its package is installed
-            and the command that installs it, the bytes still to download, and
+            Per feature: its key, title and one-line description, whether its
+            package is installed and the command that installs it, the bytes
+            still to download, and
             each model (requirements first) with what it is, its licence,
             languages, source, version, size and state (`present`, `partial`
             or `absent`, from the files on disk).
@@ -355,6 +402,7 @@ class ReviewApi:
         return {
             "feature": key,
             "title": feature.title,
+            "description": feature.description,
             "installed": feature.installed(),
             "install_command": f"uv sync --group {feature.group}",
             "missing_bytes": sum(
@@ -383,7 +431,7 @@ class ReviewApi:
         propagate: bool = True,
         use_model: bool = False,
         progress: Progress | None = None,
-        use_ocr: bool = False,
+        ocr_engine: str | None = None,
     ) -> dict[str, Any]:
         """Open a PDF or an image and propose redactions for it.
 
@@ -397,21 +445,26 @@ class ReviewApi:
             propagate: Also mark further occurrences of the text found.
             use_model: Also run the name model (see `status`).
             progress: Told each step as it starts.
-            use_ocr: Read scanned pages with the OCR engine (see `status`).
+            ocr_engine: Read scanned pages with this engine, a key of
+                `ingest.OCR_ENGINES` (see `status`); none when omitted.
 
         Returns:
             The document as `document()` describes it.
 
         Raises:
-            ReviewError: If the file is missing or unreadable, or the model or
-                the OCR engine was asked for but cannot be loaded.
+            ReviewError: If the file is missing or unreadable, the OCR engine
+                is unknown, or the model or the OCR engine was asked for but
+                cannot be loaded.
         """
         log.debug(
             "open pdf:%s",
-            fields(language=language, propagate=propagate, model=use_model, ocr=use_ocr),
+            fields(language=language, propagate=propagate, model=use_model, ocr=ocr_engine),
         )
+        if ocr_engine is not None and ocr_engine not in OCR_ENGINES:
+            msg = f"unknown OCR engine {ocr_engine!r}"
+            raise ReviewError(msg)
         report = progress or (lambda _step, _done, _total: None)
-        ocr = self._loaded_ocr(OCR_ENGINE, report) if use_ocr else None
+        ocr = self._loaded_ocr(ocr_engine, report) if ocr_engine is not None else None
         report("reading", 0, 0)
         with _as_review_error():
             source_bytes = read_source(path)

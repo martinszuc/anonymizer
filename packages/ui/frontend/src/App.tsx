@@ -23,6 +23,7 @@ import {
   groupToggled,
   isDecidable,
   lastAdded,
+  ocrOptions,
   pagesWithoutText,
   plural,
   scannedPages,
@@ -59,6 +60,7 @@ export function App() {
     propagate: true,
     use_model: false,
     use_ocr: false,
+    ocr_engine: "onnxtr",
   });
   // Set by Python's progress events once a file is chosen; null otherwise.
   const [opening, setOpening] = useState<{ name: string | null; progress: OpenProgress } | null>(null);
@@ -125,7 +127,7 @@ export function App() {
       setOptions((current) => ({
         ...current,
         use_model: installed.model.state === "ready",
-        use_ocr: installed.ocr.state === "ready",
+        ...ocrOptions(installed.ocr, { use_ocr: true, ocr_engine: installed.ocr.default }),
       }));
     });
   }, []);
@@ -197,10 +199,11 @@ export function App() {
       setModels(await bridge.download_models(feature));
       const installed = await bridge.status();
       setStatus(installed);
+      const engine = installed.ocr.engines.find((item) => item.feature === feature);
       setOptions((current) => ({
         ...current,
         use_model: current.use_model || (feature === "names" && installed.model.state === "ready"),
-        use_ocr: current.use_ocr || (feature === "ocr" && installed.ocr.state === "ready"),
+        ...ocrOptions(installed.ocr, current, engine?.name ?? null),
       }));
       notify("success", "Downloaded and checked");
     } catch (error) {
@@ -220,7 +223,7 @@ export function App() {
       setOptions((current) => ({
         ...current,
         use_model: current.use_model && installed.model.state === "ready",
-        use_ocr: current.use_ocr && installed.ocr.state === "ready",
+        ...ocrOptions(installed.ocr, current),
       }));
       setModels(await bridge.models());
     } catch (error) {

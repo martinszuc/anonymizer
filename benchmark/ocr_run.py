@@ -8,9 +8,13 @@ For every document, level and engine, a run writes under its output directory:
     scans/<doc>.<level>.pdf                  its degraded, picture-only scan
     scans/<doc>.<level>.<engine>.pdf         the redacted scan
 
-Only items on the page are scored: a scan carries no links or metadata. The
-`oracle` engine reads the ground truth and bounds what OCR can give the rest
-of the pipeline. `onnxtr` is the first real engine (models from the catalog,
+Only items on the page are scored: a scan carries no links or metadata. An
+item is located in the OCR text by its ground-truth boxes
+(`ocr_score.item_locations`), so an item OCR read split or misread still
+counts as found when a detected span covers it. False alarms are counted as
+in the born-digital benchmark, on the OCR text. The `oracle` engine reads
+the ground truth and bounds what OCR can give the rest of the pipeline.
+`onnxtr` is the first real engine (models from the catalog,
 `uv sync --group ocr-onnxtr`).
 """
 
@@ -38,14 +42,20 @@ from anonymizer.core.redact import find_leaks, redact_pdf
 from anonymizer.core.resources import load_catalog
 
 from benchmark.degrade import LEVELS, Level
-from benchmark.ocr_score import box_scores, item_residue, residue_counts, text_errors
+from benchmark.ocr_score import (
+    box_scores,
+    item_locations,
+    item_residue,
+    residue_counts,
+    text_errors,
+)
 from benchmark.render import render
 from benchmark.run import DetectorFactory, detector_factories, git_commit, machine
 from benchmark.scans import OracleEngine, TruthPage, scan_document
-from benchmark.score import score_detection
+from benchmark.score import false_positives, score_detection
 from benchmark.spec import DocumentSpec, load_documents
 
-OCR_RESULTS_SCHEMA = 1
+OCR_RESULTS_SCHEMA = 2
 
 EngineFactory = Callable[[list[TruthPage]], OcrEngine]
 """Gives the engine for one scan, from its ground truth if the engine needs it."""
@@ -151,7 +161,8 @@ def _run_one(
     on_page = dataclasses.replace(
         spec, gold=tuple(item for item in spec.gold if item.carrier == "page")
     )
-    detection = score_detection(on_page, document)
+    locations = item_locations(truth, document.pages, on_page.gold)
+    detection = score_detection(on_page, document, locations)
 
     redacted = output / "scans" / f"{spec.name}.{level.name}.{engine_name}.pdf"
     redact_pdf(scan, document, redacted)
@@ -171,6 +182,7 @@ def _run_one(
             "missed": found["missed"],
         }
         | residue,
+        "false_positives": false_positives(on_page, document, locations),
         "safe": residue["readable_after"] + residue["partly_after"] == 0,
         "leak_check_passed": leak_check_passed,
     }
@@ -202,6 +214,7 @@ def _totals(documents: dict[str, Any]) -> dict[str, Any]:
         "ink_under_boxes": _rate(boxes["ink_covered"], boxes["ink"]),
         "words_partly_outside": boxes["partly_outside"],
         "items": dict(items),
+        "false_positives": sum(len(result["false_positives"]) for result in results),
         "safe_documents": sum(result["safe"] for result in results),
         "leak_check_passed": sum(result["leak_check_passed"] for result in results),
         "documents": len(results),
@@ -232,6 +245,7 @@ def ocr_markdown(results: dict[str, Any]) -> str:
         "ink under boxes",
         "partly outside",
         "found",
+        "false alarms",
         "readable after",
         "partly after",
         "safe",
@@ -253,6 +267,7 @@ def ocr_markdown(results: dict[str, Any]) -> str:
                         _percent(total["ink_under_boxes"]),
                         f"{total['words_partly_outside']}/{_words_in(run)}",
                         f"{items['found']}/{items['gold']}",
+                        str(total["false_positives"]),
                         str(items["readable_after"]),
                         str(items["partly_after"]),
                         f"{total['safe_documents']}/{total['documents']}",

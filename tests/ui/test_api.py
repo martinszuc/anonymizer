@@ -7,7 +7,7 @@ import anonymizer.ui
 import pymupdf
 import pytest
 from anonymizer.core import pipeline
-from anonymizer.core.ingest import load_document
+from anonymizer.core.ingest import OCR_ENGINES, load_document
 from anonymizer.core.redact import Leak, LeakLayer
 from anonymizer.core.redact import export as export_module
 from anonymizer.core.settings import read_settings
@@ -558,17 +558,44 @@ class TestStatus:
         monkeypatch.setattr(api, "gliner_installed", lambda: False)
         assert ReviewApi().status()["model"]["state"] == "not_installed"
 
-    def test_ocr_engine_states(self, monkeypatch: pytest.MonkeyPatch):
+    def test_every_ocr_engine_with_its_files_and_onnxtr_first(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         monkeypatch.setattr(api, "ocr_engine_installed", lambda name: True)
-        assert ReviewApi(Path("/nowhere")).status()["ocr"] == {
-            "engine": "onnxtr",
-            "state": "files_missing",
-            "missing": ["onnxtr-fast-base", "onnxtr-parseq-multilingual-v1"],
-        }
+        ocr = ReviewApi(Path("/nowhere")).status()["ocr"]
+        assert ocr["default"] == "onnxtr"
+        assert ocr["engines"] == [
+            {
+                "name": "onnxtr",
+                "title": "OnnxTR",
+                "description": api.OCR_CHOICES["onnxtr"].description,
+                "feature": "ocr-onnxtr",
+                "state": "files_missing",
+                "missing": ["onnxtr-fast-base", "onnxtr-parseq-multilingual-v1"],
+                "install_command": "uv sync --group ocr-onnxtr",
+            },
+            {
+                "name": "kraken",
+                "title": "kraken",
+                "description": api.OCR_CHOICES["kraken"].description,
+                "feature": "ocr-kraken",
+                "state": "files_missing",
+                "missing": ["kraken-blla", "kraken-ppocr-v6-medium"],
+                "install_command": "uv sync --group ocr-kraken",
+            },
+        ]
+
+    def test_each_ocr_engine_has_its_own_state(self, monkeypatch: pytest.MonkeyPatch):
+        # kraken installs only where coremltools has wheels (macOS, Linux x86-64).
+        monkeypatch.setattr(api, "ocr_engine_installed", lambda name: name == "onnxtr")
         monkeypatch.setattr(api, "missing_ocr_files", lambda name, root: [])
-        assert ReviewApi().status()["ocr"]["state"] == "ready"
-        monkeypatch.setattr(api, "ocr_engine_installed", lambda name: False)
-        assert ReviewApi().status()["ocr"]["state"] == "not_installed"
+        states = {
+            engine["name"]: engine["state"] for engine in ReviewApi().status()["ocr"]["engines"]
+        }
+        assert states == {"onnxtr": "ready", "kraken": "not_installed"}
+
+    def test_every_engine_the_core_offers_is_described(self):
+        assert set(api.OCR_CHOICES) == set(OCR_ENGINES)
 
 
 class TestOpenWithModel:

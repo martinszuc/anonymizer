@@ -94,6 +94,26 @@ export interface ExportResult {
 
 export type ModelState = "ready" | "not_installed" | "files_missing";
 
+/** An OCR engine the reviewer can choose (`ReviewApi.status`). */
+export interface OcrEngineStatus {
+  /** The name `open_pdf` takes, a key of `ingest.OCR_ENGINES`. */
+  name: string;
+  title: string;
+  /** One line on what it reads and how fast. */
+  description: string;
+  /** The Models sheet's feature holding its models. */
+  feature: string;
+  state: ModelState;
+  missing: string[];
+  install_command: string;
+}
+
+/** The OCR engines, and the one offered first. */
+export interface OcrStatus {
+  default: string;
+  engines: OcrEngineStatus[];
+}
+
 /** What `ReviewApi.status` says about the installation, for the home screen. */
 export interface AppStatus {
   version: string;
@@ -101,7 +121,7 @@ export interface AppStatus {
   /** Where models are stored and looked for; the reviewer can choose another folder. */
   models_folder: string;
   model: { state: ModelState; missing: string[] };
-  ocr: { engine: string; state: ModelState; missing: string[] };
+  ocr: OcrStatus;
   /** Preferences kept between runs. */
   settings: { leak_check: boolean };
 }
@@ -112,8 +132,10 @@ export interface OpenOptions {
   language: string | null;
   propagate: boolean;
   use_model: boolean;
-  /** Read scanned pages with the OCR engine. */
+  /** Read scanned pages with OCR. */
   use_ocr: boolean;
+  /** The engine OCR reads with; kept while OCR is off, so turning it on again restores it. */
+  ocr_engine: string;
 }
 
 /** Which of a model's files are on disk (checked by existence, not hashed). */
@@ -139,6 +161,8 @@ export interface FeatureModels {
   /** The name `download_models` takes. */
   feature: string;
   title: string;
+  /** One line on what it is for. */
+  description: string;
   /** Whether its Python package is installed; the window cannot install it. */
   installed: boolean;
   install_command: string;

@@ -7,12 +7,14 @@ converts to rotated page space by scale alone (`points = pixels * 72 / dpi`),
 with no rotation mapping as the text layer needs. The page records the
 resolution in `Page.raster_dpi`.
 
-Engines fit a word's box to the core of its ink and clip the edges of its
-letters; redacted from such a box, a word leaves slivers of ink beside it,
-which the leak check cannot see. Every box is therefore grown on each side
-by `OCR_BOX_MARGIN` of its height. In the scanned benchmark (OnnxTR, clean
-scans) 322 of 750 words had ink outside their boxes; with this margin 4 did.
-A larger margin starts to cover the neighbouring lines at usual spacing.
+Engines may fit a word's box to the core of its ink and clip the edges of
+its letters; redacted from such a box, a word leaves slivers of ink beside
+it, which the leak check cannot see. Every box is therefore grown on each
+side by a share of its height, which each engine states as its
+`box_margin`, measured on the scanned benchmark: how tightly boxes fit
+differs between engines. `OCR_BOX_MARGIN` is OnnxTR's: on clean scans 322
+of 750 words had ink outside its boxes, and with this margin 4 did. A larger
+margin starts to cover the neighbouring lines at usual spacing.
 
 An engine runs locally and never downloads anything: an adapter for a
 library that fetches its own weights is given local model paths from the
@@ -36,7 +38,7 @@ DEFAULT_OCR_DPI = 300
 """Resolution pages are rendered at for OCR; 300 DPI is the usual scanning resolution."""
 
 OCR_BOX_MARGIN = 0.15
-"""Share of a word box's height added on each side of it."""
+"""Share of a word box's height added on each side of it, as measured for OnnxTR."""
 
 _POINTS_PER_INCH = 72
 
@@ -85,9 +87,12 @@ class OcrEngine(Protocol):
     Attributes:
         name: The engine's name, recorded on the documents it reads, so a
             review of them reopens only with the same engine.
+        box_margin: Share of a word box's height added on each side of it,
+            so that redacting the box removes the whole word's ink.
     """
 
     name: str
+    box_margin: float
 
     def read(self, image: PageImage) -> list[OcrWord]:
         """Return the words in the picture.
@@ -150,7 +155,7 @@ def _read_page(pdf_page: pymupdf.Page, index: int, engine: OcrEngine, dpi: int) 
     page.text, page.words = assemble(
         PlacedWord(
             text=word.text.strip(),
-            bbox=_to_points(word.box, image, page),
+            bbox=_to_points(word.box, image, page, engine.box_margin),
             block=word.block,
             line=word.line,
         )
@@ -159,8 +164,10 @@ def _read_page(pdf_page: pymupdf.Page, index: int, engine: OcrEngine, dpi: int) 
     return page
 
 
-def _to_points(box: tuple[float, float, float, float], image: PageImage, page: Page) -> BBox:
-    """Convert a pixel box to page points, grown by the margin and clipped to the page.
+def _to_points(
+    box: tuple[float, float, float, float], image: PageImage, page: Page, margin_share: float
+) -> BBox:
+    """Convert a pixel box to page points, grown by a share of its height and clipped to the page.
 
     The picture is rounded up to whole pixels, so it can reach a fraction of
     a point past the page; clipping happens in points for that reason.
@@ -169,7 +176,7 @@ def _to_points(box: tuple[float, float, float, float], image: PageImage, page: P
     x0, y0, x1, y1 = (value * scale for value in box)
     left, right = sorted((x0, x1))
     top, bottom = sorted((y0, y1))
-    margin = OCR_BOX_MARGIN * (bottom - top)
+    margin = margin_share * (bottom - top)
     return BBox(
         _clip(left - margin, page.width),
         _clip(top - margin, page.height),

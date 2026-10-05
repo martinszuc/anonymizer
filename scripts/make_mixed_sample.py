@@ -1,6 +1,7 @@
 """Generate a four-page PDF that mixes every kind of input the pipeline meets.
 
     uv run python scripts/make_mixed_sample.py [-o data/samples/mixed-synthetic.pdf]
+        [--truth truth.json]
 
 Every value is invented. The output is git-ignored; only this script is committed.
 
@@ -11,7 +12,8 @@ Every value is invented. The output is git-ignored; only this script is committe
 | 3 | values in a handwriting font, scanned | no |
 | 4 | typed text beside a scanned stamp and signature | partly |
 
-Pages 2 and 3 cannot be read until OCR exists; that is what they are for.
+Pages 2 and 3 have no text layer; OCR reads them. `--truth` writes what they hold, a JSON
+list with one entry per page (`null` for pages 1 and 4), for `python -m benchmark ocr-probe`.
 A handwriting font only imitates handwriting: it tests the plumbing, not recognition quality.
 Without the macOS font the page uses an italic serif, which is not handwriting at all.
 """
@@ -19,6 +21,7 @@ Without the macOS font the page uses an italic serif, which is not handwriting a
 from __future__ import annotations
 
 import argparse
+import json
 import random
 from pathlib import Path
 
@@ -55,9 +58,14 @@ def main() -> None:
     """Parse arguments and write the sample."""
     parser = argparse.ArgumentParser(description="Generate the mixed synthetic sample PDF.")
     parser.add_argument("-o", "--out", type=Path, default=Path("data/samples/mixed-synthetic.pdf"))
+    parser.add_argument("--truth", type=Path, help="also write the scanned pages' text as JSON")
     args = parser.parse_args()
     write_sample(args.out)
     print(f"wrote {args.out}")
+    if args.truth:
+        truth = [None, "\n".join(FORM_LINES), "\n".join(HANDWRITTEN_LINES), None]
+        args.truth.write_text(json.dumps(truth, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"wrote {args.truth}")
 
 
 def write_sample(destination: Path) -> None:

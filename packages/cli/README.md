@@ -55,7 +55,9 @@ and a fingerprint of the PDF, not the whole text, and only applies to that PDF.
   written and the leaks are listed.
 - Scanned pages (no text layer, or only a few words over a picture) are read with
   `--ocr onnxtr` (`uv sync --group ocr-onnxtr`, then
-  `uv run python scripts/download.py fetch onnxtr-parseq-multilingual-v1`). Their
+  `uv run python scripts/download.py fetch onnxtr-parseq-multilingual-v1`) or, for
+  handwriting, `--ocr kraken` (`uv sync --group ocr-kraken`, macOS and Linux x86-64
+  only, then `uv run python scripts/download.py fetch kraken-ppocr-v6-medium`). Their
   pixels under each box are overwritten, their text layer removed, and the leak
   check re-reads them with the same engine. A review of scanned pages reopens, and
   `check` runs, only with the same `--ocr`. Without it, scanned pages stop the run;

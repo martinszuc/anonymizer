@@ -656,6 +656,82 @@ passed on every scan, before and after.)
   (the scanned benchmark does not count them).
 
 
+### 2026-10-05 · kraken (PP-OCRv6) on the scanned benchmark (synthetic)
+
+`python -m benchmark ocr --engines oracle,onnxtr,kraken --levels
+clean,resolution-150,blur-2,noise-25,jpeg-20,skew-3`: the release workflow's
+one level per factor (all 16 levels would take about 2.5 hours and are
+postponed), 26 documents, rules only, CPU, commit `a715d9c`. kraken segments
+lines with BLLA and reads them with PP-OCRv6 medium; word boxes are derived
+from character positions (`ingest/kraken.py`). The oracle finds 75 of 179
+on-page items at every level.
+
+| level | CER OnnxTR | CER kraken | diacritics OnnxTR | diacritics kraken | found OnnxTR | found kraken | leak check kraken | s/page OnnxTR | s/page kraken |
+|---|---|---|---|---|---|---|---|---|---|
+| clean | 1.9 % | 0.8 % | 1.6 % | 0.8 % | 66 | 58 | 26/26 | 1.6 | 7.4 |
+| resolution 150 DPI | 1.8 % | 0.8 % | 1.6 % | 0.7 % | 65 | 56 | 25/26 | 1.5 | 6.7 |
+| blur 2 | 1.8 % | 1.1 % | 1.8 % | 3.0 % | 67 | 48 | 26/26 | 1.5 | 6.6 |
+| noise σ 25 | 1.8 % | 0.9 % | 1.4 % | 1.3 % | 69 | 58 | 24/26 | 1.6 | 6.5 |
+| JPEG 20 | 1.9 % | 0.8 % | 1.6 % | 0.7 % | 66 | 60 | 25/26 | 1.8 | 7.4 |
+| skew 3° | 1.4 % | 1.4 % | 1.2 % | 0.8 % | 70 | 58 | 25/26 | 1.9 | 7.5 |
+
+(OnnxTR passed the leak check in all 156 runs; no item was left partly
+readable by either engine at these levels.)
+
+- **kraken reads print more exactly but lets detection find less.** Its
+  character error rate is about half OnnxTR's, yet it finds 6 to 19 items
+  fewer. On the clean level 11 documents lose one item and 3 gain one; every
+  losing document has an email on the page, two of the gaining ones none
+  (which item each lost was not checked one by one). kraken
+  writes a space after a period inside an address
+  (`name. surname@example. com`, seen on the CS CV and the mixed sample),
+  and the email rule then matches part of it or nothing. In an earlier run
+  (9 documents, before the redaction-bar fix below) the partial match left
+  `name.` readable at three levels while the leak check passed. Fixing the
+  rule for split addresses is detection work, not OCR's.
+- **Blur costs kraken more:** at radius 2 it misses 3.0 % of the
+  diacritics and finds 48 items.
+- **About four times slower** on the CPU: 6.5–7.5 s per page against
+  1.5–1.9 s, segmentation over the whole page and then one recognizer pass
+  per line.
+- **Word boxes from character positions clip letters.** kraken's own
+  word boxes (a section of the line polygon between the first and last
+  character cut) left ink outside the box for 1,910 of 1,928 words on the
+  clean scans of the earlier 9-document set; a cut marks where a character
+  was emitted, not where its ink ends. Widened towards the middle of the
+  spaces beside a word (at most half the box height per side), the count
+  falls to 98; grown by the margin, as OnnxTR's boxes are, it is 13 at 5 %
+  and 0 at 10 %, while boxes reaching a word on another line rise from 18
+  to 76 and 290 of 1,927 (`benchmark ocr-margin`, same 9 documents; OnnxTR
+  at its 15 %: 13 words, 22 boxes). The engine uses 5 %. On the 26
+  documents above, 46 of 4,669 words keep ink outside on the clean level
+  (OnnxTR 37).
+- **Redaction bars confused the re-read of a redacted page.** Before the
+  fix (`a715d9c`) the leak check refused correct kraken redactions in up to
+  3 of 9 documents per level, all as a word under a redacted box: a word
+  beside a bar was widened across it, a line polygon stretched over a bar
+  above or below it, and a bar was read as a stray letter. Widening is now
+  capped, a band of solid ink a quarter of a box's height or more cuts the
+  box, and a box solid throughout is dropped; no first reading of the 9
+  documents' clean or 3° scans changed. A word read across a bar as one
+  (`IČO ███ Brno` as one word) still covers it. Above, 0 to 2 documents per
+  level are still refused (5 of 156 runs), not inspected one by one; the
+  oracle too is refused on 2 documents at 3°.
+- **Handwriting font** (mixed sample, page 3; a font, not handwriting):
+  kraken 5.5 % CER against OnnxTR's 35.5 %. Detection found the address on
+  kraken's text and nothing on OnnxTR's; the phone lost its last digit and
+  the email its `@` (read as `G`).
+- The real handwritten scan (`handwritten-scan-sample.pdf`) with the
+  current adapter: pending (`python -m benchmark ocr-probe`, counts only;
+  see the entry above for the earlier adapter).
+- **The kraken dependency group moved shared packages** in the lock
+  (transformers 5.16 → 5.12, scipy 1.18 → 1.15, numpy 2.5 → 2.4,
+  safetensors 0.8 → 0.7). The born-digital benchmark and OnnxTR's scanned
+  scores on three levels were identical before and after.
+- **Decision: the window keeps OnnxTR** until the email rule handles split
+  addresses; kraken stays a CLI choice for handwritten pages, where OnnxTR
+  reads almost nothing.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

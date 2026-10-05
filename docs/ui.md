@@ -138,7 +138,8 @@ photographs it on every run (see *Window tour*); its first runs are the first
 time the window opens there.
 
 Not yet: resizing a box, changing options on an open
-document, remembered preferences, choosing an OCR engine (one is offered).
+document, remembered preferences, choosing an OCR engine (OnnxTR is offered;
+kraken, which reads handwriting, is CLI-only so far).
 See *Backlog*.
 
 ## Architecture
@@ -447,7 +448,8 @@ In suggested order. Each item names where it plugs in.
    stack of `set_review` calls.
 7. **Models sheet, next steps:** cancel a running download; verify stored
    files on request (`verify_resource`, hashing takes seconds per GB); choose
-   between OCR engines once a second one is in the catalog.
+   between OCR engines: kraken (`ingest/kraken.py`, handwriting) is in the
+   catalog; the window offers only `OCR_ENGINE` in `api.py`.
 8. **OCR quality in review:** show OCR's confidence per word and flag
     low-confidence words (an `@` read as `(m` hides an email from the rules),
     and offer a second engine once RapidOCR or EasyOCR is in the catalog.

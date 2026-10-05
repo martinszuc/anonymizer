@@ -247,6 +247,7 @@ class TestEngineOutput:
             """Reports one word with its corners swapped, reaching past the bottom right."""
 
             name = "swapped"
+            box_margin = OCR_BOX_MARGIN
 
             def read(self, image: PageImage) -> list[OcrWord]:
                 right, bottom = image.width, image.height

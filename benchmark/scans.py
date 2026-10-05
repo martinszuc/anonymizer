@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 import pymupdf
-from anonymizer.core.ingest import OcrWord, PageImage, load_document
+from anonymizer.core.ingest import OCR_BOX_MARGIN, OcrWord, PageImage, load_document
 from anonymizer.core.types import BBox, Word
 from PIL import Image
 
@@ -144,6 +144,7 @@ class OracleEngine:
     """
 
     name = "oracle"
+    box_margin = OCR_BOX_MARGIN
 
     def __init__(self, truth: list[TruthPage]) -> None:
         self.truth = truth

@@ -176,10 +176,10 @@ redaction and a leak check on the output.
 Scanned pages: ingest reads pages without a text layer through an OCR engine
 interface, redaction overwrites the pixels under each box and removes the page's
 text layer, and the leak check re-reads the redacted page with the same engine.
-Two engines: OnnxTR with a multilingual recognizer for print (optional: CLI
-`--ocr onnxtr`, the review window's *Scanned pages* switch), and kraken with the
-PP-OCRv6 line recognizer, which also reads handwriting (optional: CLI `--ocr
-kraken`; not offered in the window yet).
+Two engines, both optional and offered by the CLI (`--ocr onnxtr|kraken`) and
+the review window (*Scanned pages*, then the engine): OnnxTR with a
+multilingual recognizer for print, the window's default, and kraken with the
+PP-OCRv6 line recognizer, which also reads handwriting.
 Searchable scans (a picture under an invisible text layer) are redacted through
 that layer; see `docs/findings.md`.
 Detection quality is measured on development data only so far

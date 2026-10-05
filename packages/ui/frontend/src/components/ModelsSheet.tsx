@@ -99,6 +99,7 @@ function FeatureSection({
           {stored ? (feature.installed ? "Ready" : "Downloaded") : "Not downloaded"}
         </span>
       </header>
+      <p className="model-feature-description">{feature.description}</p>
       <ul className="model-list">
         {feature.models.map((model) => (
           <li key={model.id} className="model-row">

@@ -24,6 +24,9 @@ import {
   keepable,
   lastAdded,
   lowConfidence,
+  chooseOcrEngine,
+  ocrOptions,
+  ocrReady,
   scoreRange,
   sortedBy,
   type ListView,
@@ -39,7 +42,7 @@ import {
   summarize,
   toggled,
 } from "./review";
-import type { DocumentInfo, EntityInfo, LeakInfo } from "./types";
+import type { DocumentInfo, EntityInfo, LeakInfo, ModelState, OcrStatus } from "./types";
 
 function entity(overrides: Partial<EntityInfo>): EntityInfo {
   return {
@@ -599,5 +602,54 @@ describe("leakSections", () => {
       leak({ kind: "leftover", layer: "surface", where: "metadata Author", page: null, text: "Jan", entity_id: null }),
     ]);
     expect(section?.rows[0]).toMatchObject({ where: "Hidden data · metadata Author", page: null, entityId: null });
+  });
+});
+
+describe("choosing the OCR engine", () => {
+  function ocr(onnxtr: ModelState, kraken: ModelState): OcrStatus {
+    const engine = (name: string, state: ModelState) => ({
+      name,
+      title: name,
+      description: "",
+      feature: `ocr-${name}`,
+      state,
+      missing: [],
+      install_command: `uv sync --group ocr-${name}`,
+    });
+    return { default: "onnxtr", engines: [engine("onnxtr", onnxtr), engine("kraken", kraken)] };
+  }
+  const start = { use_ocr: true, ocr_engine: "onnxtr" };
+
+  it("starts with the default when it is ready, else with a ready engine", () => {
+    expect(ocrOptions(ocr("ready", "ready"), start)).toEqual(start);
+    expect(ocrOptions(ocr("files_missing", "ready"), start)).toEqual({ use_ocr: true, ocr_engine: "kraken" });
+    expect(ocrOptions(ocr("not_installed", "files_missing"), start)).toEqual({ use_ocr: false, ocr_engine: "onnxtr" });
+  });
+
+  it("keeps a ready choice, on or off", () => {
+    const kraken = { use_ocr: false, ocr_engine: "kraken" };
+    expect(ocrOptions(ocr("ready", "ready"), kraken)).toEqual(kraken);
+  });
+
+  it("moves to a ready engine when the chosen one is gone, and turns off when none is left", () => {
+    const kraken = { use_ocr: true, ocr_engine: "kraken" };
+    expect(ocrOptions(ocr("ready", "files_missing"), kraken)).toEqual({ use_ocr: true, ocr_engine: "onnxtr" });
+    expect(ocrOptions(ocr("files_missing", "files_missing"), kraken)).toEqual({ use_ocr: false, ocr_engine: "kraken" });
+  });
+
+  it("chooses an engine whose models just arrived and turns OCR on", () => {
+    const off = { use_ocr: false, ocr_engine: "onnxtr" };
+    expect(ocrOptions(ocr("ready", "ready"), off, "kraken")).toEqual({ use_ocr: true, ocr_engine: "kraken" });
+    // Downloaded, but its package is missing: nothing changes.
+    expect(ocrOptions(ocr("ready", "not_installed"), off, "kraken")).toEqual(off);
+  });
+
+  it("reads readiness per engine and prefers in the order given", () => {
+    const status = ocr("files_missing", "ready");
+    expect(ocrReady(status, "kraken")).toBe(true);
+    expect(ocrReady(status, "onnxtr")).toBe(false);
+    expect(ocrReady(status, "tesseract")).toBe(false);
+    expect(chooseOcrEngine(status, [null, "onnxtr"])).toBe("kraken");
+    expect(chooseOcrEngine(ocr("ready", "ready"), ["kraken"])).toBe("kraken");
   });
 });

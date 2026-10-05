@@ -9,6 +9,8 @@ import type {
   ExportStep,
   LeakInfo,
   LeakKind,
+  OcrStatus,
+  OpenOptions,
   OpenProgress,
   OpenStep,
   PageInfo,
@@ -411,6 +413,37 @@ export function isUnreadScan(page: PageInfo): boolean {
 /** 1-based numbers of the pages export cannot redact: scans OCR has not read. */
 export function pagesWithoutText(document: DocumentInfo): number[] {
   return document.pages.filter(isUnreadScan).map((page) => page.index + 1);
+}
+
+/** OCR's part of the options a PDF opens with. */
+export type OcrOptions = Pick<OpenOptions, "use_ocr" | "ocr_engine">;
+
+/** Whether an engine can read now: installed, with its models stored. */
+export function ocrReady(ocr: OcrStatus, name: string): boolean {
+  return ocr.engines.some((engine) => engine.name === name && engine.state === "ready");
+}
+
+/**
+ * The engine to read with: the first ready one of `preferred`, then the default, then any
+ * ready one. With none ready, the first preferred, so a choice outlasts a missing engine.
+ */
+export function chooseOcrEngine(ocr: OcrStatus, preferred: (string | null)[]): string {
+  const order = [...preferred, ocr.default, ...ocr.engines.map((engine) => engine.name)].filter(
+    (name): name is string => name !== null,
+  );
+  return order.find((name) => ocrReady(ocr, name)) ?? order[0] ?? ocr.default;
+}
+
+/**
+ * OCR's options once the installation changed. The choice stays while its engine is ready,
+ * otherwise a ready one takes its place; OCR stays on only with a ready engine. `downloaded`
+ * names an engine whose models just arrived: it is chosen and OCR turns on, as the name
+ * model's switch does after its download.
+ */
+export function ocrOptions(ocr: OcrStatus, current: OcrOptions, downloaded: string | null = null): OcrOptions {
+  const engine = chooseOcrEngine(ocr, [downloaded, current.ocr_engine]);
+  const turnedOn = downloaded !== null && ocrReady(ocr, downloaded);
+  return { ocr_engine: engine, use_ocr: (current.use_ocr || turnedOn) && ocrReady(ocr, engine) };
 }
 
 /** A size for people: "980 B", "42.3 MB", "1.16 GB" (decimal units, as downloads show). */

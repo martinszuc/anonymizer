@@ -140,8 +140,8 @@ def _table(header: tuple[str, ...], rows: list[list[str]]) -> list[str]:
 def latex(results: dict[str, Any]) -> str:
     r"""Render a results dictionary as LaTeX tables (booktabs).
 
-    Each table defines nothing; `\\ci` is provided once at the top, so the
-    file can be `\\input` as it is.
+    Each table defines nothing; `\ci` is provided once at the top, so the
+    file can be `\input` as it is.
     """
     commit = (results["git"].get("commit") or "unknown")[:10]
     lines = [
@@ -196,6 +196,13 @@ def _latex_value(cell: str) -> str:
 
 
 def _escape(text: str) -> str:
-    for char, escaped in (("\\", "\\textbackslash{}"), ("_", "\\_"), ("&", "\\&"), ("%", "\\%")):
+    replacements = (
+        ("\\", "\\textbackslash{}"),
+        ("_", "\\_"),
+        ("&", "\\&"),
+        ("%", "\\%"),
+        ("#", "\\#"),
+    )
+    for char, escaped in replacements:
         text = text.replace(char, escaped)
-    return text.replace("#", "\\#")
+    return text

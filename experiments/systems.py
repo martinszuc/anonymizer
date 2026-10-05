@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
 import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -41,8 +40,6 @@ from anonymizer.core.language import AUTO
 from anonymizer.core.pipeline import build_detector, resolve_language, run_detection
 from anonymizer.core.resources import load_catalog
 from anonymizer.core.types import Document, EntityType
-
-log = logging.getLogger(__name__)
 
 CACHE_FLOOR = 0.1
 """Threshold the model is asked at for the cache; systems may filter upwards only."""

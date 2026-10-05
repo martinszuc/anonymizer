@@ -268,11 +268,7 @@ def parse_cnec_line(line: str) -> Sentence:
 
 
 def _cnec_sentence(tokens: list[str], tagged: list[_Tagged]) -> Sentence:
-    starts: list[int] = []
-    offset = 0
-    for token in tokens:
-        starts.append(offset)
-        offset += len(token) + 1
+    text, starts = _joined(tokens)
     spans: list[SourceSpan] = []
     unmapped: list[str] = []
     for entity in tagged:
@@ -288,7 +284,7 @@ def _cnec_sentence(tokens: list[str], tagged: list[_Tagged]) -> Sentence:
         start = starts[entity.first]
         end = starts[entity.last - 1] + len(tokens[entity.last - 1])
         spans.append(SourceSpan(kind, start, end))
-    return Sentence(" ".join(tokens), tuple(spans), tuple(unmapped))
+    return Sentence(text, tuple(spans), tuple(unmapped))
 
 
 def _cnec_covered(entity: _Tagged) -> bool:
@@ -316,7 +312,7 @@ def read_cnec(directory: Path, split: str, form: TextForm) -> list[list[Sentence
     path = directory / "Czech_Named_Entity_Corpus_2.0" / "cnec2.0" / "data" / "plain"
     text = (path / f"named_ent_{split}.txt").read_text(encoding="utf-8")
     sentences = [parse_cnec_line(line) for line in text.splitlines() if line.strip()]
-    return [[*chunk] for chunk in _chunks(sentences, SENTENCES_PER_PAGE)]
+    return list(_chunks(sentences, SENTENCES_PER_PAGE))
 
 
 # --- UNER -------------------------------------------------------------------
@@ -362,7 +358,7 @@ def parse_iob2(text: str, form: TextForm = TextForm.WRITTEN) -> list[list[Senten
     finish()
     if not written:
         sentences = [sentence for document in documents for sentence in document]
-        return [*_chunks(sentences, SENTENCES_PER_PAGE)]
+        return list(_chunks(sentences, SENTENCES_PER_PAGE))
     return [document for document in documents if document]
 
 
@@ -408,7 +404,12 @@ def _place_tokens(tokens: list[str], written: str | None) -> tuple[str, list[int
             position = found + len(token)
         else:
             return written, starts
-    starts = []
+    return _joined(tokens)
+
+
+def _joined(tokens: list[str]) -> tuple[str, list[int]]:
+    """Join tokens by single spaces; return the text and each token's offset in it."""
+    starts: list[int] = []
     offset = 0
     for token in tokens:
         starts.append(offset)

@@ -144,9 +144,9 @@ def _grown(box: tuple[float, float, float, float], margin: float) -> tuple[float
 
 
 def _overlap(first: Sequence[float], second: Sequence[float]) -> bool:
-    return min(first[2], second[2]) > max(first[0], second[0]) and min(first[3], second[3]) > max(
-        first[1], second[1]
-    )
+    across = min(first[2], second[2]) > max(first[0], second[0])
+    down = min(first[3], second[3]) > max(first[1], second[1])
+    return across and down
 
 
 def margins_markdown(results: dict[str, Any]) -> str:

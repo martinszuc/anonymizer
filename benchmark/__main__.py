@@ -31,11 +31,7 @@ def main(argv: list[str] | None = None) -> int:
         default=",".join(SYSTEMS),
         help=f"comma-separated systems (default: {','.join(SYSTEMS)})",
     )
-    run_parser.add_argument(
-        "--resource-root",
-        type=Path,
-        help="directory holding models/ (default: as for the CLI's --resource-root)",
-    )
+    _add_resource_root(run_parser)
     ocr_parser = commands.add_parser("ocr", help="score OCR engines on degraded scans")
     ocr_parser.add_argument("--out", type=Path, required=True, help="directory for results")
     ocr_parser.add_argument(
@@ -49,11 +45,7 @@ def main(argv: list[str] | None = None) -> int:
     ocr_parser.add_argument(
         "--system", default="rules", choices=SYSTEMS, help="detector system (default: rules)"
     )
-    ocr_parser.add_argument(
-        "--resource-root",
-        type=Path,
-        help="directory holding models/ (default: as for the CLI's --resource-root)",
-    )
+    _add_resource_root(ocr_parser)
     margin_parser = commands.add_parser(
         "ocr-margin", help="measure how far OCR boxes must grow to cover their words"
     )
@@ -69,11 +61,7 @@ def main(argv: list[str] | None = None) -> int:
         default=",".join(str(margin) for margin in MARGINS),
         help="comma-separated shares of a box's height (default: %(default)s)",
     )
-    margin_parser.add_argument(
-        "--resource-root",
-        type=Path,
-        help="directory holding models/ (default: as for the CLI's --resource-root)",
-    )
+    _add_resource_root(margin_parser)
     probe_parser = commands.add_parser(
         "ocr-probe", help="read one PDF with OCR engines and report counts only"
     )
@@ -87,11 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     probe_parser.add_argument(
         "--truth", type=Path, help="JSON list of each page's expected text, null to skip a page"
     )
-    probe_parser.add_argument(
-        "--resource-root",
-        type=Path,
-        help="directory holding models/ (default: as for the CLI's --resource-root)",
-    )
+    _add_resource_root(probe_parser)
     history_parser = commands.add_parser("history", help="draw charts from several runs")
     history_parser.add_argument("results", type=Path, nargs="+", help="results.json files")
     history_parser.add_argument("--out", type=Path, required=True, help="directory for charts")
@@ -151,6 +135,14 @@ def main(argv: list[str] | None = None) -> int:
     (args.out / "results.md").write_text(report, encoding="utf-8")
     print(report)
     return 0
+
+
+def _add_resource_root(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--resource-root",
+        type=Path,
+        help="directory holding models/ (default: as for the CLI's --resource-root)",
+    )
 
 
 def _names(listed: str) -> tuple[str, ...]:

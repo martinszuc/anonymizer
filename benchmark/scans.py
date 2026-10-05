@@ -29,6 +29,9 @@ Corners = tuple[tuple[float, float], tuple[float, float], tuple[float, float], t
 # Grey levels below this are ink; the scans are black text on white.
 INK_LEVEL = 128
 
+# A pixel changed by more grey levels than this no longer shows what it did.
+_CHANGED_LEVELS = 64
+
 
 @dataclass(frozen=True)
 class TruthWord:
@@ -170,10 +173,6 @@ class OracleEngine:
             )
             if _unchanged(original, crop)
         ]
-
-
-# A pixel changed by more grey levels than this no longer shows what it did.
-_CHANGED_LEVELS = 64
 
 
 def _crop(levels: np.ndarray, box: tuple[float, float, float, float]) -> np.ndarray:

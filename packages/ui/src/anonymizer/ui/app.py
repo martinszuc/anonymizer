@@ -22,11 +22,12 @@ from pathlib import Path
 from typing import Any
 
 import webview
+from anonymizer.core.ingest import OCR_ENGINES
 from anonymizer.core.language import AUTO
 from anonymizer.core.log import LEVEL_NAMES, configure_logging, resolve_level, step
 from anonymizer.core.resources import resolve_resource_root
 from anonymizer.ui import __version__
-from anonymizer.ui.api import LANGUAGES, ReviewApi, ReviewError
+from anonymizer.ui.api import DEFAULT_OCR_ENGINE, LANGUAGES, ReviewApi, ReviewError
 from webview.dom import DOMEventHandler
 
 log = logging.getLogger(__name__)
@@ -143,8 +144,8 @@ class WindowApi:
     def choose_pdf(self, options: Any = None) -> dict[str, Any] | None:
         """Ask for a PDF and open it; None if the reviewer cancelled.
 
-        `options` is `{language, propagate, use_model, use_ocr}`, all optional; see
-        `ReviewApi.open_pdf`.
+        `options` is `{language, propagate, use_model, use_ocr, ocr_engine}`, all
+        optional; see `ReviewApi.open_pdf`.
         """
         path = self._ask(webview.FileDialog.OPEN, _PDF_TYPES)
         if path is None:
@@ -269,9 +270,9 @@ class WindowApi:
 
     def _open(self, path: str, options: Any) -> dict[str, Any]:
         self._refused_export = None
-        language, propagate, use_model, use_ocr = _open_options(options)
+        language, propagate, use_model, ocr_engine = _open_options(options)
         payload = self._review.open_pdf(
-            path, language, propagate, use_model, self._progress, use_ocr
+            path, language, propagate, use_model, self._progress, ocr_engine
         )
         return self._titled(payload)
 
@@ -350,8 +351,12 @@ def _ignore(_event: dict[str, Any]) -> None:
     """A drag over the page needs a handler only so the drop is allowed."""
 
 
-def _open_options(options: Any) -> tuple[str | None, bool, bool, bool]:
-    """Read `{language, propagate, use_model, use_ocr}` from the page, which is not trusted."""
+def _open_options(options: Any) -> tuple[str | None, bool, bool, str | None]:
+    """Read the options for opening a PDF from the page, which is not trusted.
+
+    `{language, propagate, use_model, use_ocr, ocr_engine}`; the engine is returned only
+    when OCR is asked for.
+    """
     if options is None:
         options = {}
     if not isinstance(options, dict):
@@ -361,11 +366,15 @@ def _open_options(options: Any) -> tuple[str | None, bool, bool, bool]:
     if language is not None and language != AUTO and language not in LANGUAGES:
         msg = f"unknown language {language!r}"
         raise ReviewError(msg)
+    ocr_engine = options.get("ocr_engine", DEFAULT_OCR_ENGINE)
+    if not isinstance(ocr_engine, str) or ocr_engine not in OCR_ENGINES:
+        msg = f"unknown OCR engine {ocr_engine!r}"
+        raise ReviewError(msg)
     return (
         language,
         bool(options.get("propagate", True)),
         bool(options.get("use_model", False)),
-        bool(options.get("use_ocr", False)),
+        ocr_engine if options.get("use_ocr", False) else None,
     )
 
 
@@ -389,8 +398,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--ocr",
-        action="store_true",
-        help="read scanned pages of the PDF given here with OCR (uv sync --group ocr-onnxtr)",
+        nargs="?",
+        const=DEFAULT_OCR_ENGINE,
+        choices=sorted(OCR_ENGINES),
+        metavar="ENGINE",
+        help=f"read scanned pages of the PDF given here with OCR: {', '.join(sorted(OCR_ENGINES))} "
+        f"(default {DEFAULT_OCR_ENGINE}; install with uv sync --group ocr-<engine>)",
     )
     parser.add_argument(
         "--resource-root",
@@ -445,7 +458,9 @@ def main(argv: list[str] | None = None) -> int:
     title = "Anonymizer"
     if args.input is not None:
         try:
-            opened = review.open_pdf(str(args.input), args.lang, True, args.ner, use_ocr=args.ocr)
+            opened = review.open_pdf(
+                str(args.input), args.lang, True, args.ner, ocr_engine=args.ocr
+            )
             title = f"{opened['name']} — {title}"
         except ReviewError as error:
             print(f"anonymize-ui: error: {error}", file=sys.stderr)

@@ -346,7 +346,12 @@ class TestHomeScreenCalls:
 
     @pytest.mark.parametrize(
         ("options", "message"),
-        [("cs", "must be an object"), ({"language": "xx"}, "unknown language 'xx'")],
+        [
+            ("cs", "must be an object"),
+            ({"language": "xx"}, "unknown language 'xx'"),
+            ({"use_ocr": True, "ocr_engine": "tesseract"}, "unknown OCR engine 'tesseract'"),
+            ({"use_ocr": True, "ocr_engine": ["onnxtr"]}, "unknown OCR engine"),
+        ],
     )
     def test_options_from_the_page_are_checked(self, pdf: Path, options: Any, message: str):
         api = attached(StandInWindow(answers=[(str(pdf),)]))
@@ -432,11 +437,15 @@ class TestMainOptions:
 class TestOcr:
     @pytest.fixture
     def scan(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-        """A scan of `LINES`, with the ink-reading stand-in in place of the engine."""
+        """A scan of `LINES`, with the ink-reading stand-in in place of each engine."""
         original = load_document(write_pdf(tmp_path / "original.pdf", [LINES]))
-        monkeypatch.setattr(
-            api_module, "load_ocr_engine", lambda name, root: InkReadingEngine.reading(original)
-        )
+
+        def load(name: str, root: Path) -> InkReadingEngine:
+            engine = InkReadingEngine.reading(original)
+            engine.name = name
+            return engine
+
+        monkeypatch.setattr(api_module, "load_ocr_engine", load)
         return write_scanned_pdf(tmp_path / "scan.pdf", [LINES])
 
     def test_the_page_asks_for_ocr_and_is_told_it_loads(self, scan: Path):
@@ -459,11 +468,19 @@ class TestOcr:
         session = tmp_path / "review.json"
         window = StandInWindow(answers=[(str(scan),), str(session), (str(session),), (str(scan),)])
         api = attached(window)
-        api.choose_pdf({"language": "cs", "use_ocr": True})
+        api.choose_pdf({"language": "cs", "use_ocr": True, "ocr_engine": "kraken"})
         assert api.save_session_as() is True
         payload = api.choose_session()
         assert payload is not None
         assert payload["pages"][0]["raster_dpi"] == 300
+        assert api._review._open is not None
+        assert api._review._open.document.ocr_engine == "kraken"
+
+    def test_the_engine_is_left_out_unless_ocr_is_asked_for(self, scan: Path):
+        window = StandInWindow(answers=[(str(scan),)])
+        payload = attached(window).choose_pdf({"language": "cs", "ocr_engine": "kraken"})
+        assert payload is not None
+        assert payload["pages"][0]["raster_dpi"] is None
 
     def test_command_line_reads_the_given_scan(
         self, stand_in: StandInWebview, scan: Path, tmp_path: Path
@@ -471,6 +488,14 @@ class TestOcr:
         assert main([str(scan), "--lang", "cs", "--ocr", "--resource-root", str(tmp_path)]) == 0
         document = stand_in.created["js_api"].current_document()
         assert document["pages"][0]["raster_dpi"] == 300
+        assert stand_in.created["js_api"]._review._open.document.ocr_engine == "onnxtr"
+
+    def test_command_line_chooses_the_engine(
+        self, stand_in: StandInWebview, scan: Path, tmp_path: Path
+    ):
+        arguments = [str(scan), "--ocr", "kraken", "--resource-root", str(tmp_path)]
+        assert main(arguments) == 0
+        assert stand_in.created["js_api"]._review._open.document.ocr_engine == "kraken"
 
 
 class TestLogging:

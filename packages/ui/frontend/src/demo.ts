@@ -228,19 +228,69 @@ const CHECK_LAYERS: ExportProgress["step"][] = [
 /** Kept in memory only, as a stand-in for the settings file. */
 let leakCheck = true;
 
-/**
- * The home screen's model and OCR states can be tried with `?model=not_installed`,
- * `?model=files_missing`, `?ocr=not_installed` or `?ocr=files_missing` in the address.
- */
-/** What the demo has "downloaded" this session. */
+/** What the demo has "downloaded" this session, by feature. */
 const downloaded = new Set<string>();
 /** Set once the reviewer "chose" another folder, which starts empty. */
 let emptyFolder = false;
 let modelsFolder = "/Users/demo/Library/Application Support/anonymizer/models";
 
+interface DemoFeature {
+  title: string;
+  description: string;
+  group: string;
+  models: [string, string, number][];
+}
+
+const DEMO_MODELS: Record<string, DemoFeature> = {
+  names: {
+    title: "Names and addresses",
+    description: "Finds names and addresses the rules cannot.",
+    group: "ner",
+    models: [
+      ["mdeberta-v3-base-tokenizer", "mDeBERTa-v3 base: config and tokenizer", 4_309_802],
+      ["gliner-multi-v2.1", "GLiNER multilingual v2.1", 1_155_830_112],
+    ],
+  },
+  "ocr-onnxtr": {
+    title: "Scanned pages: OnnxTR",
+    description: "Fast. Reads printed text, not handwriting.",
+    group: "ocr-onnxtr",
+    models: [
+      ["onnxtr-fast-base", "OnnxTR FAST base: text detection", 42_343_230],
+      ["onnxtr-parseq-multilingual-v1", "OnnxTR PARSeq multilingual v1: text recognition", 96_713_181],
+    ],
+  },
+  "ocr-kraken": {
+    title: "Scanned pages: kraken",
+    description: "Also reads handwriting and misreads print less, but takes about four times as long.",
+    group: "ocr-kraken",
+    models: [
+      ["kraken-blla", "kraken BLLA: baseline and region segmentation", 5_047_020],
+      ["kraken-ppocr-v6-medium", "PP-OCRv6 medium for kraken: handwritten and printed line recognition", 63_779_644],
+    ],
+  },
+};
+
+/** The demo's OCR engines: their name, title and feature. */
+const DEMO_ENGINES = [
+  { name: "onnxtr", title: "OnnxTR", feature: "ocr-onnxtr" },
+  { name: "kraken", title: "kraken", feature: "ocr-kraken" },
+];
+
+/**
+ * A feature's state. The home screen's states can be tried in the address: `?model=`,
+ * `?ocr=` (OnnxTR) or `?kraken=`, each `ready`, `not_installed` or `files_missing`.
+ * kraken starts with its files missing, so both kinds of engine row show.
+ */
+function featureState(feature: string): ModelState {
+  if (downloaded.has(feature)) return "ready";
+  if (emptyFolder) return "files_missing";
+  if (feature === "names") return requestedState("model", "ready");
+  return feature === "ocr-onnxtr" ? requestedState("ocr", "ready") : requestedState("kraken", "files_missing");
+}
+
 function demoStatus(): AppStatus {
-  const state = downloaded.has("names") ? "ready" : emptyFolder ? "files_missing" : requestedState("model");
-  const ocrState = downloaded.has("ocr") ? "ready" : emptyFolder ? "files_missing" : requestedState("ocr");
+  const state = featureState("names");
   return {
     version: "demo",
     models_folder: modelsFolder,
@@ -254,41 +304,32 @@ function demoStatus(): AppStatus {
       missing: state === "files_missing" ? ["mdeberta-v3-base-tokenizer", "gliner-multi-v2.1"] : [],
     },
     ocr: {
-      engine: "onnxtr",
-      state: ocrState,
-      missing: ocrState === "files_missing" ? ["onnxtr-fast-base", "onnxtr-parseq-multilingual-v1"] : [],
+      default: "onnxtr",
+      engines: DEMO_ENGINES.map(({ name, title, feature }) => {
+        const engineState = featureState(feature);
+        return {
+          name,
+          title,
+          description: DEMO_MODELS[feature]?.description ?? "",
+          feature,
+          state: engineState,
+          missing: engineState === "files_missing" ? (DEMO_MODELS[feature]?.models.map(([id]) => id) ?? []) : [],
+          install_command: `uv sync --group ${feature}`,
+        };
+      }),
     },
     settings: { leak_check: leakCheck },
   };
 }
 
-const DEMO_MODELS: Record<string, { title: string; group: string; models: [string, string, number][] }> = {
-  names: {
-    title: "Names and addresses",
-    group: "ner",
-    models: [
-      ["mdeberta-v3-base-tokenizer", "mDeBERTa-v3 base: config and tokenizer", 4_309_802],
-      ["gliner-multi-v2.1", "GLiNER multilingual v2.1", 1_155_830_112],
-    ],
-  },
-  ocr: {
-    title: "Scanned pages",
-    group: "ocr-onnxtr",
-    models: [
-      ["onnxtr-fast-base", "OnnxTR FAST base: text detection", 42_343_230],
-      ["onnxtr-parseq-multilingual-v1", "OnnxTR PARSeq multilingual v1: text recognition", 96_713_181],
-    ],
-  },
-};
-
 function demoModels(): FeatureModels[] {
-  const status = demoStatus();
   return Object.entries(DEMO_MODELS).map(([feature, entry]) => {
-    const state = feature === "names" ? status.model.state : status.ocr.state;
+    const state = featureState(feature);
     const stored = state !== "files_missing";
     return {
       feature,
       title: entry.title,
+      description: entry.description,
       installed: state !== "not_installed",
       install_command: `uv sync --group ${entry.group}`,
       missing_bytes: stored ? 0 : entry.models.reduce((sum, [, , size]) => sum + size, 0),
@@ -307,9 +348,11 @@ function demoModels(): FeatureModels[] {
   });
 }
 
-function requestedState(parameter: string): ModelState {
+function requestedState(parameter: string, fallback: ModelState): ModelState {
   const requested = new URLSearchParams(window.location.search).get(parameter);
-  return requested === "not_installed" || requested === "files_missing" ? requested : "ready";
+  return requested === "ready" || requested === "not_installed" || requested === "files_missing"
+    ? requested
+    : fallback;
 }
 
 /** Run through an export's steps, as Python tells them. */
@@ -375,20 +418,23 @@ export function demoBridge(): ReviewBridge {
   const contentOf = (index: number) =>
     pageContent(index === 0 ? PAGE_ONE : current?.pages[1]?.raster_dpi ? PAGE_TWO : []);
   let dropped = false;
-  let ocrLoaded = false;
+  // OCR engines stay loaded for the session, as in Python.
+  const loadedEngines = new Set<string>();
   // The last export the leak check refused, which the reviewer may save anyway.
   let refused = false;
   const open = async (options?: OpenOptions) => {
-    if (options?.use_ocr && !ocrLoaded) {
+    const engine = options?.use_ocr ? options.ocr_engine : null;
+    if (engine && !loadedEngines.has(engine)) {
       progress("loading_ocr");
       await pause();
-      ocrLoaded = true;
+      loadedEngines.add(engine);
     }
     progress("reading");
     await pause();
-    if (options?.use_ocr) {
+    if (engine) {
       progress("ocr", 0, 1);
-      await pause();
+      // kraken takes about four times as long per page.
+      for (let wait = 0; wait < (engine === "kraken" ? 4 : 1); wait += 1) await pause();
       progress("ocr", 1, 1);
     }
     if (options?.use_model) {

@@ -9,21 +9,21 @@ Visual design (tokens, components, box states) lives in
 [`packages/ui/frontend/DESIGN.md`](../packages/ui/frontend/DESIGN.md);
 package usage in [`packages/ui/README.md`](../packages/ui/README.md).
 
-## Status (after the export sheets and Settings, 2026-10-04)
+## Status (after choosing the OCR engine, 2026-10-06)
 
 Works, for PDFs with a text layer and for scanned pages read by OCR:
 
 - **Home screen** (no document open): a drop area with *Open PDF…*, the
   detection options that apply to the next PDF (language: Auto, the default,
   recognised from the text after reading, falling back to every rule when
-  unclear; All; or one with its own rules; the name model on or off; marking
-  repeats), the model's
-  state (ready, not installed, files missing with the fetch command), and
+  unclear; All; or one with its own rules; the name model on or off; scanned
+  pages on or off, and the OCR engine; marking repeats), the models'
+  states (ready, not installed, files missing with the fetch command), and
   *Continue a saved review…*. The options live for the session; the model
   is on by default when it is ready.
 - Open a PDF from the dialog, by **dropping it on the window** (on the home
   screen or over an open document), or `anonymize-ui file.pdf --lang cs
-  [--ner]`. An **Opening screen** shows what is running now above a progress
+  [--ner] [--ocr [kraken]]`. An **Opening screen** shows what is running now above a progress
   bar, page by page for OCR and detection ("3 of 12 pages"), and a sweeping
   bar while a model loads (the names model's first load takes about ten
   seconds; models stay loaded for the session), with the steps below.
@@ -108,22 +108,33 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   with everything under it on export (text, the drawings it touches, image
   pixels); overlapping regions are fine.
 - **Models** (*Manage models…* on the home screen): a sheet listing what
-  each feature needs (names and addresses: GLiNER and its tokenizer; scanned
-  pages: OnnxTR's two models) with size, licence, languages, source and
+  each feature needs, with a one-line note on what it is for (names and
+  addresses: GLiNER and its tokenizer; scanned pages with OnnxTR: its two
+  models; scanned pages with kraken: BLLA and PP-OCRv6) with size, licence,
+  languages, source and
   whether the files are stored, and a *Download* per feature. Files come from
   the catalog's official URLs, stream with a progress bar and are kept only
-  if their checksums match (`resources.fetch_with_requirements`); both features
-  can download at once, since they share no model. When one finishes, its
-  feature's switch turns on. The sheet shows the folder models are stored in;
+  if their checksums match (`resources.fetch_with_requirements`); features
+  download at once, since they share no model. When one finishes, its
+  feature's switch turns on; an OCR engine's download also chooses that
+  engine. The sheet shows the folder models are stored in;
   *Change…* picks another in a folder dialog, kept in a settings file for later
   runs (`resources.location`, which the CLI and the benchmark follow too); files
   already there are not moved, models loaded from the old folder are dropped, and
   a feature whose models the new folder lacks turns off. A missing
   Python package is shown with its `uv sync --group …` command: the window
   never installs packages, as nothing but a model download may use the network.
-- **Scanned pages**: the home screen's *Scanned pages* switch (on when the
-  OCR engine is ready, with the same three states as the model) reads pages
-  without a usable text layer with OnnxTR on open. Such a page shows a quiet
+- **Scanned pages**: the home screen's *Scanned pages* switch (on when an
+  OCR engine is ready) reads pages without a usable text layer on open, with
+  the engine chosen under it: **OnnxTR** (the default: fast, print only) or
+  **kraken** (also handwriting, fewer misread letters on print, about four
+  times slower; `docs/findings.md`). Each engine is a row with its
+  description; one that cannot read is shown but not selectable, with why:
+  not installed (its `uv sync --group ocr-<engine>` command; kraken installs
+  on macOS and Linux x86-64 only) or model files missing. The rows show while
+  the switch is on, or when no engine is ready. The choice lasts the session;
+  a choice whose engine stops being ready (another models folder) moves to a
+  ready one. Each engine is loaded on first use and kept. Such a page shows a quiet
   "read by OCR" note; its boxes are OCR's, grown by a margin. Export passes
   the engine to the leak check, which re-reads the redacted page, and asks
   for consent only for scans OCR did not read (they keep the warning). A
@@ -138,8 +149,7 @@ photographs it on every run (see *Window tour*); its first runs are the first
 time the window opens there.
 
 Not yet: resizing a box, changing options on an open
-document, remembered preferences, choosing an OCR engine (OnnxTR is offered;
-kraken, which reads handwriting, is CLI-only so far).
+document, remembered preferences, mixing OCR engines within one document.
 See *Backlog*.
 
 ## Architecture
@@ -164,7 +174,7 @@ frontend/src/components  Toolbar, Sidebar, PageView, EmptyState, Toasts, control
 | `packages/ui/src/anonymizer/ui/app.py` | Window creation, file dialogs, what the window loads (build, `--dev-server`, or a "not built" notice). |
 | `frontend/src/types.ts` | TypeScript mirror of the payloads `api.py` returns. |
 | `frontend/src/bridge.ts` | The method list the page may call; waits for `pywebviewready`; falls back to `demo.ts` in a plain browser under `npm run dev`. |
-| `frontend/src/review.ts` | Pure review rules (toggle, grouping, summary, render resolution, zoom). Unit-tested. |
+| `frontend/src/review.ts` | Pure review rules (toggle, grouping, summary, render resolution, zoom, which OCR engine to offer). Unit-tested. |
 | `frontend/src/pageImages.ts` | Page image cache per document and resolution. |
 | `frontend/src/selection.ts` | Pure word-selection rules (hit test, nearest word, range, line highlight, type guess). Unit-tested in `selection.test.ts`. |
 | `frontend/src/pageWords.ts` | Page word cache per document, for selecting missed text. |
@@ -180,7 +190,7 @@ frontend/src/components  Toolbar, Sidebar, PageView, EmptyState, Toasts, control
 ```
 DocumentInfo { name, language, language_recognised, pages: PageInfo[], entities: EntityInfo[], surfaces: SurfaceInfo[] }
                 # language: what detection ran with, null = every rule; language_recognised: from the text, not chosen
-FeatureModels { feature, title, installed, install_command, missing_bytes,
+FeatureModels { feature, title, description, installed, install_command, missing_bytes,
                 models: { id, name, uses, licence, languages, source, version, size,
                           state: present | partial | absent }[] }   # requirements first
 PageInfo     { index, width, height, has_text_layer, raster_dpi }  # points; raster_dpi null unless OCR read it
@@ -194,19 +204,24 @@ SurfaceInfo  { id, kind, value, page_index, box | null }
 kept, not_reviewed, hidden_removed, pages_without_text: number[] (1-based scans OCR did not read),
 leak_check: passed | failed | off, leaks: { layer, where, page: number | null (1-based), text,
 entity_id: string | null, kind: text | under_box | leftover }[] }`; nothing was
-written unless `written`. `AppStatus` carries `settings: { leak_check }`.
+written unless `written`. `AppStatus` carries `settings: { leak_check }` and
+`ocr: { default, engines: OcrEngineStatus[] }`, one per `ingest.OCR_ENGINES` entry in
+its order: `{ name, title, description, feature, state: ready | not_installed |
+files_missing, missing, install_command }` (`feature` is its key for `download_models`).
+The engine's title and description come from `OCR_CHOICES` in `api.py`, which must
+name every engine the core offers (a test checks).
 
 Methods the page calls (all return promises in JS):
 
 | Method | Returns | Notes |
 |---|---|---|
-| `status()` | `AppStatus` | version, languages with their own rules, `models_folder`, the states of the model and of OCR (`ocr: {engine, state, missing}`), `settings`; loads neither |
+| `status()` | `AppStatus` | version, languages with their own rules, `models_folder`, the state of the model and of each OCR engine (`ocr: {default, engines}`), `settings`; loads nothing |
 | `set_leak_check(enabled)` | `AppStatus` | turns the leak check of later exports on or off, kept in the settings file; only a boolean is accepted |
 | `choose_models_folder()` | `AppStatus \| null` | folder dialog; stores models there from now on (settings file); null = cancelled; rejects while a download runs |
 | `models()` | `FeatureModels[]` | each feature's models and whether they are stored; nothing is hashed |
-| `download_models(feature)` | `FeatureModels[]` | `names` or `ocr`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while one of its models is already downloading or when a checksum fails |
+| `download_models(feature)` | `FeatureModels[]` | `names`, `ocr-onnxtr` or `ocr-kraken`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while one of its models is already downloading or when a checksum fails |
 | `current_document()` | `DocumentInfo \| null` | on start: a PDF given on the command line |
-| `choose_pdf(options)` | `DocumentInfo \| null` | options `{language, propagate, use_model, use_ocr}`, checked in Python (`language`: a code, `"auto"` or null); null = cancelled |
+| `choose_pdf(options)` | `DocumentInfo \| null` | options `{language, propagate, use_model, use_ocr, ocr_engine}`, checked in Python (`language`: a code, `"auto"` or null; `ocr_engine`: a key of `OCR_ENGINES`, OnnxTR when absent, used only with `use_ocr`); null = cancelled |
 | `open_dropped(options)` | `DocumentInfo \| null` | opens the PDF Python kept from the last drop; null if none |
 | `close_document()` | `None` | forgets the document, window title back to "Anonymizer" |
 | `add_region(page_index, x0, y0, x1, y1)` | `EntityInfo` | points, corners in any order; clipped to the page; `manual`, `confirmed` |
@@ -421,7 +436,7 @@ display (the script in a Linux container), not your desktop.
 | `Document.add_region`, `Document.remove_entity` | drawing and removing a region |
 | `pipeline.add_finding` (`Document.add_span`, `propagate_occurrences(document, marked)`), `pipeline.remove_finding` | adding a missed word with its repeats, and removing it with the repeats only it explained |
 | `redact.export_redacted` | export: temporary file, `redact_pdf`, `find_leaks`, rename only when clean; the CLI's `redact` uses the same function |
-| `ingest.load_ocr_engine`, `ocr_engine_installed`, `missing_ocr_files` | OCR on open, loaded once per session; its state on the home screen without loading it |
+| `ingest.OCR_ENGINES`, `load_ocr_engine`, `ocr_engine_installed`, `missing_ocr_files` | the engines offered, each loaded once per session on first use; their states on the home screen without loading them |
 | `ingest.pages_needing_ocr`, `Page.raster_dpi` | the page warning and export consent for scans OCR did not read; the "read by OCR" note |
 | `session.session_ocr_engine` | reopening a review of scans with the engine that read them |
 | `resources.load_catalog`, `fetch_with_requirements`, `resource_status` | the Models sheet: listing, verified download, stored state |
@@ -447,9 +462,10 @@ In suggested order. Each item names where it plugs in.
 6. **Undo / redo** of decisions (Cmd/Ctrl+Z), kept in the frontend as a
    stack of `set_review` calls.
 7. **Models sheet, next steps:** cancel a running download; verify stored
-   files on request (`verify_resource`, hashing takes seconds per GB); choose
-   between OCR engines: kraken (`ingest/kraken.py`, handwriting) is in the
-   catalog; the window offers only `OCR_ENGINE` in `api.py`.
+   files on request (`verify_resource`, hashing takes seconds per GB).
+   **Done:** ~~choose between OCR engines~~ (OnnxTR or kraken on the home
+   screen). Still open: mixing engines within one document (kraken for a
+   handwritten page, OnnxTR for the rest).
 8. **OCR quality in review:** show OCR's confidence per word and flag
     low-confidence words (an `@` read as `(m` hides an email from the rules),
     and offer a second engine once RapidOCR or EasyOCR is in the catalog.

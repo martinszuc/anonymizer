@@ -95,8 +95,9 @@ review mode; preview shows the output unchanged.
 screen. Under the intro, a folder row (`--fill`, folder icon, the models folder
 in `--font-mono` footnote cut off with an ellipsis, full path on hover,
 *Change…* on the right, disabled while a download runs). Then one section per
-feature (`--fill` card), its state on the right
-(*Ready* in `--keep`, otherwise `--label-2`), each model as a name over a
+feature (`--fill` card; one per OCR engine), its state on the right
+(*Ready* in `--keep`, otherwise `--label-2`), a footnote line in `--label-2`
+saying what the feature is for, each model as a name over a
 footnote line (size · licence · languages · source host). A missing Python
 package shows a `--warning` line with the install command in `--font-mono`.
 *Download <size>* is the primary button; while it runs, a progress bar
@@ -160,6 +161,15 @@ control, setting switches); *Manage models…* and *Settings…* as plain button
 under it; *Continue a saved review…* as a plain button; a
 footer "Works offline · version". The model's row says why
 its switch is disabled and what to run.
+
+**Choices under an option** (`.option-choices`, the OCR engines under *Scanned
+pages*). Shown while the option is on, or when no choice is ready (so the reasons
+show). Part of the option's row: no hairline above, indented by `--space-4` past
+the row's text, `--space-3` apart, a hairline below. Each choice is a native
+radio (`accent-color: --accent`) beside the name (weight 500) and a one-line
+description in `--label-2`. One that cannot be used is disabled, its name in
+`--label-2`, with a second note saying why (not installed with its command in
+`--font-mono`, or model files missing).
 
 **Task progress** (`TaskProgress`, while a PDF opens and while it exports). A status line (what is running
 now, weight 500; "3 of 12 pages" in `--label-2` on the right when the step

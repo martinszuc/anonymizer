@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 
 import { gentle } from "../motion";
 import { shortcut } from "../platform";
-import type { AppStatus, OpenOptions } from "../types";
+import { ocrReady } from "../review";
+import type { AppStatus, OcrEngineStatus, OcrStatus, OpenOptions } from "../types";
 import { Button } from "./Button";
 import { SegmentedControl } from "./SegmentedControl";
 import { Switch } from "./Switch";
@@ -36,7 +37,8 @@ export function Home({
 }: HomeProps) {
   const languages = status?.languages ?? [];
   const modelReady = status?.model.state === "ready";
-  const ocrReady = status?.ocr.state === "ready";
+  const ocrAvailable = status?.ocr.engines.some((engine) => engine.state === "ready") ?? false;
+  const ocrOn = options.use_ocr && status !== null && ocrReady(status.ocr, options.ocr_engine);
   return (
     <motion.main
       className="home"
@@ -97,15 +99,22 @@ export function Home({
               onChange={(checked) => onOptions({ ...options, use_model: checked })}
             />
           </OptionRow>
-          <OptionRow label="Scanned pages" note={ocrNote(status)}>
+          <OptionRow label="Scanned pages" note={ocrNote(status, ocrAvailable)}>
             <Switch
-              checked={options.use_ocr && ocrReady}
-              disabled={!ocrReady}
+              checked={ocrOn}
+              disabled={!ocrAvailable}
               tone="setting"
               label="Read scanned pages with OCR"
               onChange={(checked) => onOptions({ ...options, use_ocr: checked })}
             />
           </OptionRow>
+          {status && (ocrOn || !ocrAvailable) && (
+            <OcrEngines
+              ocr={status.ocr}
+              chosen={options.ocr_engine}
+              onChoose={(name) => onOptions({ ...options, ocr_engine: name })}
+            />
+          )}
           <OptionRow
             label="Mark repeats"
             note="Also mark every other place the same text appears, such as a name found once."
@@ -153,24 +162,51 @@ export function OptionRow({ label, note, children }: { label: string; note: Reac
   );
 }
 
-/** What OCR does here, or how to make it available. */
-function ocrNote(status: AppStatus | null): ReactNode {
-  switch (status?.ocr.state) {
-    case "ready":
-      return "Reads the text of scanned pages, so they are checked and redacted too.";
-    case "not_installed":
-      return (
-        <>
-          Not installed. Install it with <code>uv sync --group ocr-{status.ocr.engine}</code>.
-        </>
-      );
-    case "files_missing":
-      return (
-        <>Model files missing: download them in Manage models.</>
-      );
-    default:
-      return "Checking…";
-  }
+/** What OCR does here; when no engine can read, the engines below say what each needs. */
+function ocrNote(status: AppStatus | null, available: boolean): ReactNode {
+  if (status === null) return "Checking…";
+  return available
+    ? "Reads the text of scanned pages, so they are checked and redacted too."
+    : "No OCR engine is ready yet. What each needs is listed below.";
+}
+
+/** The OCR engines to choose from, each with what it is for; one that cannot read says why. */
+function OcrEngines({ ocr, chosen, onChoose }: { ocr: OcrStatus; chosen: string; onChoose: (name: string) => void }) {
+  return (
+    <div className="option-choices" role="radiogroup" aria-label="OCR engine">
+      {ocr.engines.map((engine) => {
+        const ready = engine.state === "ready";
+        return (
+          <label key={engine.name} className="option-choice" data-disabled={!ready}>
+            <input
+              type="radio"
+              name="ocr-engine"
+              value={engine.name}
+              checked={ready && engine.name === chosen}
+              disabled={!ready}
+              onChange={() => onChoose(engine.name)}
+            />
+            <span className="option-text">
+              <span className="option-label">{engine.title}</span>
+              <span className="option-note">{engine.description}</span>
+              {!ready && <span className="option-note">{engineReason(engine)}</span>}
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Why an engine cannot read yet, and what to do about it. */
+function engineReason(engine: OcrEngineStatus): ReactNode {
+  return engine.state === "not_installed" ? (
+    <>
+      Not installed. Install it with <code>{engine.install_command}</code>.
+    </>
+  ) : (
+    <>Model files missing: download them in Manage models.</>
+  );
 }
 
 /** What the name model can do here, or how to make it available. */

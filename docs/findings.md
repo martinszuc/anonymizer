@@ -730,7 +730,8 @@ readable by either engine at these levels.)
   scores on three levels were identical before and after.
 - **Decision: the window keeps OnnxTR** until the email rule handles split
   addresses; kraken stays a CLI choice for handwritten pages, where OnnxTR
-  reads almost nothing.
+  reads almost nothing. (Since the split-address rules above, the window
+  offers both; OnnxTR stays its default.)
 
 ### Toolchain findings: redaction
 

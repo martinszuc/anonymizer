@@ -837,6 +837,20 @@ Verified on saved files, one probe per kind of content under a box:
   detection.
 - `Document.new_page()` detaches `Page` objects fetched before it; fixture
   builders must create pages first and fetch them afterwards.
+- **PyMuPDF's own image-to-PDF paths copy a photo's metadata into the PDF**
+  (1.28.2). `convert_to_pdf()` of an opened JPEG and `insert_image(stream=...)`
+  embed the encoded JPEG as it is, APP1 segments included: an owner, a device
+  model, a capture time (EXIF) and a GPS position (XMP) planted in a synthetic
+  photo were all in the saved bytes. Control: a PDF built from the decoded
+  pixels (`ingest.image.as_pdf`) held none of them. Images are therefore wrapped
+  from pixels only. Checked in `tests/ingest/test_image.py` (`TestWhyPillow`).
+- **PyMuPDF ignores the EXIF orientation of PNG and TIFF** (1.28.2). An image
+  opened as a document keeps its stored size whatever the tag says (control:
+  the same picture stored upright); for JPEG it applies the tag. A phone photo
+  stored sideways would be read sideways, and OCR reads nothing on it, so
+  Pillow (`ImageOps.exif_transpose`) turns every image upright first. Pillow in
+  turn applies a TIFF's orientation itself while loading it and drops the tag,
+  so a TIFF is loaded before `exif_transpose`, or it is turned twice.
 - **Base-14 fonts cannot encode Czech.** Helvetica has no `č`, `ř`, `ž`, so PDF
   test fixtures are limited to Latin-1 text and NFC handling is covered by a
   separate unit test. The MG generator must embed a font with full Czech coverage

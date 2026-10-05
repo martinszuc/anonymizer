@@ -139,7 +139,7 @@ export function Toolbar(props: ToolbarProps) {
           variant="plain"
           icon={<FolderOpen size={16} />}
           aria-label="Open"
-          title={`Open a PDF (${shortcut("O")})`}
+          title={`Open a PDF or an image (${shortcut("O")})`}
           onClick={props.onOpen}
         />
         <Button

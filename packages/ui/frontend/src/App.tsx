@@ -54,7 +54,7 @@ const MAX_FIT_SCALE = 2;
 export function App() {
   const [bridge, setBridge] = useState<ReviewBridge | null>(null);
   const [status, setStatus] = useState<AppStatus | null>(null);
-  // How the next PDF is opened; the model and OCR are on once their status says ready.
+  // How the next document is opened; the model and OCR are on once their status says ready.
   const [options, setOptions] = useState<OpenOptions>({
     language: "auto",
     propagate: true,
@@ -267,7 +267,9 @@ export function App() {
     const onRefused = (event: Event) => {
       setDragging(false);
       const name = (event as CustomEvent<string>).detail;
-      onPythonEvent.current.reportError(`Only PDF files can be opened${name ? `, not ${name}` : ""}`);
+      onPythonEvent.current.reportError(
+        `Only PDF, JPEG, PNG and TIFF files can be opened${name ? `, not ${name}` : ""}`,
+      );
     };
     const onExport = (event: Event) => {
       const progress = (event as CustomEvent<ExportProgress>).detail;
@@ -690,7 +692,7 @@ export function App() {
             </div>
             {dragging && (
               <div className="drop-overlay" aria-hidden>
-                <p>Drop to open another PDF</p>
+                <p>Drop to open another document</p>
               </div>
             )}
           </>

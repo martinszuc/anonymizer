@@ -5,7 +5,7 @@ The window shows the built frontend from `static/`, served by pywebview on
 instead, so edits reload without a rebuild.
 
 Python tells the page about things it did not ask for (a step of opening a
-PDF, a file dropped on the window) with DOM events on `window`, named
+document, a file dropped on the window) with DOM events on `window`, named
 `anonymizer:<what>`; see `frontend/src/bridge.ts`.
 """
 
@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 import webview
-from anonymizer.core.ingest import OCR_ENGINES
+from anonymizer.core.ingest import IMAGE_SUFFIXES, OCR_ENGINES, SOURCE_SUFFIXES
 from anonymizer.core.language import AUTO
 from anonymizer.core.log import LEVEL_NAMES, configure_logging, resolve_level, step
 from anonymizer.core.resources import resolve_resource_root
@@ -35,6 +35,12 @@ log = logging.getLogger(__name__)
 STATIC_INDEX = Path(__file__).parent / "static" / "index.html"
 
 _PDF_TYPES = ("PDF documents (*.pdf)",)
+# The redacted copy is always a PDF; a document to review may also be an image.
+_SOURCE_TYPES = (
+    f"Documents ({';'.join(f'*{suffix}' for suffix in SOURCE_SUFFIXES)})",
+    *_PDF_TYPES,
+    f"Images ({';'.join(f'*{suffix}' for suffix in IMAGE_SUFFIXES)})",
+)
 _SESSION_TYPES = ("Review sessions (*.json)",)
 
 _NOT_BUILT = """<!doctype html><meta charset="utf-8">
@@ -82,7 +88,7 @@ class WindowApi:
     def __init__(self, review: ReviewApi) -> None:
         self._review = review
         self._window: webview.Window | None = None
-        # A PDF dropped on the window: its path stays here, and the page only
+        # A document dropped on the window: its path stays here, and the page only
         # learns its name, so no path ever comes from the page.
         self._dropped: Path | None = None
         # The last whole percent told to the page per feature, so a download of
@@ -142,19 +148,19 @@ class WindowApi:
 
     @_logged
     def choose_pdf(self, options: Any = None) -> dict[str, Any] | None:
-        """Ask for a PDF and open it; None if the reviewer cancelled.
+        """Ask for a PDF or an image and open it; None if the reviewer cancelled.
 
         `options` is `{language, propagate, use_model, use_ocr, ocr_engine}`, all
         optional; see `ReviewApi.open_pdf`.
         """
-        path = self._ask(webview.FileDialog.OPEN, _PDF_TYPES)
+        path = self._ask(webview.FileDialog.OPEN, _SOURCE_TYPES)
         if path is None:
             return None
         return self._open(path, options)
 
     @_logged
     def open_dropped(self, options: Any = None) -> dict[str, Any] | None:
-        """Open the PDF last dropped on the window; None if there is none.
+        """Open the document last dropped on the window; None if there is none.
 
         `options` as for `choose_pdf`.
         """
@@ -173,7 +179,7 @@ class WindowApi:
 
     @_logged
     def choose_session(self) -> dict[str, Any] | None:
-        """Ask for a session file, then for the PDF it reviewed; None if cancelled.
+        """Ask for a session file, then for the document it reviewed; None if cancelled.
 
         The session stores a fingerprint rather than a path, since a path can
         itself be personal data, so the reviewer points at the original.
@@ -181,11 +187,11 @@ class WindowApi:
         session = self._ask(webview.FileDialog.OPEN, _SESSION_TYPES)
         if session is None:
             return None
-        pdf = self._ask(webview.FileDialog.OPEN, _PDF_TYPES)
-        if pdf is None:
+        source = self._ask(webview.FileDialog.OPEN, _SOURCE_TYPES)
+        if source is None:
             return None
         self._refused_export = None
-        return self._titled(self._review.open_session(pdf, session, self._progress))
+        return self._titled(self._review.open_session(source, session, self._progress))
 
     @_logged
     def save_session_as(self) -> bool:
@@ -231,7 +237,7 @@ class WindowApi:
 
     @_logged
     def page_image(self, index: int, dpi: int = 144) -> str:
-        """Render a page of the open PDF; see `ReviewApi.page_image`."""
+        """Render a page of the open document; see `ReviewApi.page_image`."""
         return self._review.page_image(index, dpi)
 
     @_logged
@@ -277,7 +283,7 @@ class WindowApi:
         return self._titled(payload)
 
     def _progress(self, step: str, done: int, total: int) -> None:
-        """Tell the page which step of opening a PDF is running, and on which page."""
+        """Tell the page which step of opening a document is running, and on which page."""
         self._notify("progress", {"step": step, "done": done, "total": total})
 
     def _export_progress(self, step: str, done: int, total: int) -> None:
@@ -310,18 +316,24 @@ class WindowApi:
         document.on("drop", DOMEventHandler(self._on_drop, prevent_default=True))
 
     def _on_drop(self, event: dict[str, Any]) -> None:
-        """Keep the first dropped PDF and tell the page its name, never its path."""
+        """Keep the first dropped PDF or image and tell the page its name, never its path.
+
+        The name's ending only picks the file; opening it reads its type from
+        the content, and refuses a file that is neither.
+        """
         files = event.get("dataTransfer", {}).get("files", [])
         paths = [Path(file["pywebviewFullPath"]) for file in files if file.get("pywebviewFullPath")]
-        pdf = next((path for path in paths if path.suffix.lower() == ".pdf"), None)
-        if pdf is None:
-            log.warning("drop refused: none of the %d dropped file(s) is a PDF", len(paths))
+        source = next((path for path in paths if path.suffix.lower() in SOURCE_SUFFIXES), None)
+        if source is None:
+            log.warning(
+                "drop refused: none of the %d dropped file(s) is a PDF or an image", len(paths)
+            )
             names = [path.name for path in paths]
             self._notify("drop-refused", names[0] if names else "")
             return
-        log.debug("PDF dropped on the window (%d file(s) in the drop)", len(paths))
-        self._dropped = pdf
-        self._notify("dropped", pdf.name)
+        log.debug("document dropped on the window (%d file(s) in the drop)", len(paths))
+        self._dropped = source
+        self._notify("dropped", source.name)
 
     def _ask(
         self, dialog: webview.FileDialog, file_types: tuple[str, ...], save_name: str = ""
@@ -383,7 +395,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="anonymize-ui", description="Review proposed redactions in a window, offline."
     )
-    parser.add_argument("input", nargs="?", type=Path, help="PDF to open")
+    parser.add_argument("input", nargs="?", type=Path, help="PDF or image to open")
     parser.add_argument(
         "--lang",
         help=(
@@ -394,7 +406,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--ner",
         action="store_true",
-        help="also run the name model on the PDF given here (install with uv sync --group ner)",
+        help="also run the name model on the document given here (install with uv sync "
+        "--group ner)",
     )
     parser.add_argument(
         "--ocr",
@@ -402,7 +415,7 @@ def build_parser() -> argparse.ArgumentParser:
         const=DEFAULT_OCR_ENGINE,
         choices=sorted(OCR_ENGINES),
         metavar="ENGINE",
-        help=f"read scanned pages of the PDF given here with OCR: {', '.join(sorted(OCR_ENGINES))} "
+        help=f"read scanned pages and images given here with OCR: {', '.join(sorted(OCR_ENGINES))} "
         f"(default {DEFAULT_OCR_ENGINE}; install with uv sync --group ocr-<engine>)",
     )
     parser.add_argument(
@@ -444,7 +457,7 @@ def main(argv: list[str] | None = None) -> int:
         argv: Argument list to parse. Defaults to `sys.argv[1:]`.
 
     Returns:
-        The exit code: 0 once the window closes, 1 if the given PDF cannot be opened.
+        The exit code: 0 once the window closes, 1 if the given file cannot be opened.
     """
     args = build_parser().parse_args(argv)
     configure_logging(resolve_level(args.log_level, debug=args.debug), file=args.log_file)

@@ -24,7 +24,7 @@ const STEPS: { step: OpenStep; label: string }[] = [
 const LISTED_AS: Partial<Record<OpenStep, OpenStep>> = { ocr: "reading" };
 
 /**
- * Progress while a PDF opens: what is happening now with a bar (page by page
+ * Progress while a document opens: what is happening now with a bar (page by page
  * where the step counts pages), above the steps still to come.
  */
 export function Opening({ name, progress, usesModel, usesOcr }: OpeningProps) {

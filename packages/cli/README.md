@@ -8,7 +8,18 @@ anonymize redact cv.pdf -o cv-redacted.pdf --session review.json
 anonymize redact cv.pdf -o cv-redacted.pdf --lang cs      # one step, no review
 anonymize check cv-redacted.pdf --source cv.pdf --session review.json
 anonymize inspect cv.pdf -o cv.html [--session review.json]  # see what was found
+anonymize redact photo.jpg -o photo-redacted.pdf --ocr onnxtr  # a photo or scanned image
 ```
+
+**Images.** Every command that takes a PDF also takes a JPEG, PNG or TIFF image (told
+apart by content, not by the file name; HEIC is refused, so export iPhone photos as
+JPEG). The image is turned upright by its EXIF orientation and wrapped into a PDF
+holding only its pixels, one page per TIFF frame; its EXIF, GPS position, XMP and
+text chunks never reach the output. The page size follows the resolution the image
+records when it is between 100 and 1200 DPI, else 300 DPI is assumed (cameras record
+72). An image has no text layer, so it needs `--ocr`: without it `detect` and
+`inspect` refuse it as having nothing to review, and `redact` as a scan OCR has not
+read. The redacted copy is always a PDF.
 
 **Language.** `--lang` picks the rules (`cs`, `sk`, `en`); without it every
 rule runs. `--lang auto` recognises the language from the text (py3langid, offline)
@@ -17,8 +28,8 @@ judge; the session records what was used.
 
 To try the commands without a real document, generate the synthetic sample
 (`uv run python scripts/make_mixed_sample.py`, see the root README, *Try it on a
-sample*). Keep `review.json` with its PDF: a session only applies to the file it
-was made from, and `check` rejects a session from a different PDF.
+sample*). Keep `review.json` with its PDF or image: a session only applies to the
+file it was made from, and `check` rejects a session from a different file.
 
 **Names and addresses.** The rules find identifiers; names need the GLiNER model.
 Install its dependencies (PyTorch; kept optional) and fetch the model once, then
@@ -47,7 +58,7 @@ keep it out of the repository and delete it like the original.
 text (a photo, a signature), add an entity
 `{"type": "region", "page_index": 0, "bboxes": [[x0, y0, x1, y1]], "source": "manual"}`
 with the box in PDF points, origin top-left. The session holds the marked snippets
-and a fingerprint of the PDF, not the whole text, and only applies to that PDF.
+and a fingerprint of the file, not the whole text, and only applies to that file.
 
 **Safety.**
 

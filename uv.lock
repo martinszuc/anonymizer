@@ -155,6 +155,7 @@ requires-dist = [{ name = "anonymizer-core", editable = "packages/core" }]
 name = "anonymizer-core"
 source = { editable = "packages/core" }
 dependencies = [
+    { name = "pillow" },
     { name = "platformdirs" },
     { name = "py3langid" },
     { name = "pymupdf" },
@@ -177,6 +178,7 @@ requires-dist = [
     { name = "gliner", marker = "extra == 'ner'", specifier = ">=0.2.29,<0.3" },
     { name = "kraken", marker = "extra == 'ocr-kraken'", specifier = ">=7.1.1,<7.2" },
     { name = "onnxtr", extras = ["cpu-headless"], marker = "extra == 'ocr-onnxtr'", specifier = ">=0.9,<0.10" },
+    { name = "pillow", specifier = ">=11" },
     { name = "platformdirs", specifier = ">=4" },
     { name = "protobuf", marker = "extra == 'ner'", specifier = ">=4" },
     { name = "py3langid", specifier = ">=0.3" },
@@ -214,7 +216,6 @@ benchmark = [
 ]
 dev = [
     { name = "numpy" },
-    { name = "pillow" },
     { name = "poethepoet" },
     { name = "pre-commit" },
     { name = "pyright" },
@@ -245,7 +246,6 @@ requires-dist = [
 benchmark = [{ name = "matplotlib", specifier = ">=3.9" }]
 dev = [
     { name = "numpy", specifier = ">=2" },
-    { name = "pillow", specifier = ">=11" },
     { name = "poethepoet", specifier = ">=0.48.0" },
     { name = "pre-commit", specifier = ">=4.0" },
     { name = "pyright", specifier = ">=1.1.390" },

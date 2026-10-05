@@ -1,4 +1,4 @@
-"""PDF text-layer extraction, non-text surfaces and OCR engine adapters."""
+"""PDF text-layer extraction, images wrapped as PDFs, non-text surfaces and OCR engine adapters."""
 
 from anonymizer.core.ingest.engines import (
     OCR_ENGINE_RESOURCES,
@@ -6,6 +6,15 @@ from anonymizer.core.ingest.engines import (
     load_ocr_engine,
     missing_ocr_files,
     ocr_engine_installed,
+)
+from anonymizer.core.ingest.image import (
+    ASSUMED_DPI,
+    IMAGE_SUFFIXES,
+    SOURCE_SUFFIXES,
+    UnsupportedFileError,
+    as_pdf,
+    image_format,
+    image_to_pdf,
 )
 from anonymizer.core.ingest.normalize import normalize_text
 from anonymizer.core.ingest.ocr import (
@@ -23,23 +32,30 @@ from anonymizer.core.ingest.pdf import (
     fingerprint,
     load_document,
     pages_needing_ocr,
-    read_pdf,
+    read_source,
     read_verified,
 )
 from anonymizer.core.ingest.surfaces import extract_surfaces
 
 __all__ = [
+    "ASSUMED_DPI",
     "DEFAULT_OCR_DPI",
+    "IMAGE_SUFFIXES",
     "OCR_BOX_MARGIN",
     "OCR_ENGINES",
     "OCR_ENGINE_RESOURCES",
+    "SOURCE_SUFFIXES",
     "OcrEngine",
     "OcrWord",
     "PageImage",
+    "UnsupportedFileError",
+    "as_pdf",
     "document_from_bytes",
     "extract_page",
     "extract_surfaces",
     "fingerprint",
+    "image_format",
+    "image_to_pdf",
     "load_document",
     "load_ocr_engine",
     "missing_ocr_files",
@@ -47,7 +63,7 @@ __all__ = [
     "ocr_engine_installed",
     "pages_needing_ocr",
     "read_page",
-    "read_pdf",
+    "read_source",
     "read_verified",
     "render_page",
 ]

@@ -35,8 +35,9 @@ packages/core/   library, no UI or CLI dependencies
   session.py     slim session files: a saved review
   pipeline.py    detection as every client runs it: build the detector, run it,
                  propagate occurrences
-  ingest/        pdf.py (text layer), surfaces.py (non-text surfaces),
-                 normalize.py (NFC, rotation), OCR engine adapters
+  ingest/        pdf.py (text layer), image.py (images wrapped as PDFs),
+                 surfaces.py (non-text surfaces), normalize.py (NFC, rotation),
+                 OCR engine adapters
   detect/        base.py (protocol, Match, RuleDetector, merge_entities),
                  document.py (pages + surfaces), propagate.py (other occurrences),
                  rule modules, NER backends

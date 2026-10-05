@@ -147,7 +147,7 @@ class TestRedact:
         other = write_pdf(tmp_path / "other.pdf", [["other", "text"]])
         output = tmp_path / "out.pdf"
         assert main(["redact", str(other), "-o", str(output), "--session", str(session)]) == 1
-        assert "different PDF" in capsys.readouterr().err
+        assert "different file" in capsys.readouterr().err
         assert not output.exists()
 
     def test_pages_without_text_stop_the_run_unless_allowed(

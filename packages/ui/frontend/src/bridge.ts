@@ -25,7 +25,7 @@ export interface ReviewBridge {
   current_document(): Promise<DocumentInfo | null>;
   /** Null when the reviewer cancelled the open dialog. */
   choose_pdf(options: OpenOptions): Promise<DocumentInfo | null>;
-  /** Opens the PDF last dropped on the window (see `DROPPED`); null if there is none. */
+  /** Opens the document last dropped on the window (see `DROPPED`); null if there is none. */
   open_dropped(options: OpenOptions): Promise<DocumentInfo | null>;
   close_document(): Promise<void>;
   choose_session(): Promise<DocumentInfo | null>;

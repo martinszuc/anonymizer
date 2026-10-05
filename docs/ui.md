@@ -11,9 +11,10 @@ package usage in [`packages/ui/README.md`](../packages/ui/README.md).
 
 ## Status (after choosing the OCR engine, 2026-10-06)
 
-Works, for PDFs with a text layer and for scanned pages read by OCR:
+Works, for PDFs with a text layer, for scanned pages read by OCR, and for
+photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
 
-- **Home screen** (no document open): a drop area with *Open PDF…*, the
+- **Home screen** (no document open): a drop area with *Open document…*, the
   detection options that apply to the next PDF (language: Auto, the default,
   recognised from the text after reading, falling back to every rule when
   unclear; All; or one with its own rules; the name model on or off; scanned
@@ -21,16 +22,21 @@ Works, for PDFs with a text layer and for scanned pages read by OCR:
   states (ready, not installed, files missing with the fetch command), and
   *Continue a saved review…*. The options live for the session; the model
   is on by default when it is ready.
-- Open a PDF from the dialog, by **dropping it on the window** (on the home
-  screen or over an open document), or `anonymize-ui file.pdf --lang cs
-  [--ner] [--ocr [kraken]]`. An **Opening screen** shows what is running now above a progress
+- Open a PDF or an image from the dialog, by **dropping it on the window** (on
+  the home screen or over an open document), or `anonymize-ui file.pdf --lang cs
+  [--ner] [--ocr [kraken]]`. An image is wrapped into a PDF page by the core
+  (`ingest.as_pdf`: upright by its EXIF orientation, pixels only, no metadata)
+  and needs *Scanned pages* on: without OCR it opens with the page warning of a
+  scan OCR did not read, and export asks for consent as for any such page. The
+  redacted copy is a PDF (`<name>-redacted.pdf`). HEIC is not read: photos
+  must be JPEG, PNG or TIFF. An **Opening screen** shows what is running now above a progress
   bar, page by page for OCR and detection ("3 of 12 pages"), and a sweeping
   bar while a model loads (the names model's first load takes about ten
   seconds; models stay loaded for the session), with the steps below.
 - **Close the document** (the back chevron in the toolbar) returns home,
   asking first if decisions are unsaved.
-- Reopen a saved review: pick the session file, then the original PDF (a
-  session stores a fingerprint, not a path).
+- Reopen a saved review: pick the session file, then the original PDF or
+  image (a session stores a fingerprint, not a path).
 - Every page rendered, proposed redactions drawn over it. **Review mode**
   (default) keeps the covered text readable; **preview mode** (eye button,
   Cmd/Ctrl+Y) draws the output's opaque black boxes.
@@ -427,7 +433,8 @@ display (the script in a Linux container), not your desktop.
 
 | Core / CLI piece | How the window uses it, or will |
 |---|---|
-| `ingest.read_pdf`, `document_from_bytes` | `open_pdf`: the file is read once; the document is loaded from those bytes and pages render from them |
+| `ingest.read_source`, `document_from_bytes`, `as_pdf` | `open_pdf`: the file is read once; the document is loaded from those bytes and pages render from the PDF they are read as (an image wrapped by `as_pdf`) |
+| `ingest.SOURCE_SUFFIXES`, `IMAGE_SUFFIXES` | the open dialog's file types and which dropped file is taken; the type itself is read from the content |
 | `pipeline.build_detector(language, model=...)`, `run_detection` | detection on open, with the options from the home screen |
 | `detect.load_gliner_detector(root)` | the name model, loaded on first use from `--resource-root` and kept for the session |
 | `detect.gliner_installed`, `missing_gliner_files` | the model's state on the home screen, without loading it |
@@ -513,11 +520,12 @@ the repository, a test, a fixture or a commit message.
 
 ### Formats
 
-6. **Support document types beyond PDF** (images, Office and text formats). **Decided
-   (2026-10-02): PDF only for now**; other formats are left for a later semester. When
-   taken up: images are the cheapest (wrapped in a PDF, they take the OCR path and its
-   leak check), Office files the most expensive (a converter or a native reader with its
-   own hidden-data cover: comments, tracked changes, metadata).
+6. **Support document types beyond PDF** (images, Office and text formats). **Images
+   done (2026-10-06)**: JPEG, PNG and TIFF are wrapped into a PDF and take the OCR path,
+   its redaction and its leak check (`ingest/image.py`). Office and text formats are left
+   for a later semester; Office files are the most expensive (a converter or a native
+   reader with its own hidden-data cover: comments, tracked changes, metadata). HEIC
+   would need a decoder Pillow does not bundle.
 
 ### Review window behaviour
 

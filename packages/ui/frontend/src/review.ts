@@ -724,7 +724,7 @@ export interface OpenStatus {
   fraction: number | null;
 }
 
-/** The status line and bar while a PDF opens. */
+/** The status line and bar while a document opens. */
 export function openStatus(progress: OpenProgress): OpenStatus {
   const label = OPEN_STATUS[progress.step];
   if (progress.total === 0) return { label, count: null, fraction: null };

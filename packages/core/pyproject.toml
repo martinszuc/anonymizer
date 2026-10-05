@@ -5,7 +5,9 @@ description = "Offline detection and redaction of personal data in documents"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "AGPL-3.0-or-later"
-dependencies = ["platformdirs>=4", "py3langid>=0.3", "pymupdf>=1.24"]
+# Pillow decodes images (JPEG, PNG, TIFF) and applies their EXIF orientation,
+# which PyMuPDF ignores in PNG and TIFF.
+dependencies = ["pillow>=11", "platformdirs>=4", "py3langid>=0.3", "pymupdf>=1.24"]
 
 [project.optional-dependencies]
 # Name detection. Pulls in PyTorch, so it is kept out of the default install.

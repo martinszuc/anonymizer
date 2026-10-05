@@ -7,6 +7,7 @@ from anonymizer.core.ingest import OcrEngine, load_document
 from anonymizer.ui import api
 from anonymizer.ui.api import ReviewApi, ReviewError
 
+from tests.image_builders import PLANTED, every_byte, phone_photo
 from tests.ocr_stand_in import InkReadingEngine
 from tests.pdf_builders import CONTACT_EMAIL, write_pdf, write_scanned_pdf
 
@@ -177,3 +178,53 @@ def test_a_word_ocr_read_can_be_added_and_is_redacted(scan: Path, loads: list[st
     # The leak check re-read the page with the engine and found the word gone.
     assert result["written"] is True
     assert result["redacted"] == 3
+
+
+@pytest.fixture
+def photo(tmp_path: Path) -> Path:
+    path = tmp_path / "photo.jpg"
+    path.write_bytes(phone_photo(LINES))
+    return path
+
+
+def test_a_photo_is_read_upright_detected_and_exported_as_a_pdf(
+    photo: Path, loads: list[str], tmp_path: Path
+):
+    reviewer = ReviewApi()
+    payload = reviewer.open_pdf(str(photo), "cs", ocr_engine="onnxtr")
+    (page,) = payload["pages"]
+    assert (page["width"], page["height"]) == pytest.approx((595, 842), abs=1)
+    assert page["raster_dpi"] == 300
+    assert {entity["type"] for entity in payload["entities"]} == {"email", "phone"}
+    assert reviewer.page_image(0, 72).startswith("data:image/png;base64,")
+    destination = tmp_path / "photo-redacted.pdf"
+    assert reviewer.export(str(destination))["written"] is True
+    written = every_byte(destination.read_bytes())
+    for value in (*PLANTED, CONTACT_EMAIL, PHONE):
+        assert value.encode() not in written, value
+
+
+def test_without_ocr_a_photo_is_an_unread_scan(photo: Path, tmp_path: Path):
+    reviewer = ReviewApi()
+    payload = reviewer.open_pdf(str(photo), "cs")
+    assert payload["pages"][0]["has_text_layer"] is False
+    assert payload["pages"][0]["raster_dpi"] is None
+    assert payload["entities"] == []
+    with pytest.raises(ReviewError, match="is a scan OCR has not read"):
+        reviewer.export(str(tmp_path / "out.pdf"))
+
+
+def test_a_review_of_a_photo_reopens_with_the_engine(photo: Path, loads: list[str], tmp_path: Path):
+    reviewer = ReviewApi()
+    reviewer.open_pdf(str(photo), "cs", ocr_engine="onnxtr")
+    session = tmp_path / "review.json"
+    reviewer.save_session(str(session))
+    reopened = ReviewApi().open_session(str(photo), str(session))
+    assert {entity["type"] for entity in reopened["entities"]} == {"email", "phone"}
+
+
+def test_an_unsupported_file_is_refused_with_the_formats(tmp_path: Path):
+    photo = tmp_path / "photo.heic"
+    photo.write_bytes(b"\x00\x00\x00\x18ftypheic" + bytes(32))
+    with pytest.raises(ReviewError, match="PDF, JPEG, PNG or TIFF"):
+        ReviewApi().open_pdf(str(photo))

@@ -51,15 +51,15 @@ export function Home({
           <FileLock2 size={30} strokeWidth={1.5} />
         </div>
         <h1>Anonymizer</h1>
-        <p>Find personal data in a PDF, decide what goes, and export a redacted copy.</p>
+        <p>Find personal data in a PDF or an image, decide what goes, export a redacted copy.</p>
       </header>
 
-      <section className="drop-zone" data-dragging={dragging} aria-label="Open a PDF">
+      <section className="drop-zone" data-dragging={dragging} aria-label="Open a document">
         <FileUp size={28} strokeWidth={1.5} aria-hidden />
-        <p className="drop-zone-title">{dragging ? "Drop to open" : "Drop a PDF here"}</p>
+        <p className="drop-zone-title">{dragging ? "Drop to open" : "Drop a PDF or an image here"}</p>
         <p className="drop-zone-or">or</p>
         <Button variant="primary" disabled={busy} onClick={onOpen}>
-          Open PDF…
+          Open document…
         </Button>
         <p className="drop-zone-hint">
           <kbd>{shortcut("O")}</kbd>
@@ -166,7 +166,7 @@ export function OptionRow({ label, note, children }: { label: string; note: Reac
 function ocrNote(status: AppStatus | null, available: boolean): ReactNode {
   if (status === null) return "Checking…";
   return available
-    ? "Reads the text of scanned pages, so they are checked and redacted too."
+    ? "Reads the text of scanned pages and images, so they are checked and redacted too."
     : "No OCR engine is ready yet. What each needs is listed below.";
 }
 

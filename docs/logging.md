@@ -34,7 +34,7 @@ logger); `configure_logging` is called only by the two clients.
 | --- | --- | --- |
 | `DEBUG` | every step's start and end with timing, every detection and merge, every leak-check layer, the reviewer's decisions | `find_emails matched type=email page=0 span=[39,60) source=rule text=…` |
 | `INFO` | milestones: a document read, detection done, a model loaded, a session saved, a copy exported, **every download** | `export: done document=df3c29bf written=True leak_check=passed elapsed=0.01s` |
-| `WARNING` | work went on, degraded: a refused page call, a model or OCR engine that cannot load, a drop that is no PDF, exporting with unread scans | `session refused: it belongs to a different PDF` |
+| `WARNING` | work went on, degraded: a refused page call, a model or OCR engine that cannot load, a drop that is no PDF or image, exporting with unread scans | `session refused: it belongs to a different file` |
 | `ERROR` | an operation failed: an unexpected exception in a page call, a leak found at export, a download that did not match its checksum | `export refused: leak check found 1 leak(s), nothing written` |
 
 A debug log reads top to bottom as the run happened. For a word, it says which

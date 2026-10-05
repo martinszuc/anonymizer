@@ -43,14 +43,16 @@ def detected(
     ner_root: Path | None = None,
     ocr: OcrEngine | None = None,
 ) -> Document:
-    """Load a PDF and run the detectors over its pages and surfaces.
+    """Load a PDF or an image and run the detectors over its pages and surfaces.
 
     The rules for the language always run; with `ner_root`, so does the name
     model stored under that directory. With `ocr`, scanned pages are read
-    through that engine first.
+    through that engine first. A document with nothing to review is refused:
+    an image, or a scan without hidden items, read without `ocr`.
     """
     model = load_gliner_detector(ner_root) if ner_root is not None else None
     document = load_document(source, language=language, ocr=ocr)
+    _refuse_unread_document(document)
     language = resolve_language(document, language)
     run_detection(document, build_detector(language, model=model), propagate=propagate)
     return document
@@ -194,9 +196,27 @@ def _refuse_unreadable_pages(document: Document, *, allow: bool, output: Output)
     listed = ", ".join(str(page) for page in pages)
     if not allow:
         msg = (
-            f"page {listed} is a scan OCR has not read (no text layer, or only a few "
-            "words over a picture), so its content would not be redacted. Read it with "
+            f"{_unread(listed)}, so its content would not be redacted. Read it with "
             "--ocr onnxtr, or use --allow-pages-without-text to redact the rest anyway"
         )
         raise CommandError(msg)
     print(f"warning: page {listed} is a scan OCR has not read and is NOT redacted", file=output.err)
+
+
+def _refuse_unread_document(document: Document) -> None:
+    """Stop when no page was read and nothing is hidden outside them: the review would be empty."""
+    pages = pages_needing_ocr(document)
+    if len(pages) < len(document.pages) or document.surfaces:
+        return
+    listed = ", ".join(str(index + 1) for index in pages)
+    msg = (
+        f"{_unread(listed)}, so nothing in the document can be reviewed. Read it with --ocr onnxtr"
+    )
+    raise CommandError(msg)
+
+
+def _unread(listed: str) -> str:
+    return (
+        f"page {listed} is a scan OCR has not read (no text layer, or only a few words "
+        "over a picture; an image is all picture)"
+    )

@@ -10,6 +10,11 @@ Part of a diploma thesis at FEKT VUT Brno. Roadmap and open decisions: `PLAN.md`
 (untracked, local). Empirical findings from running the pipeline on real documents:
 `docs/findings.md` — read it before assuming how PDFs behave.
 
+The thesis core is a Czech/Slovak name-detection model trained in this repository and
+compared with existing models on reserved test data (RQ6 in the untracked `RESEARCH.md`).
+The current pipeline (rules + GLiNER zero-shot) is its baseline. OCR uses existing
+engines and is not itself a research topic.
+
 ## Hard constraints
 
 - **Offline only.** No code path may send document content or call a remote service for OCR or inference. Models load from local cache (`HF_HUB_OFFLINE=1`). Tests run with network access blocked. The only network access ever allowed is a model download the user starts explicitly, from the model's official source, verified against a stored checksum.
@@ -149,6 +154,7 @@ Ruff runs from `uv.lock` everywhere; pre-commit does not pin its own ruff versio
 - Tests needing a downloaded corpus are marked `@pytest.mark.dataset` and skipped when the corpus is absent. The unmarked suite must pass with no network and no `data/` directory, because that is all CI has.
 - The benchmark (`benchmark/`, `python -m benchmark run`) scores the pipeline on synthetic documents whose personal items are marked inline (`[[person:Jan Novák]]`). Add documents there, not PDFs; every value is invented, and checksum-bearing ones are computed independently. Its GitHub workflow is the one place CI fetches a model: started by hand or by a release, from the official source, checked against the catalog checksum.
 - Datasets are never test fixtures, and a dataset containing real personal data is never used in tests at all. Measurement belongs in `experiments/` (`python -m experiments run --config …`), not in `pytest`.
+- Training belongs in `experiments/` as well: one command from a config, base models and corpora from the catalog, seeded, with the machine recorded. It reads train splits, tunes on dev, and never opens a test split; the final table reads test data once (`stage = "final"`). Synthetic training data must not reuse the templates of a held-out synthetic test set. Trained weights go to `models/` and are never committed: trained on CNEC or UNER, they carry real public names.
 
 ## Lessons from earlier mistakes
 

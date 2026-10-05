@@ -180,7 +180,10 @@ The first engine is OnnxTR with a multilingual recognizer (optional: CLI `--ocr
 onnxtr`, the review window's *Scanned pages* switch).
 Searchable scans (a picture under an invisible text layer) are redacted through
 that layer; see `docs/findings.md`.
-Not yet: measured NER and OCR quality.
+Detection quality is measured on development data only so far
+(`experiments/results/`, the benchmark for each release).
+Next: a Czech/Slovak name model trained in this repository, compared with existing
+models on reserved test data.
 
 ## License
 

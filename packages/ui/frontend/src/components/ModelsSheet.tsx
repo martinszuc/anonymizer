@@ -46,25 +46,7 @@ export function ModelsSheet({
         </Button>
       }
     >
-      {folder && (
-        <div className="model-folder">
-          <FolderCog size={14} aria-hidden />
-          <span className="model-folder-path" title={folder}>
-            {folder}
-          </span>
-          <Button
-            disabled={downloading}
-            title={
-              downloading
-                ? "Wait for the download to finish"
-                : "Store models in another folder from now on; files already downloaded are not moved"
-            }
-            onClick={onChangeFolder}
-          >
-            Change…
-          </Button>
-        </div>
-      )}
+      {folder && <ModelFolder folder={folder} downloading={downloading} onChange={onChangeFolder} />}
       {features === null ? (
         <p>Checking…</p>
       ) : (
@@ -78,6 +60,37 @@ export function ModelsSheet({
         ))
       )}
     </Sheet>
+  );
+}
+
+/** Where models are stored, with a button to store them elsewhere from now on. */
+export function ModelFolder({
+  folder,
+  downloading,
+  onChange,
+}: {
+  folder: string;
+  downloading: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <div className="model-folder">
+      <FolderCog size={14} aria-hidden />
+      <span className="model-folder-path" title={folder}>
+        {folder}
+      </span>
+      <Button
+        disabled={downloading}
+        title={
+          downloading
+            ? "Wait for the download to finish"
+            : "Store models in another folder from now on; files already downloaded are not moved"
+        }
+        onClick={onChange}
+      >
+        Change…
+      </Button>
+    </div>
   );
 }
 

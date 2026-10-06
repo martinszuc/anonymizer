@@ -209,13 +209,7 @@ function Page({
       return;
     }
     event.preventDefault();
-    try {
-      // Keeps the drag going when the pointer leaves the page; a nicety, so a
-      // browser that refuses it must not stop the drawing.
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // Drawing works without capture while the pointer stays on the page.
-    }
+    capturePointer(event);
     const start = toPoints(event);
     drag.current = { start, box: dragBox(start, start, page) };
     setDraft(drag.current.box);
@@ -254,11 +248,7 @@ function Page({
     if (!current.selecting) {
       current.selecting = true;
       setHoveredId(null);
-      try {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      } catch {
-        // Selecting works without capture while the pointer stays on the page.
-      }
+      capturePointer(event);
     }
     setDragged(wordRange(list, current.anchor, nearestWord(list, toPoints(event))));
   };
@@ -477,6 +467,18 @@ function Redaction({ entity, hatch, selected, dimmed, locating, onToggle, onSele
       ))}
     </g>
   );
+}
+
+/**
+ * Keep a drag going when the pointer leaves the page. A nicety: a browser that
+ * refuses it must not stop the drag, which works while the pointer stays on the page.
+ */
+function capturePointer(event: PointerEvent<SVGSVGElement>): void {
+  try {
+    event.currentTarget.setPointerCapture(event.pointerId);
+  } catch {
+    // Without capture the drag still works on the page.
+  }
 }
 
 /**

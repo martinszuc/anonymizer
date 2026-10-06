@@ -16,11 +16,12 @@ import {
   isRemoved,
   keepable,
   lowConfidence,
-  pageList,
+  pagesLabel,
   regionNumbers,
   scoreRange,
   sortedBy,
   summarize,
+  truncated,
   typeLabel,
   type DecisionFilter,
   type FindingFilter,
@@ -602,7 +603,7 @@ function GroupRow({ group, open, showType, selected, selectedId, onOpen, onSelec
 
 function groupMeta(members: EntityInfo[], decision: GroupDecision, showType: boolean): string {
   const pages = [...new Set(members.flatMap((member) => (member.page_index === null ? [] : [member.page_index + 1])))];
-  const places = pages.length > 0 ? capitalised(pageList(pages.sort((a, b) => a - b))) : "Document info";
+  const places = pages.length > 0 ? pagesLabel(pages.sort((a, b) => a - b)) : "Document info";
   const parts = showType ? [typeLabel((members[0] as EntityInfo).type), places] : [places];
   const scores = scoreRange(members);
   if (scores) parts.push(scores);
@@ -611,10 +612,6 @@ function groupMeta(members: EntityInfo[], decision: GroupDecision, showType: boo
     parts.push(`${kept} kept`);
   }
   return parts.join(" · ");
-}
-
-function capitalised(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 interface EntityRowProps {
@@ -849,6 +846,5 @@ function HiddenRow({ surface, found, selected, onSelect }: HiddenRowProps) {
 }
 
 function preview(value: string): string {
-  const flat = value.replace(/\s+/g, " ").trim();
-  return flat.length > PREVIEW_LENGTH ? `${flat.slice(0, PREVIEW_LENGTH - 1)}…` : flat;
+  return truncated(value.replace(/\s+/g, " ").trim(), PREVIEW_LENGTH);
 }

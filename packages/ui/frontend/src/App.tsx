@@ -29,6 +29,7 @@ import {
   scannedPages,
   steppedZoom,
   toggled,
+  truncated,
   type LeakRow,
   type ListView,
 } from "./review";
@@ -47,6 +48,7 @@ import type {
 } from "./types";
 
 const TOAST_MS = 4000;
+const TOAST_TEXT_LENGTH = 40;
 const CANVAS_PADDING = 48;
 const MIN_SCALE = 0.25;
 const MAX_FIT_SCALE = 2;
@@ -439,7 +441,7 @@ export function App() {
       setSelectedId(finding.id);
       setDirty(true);
       const repeats = added.length - 1;
-      notify("success", `Added “${clipped(covers(finding))}”${repeats > 0 ? ` and ${plural(repeats, "repeat")}` : ""}`, {
+      notify("success", `Added “${truncated(covers(finding), TOAST_TEXT_LENGTH)}”${repeats > 0 ? ` and ${plural(repeats, "repeat")}` : ""}`, {
         label: "Undo",
         run: () => void removeEntity(finding),
       });
@@ -738,11 +740,6 @@ export function App() {
       </div>
     </MotionConfig>
   );
-}
-
-/** A finding's text short enough for a toast. */
-function clipped(text: string, length = 40): string {
-  return text.length > length ? `${text.slice(0, length - 1)}…` : text;
 }
 
 /** The element's content width, tracked as the window resizes. */

@@ -198,6 +198,8 @@ function OcrEngines({ ocr, chosen, onChoose }: { ocr: OcrStatus; chosen: string;
   );
 }
 
+const FILES_MISSING = "Model files missing: download them in Manage models.";
+
 /** Why an engine cannot read yet, and what to do about it. */
 function engineReason(engine: OcrEngineStatus): ReactNode {
   return engine.state === "not_installed" ? (
@@ -205,7 +207,7 @@ function engineReason(engine: OcrEngineStatus): ReactNode {
       Not installed. Install it with <code>{engine.install_command}</code>.
     </>
   ) : (
-    <>Model files missing: download them in Manage models.</>
+    FILES_MISSING
   );
 }
 
@@ -221,9 +223,7 @@ function modelNote(status: AppStatus | null): ReactNode {
         </>
       );
     case "files_missing":
-      return (
-        <>Model files missing: download them in Manage models.</>
-      );
+      return FILES_MISSING;
     default:
       return "Checking…";
   }

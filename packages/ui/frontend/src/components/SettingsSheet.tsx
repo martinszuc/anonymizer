@@ -1,8 +1,9 @@
-import { FolderCog, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 
 import type { AppStatus } from "../types";
 import { Button } from "./Button";
 import { OptionRow } from "./Home";
+import { ModelFolder } from "./ModelsSheet";
 import { Sheet } from "./Sheet";
 import { Switch } from "./Switch";
 
@@ -69,23 +70,7 @@ export function SettingsSheet({
       <section className="settings-section" aria-label="Models">
         <h3 className="options-title">Models</h3>
         {status && (
-          <div className="model-folder">
-            <FolderCog size={14} aria-hidden />
-            <span className="model-folder-path" title={status.models_folder}>
-              {status.models_folder}
-            </span>
-            <Button
-              disabled={downloading}
-              title={
-                downloading
-                  ? "Wait for the download to finish"
-                  : "Store models in another folder from now on; files already downloaded are not moved"
-              }
-              onClick={onChangeFolder}
-            >
-              Change…
-            </Button>
-          </div>
+          <ModelFolder folder={status.models_folder} downloading={downloading} onChange={onChangeFolder} />
         )}
         <Button variant="plain" onClick={onModels}>
           Manage models…

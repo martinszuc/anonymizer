@@ -198,8 +198,10 @@ function renderPage(index: number, dpi: number): string {
 
 const LATENCY_MS = 180;
 
-/** Every result is a copy, as pywebview's JSON round trip makes it; sharing
- * objects with the page would let a mutation here change React state. */
+/**
+ * Every result is a copy, as pywebview's JSON round trip makes it; sharing
+ * objects with the page would let a mutation here change React state.
+ */
 const copied = <T,>(value: T): T => structuredClone(value);
 const pause = () => new Promise((resolve) => setTimeout(resolve, LATENCY_MS));
 

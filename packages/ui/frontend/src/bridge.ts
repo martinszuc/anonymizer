@@ -25,7 +25,7 @@ export interface ReviewBridge {
   current_document(): Promise<DocumentInfo | null>;
   /** Null when the reviewer cancelled the open dialog. */
   choose_pdf(options: OpenOptions): Promise<DocumentInfo | null>;
-  /** Opens the document last dropped on the window (see `DROPPED`); null if there is none. */
+  /** Opens the document last dropped on the window (announced by an `anonymizer:dropped` event); null if there is none. */
   open_dropped(options: OpenOptions): Promise<DocumentInfo | null>;
   close_document(): Promise<void>;
   choose_session(): Promise<DocumentInfo | null>;
@@ -47,8 +47,10 @@ export interface ReviewBridge {
    * whole words. Returns the finding first, then its repeats.
    */
   add_finding(pageIndex: number, start: number, end: number, type: string): Promise<EntityInfo[]>;
-  /** Only for items the reviewer added; a detected one is rejected instead. Returns the ids
-   * removed: the item's, then those of repeats only it explained. */
+  /**
+   * Only for items the reviewer added; a detected one is rejected instead. Returns the ids
+   * removed: the item's, then those of repeats only it explained.
+   */
   remove_entity(entityId: string): Promise<string[]>;
 }
 

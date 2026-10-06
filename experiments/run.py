@@ -70,7 +70,7 @@ def run(
         progress: Told what is running (no corpus text).
 
     Returns:
-        The results, as `write_results` stores them.
+        The results, as the command line stores them in `<name>.json`.
     """
     load_model = _once(load_model or gliner_loader(resource_root))
     corpora: dict[str, Any] = {}

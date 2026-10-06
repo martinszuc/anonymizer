@@ -19,9 +19,9 @@
   word boxes. Where they hold the item's exact words, those are its span (so
   a label read glued to a value stays outside it); otherwise the span runs
   from the first such word to the last, less punctuation at its edges the
-  item does not have, so an item read split or misread
-  (`jan. novak@example. com,`) is still located and an entity must cover all
-  of it to find it. An item OCR read nothing of is missed.
+  item does not have, so an item read split or misread (`jan.
+  novak@example. com,`) is still located and an entity must cover all of it
+  to find it. An item OCR read nothing of is missed.
 - **Residue.** After redaction the ink inside each planted item's ground-truth
   word boxes is counted in the output picture and compared with the scan. An
   item is *readable* when a word keeps at least half of its ink, *partly
@@ -31,7 +31,6 @@
 
 from __future__ import annotations
 
-import re
 import unicodedata
 from collections import Counter
 from collections.abc import Sequence
@@ -41,7 +40,7 @@ from anonymizer.core.types import BBox, Page
 from rapidfuzz.distance import Levenshtein
 
 from benchmark.scans import TruthPage, covers, ink_inside, ink_under_boxes
-from benchmark.score import Location
+from benchmark.score import Location, words_pattern
 from benchmark.spec import GoldItem
 
 BOXED_IOU = 0.5
@@ -150,7 +149,7 @@ def item_locations(
         start, end = min(word.start for word in on_item), max(word.end for word in on_item)
         exact = [
             (match.start(), match.end())
-            for match in _item_pattern(items[index]).finditer(page.text)
+            for match in words_pattern(items[index].text, whole_words=True).finditer(page.text)
             if match.start() < end and start < match.end()
         ]
         if exact:
@@ -194,7 +193,7 @@ def _locate(
     seen: Counter[str] = Counter()
     found: list[tuple[int, list[int]] | None] = []
     for item in items:
-        pattern = _item_pattern(item)
+        pattern = words_pattern(item.text, whole_words=True)
         occurrences = [
             (page_index, match.start(), match.end())
             for page_index, page in enumerate(truth)
@@ -214,13 +213,6 @@ def _locate(
         ]
         found.append((page_index, indices))
     return found
-
-
-def _item_pattern(item: GoldItem) -> re.Pattern[str]:
-    """An item's exact words as whole words, any whitespace between them."""
-    return re.compile(
-        r"(?<!\w)" + r"\s+".join(re.escape(word) for word in item.text.split()) + r"(?!\w)"
-    )
 
 
 def _trimmed(text: str, start: int, end: int, item: str) -> tuple[int, int]:

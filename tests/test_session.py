@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
-from anonymizer.core.detect import detect_document, structured_detector
+from anonymizer.core.detect import detect_document, detector_for
 from anonymizer.core.ingest import load_document
 from anonymizer.core.redact import find_leaks, redact_pdf
 from anonymizer.core.session import load_session, save_session
@@ -27,7 +27,7 @@ PHOTO = BBox(300, 80, 400, 180)
 def reviewed(path: Path) -> Document:
     """Detect, reject the phone number, and draw one region."""
     document = load_document(path, language="cs")
-    document.entities = detect_document(structured_detector(), document)
+    document.entities = detect_document(detector_for(None), document)
     for entity in document.entities:
         if entity.type is EntityType.PHONE:
             entity.review = ReviewState.REJECTED
@@ -77,7 +77,7 @@ class TestRoundTrip:
     def test_entities_on_surfaces_survive_reloading(self, tmp_path: Path):
         pdf = write_surfaces_pdf(tmp_path / "surfaces.pdf")
         document = load_document(pdf)
-        document.entities = detect_document(structured_detector(), document)
+        document.entities = detect_document(detector_for(None), document)
         assert any(not entity.in_page_text for entity in document.entities)
         save_session(document, tmp_path / "surfaces.session.json")
         reopened = load_session(tmp_path / "surfaces.session.json", pdf)

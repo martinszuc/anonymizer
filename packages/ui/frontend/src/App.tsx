@@ -29,6 +29,7 @@ import {
   scannedPages,
   steppedZoom,
   toggled,
+  truncated,
   type LeakRow,
   type ListView,
 } from "./review";
@@ -47,6 +48,7 @@ import type {
 } from "./types";
 
 const TOAST_MS = 4000;
+const TOAST_TEXT_LENGTH = 40;
 const CANVAS_PADDING = 48;
 const MIN_SCALE = 0.25;
 const MAX_FIT_SCALE = 2;
@@ -116,6 +118,8 @@ export function App() {
     [dismissToast],
   );
   const reportError = useCallback((message: string) => notify("error", message), [notify]);
+  const updateEntities = (change: (entities: EntityInfo[]) => EntityInfo[]) =>
+    setDocument((current) => current && { ...current, entities: change(current.entities) });
 
   useEffect(() => {
     connect().then(async (connected) => {
@@ -283,17 +287,16 @@ export function App() {
         progress.feature in current ? { ...current, [progress.feature]: progress } : current,
       );
     };
-    window.addEventListener("anonymizer:progress", onProgress);
-    window.addEventListener("anonymizer:export", onExport);
-    window.addEventListener("anonymizer:download", onDownload);
-    window.addEventListener("anonymizer:dropped", onDropped);
-    window.addEventListener("anonymizer:drop-refused", onRefused);
+    const listeners: [string, (event: Event) => void][] = [
+      ["anonymizer:progress", onProgress],
+      ["anonymizer:export", onExport],
+      ["anonymizer:download", onDownload],
+      ["anonymizer:dropped", onDropped],
+      ["anonymizer:drop-refused", onRefused],
+    ];
+    for (const [name, listener] of listeners) window.addEventListener(name, listener);
     return () => {
-      window.removeEventListener("anonymizer:progress", onProgress);
-      window.removeEventListener("anonymizer:export", onExport);
-      window.removeEventListener("anonymizer:download", onDownload);
-      window.removeEventListener("anonymizer:dropped", onDropped);
-      window.removeEventListener("anonymizer:drop-refused", onRefused);
+      for (const [name, listener] of listeners) window.removeEventListener(name, listener);
     };
   }, []);
 
@@ -414,7 +417,7 @@ export function App() {
     if (!bridge) return;
     try {
       const region = await bridge.add_region(pageIndex, ...box);
-      setDocument((current) => current && { ...current, entities: [...current.entities, region] });
+      updateEntities((entities) => [...entities, region]);
       addedItems.current.push(region.id);
       setSelectedId(region.id);
       setDirty(true);
@@ -432,13 +435,13 @@ export function App() {
       const added = await bridge.add_finding(selection.pageIndex, ...span, type);
       const [finding] = added;
       if (!finding) return;
-      setDocument((current) => current && { ...current, entities: [...current.entities, ...added] });
+      updateEntities((entities) => [...entities, ...added]);
       addedItems.current.push(finding.id);
       setSelection(null);
       setSelectedId(finding.id);
       setDirty(true);
       const repeats = added.length - 1;
-      notify("success", `Added “${clipped(covers(finding))}”${repeats > 0 ? ` and ${plural(repeats, "repeat")}` : ""}`, {
+      notify("success", `Added “${truncated(covers(finding), TOAST_TEXT_LENGTH)}”${repeats > 0 ? ` and ${plural(repeats, "repeat")}` : ""}`, {
         label: "Undo",
         run: () => void removeEntity(finding),
       });
@@ -452,16 +455,16 @@ export function App() {
   async function removeEntity(entity: EntityInfo) {
     if (!bridge) return;
     // Optimistic, like toggling: it goes at once and comes back if Python refuses.
-    setDocument((current) => current && { ...current, entities: current.entities.filter((item) => item.id !== entity.id) });
+    updateEntities((entities) => entities.filter((item) => item.id !== entity.id));
     setSelectedId((current) => (current === entity.id ? null : current));
     setDirty(true);
     try {
       // Repeats proposed only because of an added text go with it.
       const removed = new Set(await bridge.remove_entity(entity.id));
-      setDocument((current) => current && { ...current, entities: current.entities.filter((item) => !removed.has(item.id)) });
+      updateEntities((entities) => entities.filter((item) => !removed.has(item.id)));
       setSelectedId((current) => (current !== null && removed.has(current) ? null : current));
     } catch (error) {
-      setDocument((current) => current && { ...current, entities: [...current.entities, entity] });
+      updateEntities((entities) => [...entities, entity]);
       reportError(errorMessage(error));
     }
   }
@@ -472,12 +475,7 @@ export function App() {
     const next = toggled(entity.review);
     // Optimistic: the box changes at once, and changes back if Python refuses.
     const setState = (review: EntityInfo["review"]) =>
-      setDocument((current) =>
-        current && {
-          ...current,
-          entities: current.entities.map((item) => (item.id === entity.id ? { ...item, review } : item)),
-        },
-      );
+      updateEntities((entities) => entities.map((item) => (item.id === entity.id ? { ...item, review } : item)));
     setState(next);
     setDirty(true);
     try {
@@ -512,11 +510,8 @@ export function App() {
     const before = new Map(entities.map((entity) => [entity.id, entity.review]));
     // Optimistic, like a single toggle: every box changes at once, and back if Python refuses.
     const apply = (reviewOf: (entity: EntityInfo) => EntityInfo["review"]) =>
-      setDocument((current) =>
-        current && {
-          ...current,
-          entities: current.entities.map((item) => (ids.has(item.id) ? { ...item, review: reviewOf(item) } : item)),
-        },
+      updateEntities((entities) =>
+        entities.map((item) => (ids.has(item.id) ? { ...item, review: reviewOf(item) } : item)),
       );
     apply(() => next);
     setDirty(true);
@@ -745,11 +740,6 @@ export function App() {
       </div>
     </MotionConfig>
   );
-}
-
-/** A finding's text short enough for a toast. */
-function clipped(text: string, length = 40): string {
-  return text.length > length ? `${text.slice(0, length - 1)}…` : text;
 }
 
 /** The element's content width, tracked as the window resizes. */

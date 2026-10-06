@@ -154,9 +154,7 @@ def _unplanted_words(spec: DocumentSpec, original: Document) -> set[str]:
     """Words occurring outside every planted item: no evidence of a leak."""
     unplanted = _all_text(original)
     for item in sorted(spec.gold, key=lambda item: -len(item.text)):
-        # The generator may have wrapped the item over two lines.
-        pattern = r"\s+".join(re.escape(word) for word in item.text.split())
-        unplanted = re.sub(pattern, " ", unplanted)
+        unplanted = words_pattern(item.text).sub(" ", unplanted)
     return {word.lower() for word in _WORD.findall(unplanted)}
 
 
@@ -207,10 +205,7 @@ def _page_locations(spec: DocumentSpec, document: Document) -> dict[int, Locatio
     for index, item in enumerate(spec.gold):
         if item.carrier != "page":
             continue
-        # Whole words only, any whitespace between them: the generator wraps lines.
-        pattern = re.compile(
-            r"(?<!\w)" + r"\s+".join(re.escape(word) for word in item.text.split()) + r"(?!\w)"
-        )
+        pattern = words_pattern(item.text, whole_words=True)
         free = [
             (page.index, match.start(), match.end())
             for page in document.pages
@@ -227,6 +222,20 @@ def _page_locations(spec: DocumentSpec, document: Document) -> dict[int, Locatio
             if ahead:
                 cursor = (location[0], location[2])
     return locations
+
+
+def words_pattern(text: str, *, whole_words: bool = False) -> re.Pattern[str]:
+    """Match a text with any whitespace between its words, as the generator wraps lines.
+
+    Args:
+        text: The text to match.
+        whole_words: Refuse a match that starts or ends inside a word.
+
+    Returns:
+        The compiled pattern.
+    """
+    pattern = r"\s+".join(re.escape(word) for word in text.split())
+    return re.compile(rf"(?<!\w){pattern}(?!\w)" if whole_words else pattern)
 
 
 def _overlapping(first: Location, second: Location) -> bool:

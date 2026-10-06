@@ -50,15 +50,14 @@ Eight layers, because each misses something the others catch:
    the redacted page at the same resolution: no redacted text may be found
    beyond the copies review kept (counted as in layer 1), and no word may lie
    mostly (half its box or more) inside a redacted box or region: on a skewed
-   scan an axis-aligned
-   box clips the corners of neighbouring words, which are not leaks. This
-   shows only that *this engine* can no longer read the
+   scan an axis-aligned box clips the corners of neighbouring words, which are
+   not leaks. This shows only that *this engine* can no longer read the
    value. It cannot prove the pixels are gone (that is verified by the test
    suite); it does not report a fragment beside a box that no longer spells
    the detected text, such as the end of an address a narrow box missed; and
-   a value the engine misread when reading the original was neither
-   detected nor can be found now, while a better reader or a person might
-   still read it.
+   a value the engine misread when reading the original was neither detected
+   nor can be found now, while a better reader or a person might still read
+   it.
 
 A leak says what it means (`LeakKind`), whichever layer found it: a text
 marked for redaction found again (perhaps an occurrence review missed,

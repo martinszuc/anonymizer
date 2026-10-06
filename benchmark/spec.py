@@ -2,9 +2,9 @@
 
 A document file (`documents/*.toml`) holds the visible lines and the strings
 written outside them: link targets, metadata, bookmarks, form fields,
-annotations, attachments and XMP properties. Every personal item is written where it occurs as
-`[[type:text]]`, so its text, type and carrier come from the markup and are
-never typed twice. `{{filler:N}}` expands to N words of neutral text, for
+annotations, attachments and XMP properties. Every personal item is written
+where it occurs as `[[type:text]]`, so its text, type and carrier come from the
+markup and are never typed twice. `{{filler:N}}` expands to N words of neutral text, for
 documents that must be long (the model reads at most 384 tokens at once).
 """
 

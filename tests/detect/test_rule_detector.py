@@ -1,6 +1,6 @@
 """Tests for the rule detector and how it merges overlapping matches."""
 
-from anonymizer.core.detect import detector_for, structured_detector
+from anonymizer.core.detect import detector_for
 from anonymizer.core.detect.base import Finder, Match, RuleDetector
 from anonymizer.core.types import BBox, DetectionSource, EntityType, Page, Word
 
@@ -67,12 +67,12 @@ def test_disjoint_matches_are_kept_in_order():
 
 def test_email_wins_over_digits_it_contains():
     text = "user123456789@example.com"
-    types = [entity.type for entity in structured_detector().detect(Page(0, 595, 842, text=text))]
+    types = [entity.type for entity in detector_for(None).detect(Page(0, 595, 842, text=text))]
     assert types == [EntityType.EMAIL]
 
 
 def test_detects_every_structured_entity_on_a_page():
-    detector = structured_detector()
+    detector = detector_for(None)
     entities = detector.detect(Page(index=0, width=595, height=842, text=TEXT))
     found = {entity.type: entity.text for entity in entities}
     assert found == {
@@ -85,7 +85,7 @@ def test_detects_every_structured_entity_on_a_page():
 
 
 def test_entities_are_ordered_and_attributed_to_the_page():
-    entities = structured_detector().detect(Page(index=3, width=595, height=842, text=TEXT))
+    entities = detector_for(None).detect(Page(index=3, width=595, height=842, text=TEXT))
     assert [entity.span for entity in entities] == sorted(entity.span for entity in entities)
     assert {entity.page_index for entity in entities} == {3}
     assert {entity.source for entity in entities} == {DetectionSource.RULE}
@@ -100,19 +100,15 @@ def test_detector_attaches_geometry_from_page_words():
         text=text,
         words=[Word(text, BBox(10, 10, 90, 22), 0, len(text))],
     )
-    entities = structured_detector().detect(page)
+    entities = detector_for(None).detect(page)
     assert entities[0].bboxes == [BBox(10, 10, 90, 22)]
-
-
-def test_detector_has_a_name():
-    assert structured_detector().name == "structured-rules"
 
 
 SPLIT_TEXT = "e-mail tereza. prochazkova@example. com, tel. +420 777 123 456, www. example. cz"
 
 
 def _found(page: Page) -> dict[EntityType, str | None]:
-    return {entity.type: entity.text for entity in structured_detector().detect(page)}
+    return {entity.type: entity.text for entity in detector_for(None).detect(page)}
 
 
 def test_addresses_split_by_ocr_are_matched_whole_on_a_page_read_by_ocr():
@@ -138,6 +134,6 @@ def test_a_split_address_is_one_entity_covering_every_word():
         box = BBox(left, 10, left + 5 * len(piece), 22)
         words.append(Word(piece, box, start, start + len(piece)))
     page = Page(0, 595, 842, text=text, words=words, has_text_layer=False, raster_dpi=300)
-    (entity,) = structured_detector().detect(page)
+    (entity,) = detector_for(None).detect(page)
     assert entity.span == (0, len(text))
     assert entity.bboxes == [word.bbox for word in words]

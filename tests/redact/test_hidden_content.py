@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pymupdf
 import pytest
-from anonymizer.core.detect import detect_document, structured_detector
+from anonymizer.core.detect import detect_document, detector_for
 from anonymizer.core.ingest import load_document
 from anonymizer.core.redact import LeakLayer, find_leaks, redact_pdf
 from anonymizer.core.types import Document
@@ -22,7 +22,7 @@ EMAIL_ORIGIN = (100, 150)
 
 def detected(path: Path) -> Document:
     document = load_document(path)
-    document.entities = detect_document(structured_detector(), document)
+    document.entities = detect_document(detector_for(None), document)
     return document
 
 

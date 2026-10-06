@@ -22,10 +22,10 @@ Text offsets:
 Surfaces:
     Link targets, metadata, form field values, bookmarks, annotations,
     attachments and a tagged PDF's structure tree hold strings that never appear
-    in `Page.text`, so redacting the
-    page content leaves them intact. Ingest lists each such string as a
-    `Surface`. An entity found in one sets `Entity.surface_id`, and its offsets
-    then refer to `Surface.value` instead of `Page.text`.
+    in `Page.text`, so redacting the page content leaves them intact. Ingest
+    lists each such string as a `Surface`. An entity found in one sets
+    `Entity.surface_id`, and its offsets then refer to `Surface.value` instead
+    of `Page.text`.
 """
 
 from __future__ import annotations

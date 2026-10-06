@@ -13,9 +13,9 @@ item is located in the OCR text by its ground-truth boxes
 (`ocr_score.item_locations`), so an item OCR read split or misread still
 counts as found when a detected span covers it. False alarms are counted as
 in the born-digital benchmark, on the OCR text. The `oracle` engine reads
-the ground truth and bounds what OCR can give the rest of the pipeline.
-`onnxtr` is the first real engine (models from the catalog,
-`uv sync --group ocr-onnxtr`).
+the ground truth and bounds what OCR can give the rest of the pipeline; the
+others are `ingest.OCR_ENGINES`, with models from the catalog
+(`uv sync --group ocr-<engine>`).
 """
 
 from __future__ import annotations

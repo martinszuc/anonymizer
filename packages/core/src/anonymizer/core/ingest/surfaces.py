@@ -186,9 +186,7 @@ def _bookmark_surfaces(pdf: pymupdf.Document) -> Iterator[Surface]:
 
 def _embedded_file_surfaces(pdf: pymupdf.Document) -> Iterator[Surface]:
     """Yield the labels of files attached to the document as a whole."""
-    trailer = mupdf.pdf_trailer(mupdf.pdf_document_from_fz_document(pdf.this))
-    tree = mupdf.pdf_dict_getp(trailer, _EMBEDDED_FILES_PATH)
-    for position, (key, file_spec) in enumerate(_name_tree_entries(tree)):
+    for position, (key, file_spec) in enumerate(_name_tree_entries(_attachment_tree(pdf))):
         yield from _text_surfaces(
             SurfaceKind.EMBEDDED_FILE,
             {
@@ -198,6 +196,11 @@ def _embedded_file_surfaces(pdf: pymupdf.Document) -> Iterator[Surface]:
                 f"{position}/description": _file_spec_text(file_spec, "Desc"),
             },
         )
+
+
+def _attachment_tree(pdf: pymupdf.Document) -> mupdf.PdfObj:
+    trailer = mupdf.pdf_trailer(mupdf.pdf_document_from_fz_document(pdf.this))
+    return mupdf.pdf_dict_getp(trailer, _EMBEDDED_FILES_PATH)
 
 
 def _name_tree_entries(root: mupdf.PdfObj) -> Iterator[tuple[mupdf.PdfObj, mupdf.PdfObj]]:
@@ -262,11 +265,9 @@ def _associated_files(pdf: pymupdf.Document) -> dict[int, list[mupdf.PdfObj]]:
 
 def _listed_file_specs(pdf: pymupdf.Document) -> set[int]:
     """Return the object numbers of file specifications listed as attachments already."""
-    trailer = mupdf.pdf_trailer(mupdf.pdf_document_from_fz_document(pdf.this))
-    tree = mupdf.pdf_dict_getp(trailer, _EMBEDDED_FILES_PATH)
     listed = {
         mupdf.pdf_to_num(file_spec)
-        for _key, file_spec in _name_tree_entries(tree)
+        for _key, file_spec in _name_tree_entries(_attachment_tree(pdf))
         if mupdf.pdf_is_indirect(file_spec)
     }
     for page in pdf:

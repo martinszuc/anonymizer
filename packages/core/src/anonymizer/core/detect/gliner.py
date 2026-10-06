@@ -38,7 +38,7 @@ from typing import Any, Protocol, cast
 
 from anonymizer.core.detect.base import describe, merge_entities
 from anonymizer.core.log import fields, step
-from anonymizer.core.resources import load_catalog, resource_status
+from anonymizer.core.resources import load_catalog, missing_resources
 from anonymizer.core.types import DetectionSource, Entity, EntityType, Page
 
 log = logging.getLogger(__name__)
@@ -81,11 +81,11 @@ OVERLAP_TOKENS = 40
 """GLiNER tokens shared by consecutive windows, so a name cut by one window's
 edge is seen whole by the next."""
 
-# Czech and Slovak also quote with single low-9 and single turned commas,
-# written as escapes because they look like a comma and backticks.
 _OFFLINE_VARIABLES = ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE")
 
 _MIN_CHARACTERS = 2
+# Czech and Slovak also quote with single low-9 and single turned commas,
+# written as escapes because they look like a comma and backticks.
 _EDGE_PUNCTUATION = ",;:!?()[]{}\"'„“”\u201a\u2018\u2019«»"
 
 # gliner's WhitespaceTokenSplitter, the splitter the pinned model's config
@@ -311,12 +311,7 @@ def missing_gliner_files(root: Path) -> list[str]:
     Returns:
         Ids in download order; empty when the model can be loaded.
     """
-    catalog = load_catalog()
-    return [
-        resource.id
-        for resource in catalog.with_requirements(GLINER_RESOURCE)
-        if resource_status(resource, root) != "present"
-    ]
+    return missing_resources(load_catalog(), GLINER_RESOURCE, root)
 
 
 def load_gliner_detector(

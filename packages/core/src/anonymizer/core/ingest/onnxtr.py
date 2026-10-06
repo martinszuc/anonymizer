@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any
 
 from anonymizer.core.ingest.ocr import OCR_BOX_MARGIN, OcrWord, PageImage
-from anonymizer.core.resources import load_catalog, resource_status
+from anonymizer.core.resources import load_catalog, missing_resources
 
 DETECTION_RESOURCE = "onnxtr-fast-base"
 RECOGNITION_RESOURCE = "onnxtr-parseq-multilingual-v1"
@@ -106,12 +106,7 @@ def missing_onnxtr_files(root: Path) -> list[str]:
     Returns:
         Ids in download order; empty when the engine can be loaded.
     """
-    catalog = load_catalog()
-    return [
-        resource.id
-        for resource in catalog.with_requirements(RECOGNITION_RESOURCE)
-        if resource_status(resource, root) != "present"
-    ]
+    return missing_resources(load_catalog(), RECOGNITION_RESOURCE, root)
 
 
 def load_onnxtr_engine(root: Path) -> OnnxtrEngine:

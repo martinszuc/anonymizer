@@ -366,8 +366,8 @@ def _ignore(_event: dict[str, Any]) -> None:
 def _open_options(options: Any) -> tuple[str | None, bool, bool, str | None]:
     """Read the options for opening a PDF from the page, which is not trusted.
 
-    `{language, propagate, use_model, use_ocr, ocr_engine}`; the engine is returned only
-    when OCR is asked for.
+    `{language, propagate, use_model, use_ocr, ocr_engine}`; the engine is
+    returned only when OCR is asked for.
     """
     if options is None:
         options = {}

@@ -5,7 +5,7 @@ import {
   exportStatus,
   exportSummary,
   leakSections,
-  pageList,
+  pagesLabel,
   plural,
   type ExportPlan,
   type LeakRow,
@@ -60,7 +60,7 @@ export function ExportSheets({ sheet, busy, onExportAnyway, onSaveAnyway, onShow
       >
         {sheet?.kind === "confirm-pages" && (
           <p>
-            {capitalised(pageList(sheet.pages))} {sheet.pages.length === 1 ? "is a scan" : "are scans"}{" "}
+            {pagesLabel(sheet.pages)} {sheet.pages.length === 1 ? "is a scan" : "are scans"}{" "}
             OCR did not read. Nothing on {sheet.pages.length === 1 ? "it" : "them"} was detected, so{" "}
             {sheet.pages.length === 1 ? "it goes" : "they go"} into the copy unredacted, and the leak
             check cannot see that.
@@ -187,15 +187,11 @@ function ResultBody({ result, accepted }: { result: ExportResult; accepted: Leak
       </dl>
       {result.pages_without_text.length > 0 && (
         <p className="sheet-note">
-          {capitalised(pageList(result.pages_without_text))}{" "}
+          {pagesLabel(result.pages_without_text)}{" "}
           {result.pages_without_text.length === 1 ? "is a scan" : "are scans"} OCR did not read, and{" "}
           {result.pages_without_text.length === 1 ? "was" : "were"} not redacted.
         </p>
       )}
     </>
   );
-}
-
-function capitalised(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
 }

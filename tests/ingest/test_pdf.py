@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pymupdf
 import pytest
-from anonymizer.core.detect import structured_detector
+from anonymizer.core.detect import detector_for
 from anonymizer.core.ingest import (
     UnsupportedFileError,
     document_from_bytes,
@@ -119,7 +119,7 @@ class TestLoadDocument:
 class TestIngestFeedsDetection:
     def test_detectors_find_entities_in_an_extracted_page(self, single_page_pdf: Path):
         page = load_document(single_page_pdf).pages[0]
-        entities = structured_detector().detect(page)
+        entities = detector_for(None).detect(page)
         found = {entity.type: entity.text for entity in entities}
         assert found == {
             EntityType.BIRTH_NUMBER: "900101/0007",
@@ -128,7 +128,7 @@ class TestIngestFeedsDetection:
 
     def test_detected_entities_carry_geometry_from_the_pdf(self, single_page_pdf: Path):
         page = load_document(single_page_pdf).pages[0]
-        entities = structured_detector().detect(page)
+        entities = detector_for(None).detect(page)
         for entity in entities:
             assert entity.bboxes
             assert all(box.width > 0 and box.height > 0 for box in entity.bboxes)

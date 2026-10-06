@@ -158,7 +158,7 @@ FEATURES = {
         "Finds names and addresses the rules cannot.",
         GLINER_RESOURCE,
         "ner",
-        lambda: gliner_installed(),
+        gliner_installed,
     ),
     **{f"ocr-{engine}": _ocr_feature(engine) for engine in OCR_ENGINES},
 }
@@ -291,10 +291,9 @@ class ReviewApi:
         Returns:
             Per feature: its key, title and one-line description, whether its
             package is installed and the command that installs it, the bytes
-            still to download, and
-            each model (requirements first) with what it is, its licence,
-            languages, source, version, size and state (`present`, `partial`
-            or `absent`, from the files on disk).
+            still to download, and each model (requirements first) with what
+            it is, its licence, languages, source, version, size and state
+            (`present`, `partial` or `absent`, from the files on disk).
         """
         return [self._feature_payload(key, feature) for key, feature in FEATURES.items()]
 
@@ -332,7 +331,7 @@ class ReviewApi:
                 raise ReviewError(msg)
             self._downloading |= ids
         try:
-            self._download(feature, progress or (lambda _feature, _received, _total: None))
+            self._download(feature, progress or _no_progress)
         finally:
             with self._downloads_lock:
                 self._downloading -= ids
@@ -463,18 +462,9 @@ class ReviewApi:
         if ocr_engine is not None and ocr_engine not in OCR_ENGINES:
             msg = f"unknown OCR engine {ocr_engine!r}"
             raise ReviewError(msg)
-        report = progress or (lambda _step, _done, _total: None)
+        report = progress or _no_progress
         ocr = self._loaded_ocr(ocr_engine, report) if ocr_engine is not None else None
-        report("reading", 0, 0)
-        with _as_review_error():
-            source_bytes = read_source(path)
-            document = document_from_bytes(
-                source_bytes,
-                language=language,
-                ocr=ocr,
-                ocr_progress=lambda done, total: report("ocr", done, total),
-            )
-            pdf_bytes = as_pdf(source_bytes)
+        document, pdf_bytes = _read(path, ocr, report, language=language)
         model = self._loaded_model(report) if use_model else None
         resolved = resolve_language(document, language)
         run_detection(
@@ -542,17 +532,12 @@ class ReviewApi:
                 matches it, either file cannot be read, or the review's OCR
                 engine cannot be loaded.
         """
-        report = progress or (lambda _step, _done, _total: None)
+        report = progress or _no_progress
         with _as_review_error():
             engine = session_ocr_engine(session_path)
         ocr = self._loaded_ocr(engine, report) if engine is not None else None
-        report("reading", 0, 0)
+        scanned, pdf_bytes = _read(pdf_path, ocr, report)
         with _as_review_error():
-            source_bytes = read_source(pdf_path)
-            scanned = document_from_bytes(
-                source_bytes, ocr=ocr, ocr_progress=lambda done, total: report("ocr", done, total)
-            )
-            pdf_bytes = as_pdf(source_bytes)
             document = apply_session(scanned, session_path)
         self._open = _OpenDocument(Path(pdf_path), document, pdf_bytes)
         return self.document()
@@ -861,6 +846,26 @@ class ReviewApi:
             msg = "no document is open"
             raise ReviewError(msg)
         return self._open
+
+
+def _no_progress(_step: str, _done: int, _total: int) -> None:
+    pass
+
+
+def _read(
+    path: str, ocr: OcrEngine | None, report: Progress, *, language: str | None = None
+) -> tuple[Document, bytes]:
+    """Read a file once into a document and the PDF it is read as."""
+    report("reading", 0, 0)
+    with _as_review_error():
+        source_bytes = read_source(path)
+        document = document_from_bytes(
+            source_bytes,
+            language=language,
+            ocr=ocr,
+            ocr_progress=lambda done, total: report("ocr", done, total),
+        )
+        return document, as_pdf(source_bytes)
 
 
 @contextmanager

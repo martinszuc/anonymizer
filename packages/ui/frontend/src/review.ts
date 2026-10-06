@@ -17,7 +17,7 @@ import type {
   ReviewState,
 } from "./types";
 
-/** Undecided items are redacted at export (decided in PLAN.md), so only a rejection keeps text. */
+/** Undecided items are redacted at export, so only a rejection keeps text. */
 export function isRedacted(state: ReviewState): boolean {
   return state !== "rejected";
 }
@@ -465,6 +465,11 @@ export function pageList(pages: number[]): string {
   return `pages ${pages.slice(0, -1).join(", ")} and ${pages[pages.length - 1]}`;
 }
 
+/** A text cut to `length` characters, an ellipsis marking the cut. */
+export function truncated(text: string, length: number): string {
+  return text.length > length ? `${text.slice(0, length - 1)}…` : text;
+}
+
 export function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
@@ -595,7 +600,7 @@ function placeRows(leaks: LeakInfo[]): LeakRow[] {
 }
 
 /** "Page 3" or "Pages 1, 4 and 9". */
-function pagesLabel(pages: number[]): string {
+export function pagesLabel(pages: number[]): string {
   const listed = pageList(pages);
   return listed.charAt(0).toUpperCase() + listed.slice(1);
 }

@@ -126,15 +126,6 @@ def detector_for(language: str | None) -> RuleDetector:
     return RuleDetector(finders_for(language), name=f"rules:{tag}", ocr_finders=OCR_FINDERS)
 
 
-def structured_detector() -> RuleDetector:
-    """Build a detector running every rule-based finder.
-
-    Returns:
-        A detector for structured identifiers and contact details in any locale.
-    """
-    return RuleDetector(STRUCTURED_FINDERS, name="structured-rules", ocr_finders=OCR_FINDERS)
-
-
 __all__ = [
     "LANGUAGE_INDEPENDENT_FINDERS",
     "OCR_FINDERS",
@@ -183,5 +174,4 @@ __all__ = [
     "passes_luhn",
     "propagate_occurrences",
     "role_words_for",
-    "structured_detector",
 ]

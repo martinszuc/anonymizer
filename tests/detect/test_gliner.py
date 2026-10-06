@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from anonymizer.core.detect import CombinedDetector, merge_entities, structured_detector
+from anonymizer.core.detect import CombinedDetector, detector_for, merge_entities
 from anonymizer.core.detect.gliner import (
     MODEL_MAX_TOKENS,
     OVERLAP_TOKENS,
@@ -321,10 +321,10 @@ def test_merge_keeps_regions():
 def test_combined_detector_runs_rules_and_model():
     text = "Jan Novák, tel. +420 777 123 456"
     model = StandInModel({"Jan Novák": "person", "+420 777": "person"})
-    combined = CombinedDetector([structured_detector(), GlinerDetector(model)])
+    combined = CombinedDetector([detector_for(None), GlinerDetector(model)])
     entities = combined.detect(_page(text))
     assert [entity.type for entity in entities] == [EntityType.PERSON, EntityType.PHONE]
-    assert combined.name == "structured-rules+gliner-multi-v2.1"
+    assert combined.name == "rules:all+gliner-multi-v2.1"
 
 
 def test_combined_detector_needs_a_member():

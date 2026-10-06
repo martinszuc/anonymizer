@@ -42,6 +42,17 @@ _METADATA_KEYS = {
     "Producer": "producer",
 }
 
+# Dublin Core elements and the XMP container each is written in: an ordered
+# list of people, an unordered set of keywords, or alternatives by language.
+_DUBLIN_CORE = {
+    "creator": "Seq",
+    "contributor": "Seq",
+    "subject": "Bag",
+    "title": "Alt",
+    "description": "Alt",
+    "rights": "Alt",
+}
+
 
 def render(spec: DocumentSpec, destination: Path) -> Path:
     """Write a document as a PDF.
@@ -85,18 +96,6 @@ def render(spec: DocumentSpec, destination: Path) -> Path:
     pdf.save(destination, garbage=4, deflate=True)
     pdf.close()
     return destination
-
-
-# Dublin Core elements and the XMP container each is written in: an ordered
-# list of people, an unordered set of keywords, or alternatives by language.
-_DUBLIN_CORE = {
-    "creator": "Seq",
-    "contributor": "Seq",
-    "subject": "Bag",
-    "title": "Alt",
-    "description": "Alt",
-    "rights": "Alt",
-}
 
 
 def _add_text_field(page: pymupdf.Page, label: pymupdf.Rect, name: str, value: str) -> None:

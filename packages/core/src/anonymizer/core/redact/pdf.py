@@ -9,10 +9,12 @@ backgrounds and table lines behind the words. On a page OCR read, the boxes
 come from the picture, and the pixels under them are overwritten in the image
 data. Such a page also loses its whole text layer: detection read its pixels,
 so whatever text the file carried there (a stamp, text hidden under the
-picture or drawn in white) was never checked. Everything drawn
-outside a page's visible area is removed next (see `redact.canvas`), then every
-non-text surface is cleared (see `redact.surfaces`). The file is written in
-full: an incremental save would keep every earlier revision of each object.
+picture or drawn in white) was never checked.
+
+Everything drawn outside a page's visible area is removed next (see
+`redact.canvas`), then every non-text surface is cleared (see
+`redact.surfaces`). The file is written in full: an incremental save would
+keep every earlier revision of each object.
 """
 
 from __future__ import annotations

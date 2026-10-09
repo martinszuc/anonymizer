@@ -61,6 +61,9 @@ jobs:
     name: ${{ matrix.name }}
     needs: frontend
     runs-on: ubuntu-latest
+    # A normal tour takes minutes; a window waiting on a dialog would otherwise hold
+    # the runner for the six-hour default.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -94,6 +97,9 @@ jobs:
     name: ${{ matrix.name }}
     needs: frontend
     runs-on: ${{ matrix.os }}
+    # A normal tour takes minutes; a window waiting on a dialog would otherwise hold
+    # the runner for the six-hour default.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:

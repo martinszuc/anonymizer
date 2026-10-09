@@ -373,14 +373,31 @@ export function covers(entity: EntityInfo, regionNumber?: number): string {
   return (entity.text ?? "").replace(/\s+/g, " ").trim();
 }
 
+/** How far the review is: the findings with a choice, and how many of them are decided. */
+export function reviewProgress(entities: EntityInfo[]): { decided: number; total: number } {
+  const decidable = entities.filter(isDecidable);
+  return { decided: decidable.filter((entity) => entity.review !== "pending").length, total: decidable.length };
+}
+
 /**
- * The last item the reviewer added (a drawn region or selected text) that is still in the
- * document, for Cmd/Ctrl+Z; ids are in the order they were added.
+ * The first undecided finding of the row after the selected one (or before it, going back)
+ * in the list's order, wrapping around; of the first such row when nothing is selected. A
+ * group of repeats is one row, decided together, so it is one stop. Null when none is left.
  */
-export function lastAdded(addedIds: string[], entities: EntityInfo[]): EntityInfo | null {
-  for (const id of [...addedIds].reverse()) {
-    const added = entities.find((entity) => entity.id === id && entity.source === "manual");
-    if (added) return added;
+export function nextUndecided(
+  sections: FindingSection[],
+  selectedId: string | null,
+  direction: 1 | -1 = 1,
+): EntityInfo | null {
+  const undecided = (entity: EntityInfo) => isDecidable(entity) && entity.review === "pending";
+  const rows = sections.flatMap((section) => section.rows);
+  const current = rows.findIndex((row) => row.members.some((member) => member.id === selectedId));
+  // Nothing selected: start just before the first row, or just after the last going back.
+  const from = current !== -1 ? current : direction === 1 ? -1 : rows.length;
+  for (let step = 1; step <= rows.length; step += 1) {
+    const index = from + direction * step;
+    const found = rows[(index + rows.length * 2) % rows.length]?.members.find(undecided);
+    if (found) return found;
   }
   return null;
 }

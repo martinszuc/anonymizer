@@ -181,10 +181,51 @@ kbd {
   font-size: var(--text-footnote);
 }
 
-.toolbar-pages {
+.page-navigation {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.page-navigation .button-plain {
+  height: var(--control-height-small);
+  width: 26px;
+}
+
+.page-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   color: var(--label-2);
   font-size: var(--text-footnote);
   font-variant-numeric: tabular-nums;
+}
+
+.page-field input {
+  min-width: 3ch;
+  height: var(--control-height-small);
+  padding: 0 var(--space-2);
+  border: var(--hairline) solid var(--separator);
+  border-radius: var(--radius-control);
+  background: var(--fill);
+  color: var(--label);
+  font: inherit;
+  text-align: center;
+  box-sizing: content-box;
+}
+
+.page-field input:focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .toolbar-actions {
@@ -244,28 +285,44 @@ kbd {
   min-height: 0;
 }
 
-.summary {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+.review-status {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-row);
+  background: var(--fill);
+}
+
+.review-status-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.review-status-title {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
 }
 
 .summary-figure {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-row);
-  background: var(--fill);
+  align-items: baseline;
+  gap: var(--space-2);
   overflow: hidden;
 }
 
 .summary-value {
   display: block;
-  font-size: var(--text-large);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
 }
 
 .summary-figure[data-tone="keep"] .summary-value {
@@ -277,11 +334,9 @@ kbd {
 }
 
 .summary-label {
-  font-size: var(--text-caption);
+  font-size: var(--text-footnote);
   color: var(--label-2);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .segmented {
@@ -1978,6 +2033,10 @@ button.leak-row:focus-visible {
 }
 
 /* A step that cannot count (a model loading): a segment sweeping across. */
+.progress-track[data-size="thin"] {
+  height: 4px;
+}
+
 .progress-track[data-indeterminate="true"] .progress-fill {
   width: 30%;
   animation: sweep 1.2s var(--ease-out) infinite;
@@ -1998,4 +2057,35 @@ button.leak-row:focus-visible {
     opacity: 0.4;
     animation: none;
   }
+}
+
+/* Keyboard shortcuts sheet */
+
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-5) var(--space-6);
+  text-align: left;
+}
+
+.shortcut-list {
+  margin: 0;
+}
+
+.shortcut-list > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  border-bottom: var(--hairline) solid var(--separator);
+}
+
+.shortcut-list dt {
+  font-size: var(--text-footnote);
+}
+
+.shortcut-list dd {
+  margin: 0;
+  flex: none;
 }

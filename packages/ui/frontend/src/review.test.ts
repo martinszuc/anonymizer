@@ -22,7 +22,8 @@ import {
   filterFindings,
   findingSections,
   keepable,
-  lastAdded,
+  nextUndecided,
+  reviewProgress,
   lowConfidence,
   chooseOcrEngine,
   nameModelOptions,
@@ -172,26 +173,39 @@ describe("region numbers", () => {
   });
 });
 
-describe("lastAdded", () => {
-  const first = drawn("first", [72, 100, 200, 200]);
-  const second = drawn("second", [72, 300, 200, 400]);
+describe("review progress", () => {
+  const pending = (id: string, top: number) => entity({ id, text: `${id}@example.com`, boxes: [[72, top, 200, top + 12]] });
+  const kept = (id: string, top: number) => ({ ...pending(id, top), review: "rejected" as const });
+  const hidden = entity({ id: "hidden", surface_id: "s", page_index: 0 });
 
-  it("finds the region drawn last", () => {
-    expect(lastAdded(["first", "second"], [first, second])?.id).toBe("second");
+  it("counts the findings with a choice and those decided", () => {
+    const region = drawn("region", [72, 300, 200, 400]);
+    expect(reviewProgress([pending("a", 100), kept("b", 200), hidden, region])).toEqual({ decided: 1, total: 2 });
   });
 
-  it("skips regions already removed", () => {
-    expect(lastAdded(["first", "second"], [first])?.id).toBe("first");
+  it("walks the undecided findings in the list's order, wrapping around", () => {
+    const sections = findingSections([pending("a", 100), kept("b", 200), pending("c", 300), hidden], DEFAULT_VIEW);
+    expect(nextUndecided(sections, null)?.id).toBe("a");
+    expect(nextUndecided(sections, "a")?.id).toBe("c");
+    expect(nextUndecided(sections, "c")?.id).toBe("a");
+    expect(nextUndecided(sections, "b")?.id).toBe("c");
+    expect(nextUndecided(sections, "a", -1)?.id).toBe("c");
+    expect(nextUndecided(sections, null, -1)?.id).toBe("c");
   });
 
-  it("finds added text as well as regions", () => {
-    const word = entity({ id: "word", source: "manual", review: "confirmed" });
-    expect(lastAdded(["first", "word"], [first, word])?.id).toBe("word");
+  it("stops once at a group of repeats", () => {
+    const repeat = (id: string, top: number) => entity({ id, text: "Jan Novák", type: "person", boxes: [[72, top, 200, top + 12]] });
+    const sections = findingSections([repeat("a", 100), repeat("b", 200), pending("c", 300)], DEFAULT_VIEW);
+    expect(nextUndecided(sections, null)?.id).toBe("a");
+    expect(nextUndecided(sections, "a")?.id).toBe("c");
+    expect(nextUndecided(sections, "b")?.id).toBe("c");
+    expect(nextUndecided(sections, "c")?.id).toBe("a");
   });
 
-  it("finds nothing when nothing added is left", () => {
-    expect(lastAdded(["first"], [entity({ id: "first" })])).toBeNull();
-    expect(lastAdded([], [first])).toBeNull();
+  it("finds nothing once everything is decided", () => {
+    const sections = findingSections([kept("a", 100), hidden], DEFAULT_VIEW);
+    expect(nextUndecided(sections, "a")).toBeNull();
+    expect(nextUndecided([], null)).toBeNull();
   });
 });
 

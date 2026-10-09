@@ -18,6 +18,7 @@ import {
   lowConfidence,
   pagesLabel,
   regionNumbers,
+  reviewProgress,
   scoreRange,
   sortedBy,
   summarize,
@@ -56,6 +57,8 @@ interface SidebarProps {
   onRemove: (entity: EntityInfo) => void;
   selectedSurfaceId: string | null;
   onSelectSurface: (surface: SurfaceInfo) => void;
+  /** Select the next undecided finding in the list's order. */
+  onNext: () => void;
 }
 
 export function Sidebar({
@@ -72,16 +75,12 @@ export function Sidebar({
   onSelectSurface,
   view,
   onView,
+  onNext,
 }: SidebarProps) {
-  const summary = summarize(document);
   const sections = useMemo(() => findingSections(document.entities, view), [document.entities, view]);
   return (
     <aside className="sidebar" aria-label="Review">
-      <div className="summary" aria-live="polite">
-        <SummaryFigure value={summary.redacted} label="redacted" tone="ink" />
-        <SummaryFigure value={summary.kept} label="kept" tone="keep" />
-        <SummaryFigure value={summary.hidden} label="hidden" tone="muted" />
-      </div>
+      <ReviewStatus document={document} onNext={onNext} />
       <SegmentedControl
         name="sidebar"
         value={tab}
@@ -117,10 +116,50 @@ export function Sidebar({
       {tab === "findings" && document.entities.length > 0 && (
         <p className="list-footer">
           <TextSelect size={13} aria-hidden />
-          Missed a word? Drag across it on the page, or double-click it.
+          To add a missed word, drag across it on the page.
         </p>
       )}
     </aside>
+  );
+}
+
+/**
+ * How far the review is (findings with a decision, of those that take one), with a way to
+ * the next undecided one, over what export will do: redacted, kept, hidden items removed.
+ */
+function ReviewStatus({ document, onNext }: { document: DocumentInfo; onNext: () => void }) {
+  const summary = summarize(document);
+  const { decided, total } = reviewProgress(document.entities);
+  const left = total - decided;
+  return (
+    <section className="review-status" aria-label="Review progress">
+      <div className="review-status-line">
+        <span className="review-status-title">
+          {total === 0 ? "Nothing to decide" : left === 0 ? "All decided" : `${decided} of ${total} decided`}
+        </span>
+        {left > 0 && (
+          <button type="button" className="link-button" title="Select the next undecided finding (N)" onClick={onNext}>
+            Next undecided
+          </button>
+        )}
+      </div>
+      <div
+        className="progress-track"
+        data-size="thin"
+        role="progressbar"
+        aria-label="Findings decided"
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={decided}
+      >
+        <div className="progress-fill" style={{ width: `${total === 0 ? 100 : (100 * decided) / total}%` }} />
+      </div>
+      <div className="summary" aria-live="polite">
+        <SummaryFigure value={summary.redacted} label="redacted" tone="ink" />
+        <SummaryFigure value={summary.kept} label="kept" tone="keep" />
+        <SummaryFigure value={summary.hidden} label="hidden removed" tone="muted" />
+      </div>
+    </section>
   );
 }
 

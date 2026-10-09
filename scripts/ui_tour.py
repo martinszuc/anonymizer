@@ -272,6 +272,9 @@ def main(argv: list[str] | None = None) -> int:
                 except Exception:
                     traceback.print_exc()
             finally:
+                # The tour keeps a finding and never saves, so the window would ask
+                # whether to close (WindowApi.set_unsaved_changes), with no one to answer.
+                window.confirm_close = False
                 window.destroy()
 
         webview.start(steps, private_mode=True)

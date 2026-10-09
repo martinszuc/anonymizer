@@ -16,6 +16,10 @@ export interface ReviewBridge {
   status(): Promise<AppStatus>;
   /** Turns the leak check of later exports on or off, kept for later runs. */
   set_leak_check(enabled: boolean): Promise<AppStatus>;
+  /** Keeps the home screen's detection options for later runs. */
+  set_open_options(options: OpenOptions): Promise<AppStatus>;
+  /** While true, closing the window asks first. */
+  set_unsaved_changes(unsaved: boolean): Promise<void>;
   /** Each feature's models and whether they are stored. */
   models(): Promise<FeatureModels[]>;
   /** Downloads a feature's models from their official sources, verified; progress as events. */
@@ -34,6 +38,8 @@ export interface ReviewBridge {
   export_as(allowPagesWithoutText: boolean): Promise<ExportResult | null>;
   /** Writes the copy the leak check just refused, to the file chosen for it, without checking again. */
   export_unchecked(): Promise<ExportResult>;
+  /** Shows the copy last exported in the system's file manager. */
+  show_export(): Promise<void>;
   page_image(index: number, dpi: number): Promise<string>;
   set_review(entityId: string, state: ReviewState): Promise<EntityInfo>;
   /** One decision on several entities, all or none; returns them in the order given. */

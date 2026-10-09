@@ -139,7 +139,7 @@ and the review window lists every such entry.
 
 Files land in `models/<id>/` or `data/<id>/` of the repository (both git-ignored;
 `--root` names another place). The CLI, the review window and the benchmark read
-models from `models/` under `--resource-root`, by default the folder chosen in the review window (*Manage models… → Change…*), else
+models from `models/` under `--resource-root`, by default the folder chosen in the review window (*Manage Models… → Change…*), else
 `./models` if the working directory has one (a checkout of this repository),
 else a per-user folder (`~/Library/Application Support/anonymizer` on macOS,
 `%LOCALAPPDATA%/anonymizer` on Windows, `~/.local/share/anonymizer` on Linux). A file whose

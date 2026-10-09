@@ -230,6 +230,7 @@ const CHECK_LAYERS: ExportProgress["step"][] = [
 
 /** Kept in memory only, as a stand-in for the settings file. */
 let leakCheck = true;
+let openOptions: OpenOptions | null = null;
 
 /** What the demo has "downloaded" this session, by feature. */
 const downloaded = new Set<string>();
@@ -329,7 +330,7 @@ function demoStatus(): AppStatus {
       default: "onnxtr",
       engines: DEMO_ENGINES.map(demoChoice),
     },
-    settings: { leak_check: leakCheck },
+    settings: { leak_check: leakCheck, open_options: openOptions },
   };
 }
 
@@ -537,6 +538,12 @@ export function demoBridge(): ReviewBridge {
       leakCheck = enabled;
       return demoStatus();
     },
+    set_open_options: async (options: OpenOptions) => {
+      openOptions = structuredClone(options);
+      return demoStatus();
+    },
+    set_unsaved_changes: async () => {},
+    show_export: async () => {},
     export_as: async (allowPagesWithoutText: boolean): Promise<ExportResult | null> => {
       await pause();
       if (!current) throw new Error("no document is open");

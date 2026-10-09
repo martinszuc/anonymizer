@@ -16,9 +16,9 @@ on, by the engine chosen under it: OnnxTR (the default, print only) or kraken
 command line, with OnnxTR unless an engine is named. The packages come from
 `uv sync --group ner --group ocr-onnxtr --group ocr-kraken` (kraken installs on
 macOS and Linux x86-64 only); the models are downloaded from the window
-(*Manage models…*, each file checked against the catalog's checksum) or with
+(*Manage Models…*, each file checked against the catalog's checksum) or with
 `uv run python scripts/download.py fetch <id>`. Models go to `models/` under
-`--resource-root`, by default the folder chosen in the review window (*Manage models… → Change…*), else
+`--resource-root`, by default the folder chosen in the review window (*Manage Models… → Change…*), else
 `./models` if the working directory has one (a checkout of this repository),
 else a per-user folder (`~/Library/Application Support/anonymizer` on macOS,
 `%LOCALAPPDATA%/anonymizer` on Windows, `~/.local/share/anonymizer` on Linux). The Models sheet shows the folder and

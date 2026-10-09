@@ -10,6 +10,7 @@ import {
   type ExportPlan,
   type LeakRow,
 } from "../review";
+import { fileManager } from "../platform";
 import type { ExportProgress, ExportResult, LeakInfo } from "../types";
 import { Button } from "./Button";
 import { Sheet } from "./Sheet";
@@ -32,11 +33,21 @@ interface ExportSheetsProps {
   onSaveAnyway: () => void;
   /** Show where a leak lies: select its finding, or scroll to its page. */
   onShowLeak: (row: LeakRow) => void;
+  /** Show the written copy in the system's file manager. */
+  onShowFile: () => void;
   onClose: () => void;
 }
 
 /** The sheets around an export: consent for unreadable pages, progress, leaks, the outcome. */
-export function ExportSheets({ sheet, busy, onExportAnyway, onSaveAnyway, onShowLeak, onClose }: ExportSheetsProps) {
+export function ExportSheets({
+  sheet,
+  busy,
+  onExportAnyway,
+  onSaveAnyway,
+  onShowLeak,
+  onShowFile,
+  onClose,
+}: ExportSheetsProps) {
   // Nothing can stop an export once it runs; Escape must not hide it.
   const ignore = () => {};
   return (
@@ -62,8 +73,8 @@ export function ExportSheets({ sheet, busy, onExportAnyway, onSaveAnyway, onShow
           <p>
             {pagesLabel(sheet.pages)} {sheet.pages.length === 1 ? "is a scan" : "are scans"}{" "}
             OCR did not read. Nothing on {sheet.pages.length === 1 ? "it" : "them"} was detected, so{" "}
-            {sheet.pages.length === 1 ? "it goes" : "they go"} into the copy unredacted, and the leak
-            check cannot see that.
+            {sheet.pages.length === 1 ? "it goes" : "they go"} into the copy as{" "}
+            {sheet.pages.length === 1 ? "it is" : "they are"}, and the leak check cannot tell.
           </p>
         )}
       </Sheet>
@@ -109,9 +120,12 @@ export function ExportSheets({ sheet, busy, onExportAnyway, onSaveAnyway, onShow
         tone="success"
         onClose={onClose}
         actions={
-          <Button variant="primary" onClick={onClose}>
-            Done
-          </Button>
+          <>
+            <Button onClick={onShowFile}>Show in {fileManager}</Button>
+            <Button variant="primary" data-default onClick={onClose}>
+              Done
+            </Button>
+          </>
         }
       >
         {sheet?.kind === "result" && <ResultBody result={sheet.result} accepted={sheet.accepted} />}

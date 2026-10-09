@@ -181,10 +181,51 @@ kbd {
   font-size: var(--text-footnote);
 }
 
-.toolbar-pages {
+.page-navigation {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.page-navigation .button-plain {
+  height: var(--control-height-small);
+  width: 26px;
+}
+
+.page-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   color: var(--label-2);
   font-size: var(--text-footnote);
   font-variant-numeric: tabular-nums;
+}
+
+.page-field input {
+  min-width: 3ch;
+  height: var(--control-height-small);
+  padding: 0 var(--space-2);
+  border: var(--hairline) solid var(--separator);
+  border-radius: var(--radius-control);
+  background: var(--fill);
+  color: var(--label);
+  font: inherit;
+  text-align: center;
+  box-sizing: content-box;
+}
+
+.page-field input:focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .toolbar-actions {
@@ -244,28 +285,44 @@ kbd {
   min-height: 0;
 }
 
-.summary {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+.review-status {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-row);
+  background: var(--fill);
+}
+
+.review-status-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.review-status-title {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
 }
 
 .summary-figure {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-row);
-  background: var(--fill);
+  align-items: baseline;
+  gap: var(--space-2);
   overflow: hidden;
 }
 
 .summary-value {
   display: block;
-  font-size: var(--text-large);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
 }
 
 .summary-figure[data-tone="keep"] .summary-value {
@@ -277,11 +334,9 @@ kbd {
 }
 
 .summary-label {
-  font-size: var(--text-caption);
+  font-size: var(--text-footnote);
   color: var(--label-2);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .segmented {
@@ -1243,32 +1298,26 @@ kbd {
   flex-direction: column;
   align-items: center;
   gap: var(--space-6);
-  padding: var(--space-8) var(--space-5);
+  padding: var(--space-7) var(--space-6) var(--space-5);
   overflow-y: auto;
 }
 
 .home > * {
-  width: min(560px, 100%);
-}
-
-.home > .button {
-  width: auto;
+  width: min(960px, 100%);
 }
 
 .home-header {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
-  text-align: center;
-  margin-top: var(--space-5);
+  gap: var(--space-4);
 }
 
 .home-icon {
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 64px;
+  flex: none;
+  width: 48px;
+  height: 48px;
   border-radius: var(--radius-card);
   background: var(--elevated);
   box-shadow: var(--shadow-popover);
@@ -1284,11 +1333,44 @@ kbd {
   color: var(--label-2);
 }
 
+/* Opening on the left, the options for it on the right; one column in a narrow window. */
+.home-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: var(--space-6);
+}
+
+@media (max-width: 860px) {
+  .home-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .home-start {
+    padding-top: 0;
+  }
+}
+
+.home-start {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-4);
+  /* Level with the Detection card under its title. */
+  padding-top: calc(var(--text-footnote) * 1.4 + var(--space-3));
+}
+
+.home-start > .button {
+  align-self: center;
+}
+
 .drop-zone {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
+  justify-content: center;
+  gap: var(--space-4);
+  flex: 1;
+  min-height: 220px;
   padding: var(--space-8) var(--space-6);
   border: 1.5px dashed var(--separator);
   border-radius: var(--radius-card);
@@ -1317,7 +1399,6 @@ kbd {
   color: var(--accent);
 }
 
-.drop-zone-or,
 .drop-zone-hint {
   font-size: var(--text-footnote);
 }
@@ -1381,8 +1462,14 @@ kbd {
   flex: none;
 }
 
-.option-control .segmented {
-  min-width: 280px;
+.option-row[data-stacked="true"] {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.option-row[data-stacked="true"] .option-control .segmented {
+  width: 100%;
 }
 
 /* Choices under an option (the OCR engines), indented as part of its row. */
@@ -1818,6 +1905,24 @@ button.leak-row:focus-visible {
   cursor: pointer;
 }
 
+.toast-close {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-left: var(--space-1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--label-3);
+}
+
+.toast-close:hover {
+  background: var(--fill-hover);
+  color: var(--label-2);
+}
+
 .toast-action:focus-visible {
   border-radius: var(--radius-control);
   box-shadow: var(--focus-ring);
@@ -1978,6 +2083,10 @@ button.leak-row:focus-visible {
 }
 
 /* A step that cannot count (a model loading): a segment sweeping across. */
+.progress-track[data-size="thin"] {
+  height: 4px;
+}
+
 .progress-track[data-indeterminate="true"] .progress-fill {
   width: 30%;
   animation: sweep 1.2s var(--ease-out) infinite;
@@ -1998,4 +2107,35 @@ button.leak-row:focus-visible {
     opacity: 0.4;
     animation: none;
   }
+}
+
+/* Keyboard shortcuts sheet */
+
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-5) var(--space-6);
+  text-align: left;
+}
+
+.shortcut-list {
+  margin: 0;
+}
+
+.shortcut-list > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  border-bottom: var(--hairline) solid var(--separator);
+}
+
+.shortcut-list dt {
+  font-size: var(--text-footnote);
+}
+
+.shortcut-list dd {
+  margin: 0;
+  flex: none;
 }

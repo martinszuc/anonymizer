@@ -129,7 +129,11 @@ export interface AppStatus {
   names: NamesStatus;
   ocr: OcrStatus;
   /** Preferences kept between runs. */
-  settings: { leak_check: boolean };
+  settings: {
+    leak_check: boolean;
+    /** The home screen's options as the reviewer last left them; null before the first change. */
+    open_options: OpenOptions | null;
+  };
 }
 
 /** How a document is opened; each is a detection option (see `ReviewApi.open_pdf`). */

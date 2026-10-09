@@ -16,6 +16,7 @@ import functools
 import json
 import logging
 import platform
+import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -98,6 +99,8 @@ class WindowApi:
         # Where the last export the leak check refused was going, and whether it
         # allowed unread scans: saving it anyway reuses them, so that call takes no path.
         self._refused_export: tuple[str, bool] | None = None
+        # The copy last written, which the page may ask to be shown in the file manager.
+        self._written: Path | None = None
 
     def _attach(self, window: webview.Window) -> None:
         """Give the API the window its dialogs open over; private so the page cannot."""
@@ -112,6 +115,19 @@ class WindowApi:
     def set_leak_check(self, enabled: bool) -> dict[str, Any]:
         """Turn the leak check on or off for later exports; see `ReviewApi.set_leak_check`."""
         return self._review.set_leak_check(enabled)
+
+    @_logged
+    def set_open_options(self, options: Any) -> dict[str, Any]:
+        """Keep the home screen's options for later runs; see `ReviewApi.set_open_options`."""
+        return self._review.set_open_options(options)
+
+    @_logged
+    def set_unsaved_changes(self, unsaved: bool) -> None:
+        """Ask before the window closes while the review has changes not saved.
+
+        pywebview asks with its own dialog, worded by `CLOSE_QUESTION`.
+        """
+        self._attached().confirm_close = unsaved is True
 
     @_logged
     def models(self) -> list[dict[str, Any]]:
@@ -176,6 +192,7 @@ class WindowApi:
         self._review.close()
         self._dropped = None
         self._refused_export = None
+        self._written = None
         self._attached().title = "Anonymizer"
 
     @_logged
@@ -217,7 +234,9 @@ class WindowApi:
         if path is None:
             return None
         result = self._review.export(path, allow_pages_without_text, self._export_progress)
-        if not result["written"]:
+        if result["written"]:
+            self._written = Path(path)
+        else:
             self._refused_export = (path, bool(allow_pages_without_text))
         return result
 
@@ -232,9 +251,22 @@ class WindowApi:
             msg = "there is no refused export to save"
             raise ReviewError(msg)
         (path, allow_pages_without_text), self._refused_export = self._refused_export, None
-        return self._review.export(
+        result = self._review.export(
             path, allow_pages_without_text, self._export_progress, check=False
         )
+        self._written = Path(path)
+        return result
+
+    @_logged
+    def show_export(self) -> None:
+        """Show the copy just exported in the system's file manager.
+
+        The path is the one the reviewer chose in the save dialog; the page names none.
+        """
+        if self._written is None or not self._written.is_file():
+            msg = "there is no exported copy to show"
+            raise ReviewError(msg)
+        _reveal(self._written)
 
     @_logged
     def page_image(self, index: int, dpi: int = 144) -> str:
@@ -358,6 +390,26 @@ class WindowApi:
             msg = "the window is not ready"
             raise ReviewError(msg)
         return self._window
+
+
+def _reveal(path: Path) -> None:
+    """Open the file manager at a file, selected where the platform allows it."""
+    if sys.platform == "darwin":
+        command = ["open", "-R", str(path)]
+    elif sys.platform == "win32":
+        command = ["explorer", f"/select,{path}"]
+    else:
+        command = ["xdg-open", str(path.parent)]
+    # A list, no shell: the path cannot be read as a command.
+    subprocess.Popen(command)
+
+
+CLOSE_QUESTION = {
+    "global.quitConfirmation": "Your decisions on this document are not saved. Close anyway?",
+    "global.quit": "Close",
+    "global.cancel": "Cancel",
+}
+"""pywebview's question before closing a window with unsaved changes, in the window's words."""
 
 
 def _ignore(_event: dict[str, Any]) -> None:
@@ -504,7 +556,7 @@ def main(argv: list[str] | None = None) -> int:
     # --debug enables the inspector (context menu, F12 where the platform has it);
     # pywebview would also open it on every start.
     webview.settings["OPEN_DEVTOOLS_IN_DEBUG"] = False
-    webview.start(debug=args.debug, private_mode=True)
+    webview.start(debug=args.debug, private_mode=True, localization=CLOSE_QUESTION)
     log.info("window closed")
     return 0
 

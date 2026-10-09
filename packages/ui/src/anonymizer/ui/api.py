@@ -20,7 +20,7 @@ import base64
 import logging
 import threading
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -141,6 +141,18 @@ Downloaded = Callable[[str, int, int], None]
 LEAK_CHECK_SETTING = "leak_check"
 """Whether export checks the copy for leaks; on unless the reviewer turned it off."""
 
+OPEN_OPTIONS_SETTING = "open_options"
+"""The home screen's detection options as the reviewer last left them; nothing about a document."""
+
+_OPEN_OPTION_TYPES: dict[str, tuple[type, ...]] = {
+    "language": (str, type(None)),
+    "propagate": (bool,),
+    "use_model": (bool,),
+    "name_model": (str,),
+    "use_ocr": (bool,),
+    "ocr_engine": (str,),
+}
+
 
 @dataclass(frozen=True)
 class _Feature:
@@ -244,7 +256,12 @@ class ReviewApi:
         # Loaded on first use and kept: loading takes seconds, detecting does not.
         self._models: dict[str, Detector] = {}
         self._ocr: dict[str, OcrEngine] = {}
-        self._leak_check = read_settings().get(LEAK_CHECK_SETTING) is not False
+        settings = read_settings()
+        self._leak_check = settings.get(LEAK_CHECK_SETTING) is not False
+        self._open_options: dict[str, Any] | None = None
+        # Never set, or written by another version: the home screen starts from its defaults.
+        with suppress(ReviewError):
+            self._open_options = open_options(settings.get(OPEN_OPTIONS_SETTING))
 
     def status(self) -> dict[str, Any]:
         """Describe what this installation can do, for the home screen.
@@ -257,7 +274,8 @@ class ReviewApi:
             are stored in, the state of every name model and every OCR engine
             (`ready`, `not_installed`: the optional dependencies are missing,
             or `files_missing`, with the catalog ids to fetch), the name model
-            and the OCR engine offered first, and the settings (`leak_check`).
+            and the OCR engine offered first, and the settings (`leak_check`,
+            and `open_options` as last kept, or None).
         """
         return {
             "version": __version__,
@@ -271,7 +289,7 @@ class ReviewApi:
                 "default": DEFAULT_OCR_ENGINE,
                 "engines": [self._ocr_engine_status(engine) for engine in OCR_ENGINES],
             },
-            "settings": {"leak_check": self._leak_check},
+            "settings": {"leak_check": self._leak_check, "open_options": self._open_options},
         }
 
     def _name_model_status(self, model: Resource) -> dict[str, Any]:
@@ -320,6 +338,29 @@ class ReviewApi:
             write_setting(LEAK_CHECK_SETTING, enabled)
         self._leak_check = enabled
         log.info("leak check turned %s", "on" if enabled else "off")
+        return self.status()
+
+    def set_open_options(self, options: object) -> dict[str, Any]:
+        """Keep the home screen's detection options for this run and later ones.
+
+        A name model or an OCR engine kept here may be missing later; the home
+        screen then offers a ready one instead.
+
+        Args:
+            options: `{language, propagate, use_model, name_model, use_ocr, ocr_engine}`.
+
+        Returns:
+            The installation as `status()` describes it.
+
+        Raises:
+            ReviewError: If an option is missing, unknown or of the wrong kind, or the
+                choice cannot be saved.
+        """
+        checked = open_options(options)
+        with _as_review_error():
+            write_setting(OPEN_OPTIONS_SETTING, checked)
+        self._open_options = checked
+        log.debug("open options kept")
         return self.status()
 
     def models(self) -> list[dict[str, Any]]:
@@ -893,6 +934,33 @@ class ReviewApi:
 
 def _no_progress(_step: str, _done: int, _total: int) -> None:
     pass
+
+
+def open_options(options: object) -> dict[str, Any]:
+    """Check the home screen's detection options, as the page or the settings file gives them.
+
+    Args:
+        options: `{language, propagate, use_model, name_model, use_ocr, ocr_engine}`;
+            `language` is a code of `LANGUAGES`, `language.AUTO` or None.
+
+    Returns:
+        The same options, as a new mapping.
+
+    Raises:
+        ReviewError: If an option is missing, unknown or of the wrong kind.
+    """
+    if not isinstance(options, dict) or set(options) != set(_OPEN_OPTION_TYPES):
+        msg = f"open options need exactly {sorted(_OPEN_OPTION_TYPES)}"
+        raise ReviewError(msg)
+    for key, kinds in _OPEN_OPTION_TYPES.items():
+        if not isinstance(options[key], kinds):
+            msg = f"open option {key} has the wrong kind"
+            raise ReviewError(msg)
+    language = options["language"]
+    if language is not None and language != AUTO and language not in LANGUAGES:
+        msg = f"unknown language {language!r}"
+        raise ReviewError(msg)
+    return dict(options)
 
 
 def _name_model_id(model_id: str, catalog: Catalog) -> str:

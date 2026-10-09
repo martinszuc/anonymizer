@@ -53,8 +53,8 @@ export function SettingsSheet({
             label="Check the copy for leaks"
             note={
               leakCheck
-                ? "Before saving, the redacted copy is searched for what you redacted, and scans are read again with OCR. If something turns up, you decide whether to save."
-                : "The copy is saved as redaction made it, without searching it. Exports are faster, and nothing warns you about text left in the copy."
+                ? "Before saving, the copy is searched for what you redacted and scans are read again. If anything turns up, you choose whether to save."
+                : "The copy is saved unchecked: faster, but nothing warns you about text left in it."
             }
           >
             <Switch
@@ -73,7 +73,7 @@ export function SettingsSheet({
           <ModelFolder folder={status.models_folder} downloading={downloading} onChange={onChangeFolder} />
         )}
         <Button variant="plain" onClick={onModels}>
-          Manage models…
+          Manage Models…
         </Button>
       </section>
     </Sheet>

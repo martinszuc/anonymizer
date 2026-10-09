@@ -8,9 +8,21 @@ import { ModelsSheet } from "./components/ModelsSheet";
 import { Opening } from "./components/Opening";
 import { PageView, type WordSelection } from "./components/PageView";
 import { SettingsSheet } from "./components/SettingsSheet";
+import { ShortcutsSheet } from "./components/ShortcutsSheet";
 import { Sidebar, type SidebarTab } from "./components/Sidebar";
 import { Toasts, type Toast } from "./components/Toasts";
 import { Toolbar } from "./components/Toolbar";
+import {
+  EMPTY_HISTORY,
+  additionOf,
+  afterRedo,
+  afterUndo,
+  recorded,
+  statesBefore,
+  type Addition,
+  type Edit,
+  type History,
+} from "./history";
 import { PageImages } from "./pageImages";
 import { PageWords } from "./pageWords";
 import { hasCommand } from "./platform";
@@ -22,8 +34,9 @@ import {
   filterFindings,
   groupToggled,
   isDecidable,
-  lastAdded,
   nameModelOptions,
+  nextUndecided,
+  findingSections,
   ocrOptions,
   pagesWithoutText,
   plural,
@@ -48,7 +61,6 @@ import type {
   SurfaceInfo,
 } from "./types";
 
-const TOAST_MS = 4000;
 const TOAST_TEXT_LENGTH = 40;
 const CANVAS_PADDING = 48;
 const MIN_SCALE = 0.25;
@@ -71,6 +83,9 @@ export function App() {
   const openingName = useRef<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [document, setDocument] = useState<DocumentInfo | null>(null);
+  // For steps that run after an await or from a toast, which must see the latest entities.
+  const documentRef = useRef(document);
+  documentRef.current = document;
   // Bumped per opened document, so page images of the previous one are dropped.
   const [generation, setGeneration] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -88,15 +103,19 @@ export function App() {
   const [exportSheet, setExportSheet] = useState<ExportSheet | null>(null);
   const [exporting, setExporting] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const pageField = useRef<HTMLInputElement>(null);
   const [savingSetting, setSavingSetting] = useState(false);
   // The region tool, or Alt held down: a drag on a page draws a region.
   const [drawTool, setDrawTool] = useState(false);
   const [altHeld, setAltHeld] = useState(false);
   // A click on a box only finds it in the list; off by default, so a click decides.
   const [locating, setLocating] = useState(false);
-  // Items added since this document opened (regions drawn, text selected), oldest first:
-  // Cmd/Ctrl+Z removes the last.
-  const addedItems = useRef<string[]>([]);
+  // The reviewer's edits on this document, for undo and redo; a step runs one at a time.
+  const [history, setHistory] = useState<History>(EMPTY_HISTORY);
+  const historyRef = useRef(history);
+  historyRef.current = history;
+  const stepping = useRef(false);
   // Words selected on a page, waiting to be added as a finding.
   const [selection, setSelection] = useState<WordSelection | null>(null);
   const [adding, setAdding] = useState(false);
@@ -115,9 +134,8 @@ export function App() {
     (kind: Toast["kind"], message: string, action?: Toast["action"]) => {
       const id = Date.now() + Math.random();
       setToasts((current) => [...current, { id, kind, message, action }]);
-      setTimeout(() => dismissToast(id), TOAST_MS);
     },
-    [dismissToast],
+    [],
   );
   const reportError = useCallback((message: string) => notify("error", message), [notify]);
   const updateEntities = (change: (entities: EntityInfo[]) => EntityInfo[]) =>
@@ -130,13 +148,26 @@ export function App() {
       if (opened) show(opened);
       const installed = await connected.status();
       setStatus(installed);
-      setOptions((current) => ({
-        ...current,
-        ...nameModelOptions(installed.names, { use_model: true, name_model: installed.names.default }),
-        ...ocrOptions(installed.ocr, { use_ocr: true, ocr_engine: installed.ocr.default }),
-      }));
+      // The options as last left, or the defaults with every ready model on; either way only
+      // what is ready now is turned on.
+      const kept = installed.settings.open_options;
+      setOptions((current) => {
+        const start = kept ?? {
+          ...current,
+          use_model: true,
+          name_model: installed.names.default,
+          use_ocr: true,
+          ocr_engine: installed.ocr.default,
+        };
+        return { ...start, ...nameModelOptions(installed.names, start), ...ocrOptions(installed.ocr, start) };
+      });
     });
   }, []);
+
+  // Closing the window asks first while the review has unsaved changes.
+  useEffect(() => {
+    bridge?.set_unsaved_changes(dirty).catch((error: unknown) => reportError(errorMessage(error)));
+  }, [bridge, dirty, reportError]);
 
   // Preview and the region tool have no use for selected words.
   useEffect(() => {
@@ -162,14 +193,14 @@ export function App() {
     setView((current) => ({ ...current, filter: NO_FILTER }));
     setSelectedSurfaceId(null);
     setSelection(null);
-    addedItems.current = [];
+    setHistory(EMPTY_HISTORY);
     setCurrentPage(0);
     setZoom("fit");
     canvasRef.current?.scrollTo({ top: 0 });
   }
 
   const discardConfirmed = () =>
-    !dirty || window.confirm("Your decisions on this document are not saved. Discard them?");
+    !dirty || window.confirm("Your decisions on this document are not saved. Close it anyway?");
 
   /** `name` is known for a dropped file; a dialog's choice is named once it opens. */
   async function open(choose: (api: ReviewBridge) => Promise<DocumentInfo | null>, name: string | null = null) {
@@ -236,6 +267,12 @@ export function App() {
     } catch (error) {
       reportError(errorMessage(error));
     }
+  }
+
+  /** Change the home screen's options, kept for later runs. */
+  function changeOptions(next: OpenOptions) {
+    setOptions(next);
+    bridge?.set_open_options(next).catch((error: unknown) => reportError(errorMessage(error)));
   }
 
   const openPdf = () => open((api) => api.choose_pdf(options));
@@ -416,17 +453,35 @@ export function App() {
     }
   }
 
+  /** Remember an edit for undo. An Undo offered by a toast belongs to the edit before it. */
+  function record(edit: Edit) {
+    setHistory((current) => recorded(current, edit));
+    setToasts((current) => current.filter((toast) => !toast.action));
+    setDirty(true);
+  }
+
   async function addRegion(pageIndex: number, box: Box) {
     if (!bridge) return;
     try {
-      const region = await bridge.add_region(pageIndex, ...box);
-      updateEntities((entities) => [...entities, region]);
-      addedItems.current.push(region.id);
+      const addition: Addition = { kind: "region", pageIndex, box };
+      const [region] = await addAgain(addition);
+      if (!region) return;
+      record({ kind: "add", addition, ids: [region.id], label: "Draw a region" });
       setSelectedId(region.id);
-      setDirty(true);
     } catch (error) {
       reportError(errorMessage(error));
     }
+  }
+
+  /** Add an item through Python; the new entities, the item first. */
+  async function addAgain(addition: Addition): Promise<EntityInfo[]> {
+    if (!bridge) return [];
+    const added =
+      addition.kind === "region"
+        ? [await bridge.add_region(addition.pageIndex, ...addition.box)]
+        : await bridge.add_finding(addition.pageIndex, addition.start, addition.end, addition.type);
+    updateEntities((entities) => [...entities, ...added]);
+    return added;
   }
 
   /** Add the selected words as a finding of a type, with the repeats Python proposes. */
@@ -435,19 +490,17 @@ export function App() {
     if (!bridge || !selection || !span || adding) return;
     setAdding(true);
     try {
-      const added = await bridge.add_finding(selection.pageIndex, ...span, type);
+      const addition: Addition = { kind: "finding", pageIndex: selection.pageIndex, start: span[0], end: span[1], type };
+      const added = await addAgain(addition);
       const [finding] = added;
       if (!finding) return;
-      updateEntities((entities) => [...entities, ...added]);
-      addedItems.current.push(finding.id);
+      const text = truncated(covers(finding), TOAST_TEXT_LENGTH);
+      const edit: Edit = { kind: "add", addition, ids: added.map((item) => item.id), label: `Add “${text}”` };
+      record(edit);
       setSelection(null);
       setSelectedId(finding.id);
-      setDirty(true);
       const repeats = added.length - 1;
-      notify("success", `Added “${truncated(covers(finding), TOAST_TEXT_LENGTH)}”${repeats > 0 ? ` and ${plural(repeats, "repeat")}` : ""}`, {
-        label: "Undo",
-        run: () => void removeEntity(finding),
-      });
+      notify("success", `Added “${text}”${repeats > 0 ? ` and ${plural(repeats, "repeat")}` : ""}`, undoAction(edit));
     } catch (error) {
       reportError(errorMessage(error));
     } finally {
@@ -455,20 +508,30 @@ export function App() {
     }
   }
 
+  /** Remove an item the reviewer added; undoable when it was added since the document opened. */
   async function removeEntity(entity: EntityInfo) {
-    if (!bridge) return;
+    const addition = additionOf(historyRef.current, entity.id);
+    if (!(await removeNow(entity))) return;
+    const text = entity.is_region ? "a region" : `“${truncated(covers(entity), TOAST_TEXT_LENGTH)}”`;
+    if (addition) record({ kind: "remove", addition, ids: [entity.id], label: `Remove ${text}` });
+    else setDirty(true);
+  }
+
+  /** Remove an item through Python, with the repeats only it explained; false if refused. */
+  async function removeNow(entity: EntityInfo): Promise<boolean> {
+    if (!bridge) return false;
     // Optimistic, like toggling: it goes at once and comes back if Python refuses.
     updateEntities((entities) => entities.filter((item) => item.id !== entity.id));
     setSelectedId((current) => (current === entity.id ? null : current));
-    setDirty(true);
     try {
-      // Repeats proposed only because of an added text go with it.
       const removed = new Set(await bridge.remove_entity(entity.id));
       updateEntities((entities) => entities.filter((item) => !removed.has(item.id)));
       setSelectedId((current) => (current !== null && removed.has(current) ? null : current));
+      return true;
     } catch (error) {
       updateEntities((entities) => [...entities, entity]);
       reportError(errorMessage(error));
+      return false;
     }
   }
 
@@ -476,38 +539,46 @@ export function App() {
     // Hidden data always goes and a region is removed instead: nothing to toggle.
     if (!bridge || !isDecidable(entity)) return;
     const next = toggled(entity.review);
-    // Optimistic: the box changes at once, and changes back if Python refuses.
-    const setState = (review: EntityInfo["review"]) =>
-      updateEntities((entities) => entities.map((item) => (item.id === entity.id ? { ...item, review } : item)));
-    setState(next);
-    setDirty(true);
-    try {
-      await bridge.set_review(entity.id, next);
-    } catch (error) {
-      setState(entity.review);
-      reportError(errorMessage(error));
-    }
+    const text = truncated(covers(entity), TOAST_TEXT_LENGTH);
+    await decideAll([entity], next, `${next === "rejected" ? "Keep" : "Redact"} “${text}”`);
   }
 
   /** One decision for every repeat of a finding; hidden-data members have none to change. */
   async function toggleGroup(members: EntityInfo[]) {
     const decidable = members.filter(isDecidable);
     if (decidable.length === 0) return;
-    await decideAll(decidable, groupToggled(decidable));
+    const next = groupToggled(decidable);
+    const text = truncated(covers(decidable[0] as EntityInfo), TOAST_TEXT_LENGTH);
+    await decideAll(decidable, next, `${next === "rejected" ? "Keep" : "Redact"} every “${text}”`);
   }
 
-  /** Keep the model's uncertain findings, with an Undo that makes them undecided again. */
+  /** Keep the undecided findings a filter shows, with an Undo on the toast. */
   async function keepAll(entities: EntityInfo[]) {
-    if (entities.length === 0 || !(await decideAll(entities, "rejected"))) return;
-    notify("success", `Kept ${plural(entities.length, "finding")}`, {
-      label: "Undo",
-      // Kept by now: a refused undo leaves them kept, as Python has them.
-      run: () => void decideAll(entities.map((entity) => ({ ...entity, review: "rejected" })), "pending"),
-    });
+    const label = `Keep ${plural(entities.length, "finding")}`;
+    const edit = entities.length > 0 ? await decideAll(entities, "rejected", label) : null;
+    if (edit) notify("success", `Kept ${plural(entities.length, "finding")}`, undoAction(edit));
   }
 
-  /** One decision for several decidable entities; false if Python refused it. */
-  async function decideAll(entities: EntityInfo[], next: EntityInfo["review"]): Promise<boolean> {
+  /** A toast's Undo: it undoes its own edit, and only while that edit is the last one. */
+  function undoAction(edit: Edit): Toast["action"] {
+    return { label: "Undo", run: () => historyRef.current.done.at(-1) === edit && void undo() };
+  }
+
+  /** One decision for several decidable entities, recorded for undo; null if Python refused it. */
+  async function decideAll(entities: EntityInfo[], next: EntityInfo["review"], label: string): Promise<Edit | null> {
+    if (!(await setReviews(entities, next))) return null;
+    const edit: Edit = {
+      kind: "decide",
+      before: Object.fromEntries(entities.map((entity) => [entity.id, entity.review])),
+      after: next,
+      label,
+    };
+    record(edit);
+    return edit;
+  }
+
+  /** Set one state on entities, at once on screen and back if Python refuses; false then. */
+  async function setReviews(entities: EntityInfo[], next: EntityInfo["review"]): Promise<boolean> {
     if (!bridge) return false;
     const ids = new Set(entities.map((entity) => entity.id));
     const before = new Map(entities.map((entity) => [entity.id, entity.review]));
@@ -517,7 +588,6 @@ export function App() {
         entities.map((item) => (ids.has(item.id) ? { ...item, review: reviewOf(item) } : item)),
       );
     apply(() => next);
-    setDirty(true);
     try {
       await bridge.set_reviews([...ids], next);
       return true;
@@ -545,6 +615,11 @@ export function App() {
       ?.scrollIntoView({ block: "center", behavior: "smooth" });
   }
 
+  /** Bring a page to the top of the canvas. */
+  function goToPage(index: number) {
+    canvasRef.current?.querySelector(`[data-page-index="${index}"]`)?.scrollIntoView({ block: "start" });
+  }
+
   const widest = Math.max(...(document?.pages.map((page) => page.width) ?? [1]));
   const fitScale = Math.min(Math.max((canvasWidth - 2 * CANVAS_PADDING) / widest, MIN_SCALE), MAX_FIT_SCALE);
   const scale = zoom === "fit" ? fitScale : zoom;
@@ -553,10 +628,11 @@ export function App() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       // A sheet is modal: its own keys only.
-      if (exportSheet || settingsOpen || modelsOpen) return;
+      if (exportSheet || settingsOpen || modelsOpen || shortcutsOpen) return;
       if (event.key === "Alt") setAltHeld(true);
       if (!hasCommand(event)) {
-        onPlainKey(event);
+        // Letters typed into a field are text, not shortcuts.
+        if (!isTyping(event.target)) onPlainKey(event);
         return;
       }
       const key = event.key.toLowerCase();
@@ -566,9 +642,10 @@ export function App() {
       else if ((key === "=" || key === "+") && document) zoomBy(1);
       else if (key === "-" && document) zoomBy(-1);
       else if (key === "0" && document) setZoom("fit");
+      else if (key === "g" && document) pageField.current?.focus();
       else if (key === "y" && document) setPreviewing((value) => !value);
       else if (key === "e" && document) startExport();
-      else if (key === "z" && !event.shiftKey && document) undoAdded();
+      else if (key === "z" && document) void (event.shiftKey ? redo() : undo());
       else return;
       event.preventDefault();
     };
@@ -586,12 +663,70 @@ export function App() {
     };
   });
 
-  /** Remove the last item added that is still there; there is no undo for decisions yet. */
-  function undoAdded() {
+  /** Undo the last edit: decisions back to what they were, an addition removed, a removal added back. */
+  async function undo() {
+    const edit = historyRef.current.done.at(-1);
+    if (!edit || stepping.current) return;
+    stepping.current = true;
+    try {
+      const renamed = await carryOut(edit, "undo");
+      setHistory((current) => afterUndo(current, renamed));
+      setDirty(true);
+    } catch (error) {
+      reportError(errorMessage(error));
+    } finally {
+      stepping.current = false;
+    }
+  }
+
+  /** Redo the last edit undone. */
+  async function redo() {
+    const edit = historyRef.current.undone.at(-1);
+    if (!edit || stepping.current) return;
+    stepping.current = true;
+    try {
+      const renamed = await carryOut(edit, "redo");
+      setHistory((current) => afterRedo(current, renamed));
+      setDirty(true);
+    } catch (error) {
+      reportError(errorMessage(error));
+    } finally {
+      stepping.current = false;
+    }
+  }
+
+  /**
+   * Carry an edit out again (redo) or reverse it (undo) through Python. Returns the ids of
+   * anything added back, which Python names anew; null otherwise. Throws when Python refuses.
+   */
+  async function carryOut(edit: Edit, direction: "undo" | "redo"): Promise<string[] | null> {
+    const entities = documentRef.current?.entities ?? [];
+    const present = (ids: string[]) => entities.filter((entity) => ids.includes(entity.id));
+    if (edit.kind === "decide") {
+      const steps =
+        direction === "redo" ? new Map([[edit.after, Object.keys(edit.before)]]) : statesBefore(edit);
+      for (const [state, ids] of steps) {
+        const targets = present(ids);
+        if (targets.length > 0 && !(await setReviews(targets, state))) throw new Error("The change was refused");
+      }
+      return null;
+    }
+    // Undoing an addition, or redoing a removal, removes the item; the other two add it back.
+    const removes = (edit.kind === "add") === (direction === "undo");
+    if (removes) {
+      const [item] = present(edit.ids.slice(0, 1));
+      if (item && !(await removeNow(item))) throw new Error("The change was refused");
+      return null;
+    }
+    return (await addAgain(edit.addition)).map((entity) => entity.id);
+  }
+
+  /** Select the next undecided finding in the list's order, or the one before it. */
+  function selectUndecided(direction: 1 | -1) {
     if (!document) return;
-    const added = lastAdded(addedItems.current, document.entities);
-    addedItems.current = addedItems.current.filter((id) => id !== added?.id);
-    if (added) void removeEntity(added);
+    const next = nextUndecided(findingSections(document.entities, view), selectedId, direction);
+    if (next) select(next);
+    else notify("success", "Every finding is decided");
   }
 
   /**
@@ -599,10 +734,17 @@ export function App() {
    * selected item the reviewer added.
    */
   function onPlainKey(event: KeyboardEvent) {
-    if (!document || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key === "?") {
+      event.preventDefault();
+      setShortcutsOpen(true);
+      return;
+    }
+    if (!document) return;
     const selected = document.entities.find((entity) => entity.id === selectedId);
     if (event.key === "r" || event.key === "R") setDrawTool((value) => !value);
     else if (event.key === "l" || event.key === "L") setLocating((value) => !value);
+    else if (event.key === "n" || event.key === "N") selectUndecided(event.shiftKey ? -1 : 1);
     else if (event.key === "Escape" && selection) setSelection(null);
     else if (event.key === "Escape" && drawTool) setDrawTool(false);
     else if (event.key === "Escape") setSelectedId(null);
@@ -647,6 +789,13 @@ export function App() {
               onDrawTool={() => setDrawTool((value) => !value)}
               onLocate={() => setLocating((value) => !value)}
               onClose={() => void closeDocument()}
+              undoLabel={history.done.at(-1)?.label ?? null}
+              redoLabel={history.undone.at(-1)?.label ?? null}
+              onUndo={() => void undo()}
+              onRedo={() => void redo()}
+              pageField={pageField}
+              onPage={goToPage}
+              onShortcuts={() => setShortcutsOpen(true)}
             />
             <div className="workspace">
               <Sidebar
@@ -663,6 +812,7 @@ export function App() {
                 onRemove={(entity) => void removeEntity(entity)}
                 selectedSurfaceId={selectedSurfaceId}
                 onSelectSurface={selectSurface}
+                onNext={() => selectUndecided(1)}
               />
               <PageView
                 ref={canvasRef}
@@ -690,7 +840,7 @@ export function App() {
             </div>
             {dragging && (
               <div className="drop-overlay" aria-hidden>
-                <p>Drop to open another document</p>
+                <p>Drop to open</p>
               </div>
             )}
           </>
@@ -701,7 +851,7 @@ export function App() {
               options={options}
               busy={busy}
               dragging={dragging}
-              onOptions={setOptions}
+              onOptions={changeOptions}
               onOpen={openPdf}
               onOpenReview={openReview}
               onModels={() => void openModels()}
@@ -715,6 +865,7 @@ export function App() {
           onExportAnyway={() => void runExport(true)}
           onSaveAnyway={() => void saveAnyway()}
           onShowLeak={showLeak}
+          onShowFile={() => bridge?.show_export().catch((error: unknown) => reportError(errorMessage(error)))}
           onClose={closeExport}
         />
         <SettingsSheet
@@ -739,10 +890,18 @@ export function App() {
           onDownload={(feature) => void downloadModels(feature)}
           onClose={() => setModelsOpen(false)}
         />
+        <ShortcutsSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
         <Toasts toasts={toasts} onDismiss={dismissToast} />
       </div>
     </MotionConfig>
   );
+}
+
+/** Whether a key went to a text field, where letters are typed rather than shortcuts. */
+function isTyping(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target instanceof HTMLInputElement) return !["checkbox", "radio", "button"].includes(target.type);
+  return target.isContentEditable || ["TEXTAREA", "SELECT"].includes(target.tagName);
 }
 
 /** The element's content width, tracked as the window resizes. */

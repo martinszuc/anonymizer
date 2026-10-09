@@ -16,7 +16,7 @@ interface OpeningProps {
 const STEPS: { step: OpenStep; label: string }[] = [
   { step: "loading_ocr", label: "Loading the OCR engine" },
   { step: "reading", label: "Reading the pages" },
-  { step: "loading_model", label: "Loading the names model" },
+  { step: "loading_model", label: "Loading the name model" },
   { step: "detecting", label: "Finding personal data" },
 ];
 

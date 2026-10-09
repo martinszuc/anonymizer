@@ -18,7 +18,7 @@ from anonymizer.core.redact import export as export_module
 from anonymizer.ui import api as api_module
 from anonymizer.ui import app
 from anonymizer.ui.api import ReviewApi, ReviewError
-from anonymizer.ui.app import WindowApi, main
+from anonymizer.ui.app import CLOSE_QUESTION, WindowApi, main
 
 from tests.image_builders import encode, upright_scan
 from tests.ocr_stand_in import InkReadingEngine
@@ -57,6 +57,7 @@ class StandInWindow:
     asked: list[dict[str, Any]] = field(default_factory=list)
     scripts: list[str] = field(default_factory=list)
     title: str = ""
+    confirm_close: bool = False
     events: SimpleNamespace = field(default_factory=lambda: SimpleNamespace(loaded=StandInEvent()))
     dom: SimpleNamespace = field(default_factory=lambda: SimpleNamespace(document=StandInElement()))
 
@@ -138,7 +139,11 @@ class TestMain:
         assert stand_in.created["title"] == "Anonymizer"
         assert isinstance(stand_in.created["js_api"], WindowApi)
         assert stand_in.created["js_api"].current_document() is None
-        assert stand_in.started == {"debug": False, "private_mode": True}
+        assert stand_in.started == {
+            "debug": False,
+            "private_mode": True,
+            "localization": CLOSE_QUESTION,
+        }
 
     def test_opens_the_given_pdf(self, stand_in: StandInWebview, pdf: Path):
         assert main([str(pdf), "--lang", "cs"]) == 0
@@ -156,14 +161,22 @@ class TestMain:
     def test_loads_the_dev_server(self, stand_in: StandInWebview):
         main(["--dev-server", "http://localhost:5173", "--debug"])
         assert stand_in.created["url"] == "http://localhost:5173"
-        assert stand_in.started == {"debug": True, "private_mode": True}
+        assert stand_in.started == {
+            "debug": True,
+            "private_mode": True,
+            "localization": CLOSE_QUESTION,
+        }
 
     def test_debug_enables_the_inspector_without_opening_it(
         self, stand_in: StandInWebview, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setitem(webview.settings, "OPEN_DEVTOOLS_IN_DEBUG", True)
         main(["--debug"])
-        assert stand_in.started == {"debug": True, "private_mode": True}
+        assert stand_in.started == {
+            "debug": True,
+            "private_mode": True,
+            "localization": CLOSE_QUESTION,
+        }
         assert webview.settings["OPEN_DEVTOOLS_IN_DEBUG"] is False
 
     def test_loads_the_built_frontend(
@@ -315,9 +328,72 @@ class TestExportDialog:
         with pytest.raises(ReviewError, match="no refused export"):
             api.export_unchecked()
 
+    def test_shows_the_exported_copy_in_the_file_manager(
+        self, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        shown: list[Path] = []
+        monkeypatch.setattr(app, "_reveal", shown.append)
+        destination = pdf.with_name("chosen.pdf")
+        api = attached(StandInWindow(answers=[(str(pdf),), str(destination)]))
+        with pytest.raises(ReviewError, match="no exported copy"):
+            api.show_export()
+        api.choose_pdf({"language": "cs"})
+        api.export_as()
+        api.show_export()
+        assert shown == [destination]
+        api.close_document()
+        with pytest.raises(ReviewError, match="no exported copy"):
+            api.show_export()
+
+    @pytest.mark.parametrize(
+        ("platform_name", "command"),
+        [
+            ("darwin", ["open", "-R", "{path}"]),
+            ("win32", ["explorer", "/select,{path}"]),
+            ("linux", ["xdg-open", "{folder}"]),
+        ],
+    )
+    def test_each_platform_opens_its_file_manager(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        platform_name: str,
+        command: list[str],
+    ):
+        run: list[list[str]] = []
+        monkeypatch.setattr(app.sys, "platform", platform_name)
+        monkeypatch.setattr(app.subprocess, "Popen", run.append)
+        path = tmp_path / "copy.pdf"
+        app._reveal(path)
+        assert run == [[part.format(path=path, folder=tmp_path) for part in command]]
+
     def test_the_leak_check_setting_is_forwarded(self):
         api = WindowApi(ReviewApi())
-        assert api.set_leak_check(False)["settings"] == {"leak_check": False}
+        assert api.set_leak_check(False)["settings"]["leak_check"] is False
+
+    def test_the_open_options_are_forwarded(self):
+        options = {
+            "language": "cs",
+            "propagate": True,
+            "use_model": False,
+            "name_model": "gliner-multi-v2.1",
+            "use_ocr": False,
+            "ocr_engine": "onnxtr",
+        }
+        assert (
+            WindowApi(ReviewApi()).set_open_options(options)["settings"]["open_options"] == options
+        )
+
+    def test_closing_asks_only_while_changes_are_unsaved(self):
+        window = StandInWindow()
+        api = attached(window)
+        api.set_unsaved_changes(True)
+        assert window.confirm_close is True
+        api.set_unsaved_changes(False)
+        assert window.confirm_close is False
+        # Only true asks: the page's value is not trusted to be a boolean.
+        api.set_unsaved_changes("yes")  # type: ignore[arg-type]
+        assert window.confirm_close is False
 
     def test_passes_consent_for_pages_without_text(self, tmp_path: Path):
         mixed = write_pdf(tmp_path / "mixed.pdf", [LINES, []])
@@ -540,7 +616,11 @@ class TestLogging:
         self, stand_in: StandInWebview, pdf: Path, capsys: pytest.CaptureFixture
     ):
         assert main([str(pdf), "--lang", "cs", "--debug"]) == 0
-        assert stand_in.started == {"debug": True, "private_mode": True}
+        assert stand_in.started == {
+            "debug": True,
+            "private_mode": True,
+            "localization": CLOSE_QUESTION,
+        }
         err = capsys.readouterr().err
         assert "detection: start" in err
         assert "find_emails matched" in err

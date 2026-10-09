@@ -1,4 +1,4 @@
-import { FileLock2, FileUp, Settings, ShieldCheck } from "lucide-react";
+import { FileLock2, FileUp, Settings } from "lucide-react";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 
@@ -50,122 +50,131 @@ export function Home({
     >
       <header className="home-header">
         <div className="home-icon" aria-hidden>
-          <FileLock2 size={30} strokeWidth={1.5} />
+          <FileLock2 size={26} strokeWidth={1.5} />
         </div>
-        <h1>Anonymizer</h1>
-        <p>Find personal data in a PDF or an image, decide what goes, export a redacted copy.</p>
+        <div>
+          <h1>Anonymizer</h1>
+          <p>Find personal data in a PDF or an image, decide what goes, and save a redacted copy.</p>
+        </div>
       </header>
 
-      <section className="drop-zone" data-dragging={dragging} aria-label="Open a document">
-        <FileUp size={28} strokeWidth={1.5} aria-hidden />
-        <p className="drop-zone-title">{dragging ? "Drop to open" : "Drop a PDF or an image here"}</p>
-        <p className="drop-zone-or">or</p>
-        <Button variant="primary" disabled={busy} onClick={onOpen}>
-          Open document…
-        </Button>
-        <p className="drop-zone-hint">
-          <kbd>{shortcut("O")}</kbd>
-        </p>
-      </section>
-
-      <section className="options" aria-label="Detection">
-        <h2 className="options-title">Detection</h2>
-        <div className="options-card">
-          <OptionRow
-            label="Language"
-            note={
-              options.language === "auto"
-                ? "Recognised from the text. If it is unclear, every language's rules run."
-                : options.language === null
-                  ? "Every language's rules run. Choosing one gives fewer false alarms."
-                  : "Rules for this language, plus those that work in any (email, IBAN, cards, links)."
-            }
-          >
-            <SegmentedControl
-              name="language"
-              value={options.language ?? "all"}
-              onChange={(value) => onOptions({ ...options, language: value === "all" ? null : value })}
-              segments={[
-                { value: "auto", label: "Auto" },
-                { value: "all", label: "All" },
-                ...languages.map((language) => ({ value: language.code, label: language.name })),
-              ]}
-            />
-          </OptionRow>
-          <OptionRow label="Names and addresses" note={modelNote(status, modelAvailable)}>
-            <Switch
-              checked={modelOn}
-              disabled={!modelAvailable}
-              tone="setting"
-              label="Find names and addresses with the AI model"
-              onChange={(checked) => onOptions({ ...options, use_model: checked })}
-            />
-          </OptionRow>
-          {models.length > 1 && (modelOn || !modelAvailable) && (
-            <Choices
-              label="Name model"
-              group="name-model"
-              choices={models}
-              chosen={options.name_model}
-              onChoose={(name) => onOptions({ ...options, name_model: name })}
-            />
-          )}
-          <OptionRow label="Scanned pages" note={ocrNote(status, ocrAvailable)}>
-            <Switch
-              checked={ocrOn}
-              disabled={!ocrAvailable}
-              tone="setting"
-              label="Read scanned pages with OCR"
-              onChange={(checked) => onOptions({ ...options, use_ocr: checked })}
-            />
-          </OptionRow>
-          {status && (ocrOn || !ocrAvailable) && (
-            <Choices
-              label="OCR engine"
-              group="ocr-engine"
-              choices={status.ocr.engines}
-              chosen={options.ocr_engine}
-              onChoose={(name) => onOptions({ ...options, ocr_engine: name })}
-            />
-          )}
-          <OptionRow
-            label="Mark repeats"
-            note="Also mark every other place the same text appears, such as a name found once."
-          >
-            <Switch
-              checked={options.propagate}
-              tone="setting"
-              label="Mark every repeat of text that was found"
-              onChange={(checked) => onOptions({ ...options, propagate: checked })}
-            />
-          </OptionRow>
-        </div>
-        <div className="options-links">
-          <Button variant="plain" onClick={onModels}>
-            Manage models…
+      <div className="home-columns">
+        <section className="home-start" aria-label="Open">
+          <div className="drop-zone" data-dragging={dragging}>
+            <FileUp size={28} strokeWidth={1.5} aria-hidden />
+            <p className="drop-zone-title">{dragging ? "Drop to open" : "Drop a PDF or an image here"}</p>
+            <Button variant="primary" disabled={busy} onClick={onOpen}>
+              Open Document…
+            </Button>
+            <p className="drop-zone-hint">
+              <kbd>{shortcut("O")}</kbd>
+            </p>
+          </div>
+          <Button disabled={busy} onClick={onOpenReview}>
+            Continue a Saved Review… <kbd>{shortcut("O", { shift: true })}</kbd>
           </Button>
-          <Button variant="plain" icon={<Settings size={15} />} onClick={onSettings}>
-            Settings…
-          </Button>
-        </div>
-      </section>
+        </section>
 
-      <Button variant="plain" disabled={busy} onClick={onOpenReview}>
-        Continue a saved review… <kbd>{shortcut("O", { shift: true })}</kbd>
-      </Button>
+        <section className="options" aria-label="Detection">
+          <h2 className="options-title">Detection</h2>
+          <div className="options-card">
+            <OptionRow label="Language" note={languageNote(options.language)} stacked>
+              <SegmentedControl
+                name="language"
+                value={options.language ?? "all"}
+                onChange={(value) => onOptions({ ...options, language: value === "all" ? null : value })}
+                segments={[
+                  { value: "auto", label: "Auto" },
+                  { value: "all", label: "All" },
+                  ...languages.map((language) => ({ value: language.code, label: language.name })),
+                ]}
+              />
+            </OptionRow>
+            <OptionRow label="Names and addresses" note={modelNote(status, modelAvailable)}>
+              <Switch
+                checked={modelOn}
+                disabled={!modelAvailable}
+                tone="setting"
+                label="Find names and addresses with a model"
+                onChange={(checked) => onOptions({ ...options, use_model: checked })}
+              />
+            </OptionRow>
+            {models.length > 1 && (modelOn || !modelAvailable) && (
+              <Choices
+                label="Name model"
+                group="name-model"
+                choices={models}
+                chosen={options.name_model}
+                onChoose={(name) => onOptions({ ...options, name_model: name })}
+              />
+            )}
+            <OptionRow label="Scanned pages" note={ocrNote(status, ocrAvailable)}>
+              <Switch
+                checked={ocrOn}
+                disabled={!ocrAvailable}
+                tone="setting"
+                label="Read scanned pages with OCR"
+                onChange={(checked) => onOptions({ ...options, use_ocr: checked })}
+              />
+            </OptionRow>
+            {status && (ocrOn || !ocrAvailable) && (
+              <Choices
+                label="OCR engine"
+                group="ocr-engine"
+                choices={status.ocr.engines}
+                chosen={options.ocr_engine}
+                onChoose={(name) => onOptions({ ...options, ocr_engine: name })}
+              />
+            )}
+            <OptionRow label="Mark repeats" note="Also marks every other place the found text appears.">
+              <Switch
+                checked={options.propagate}
+                tone="setting"
+                label="Mark every repeat of text that was found"
+                onChange={(checked) => onOptions({ ...options, propagate: checked })}
+              />
+            </OptionRow>
+          </div>
+          <div className="options-links">
+            <Button variant="plain" onClick={onModels}>
+              Manage Models…
+            </Button>
+            <Button variant="plain" icon={<Settings size={15} />} onClick={onSettings}>
+              Settings…
+            </Button>
+          </div>
+        </section>
+      </div>
 
       <footer className="home-footer">
-        <ShieldCheck size={14} aria-hidden />
-        Works offline{status ? ` · version ${status.version}` : ""}
+        {status ? `Version ${status.version}` : ""}
+        <span aria-hidden>·</span>
+        <span>
+          Shortcuts: <kbd>?</kbd>
+        </span>
       </footer>
     </motion.main>
   );
 }
 
-/** A labelled option with a note under its label and its control on the right. */
-export function OptionRow({ label, note, children }: { label: string; note: ReactNode; children: ReactNode }) {
+function languageNote(language: string | null): string {
+  if (language === "auto") return "Recognised from the text. When unclear, every language's rules run.";
+  if (language === null) return "Every language's rules run. Choosing one gives fewer false alarms.";
+  return "This language's rules, and those for email, IBAN, cards and links.";
+}
+
+interface OptionRowProps {
+  label: string;
+  note: ReactNode;
+  /** The control under the text, for one too wide to sit beside it. */
+  stacked?: boolean;
+  children: ReactNode;
+}
+
+/** A labelled option with a note under its label and its control on the right, or below. */
+export function OptionRow({ label, note, stacked = false, children }: OptionRowProps) {
   return (
-    <div className="option-row">
+    <div className="option-row" data-stacked={stacked}>
       <div className="option-text">
         <span className="option-label">{label}</span>
         <span className="option-note">{note}</span>
@@ -179,8 +188,8 @@ export function OptionRow({ label, note, children }: { label: string; note: Reac
 function ocrNote(status: AppStatus | null, available: boolean): ReactNode {
   if (status === null) return "Checking…";
   return available
-    ? "Reads the text of scanned pages and images, so they are checked and redacted too."
-    : "No OCR engine is ready yet. What each needs is listed below.";
+    ? "Reads scans and images, so they are checked and redacted too."
+    : "No OCR engine is ready. Each one below says what it needs.";
 }
 
 interface ChoicesProps {
@@ -221,7 +230,7 @@ function Choices({ label, group, choices, chosen, onChoose }: ChoicesProps) {
   );
 }
 
-const FILES_MISSING = "Model files missing: download them in Manage models.";
+const FILES_MISSING = "Not downloaded yet. Download it in Manage Models.";
 
 /** Why an engine or a model cannot run yet, and what to do about it. */
 function choiceReason(choice: ChoiceStatus): ReactNode {
@@ -240,8 +249,8 @@ function choiceReason(choice: ChoiceStatus): ReactNode {
  */
 function modelNote(status: AppStatus | null, available: boolean): ReactNode {
   if (status === null) return "Checking…";
-  if (available) return "An AI model finds names and addresses the rules cannot. Opening takes longer.";
+  if (available) return "Finds the names and addresses rules miss. Opening takes longer.";
   const [first, ...others] = status.names.models;
   if (first === undefined) return "No name model is in the catalog.";
-  return others.length > 0 ? "No name model is ready yet. What each needs is listed below." : choiceReason(first);
+  return others.length > 0 ? "No name model is ready. Each one below says what it needs." : choiceReason(first);
 }

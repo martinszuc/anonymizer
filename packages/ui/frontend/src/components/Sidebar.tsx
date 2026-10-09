@@ -18,6 +18,7 @@ import {
   lowConfidence,
   pagesLabel,
   regionNumbers,
+  reviewProgress,
   scoreRange,
   sortedBy,
   summarize,
@@ -56,6 +57,8 @@ interface SidebarProps {
   onRemove: (entity: EntityInfo) => void;
   selectedSurfaceId: string | null;
   onSelectSurface: (surface: SurfaceInfo) => void;
+  /** Select the next undecided finding in the list's order. */
+  onNext: () => void;
 }
 
 export function Sidebar({
@@ -72,16 +75,12 @@ export function Sidebar({
   onSelectSurface,
   view,
   onView,
+  onNext,
 }: SidebarProps) {
-  const summary = summarize(document);
   const sections = useMemo(() => findingSections(document.entities, view), [document.entities, view]);
   return (
     <aside className="sidebar" aria-label="Review">
-      <div className="summary" aria-live="polite">
-        <SummaryFigure value={summary.redacted} label="redacted" tone="ink" />
-        <SummaryFigure value={summary.kept} label="kept" tone="keep" />
-        <SummaryFigure value={summary.hidden} label="hidden" tone="muted" />
-      </div>
+      <ReviewStatus document={document} onNext={onNext} />
       <SegmentedControl
         name="sidebar"
         value={tab}
@@ -117,10 +116,50 @@ export function Sidebar({
       {tab === "findings" && document.entities.length > 0 && (
         <p className="list-footer">
           <TextSelect size={13} aria-hidden />
-          Missed a word? Drag across it on the page, or double-click it.
+          To add a missed word, drag across it on the page.
         </p>
       )}
     </aside>
+  );
+}
+
+/**
+ * How far the review is (findings with a decision, of those that take one), with a way to
+ * the next undecided one, over what export will do: redacted, kept, hidden items removed.
+ */
+function ReviewStatus({ document, onNext }: { document: DocumentInfo; onNext: () => void }) {
+  const summary = summarize(document);
+  const { decided, total } = reviewProgress(document.entities);
+  const left = total - decided;
+  return (
+    <section className="review-status" aria-label="Review progress">
+      <div className="review-status-line">
+        <span className="review-status-title">
+          {total === 0 ? "Nothing to decide" : left === 0 ? "All decided" : `${decided} of ${total} decided`}
+        </span>
+        {left > 0 && (
+          <button type="button" className="link-button" title="Select the next undecided finding (N)" onClick={onNext}>
+            Next undecided
+          </button>
+        )}
+      </div>
+      <div
+        className="progress-track"
+        data-size="thin"
+        role="progressbar"
+        aria-label="Findings decided"
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={decided}
+      >
+        <div className="progress-fill" style={{ width: `${total === 0 ? 100 : (100 * decided) / total}%` }} />
+      </div>
+      <div className="summary" aria-live="polite">
+        <SummaryFigure value={summary.redacted} label="redacted" tone="ink" />
+        <SummaryFigure value={summary.kept} label="kept" tone="keep" />
+        <SummaryFigure value={summary.hidden} label="hidden removed" tone="muted" />
+      </div>
+    </section>
   );
 }
 
@@ -308,7 +347,7 @@ function ListTools({ entities, sections, view, onView, onKeep }: ListToolsProps)
         <div className="list-actions">
           <Button
             disabled={keep.length === 0}
-            title="Keep the undecided findings shown; decisions you made stay as they are"
+            title="Keep the undecided findings shown; decided ones stay as they are"
             onClick={() => onKeep(keep)}
           >
             {keep.length > 0 ? `Keep ${keep.length}` : "Nothing to keep"}
@@ -397,9 +436,9 @@ function Findings({
       </div>
     ) : (
       <div className="sidebar-empty">
-        <p>Nothing was found in the text.</p>
-        <p className="muted">Hidden items are still removed on export.</p>
-        <p className="muted">Missed something? Select its words on the page to add it.</p>
+        <p>Nothing found in the text.</p>
+        <p className="muted">Hidden items are removed on export all the same.</p>
+        <p className="muted">To add a missed word, drag across it on the page.</p>
       </div>
     );
   }
@@ -592,7 +631,7 @@ function GroupRow({ group, open, showType, selected, selectedId, onOpen, onSelec
           onChange={() => onToggleGroup(members)}
         />
       ) : (
-        <span className="row-locked" title="In hidden data: export removes it with the hidden item">
+        <span className="row-locked" title="In hidden data, which export removes">
           <Lock size={12} aria-hidden />
           Always removed
         </span>
@@ -657,7 +696,7 @@ function EntityRow({ entity, regionNumber, showType, selected, onSelect, onToggl
       {entity.surface_id !== null ? (
         <span
           className="row-locked"
-          title="In hidden data (a link, metadata, a note...): export removes it with the hidden item, so there is nothing to decide"
+          title="In hidden data, which export removes"
         >
           <Lock size={12} aria-hidden />
           Always removed
@@ -717,7 +756,6 @@ function rowMeta(entity: EntityInfo, showType: boolean): string {
   const parts = [place, SOURCE_LABELS[entity.source] ?? entity.source];
   if (showType) parts.unshift(typeLabel(entity.type));
   if (entity.score !== null) parts.push(`${Math.round(entity.score * 100)} %`);
-  if (entity.surface_id) parts.push("hidden");
   return parts.join(" · ");
 }
 
@@ -773,18 +811,12 @@ function HiddenItems({ surfaces, entities, selectedSurfaceId, onSelectSurface }:
     <div className="list">
       <p className="notice">
         <Info size={14} aria-hidden />
-        <span>
-          Data outside the visible text. All of it is removed on export, whether or not anything
-          personal was found in it, so there is nothing to decide here.
-        </span>
+        <span>Data outside the page text. Export removes all of it, so there is nothing to decide.</span>
       </p>
       {hasAttachments && (
         <p className="notice" data-tone="warning">
           <Paperclip size={14} aria-hidden />
-          <span>
-            This file has attachments. Their contents are never opened or checked; they are
-            removed on export.
-          </span>
+          <span>This file has attachments. Export removes them; their contents are not checked.</span>
         </p>
       )}
       {groups.length === 0 && (

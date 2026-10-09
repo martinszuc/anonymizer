@@ -95,7 +95,7 @@ def run_ocr(
         output: Directory for results and PDFs.
         engines: Names from `ENGINES`.
         levels: Degradation levels to scan at.
-        system: Detector system, as in the born-digital benchmark (`SYSTEMS`).
+        system: Detector system, as in the born-digital benchmark (`detect.system_model`).
         resource_root: Storage root holding `models/`, for GLiNER and OCR engines.
         specs: Documents; every file in `benchmark/documents` by default.
 

@@ -93,6 +93,13 @@ docstrings, not here; they go stale in two places.
   overlapping windows counted in those tokens and widens spans to whole words. Its
   dependencies are the optional `ner` extra (`uv sync --group ner`); tests use a
   stand-in model, and the real one only runs under `@pytest.mark.model`.
+- Name models are chosen by catalog id (`detect/models.py`): every catalog entry
+  with `uses = ["ner"]` whose `engine` has a loader in `NAME_MODEL_ENGINES`
+  reaches the CLI (`--name-model`), the window and the `rules+<model>` systems of
+  the benchmark and experiments. A fine-tuned GLiNER is a catalog entry and
+  nothing else; a new kind of model adds one loader there. `gliner` stays
+  accepted as the default model's earlier name, so `rules+gliner` results and
+  configs keep working.
 - A model's person and address spans pass `detect.NamesOnly` (`roles.py`,
   applied by `build_detector`): lowercase edge words trimmed, spans of role
   nouns only ("Kupující", "Adult") dropped; address-field labels ("Post Code",

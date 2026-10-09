@@ -10,6 +10,7 @@ import json
 import sys
 from pathlib import Path
 
+from anonymizer.core.detect import system_model
 from anonymizer.core.resources import resolve_resource_root
 
 from benchmark.degrade import LEVELS, level_named
@@ -29,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument(
         "--systems",
         default=",".join(SYSTEMS),
-        help=f"comma-separated systems (default: {','.join(SYSTEMS)})",
+        help=f"comma-separated systems, rules or rules+<name model> (default: {','.join(SYSTEMS)})",
     )
     _add_resource_root(run_parser)
     ocr_parser = commands.add_parser("ocr", help="score OCR engines on degraded scans")
@@ -43,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
         help="comma-separated degradation levels (default: all)",
     )
     ocr_parser.add_argument(
-        "--system", default="rules", choices=SYSTEMS, help="detector system (default: rules)"
+        "--system", default="rules", type=_system, help="detector system (default: rules)"
     )
     _add_resource_root(ocr_parser)
     margin_parser = commands.add_parser(
@@ -70,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
     probe_parser.add_argument("--engines", required=True, help="comma-separated OCR engines")
     probe_parser.add_argument("--lang", default="cs", help="detection language (default: cs)")
     probe_parser.add_argument(
-        "--system", default="rules", choices=SYSTEMS, help="detector system (default: rules)"
+        "--system", default="rules", type=_system, help="detector system (default: rules)"
     )
     probe_parser.add_argument(
         "--truth", type=Path, help="JSON list of each page's expected text, null to skip a page"
@@ -135,6 +136,15 @@ def main(argv: list[str] | None = None) -> int:
     (args.out / "results.md").write_text(report, encoding="utf-8")
     print(report)
     return 0
+
+
+def _system(name: str) -> str:
+    """A detector system from the command line: `rules` or `rules+<name model>`."""
+    try:
+        system_model(name)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from error
+    return name
 
 
 def _add_resource_root(parser: argparse.ArgumentParser) -> None:

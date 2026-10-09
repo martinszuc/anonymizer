@@ -16,6 +16,7 @@ from anonymizer.ui import api
 from anonymizer.ui.api import ReviewApi, ReviewError
 from anonymizer.ui.app import WindowApi
 
+from tests.pdf_builders import write_pdf
 from tests.ui.test_app import StandInWindow
 
 
@@ -28,17 +29,23 @@ def _file(resource_id: str, payload: bytes) -> ResourceFile:
     )
 
 
-def _resource(resource_id: str, requires: tuple[str, ...] = ()) -> Resource:
+def _resource(
+    resource_id: str,
+    requires: tuple[str, ...] = (),
+    uses: tuple[str, ...] = ("ocr-recognition",),
+    engine: str | None = None,
+) -> Resource:
     return Resource(
         id=resource_id,
         name=resource_id.replace("-", " "),
         kind="model",
-        uses=("ocr-recognition",),
+        uses=uses,
+        engine=engine,
         source=f"https://example.org/{resource_id}",
         version="1",
         licence="Apache-2.0",
         languages=("cs",),
-        files=(_file(resource_id, PAYLOADS[resource_id]),),
+        files=(_file(resource_id, PAYLOADS.get(resource_id, b"weights")),),
         requires=requires,
     )
 
@@ -53,8 +60,12 @@ PAYLOADS = {
 }
 CATALOG = Catalog(
     {
-        "mdeberta-v3-base-tokenizer": _resource("mdeberta-v3-base-tokenizer"),
-        "gliner-multi-v2.1": _resource("gliner-multi-v2.1", ("mdeberta-v3-base-tokenizer",)),
+        "mdeberta-v3-base-tokenizer": _resource(
+            "mdeberta-v3-base-tokenizer", uses=("tokenizer",), engine="transformers"
+        ),
+        "gliner-multi-v2.1": _resource(
+            "gliner-multi-v2.1", ("mdeberta-v3-base-tokenizer",), ("ner",), "gliner"
+        ),
         "onnxtr-fast-base": _resource("onnxtr-fast-base"),
         "onnxtr-parseq-multilingual-v1": _resource(
             "onnxtr-parseq-multilingual-v1", ("onnxtr-fast-base",)
@@ -63,6 +74,9 @@ CATALOG = Catalog(
         "kraken-ppocr-v6-medium": _resource("kraken-ppocr-v6-medium", ("kraken-blla",)),
     }
 )
+
+
+NAMES = "names-gliner-multi-v2.1"
 
 
 class FakeServer:
@@ -96,7 +110,7 @@ def _feature(models: list[dict], key: str) -> dict:
 
 def test_models_lists_each_feature_with_requirements_first(review: ReviewApi):
     assert [feature["feature"] for feature in review.models()] == [
-        "names",
+        NAMES,
         "ocr-onnxtr",
         "ocr-kraken",
     ]
@@ -112,7 +126,13 @@ def test_models_lists_each_feature_with_requirements_first(review: ReviewApi):
     assert ocr["missing_bytes"] == len(b"detector") + len(b"recognizer weights")
     first = ocr["models"][0]
     assert (first["licence"], first["languages"], first["size"]) == ("Apache-2.0", ["cs"], 8)
-    assert _feature(review.models(), "names")["install_command"] == "uv sync --group ner"
+    names = _feature(review.models(), NAMES)
+    assert names["title"] == "Names and addresses: gliner multi v2.1"
+    assert names["install_command"] == "uv sync --group ner"
+    assert [model["id"] for model in names["models"]] == [
+        "mdeberta-v3-base-tokenizer",
+        "gliner-multi-v2.1",
+    ]
     kraken = _feature(review.models(), "ocr-kraken")
     assert kraken["install_command"] == "uv sync --group ocr-kraken"
     assert [model["id"] for model in kraken["models"]] == ["kraken-blla", "kraken-ppocr-v6-medium"]
@@ -147,7 +167,7 @@ def test_download_fetches_only_that_feature_verified_and_reports_progress(
     assert told[-1] == ("ocr-onnxtr", total, total)
     received = [step[1] for step in told]
     assert received == sorted(received)
-    assert _feature(models, "names")["missing_bytes"] > 0
+    assert _feature(models, NAMES)["missing_bytes"] > 0
 
 
 def test_stored_models_are_verified_not_downloaded_again(review: ReviewApi, server: FakeServer):
@@ -195,17 +215,17 @@ class HeldServer(FakeServer):
 def test_features_sharing_no_model_download_side_by_side(tmp_path: Path):
     server = HeldServer()
     review = ReviewApi(tmp_path, catalog=CATALOG, opener=server)
-    names = threading.Thread(target=review.download_models, args=("names",))
+    names = threading.Thread(target=review.download_models, args=(NAMES,))
     names.start()
     try:
         assert server.holding.wait(timeout=10)
         assert _feature(review.download_models("ocr-onnxtr"), "ocr-onnxtr")["missing_bytes"] == 0
         with pytest.raises(ReviewError, match="already running"):
-            review.download_models("names")
+            review.download_models(NAMES)
     finally:
         server.release.set()
         names.join(timeout=10)
-    assert _feature(review.models(), "names")["missing_bytes"] == 0
+    assert _feature(review.models(), NAMES)["missing_bytes"] == 0
     assert review._downloading == set()
 
 
@@ -235,10 +255,10 @@ def test_a_chosen_folder_is_used_now_and_by_later_runs(tmp_path: Path, server: F
 
 def test_models_loaded_from_the_old_folder_are_dropped(tmp_path: Path):
     review = ReviewApi(tmp_path / "first", catalog=CATALOG)
-    review._model = object()  # type: ignore[assignment]
+    review._models["gliner-multi-v2.1"] = object()  # type: ignore[assignment]
     review._ocr["onnxtr"] = object()  # type: ignore[assignment]
     review.choose_models_folder(str(tmp_path / "second"))
-    assert review._model is None
+    assert review._models == {}
     assert review._ocr == {}
 
 
@@ -260,3 +280,30 @@ def test_the_window_asks_for_a_folder(tmp_path: Path):
     assert window.asked[0]["dialog"] == webview.FileDialog.FOLDER
     assert api.choose_models_folder() is None  # cancelled: nothing changes
     assert api.status()["models_folder"] == status["models_folder"]
+
+
+def test_a_second_name_model_in_the_catalog_is_offered_and_opened(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    tuned = _resource("gliner-cs-tuned", ("mdeberta-v3-base-tokenizer",), ("ner",), "gliner")
+    catalog = Catalog({**CATALOG.resources, tuned.id: tuned})
+    review = ReviewApi(tmp_path, catalog=catalog)
+    assert [model["name"] for model in review.status()["names"]["models"]] == [
+        "gliner-multi-v2.1",
+        "gliner-cs-tuned",
+    ]
+    assert "names-gliner-cs-tuned" in {feature["feature"] for feature in review.models()}
+
+    loads: list[str] = []
+
+    def load(model_id: str, root: Path, catalog: Catalog) -> object:
+        loads.append(model_id)
+        raise FileNotFoundError(model_id)
+
+    monkeypatch.setattr(api, "load_name_model", load)
+    pdf = write_pdf(tmp_path / "doc.pdf", [["Text"]])
+    with pytest.raises(ReviewError, match="the name model is not available: gliner-cs-tuned"):
+        review.open_pdf(str(pdf), name_model="gliner-cs-tuned")
+    assert loads == ["gliner-cs-tuned"]
+    with pytest.raises(ReviewError, match="unknown name model 'other'"):
+        review.open_pdf(str(pdf), name_model="other")

@@ -67,19 +67,57 @@ class TestNer:
         self, pdf: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
     ):
         detector = GlinerDetector(StandInModel({"Jan Novak": "person"}))
-        roots: list[Path] = []
+        loads: list[tuple[str, Path]] = []
 
-        def load(root: Path) -> GlinerDetector:
-            roots.append(root)
+        def load(model_id: str, root: Path) -> GlinerDetector:
+            loads.append((model_id, root))
             return detector
 
-        monkeypatch.setattr(commands, "load_gliner_detector", load)
+        monkeypatch.setattr(commands, "load_name_model", load)
         output = pdf.with_name("out.pdf")
         args = ["redact", str(pdf), "-o", str(output), "--lang", "cs", "--ner"]
         assert main([*args, "--resource-root", str(pdf.parent)]) == 0
-        assert roots == [pdf.parent]
+        assert loads == [("gliner-multi-v2.1", pdf.parent)]
         assert "Jan Novak" not in text_of(output)
         assert "KEEP this line" in text_of(output)
+
+    def test_name_model_chooses_the_model_and_implies_ner(
+        self, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        loads: list[str] = []
+
+        def load(model_id: str, root: Path) -> GlinerDetector:
+            loads.append(model_id)
+            return GlinerDetector(StandInModel({"Jan Novak": "person"}), name=model_id)
+
+        monkeypatch.setattr(commands, "load_name_model", load)
+        session = pdf.with_name("review.json")
+        args = ["detect", str(pdf), "-o", str(session), "--name-model", "gliner-multi-v2.1"]
+        assert main(args) == 0
+        assert loads == ["gliner-multi-v2.1"]
+        content = json.loads(session.read_text(encoding="utf-8"))
+        assert "person" in {entity["type"] for entity in content["entities"]}
+
+    def test_an_unknown_name_model_is_an_invalid_argument(
+        self, pdf: Path, capsys: pytest.CaptureFixture
+    ):
+        args = ["detect", str(pdf), "-o", str(pdf.with_name("r.json")), "--name-model", "x"]
+        assert main(args) == 2
+        assert "invalid choice: 'x'" in capsys.readouterr().err
+
+    def test_a_reviewed_session_does_not_load_the_model(
+        self, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        session = pdf.with_name("review.json")
+        assert main(["detect", str(pdf), "-o", str(session)]) == 0
+
+        def fail(model_id: str, root: Path) -> GlinerDetector:
+            raise AssertionError
+
+        monkeypatch.setattr(commands, "load_name_model", fail)
+        output = pdf.with_name("out.pdf")
+        args = ["redact", str(pdf), "-o", str(output), "--session", str(session), "--ner"]
+        assert main(args) == 0
 
 
 class TestRedact:

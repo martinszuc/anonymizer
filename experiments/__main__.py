@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from anonymizer.core.detect import load_gliner_detector
+from anonymizer.core.detect import load_name_model, system_model
 from anonymizer.core.ingest import load_ocr_engine
 from anonymizer.core.pipeline import build_detector
 from anonymizer.core.resources import resolve_resource_root
@@ -47,7 +47,11 @@ def main(argv: list[str] | None = None) -> int:
     leaks.add_argument("pdf", type=Path, help="document to load, detect, redact and check")
     leaks.add_argument("--out", type=Path, required=True, help="directory for leaks.json and .md")
     leaks.add_argument("--engines", default="onnxtr", help="comma-separated OCR engines")
-    leaks.add_argument("--system", choices=("rules", "rules+gliner"), default="rules+gliner")
+    leaks.add_argument(
+        "--system",
+        default="rules+gliner",
+        help="rules, or rules+<name model> (default: rules+gliner)",
+    )
     leaks.add_argument("--language", default="cs", help="detection language")
     for command in (run_parser, datasets, leaks):
         command.add_argument(
@@ -84,7 +88,8 @@ def _write_tables(results: dict[str, Any], folder: Path) -> None:
 
 
 def _leaks(args: argparse.Namespace, root: Path) -> int:
-    model = load_gliner_detector(root) if args.system == "rules+gliner" else None
+    model_id = system_model(args.system)
+    model = load_name_model(model_id, root) if model_id is not None else None
     engines = {name: load_ocr_engine(name, root) for name in args.engines.split(",")}
     detector = build_detector(args.language, model=model)
     results = breakdown(args.pdf, engines, detector, args.language)

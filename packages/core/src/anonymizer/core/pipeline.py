@@ -72,7 +72,7 @@ def build_detector(
     Args:
         language: BCP 47 tag selecting the rules and role words; every list
             applies for `None`.
-        model: A loaded model detector (see `detect.load_gliner_detector`).
+        model: A loaded model detector (see `detect.load_name_model`).
         names_only: Cut the model's person and address spans back to the
             value. Every client keeps the default; the evaluation turns it
             off to measure what the filter is worth.

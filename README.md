@@ -133,6 +133,10 @@ uv run python scripts/download.py fetch gliner-multi-v2.1
 uv run python scripts/download.py verify
 ```
 
+Name models are chosen by catalog id: `--ner` runs the default
+(`gliner-multi-v2.1`), `--name-model <id>` another catalog entry used for `ner`,
+and the review window lists every such entry.
+
 Files land in `models/<id>/` or `data/<id>/` of the repository (both git-ignored;
 `--root` names another place). The CLI, the review window and the benchmark read
 models from `models/` under `--resource-root`, by default the folder chosen in the review window (*Manage models… → Change…*), else
@@ -147,7 +151,7 @@ digest and prints the SHA-256 to record in the catalog.
 
 Synthetic documents (Czech, Slovak, English) with every personal item
 marked, plus documents with none that count false alarms, scored for rules
-only and rules + GLiNER:
+only and rules + GLiNER (`rules+<model>` runs any catalog name model):
 
 ```sh
 uv sync --group ner --group benchmark
@@ -174,7 +178,7 @@ detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL, labelle
 dates of birth, postal addresses) scoped to the document's language, which can
 be recognised from the text (`--lang auto`, the window's default), names with the
 GLiNER model (optional,
-`--ner`) widened over the academic titles beside them, review through
+`--ner`, or another catalog name model with `--name-model`) widened over the academic titles beside them, review through
 session files or the review window (a home screen with the detection options,
 models downloaded from the window and checked against their checksums, open or
 drop a PDF, toggle each item, add a missed word by selecting it, draw regions, save

@@ -10,6 +10,7 @@ real people, cannot leak through a results file.
 from __future__ import annotations
 
 import datetime
+import functools
 import platform
 import subprocess
 import time
@@ -57,7 +58,7 @@ def run(
     *,
     resource_root: Path,
     cache_dir: Path,
-    load_model: Callable[[], SpanModel] | None = None,
+    load_model: Callable[[str], SpanModel] | None = None,
     progress: Progress = lambda _: None,
 ) -> dict[str, Any]:
     """Run the configured systems on the configured splits and score them.
@@ -65,8 +66,9 @@ def run(
     Args:
         config: The run configuration.
         resource_root: Storage root holding `data/` and `models/`.
-        cache_dir: Where the name model's output is cached.
-        load_model: Returns the name model; the catalog's GLiNER by default.
+        cache_dir: Where the name models' output is cached.
+        load_model: Returns a name model by catalog id; from the catalog's
+            files under `resource_root` by default.
         progress: Told what is running (no corpus text).
 
     Returns:
@@ -100,14 +102,14 @@ def run(
     }
 
 
-def _once(load_model: Callable[[], SpanModel]) -> Callable[[], SpanModel]:
-    """Load the model on first use only, however many corpora ask for it."""
-    loaded: list[SpanModel] = []
+def _once(load_model: Callable[[str], SpanModel]) -> Callable[[str], SpanModel]:
+    """Load each model on first use only, however many corpora ask for it."""
+    loaded: dict[str, SpanModel] = {}
 
-    def load() -> SpanModel:
-        if not loaded:
-            loaded.append(load_model())
-        return loaded[0]
+    def load(model_id: str) -> SpanModel:
+        if model_id not in loaded:
+            loaded[model_id] = load_model(model_id)
+        return loaded[model_id]
 
     return load
 
@@ -116,27 +118,33 @@ def _run_corpus(
     config: RunConfig,
     corpus: Corpus,
     cache_dir: Path,
-    load_model: Callable[[], SpanModel],
+    load_model: Callable[[str], SpanModel],
     progress: Progress,
 ) -> dict[str, Any]:
     types = corpus.types if config.types is None else corpus.types & config.types
-    model: CachedSpanModel | None = None
-    if any(system.model != "none" for system in config.systems):
-        cache = PredictionCache(cache_path(cache_dir, corpus.dataset, corpus.version, corpus.split))
-        model = CachedSpanModel(load_model, cache)
+    models = {
+        model_id: CachedSpanModel(
+            functools.partial(load_model, model_id),
+            PredictionCache(
+                cache_path(cache_dir, model_id, corpus.dataset, corpus.version, corpus.split)
+            ),
+        )
+        for model_id in dict.fromkeys(system.model_id for system in config.systems)
+        if model_id is not None
+    }
     draws = resamples(len(corpus.documents), config.resamples, config.seed)
 
     per_system: dict[str, dict[tuple[str, str], list[Counts]]] = {}
     systems: dict[str, Any] = {}
     for system in config.systems:
         started = time.perf_counter()
+        model = models.get(system.model_id) if system.model_id is not None else None
         hits, misses = (model.hits, model.misses) if model else (0, 0)
         counts, details = _run_system(system, corpus, types, model)
-        if model is not None:
-            model.cache.save()
         per_system[system.name] = counts
         details["seconds"] = round(time.perf_counter() - started, 2)
-        if model is not None and system.model != "none":
+        if model is not None:
+            model.cache.save()
             details["cache"] = {"hits": model.hits - hits, "misses": model.misses - misses}
         details["scores"] = _scores(counts, draws)
         systems[system.name] = details

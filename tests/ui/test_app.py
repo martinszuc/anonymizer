@@ -337,8 +337,9 @@ def drop_event(*paths: str) -> dict[str, Any]:
 
 class TestHomeScreenCalls:
     def test_status_is_forwarded(self, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setattr(api_module, "gliner_installed", lambda: False)
-        assert WindowApi(ReviewApi()).status()["model"]["state"] == "not_installed"
+        monkeypatch.setattr(api_module, "name_model_installed", lambda model_id, catalog: False)
+        (model,) = WindowApi(ReviewApi()).status()["names"]["models"]
+        assert model["state"] == "not_installed"
 
     def test_opening_reports_each_step_to_the_page(self, pdf: Path):
         window = StandInWindow(answers=[(str(pdf),)])
@@ -350,9 +351,16 @@ class TestHomeScreenCalls:
         ]
 
     def test_options_select_the_name_model(self, pdf: Path, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setattr(api_module, "load_gliner_detector", lambda root: NameModel())
+        chosen: list[str] = []
+
+        def load(model_id: str, root: Path, catalog: object) -> NameModel:
+            chosen.append(model_id)
+            return NameModel()
+
+        monkeypatch.setattr(api_module, "load_name_model", load)
         window = StandInWindow(answers=[(str(pdf),)])
         payload = attached(window).choose_pdf({"language": "cs", "use_model": True})
+        assert chosen == ["gliner-multi-v2.1"]
         assert payload is not None
         assert "person" in {entity["type"] for entity in payload["entities"]}
         assert (
@@ -367,6 +375,8 @@ class TestHomeScreenCalls:
             ({"language": "xx"}, "unknown language 'xx'"),
             ({"use_ocr": True, "ocr_engine": "tesseract"}, "unknown OCR engine 'tesseract'"),
             ({"use_ocr": True, "ocr_engine": ["onnxtr"]}, "unknown OCR engine"),
+            ({"use_model": True, "name_model": "other"}, "unknown name model 'other'"),
+            ({"use_model": True, "name_model": 3}, "unknown name model 3"),
         ],
     )
     def test_options_from_the_page_are_checked(self, pdf: Path, options: Any, message: str):
@@ -448,17 +458,17 @@ class TestMainOptions:
     def test_the_name_model_for_the_given_pdf(
         self, stand_in: StandInWebview, pdf: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ):
-        roots: list[Path] = []
+        loads: list[tuple[str, Path]] = []
 
-        def load(root: Path) -> NameModel:
-            roots.append(root)
+        def load(model_id: str, root: Path, catalog: object) -> NameModel:
+            loads.append((model_id, root))
             return NameModel()
 
-        monkeypatch.setattr(api_module, "load_gliner_detector", load)
+        monkeypatch.setattr(api_module, "load_name_model", load)
         assert main([str(pdf), "--lang", "cs", "--ner", "--resource-root", str(tmp_path)]) == 0
         document = stand_in.created["js_api"].current_document()
         assert "person" in {entity["type"] for entity in document["entities"]}
-        assert roots == [tmp_path]
+        assert loads == [("gliner-multi-v2.1", tmp_path)]
 
 
 class TestOcr:

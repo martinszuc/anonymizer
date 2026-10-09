@@ -162,7 +162,7 @@ class TestReviewedSession:
 class TestCommand:
     def test_ner_draws_names_from_the_model(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         detector = GlinerDetector(StandInModel({"Jan Novak": "person"}))
-        monkeypatch.setattr(commands, "load_gliner_detector", lambda root: detector)
+        monkeypatch.setattr(commands, "load_name_model", lambda model_id, root: detector)
         source = write_pdf(tmp_path / "cv.pdf", [["Jan Novak"]])
         html = inspect(source, "--ner", "--resource-root", str(tmp_path))
         assert len(rects(html, "t-person")) == len(["Jan", "Novak"])

@@ -24,17 +24,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from anonymizer.core.detect import GlinerDetector
+from anonymizer.core.detect import GlinerDetector, name_model
 from anonymizer.core.detect.base import Detector
 from anonymizer.core.detect.gliner import (
     DEFAULT_DISTRACTORS,
     DEFAULT_LABELS,
     DEFAULT_THRESHOLD,
-    ENCODER_RESOURCE,
-    GLINER_RESOURCE,
     SpanModel,
-    load_gliner,
-    missing_gliner_files,
+    load_gliner_model,
 )
 from anonymizer.core.language import AUTO
 from anonymizer.core.pipeline import build_detector, resolve_language, run_detection
@@ -44,7 +41,9 @@ from anonymizer.core.types import Document, EntityType
 CACHE_FLOOR = 0.1
 """Threshold the model is asked at for the cache; systems may filter upwards only."""
 
-MODELS = ("none", "gliner")
+SPAN_MODEL_ENGINE = "gliner"
+"""The engine whose models the harness runs: its spans are cached and filtered by score."""
+
 LANGUAGES = ("dataset", "auto", "none")
 
 
@@ -54,7 +53,8 @@ class SystemConfig:
 
     Attributes:
         name: Name in configs and results.
-        model: `none` for the rules alone, `gliner` for rules and the name model.
+        model: `none` for the rules alone, else the catalog id of a GLiNER
+            name model run beside them (`gliner` is the default one).
         threshold: The name model's minimum score.
         labels: Prompt label → entity type.
         distractors: Labels asked for whose spans are dropped.
@@ -72,6 +72,11 @@ class SystemConfig:
     names_only: bool = True
     propagate: bool = True
     language: str = "dataset"
+
+    @property
+    def model_id(self) -> str | None:
+        """The catalog id of the system's name model; `None` for the rules alone."""
+        return None if self.model == "none" else name_model(self.model).id
 
     def describe(self) -> dict[str, Any]:
         """Return the options as plain data, for the results file."""
@@ -113,9 +118,8 @@ def parse_system(name: str, table: Mapping[str, Any]) -> SystemConfig:
         msg = f"system {name!r}: unknown options {sorted(unknown)}"
         raise ValueError(msg)
     model = str(table.get("model", "none"))
-    if model not in MODELS:
-        msg = f"system {name!r}: model must be one of {MODELS}"
-        raise ValueError(msg)
+    if model != "none":
+        _check_model(name, model)
     language = str(table.get("language", "dataset"))
     if language not in LANGUAGES:
         msg = f"system {name!r}: language must be one of {LANGUAGES}"
@@ -138,6 +142,18 @@ def parse_system(name: str, table: Mapping[str, Any]) -> SystemConfig:
         propagate=bool(table.get("propagate", True)),
         language=language,
     )
+
+
+def _check_model(system: str, model: str) -> None:
+    """Refuse a model that is not a catalog GLiNER model, whose output the harness can cache."""
+    try:
+        engine = name_model(model).engine
+    except ValueError as error:
+        msg = f"system {system!r}: {error}, or none"
+        raise ValueError(msg) from error
+    if engine != SPAN_MODEL_ENGINE:
+        msg = f"system {system!r}: model {model!r} runs on {engine}, not {SPAN_MODEL_ENGINE}"
+        raise ValueError(msg)
 
 
 class PredictionCache:
@@ -264,9 +280,11 @@ def _stored(span: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def cache_path(cache_dir: Path, dataset: str, dataset_version: str, split: str) -> Path:
-    """Return the cache file for the name model on one split of a dataset."""
-    model = load_catalog()[GLINER_RESOURCE]
+def cache_path(
+    cache_dir: Path, model_id: str, dataset: str, dataset_version: str, split: str
+) -> Path:
+    """Return the cache file for a name model on one split of a dataset."""
+    model = load_catalog()[model_id]
     return (
         cache_dir
         / f"{model.id}@{_safe(model.version)}"
@@ -280,34 +298,23 @@ def _safe(version: str) -> str:
     return re.sub(r"[^A-Za-z0-9.-]+", "_", version)[:64]
 
 
-def gliner_loader(resource_root: Path) -> Callable[[], SpanModel]:
-    """Return a function loading the catalog's name model from the storage root.
+def gliner_loader(resource_root: Path) -> Callable[[str], SpanModel]:
+    """Return a function loading a catalog GLiNER model, by id, from the storage root.
 
     Raises:
         FileNotFoundError: When called, if the model is not stored under the root.
     """
-
-    def load() -> SpanModel:
-        missing = missing_gliner_files(resource_root)
-        if missing:
-            msg = f"model files missing under {resource_root}: {', '.join(missing)}"
-            raise FileNotFoundError(msg)
-        catalog = load_catalog()
-        return load_gliner(
-            catalog[GLINER_RESOURCE].directory(resource_root),
-            catalog[ENCODER_RESOURCE].directory(resource_root),
-        )
-
-    return load
+    return lambda model_id: load_gliner_model(resource_root, model_id)
 
 
 def model_versions(systems: Sequence[SystemConfig]) -> dict[str, str]:
     """Return the catalog version of every model the systems use."""
-    if all(system.model == "none" for system in systems):
-        return {}
     catalog = load_catalog()
     return {
-        resource.id: resource.version for resource in catalog.with_requirements(GLINER_RESOURCE)
+        resource.id: resource.version
+        for system in systems
+        if system.model_id is not None
+        for resource in catalog.with_requirements(system.model_id)
     }
 
 
@@ -327,7 +334,7 @@ def build_system_detector(
     Raises:
         ValueError: If the system needs a model and none is given.
     """
-    if system.model == "none":
+    if system.model_id is None:
         return build_detector(language)
     if model is None:
         msg = f"system {system.name!r} needs the name model"
@@ -336,6 +343,7 @@ def build_system_detector(
         model,
         labels=system.labels,
         threshold=system.threshold,
+        name=system.model_id,
         distractors=system.distractors,
     )
     return build_detector(language, model=gliner, names_only=system.names_only)

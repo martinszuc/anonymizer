@@ -42,8 +42,8 @@ def run_with_log(level: int, pdf: Path, tmp_path: Path) -> str:
     configure_logging(level, stream=stream)
     model = GlinerDetector(StandInModel({NAME: "person"}))
     api = ReviewApi()
-    api._model = model
-    opened = api.open_pdf(str(pdf), "cs", True, True)
+    api._models["gliner-multi-v2.1"] = model
+    opened = api.open_pdf(str(pdf), "cs", True, "gliner-multi-v2.1")
     first = opened["entities"][0]["id"]
     api.set_review(first, "rejected")
     api.add_region(0, 10, 10, 50, 50)

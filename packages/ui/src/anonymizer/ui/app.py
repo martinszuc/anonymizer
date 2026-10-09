@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 import webview
+from anonymizer.core.detect import DEFAULT_NAME_MODEL, name_models
 from anonymizer.core.ingest import IMAGE_SUFFIXES, OCR_ENGINES, SOURCE_SUFFIXES
 from anonymizer.core.language import AUTO
 from anonymizer.core.log import LEVEL_NAMES, configure_logging, resolve_level, step
@@ -150,8 +151,8 @@ class WindowApi:
     def choose_pdf(self, options: Any = None) -> dict[str, Any] | None:
         """Ask for a PDF or an image and open it; None if the reviewer cancelled.
 
-        `options` is `{language, propagate, use_model, use_ocr, ocr_engine}`, all
-        optional; see `ReviewApi.open_pdf`.
+        `options` is `{language, propagate, use_model, name_model, use_ocr,
+        ocr_engine}`, all optional; see `ReviewApi.open_pdf`.
         """
         path = self._ask(webview.FileDialog.OPEN, _SOURCE_TYPES)
         if path is None:
@@ -276,9 +277,9 @@ class WindowApi:
 
     def _open(self, path: str, options: Any) -> dict[str, Any]:
         self._refused_export = None
-        language, propagate, use_model, ocr_engine = _open_options(options)
+        language, propagate, name_model, ocr_engine = _open_options(options)
         payload = self._review.open_pdf(
-            path, language, propagate, use_model, self._progress, ocr_engine
+            path, language, propagate, name_model, self._progress, ocr_engine
         )
         return self._titled(payload)
 
@@ -363,11 +364,12 @@ def _ignore(_event: dict[str, Any]) -> None:
     """A drag over the page needs a handler only so the drop is allowed."""
 
 
-def _open_options(options: Any) -> tuple[str | None, bool, bool, str | None]:
+def _open_options(options: Any) -> tuple[str | None, bool, str | None, str | None]:
     """Read the options for opening a PDF from the page, which is not trusted.
 
-    `{language, propagate, use_model, use_ocr, ocr_engine}`; the engine is
-    returned only when OCR is asked for.
+    `{language, propagate, use_model, name_model, use_ocr, ocr_engine}`; the
+    name model is returned only when the model is asked for, the engine only
+    when OCR is. `ReviewApi.open_pdf` checks the name model against the catalog.
     """
     if options is None:
         options = {}
@@ -382,10 +384,14 @@ def _open_options(options: Any) -> tuple[str | None, bool, bool, str | None]:
     if not isinstance(ocr_engine, str) or ocr_engine not in OCR_ENGINES:
         msg = f"unknown OCR engine {ocr_engine!r}"
         raise ReviewError(msg)
+    name_model = options.get("name_model", DEFAULT_NAME_MODEL)
+    if not isinstance(name_model, str):
+        msg = f"unknown name model {name_model!r}"
+        raise ReviewError(msg)
     return (
         language,
         bool(options.get("propagate", True)),
-        bool(options.get("use_model", False)),
+        name_model if options.get("use_model", False) else None,
         ocr_engine if options.get("use_ocr", False) else None,
     )
 
@@ -406,8 +412,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--ner",
         action="store_true",
-        help="also run the name model on the document given here (install with uv sync "
-        "--group ner)",
+        help=f"also run the name model {DEFAULT_NAME_MODEL} on the document given here "
+        "(install with uv sync --group ner)",
+    )
+    parser.add_argument(
+        "--name-model",
+        choices=[model.id for model in name_models()],
+        metavar="MODEL",
+        help="run this catalog name model instead; implies --ner (choices: %(choices)s)",
     )
     parser.add_argument(
         "--ocr",
@@ -471,8 +483,9 @@ def main(argv: list[str] | None = None) -> int:
     title = "Anonymizer"
     if args.input is not None:
         try:
+            name_model = args.name_model or (DEFAULT_NAME_MODEL if args.ner else None)
             opened = review.open_pdf(
-                str(args.input), args.lang, True, args.ner, ocr_engine=args.ocr
+                str(args.input), args.lang, True, name_model, ocr_engine=args.ocr
             )
             title = f"{opened['name']} — {title}"
         except ReviewError as error:

@@ -52,15 +52,24 @@ brown, dates mint, other grey. Only a hue: text on a type colour is never used.
 
 ## Components
 
-**Toolbar** (52 px). Document name and a language badge (the code, or *ALL* when
-every language's rules ran; its tooltip says whether it was recognised or chosen); page position; zoom group (−, fit,
-+); a back chevron at the far left closes the document; region tool (R, pressed = accent fill; holding Alt draws without it); locate
-toggle (L, crosshair icon, pressed = a click on a box only selects it); preview
-toggle (eye); open; *Save Review* (secondary);
-primary *Export…* (Cmd/Ctrl+E), the final step. Controls are 28 px high.
+**Toolbar** (52 px). Left: a back chevron that closes the document, the document
+name, a language badge (the code, or *ALL* when every language's rules ran; its
+tooltip says whether it was recognised or chosen), and "Not saved" in
+`--label-3` while the review has unsaved changes. Centre: **page navigation**,
+previous and next arrows around a page field (`--fill`, hairline, centred
+tabular figures, "of N" after it; type and Return, Cmd/Ctrl+G focuses it).
+Right, in `--fill` control groups: undo and redo (disabled with nothing to do;
+the tooltip names the step), zoom (−, fit, +), tools (region tool R, locate L,
+preview eye; pressed = accent fill); then open, settings, keyboard shortcuts as
+plain icons; *Save Review* (secondary); primary *Export…* (Cmd/Ctrl+E), the
+final step. Controls are 28 px high, 24 px inside a group.
 
-**Sidebar** (300 px, translucent). Summary pill on top, segmented control
-*Findings / Hidden*, then a grouped list. Section header: type dot, label, count.
+**Sidebar** (300 px, translucent). The **review status** on top (`--fill`,
+`--radius-row`): "4 of 10 decided" (weight 600, tabular) with *Next undecided*
+as a link on the right, a 4 px progress bar, and one line of what export will do
+("11 redacted · 1 kept · 6 hidden removed": figures weight 600, kept in
+`--keep`, labels footnote `--label-2`; figures animate). Then the segmented
+control *Findings / Hidden*, then a grouped list. Section header: type dot, label, count.
 Row: an accent dot while not reviewed (Mail's unread dot), covered text (monospace
 for identifiers), meta line (page, source, score), trailing switch under a *Redact*
 column label; a drawn region has a round remove button (×, `--danger` on hover)
@@ -91,7 +100,7 @@ a strip offers *Keep N* (secondary) and *Clear filters* (plain); otherwise a
 (`--accent`, weight 600). Boxes outside the filter are drawn at 25 % opacity in
 review mode; preview shows the output unchanged.
 
-**Models sheet.** A wide sheet (560 px) from *Manage models…* on the home
+**Models sheet.** A wide sheet (560 px) from *Manage Models…* on the home
 screen. Under the intro, a folder row (`--fill`, folder icon, the models folder
 in `--font-mono` footnote cut off with an ellipsis, full path on hover,
 *Change…* on the right, disabled while a download runs). Then one section per
@@ -127,7 +136,7 @@ Keyboard: ↑/↓ moves the selection, Space toggles, Return scrolls to it.
 | Propagated | as its state, dotted outline | as its state | a repeat of other marked text |
 | Hover | fill 40 %, 2 px outline, popover | `--ink` at 25 % (peek) | what a click will do |
 | Selected | 2.5 px `--accent`, one pulse, drawn above every other box | same; 5 px on a redacted box, whose black hides the stroke's inner half | chosen in the list |
-| Drawn region | hatched (`.hatch-line`), 1.5 px `--label-2`, numbered | opaque `--ink`, no number | drawn by the reviewer; a click selects it, Delete removes it, Cmd/Ctrl+Z removes the last drawn |
+| Drawn region | hatched (`.hatch-line`), 1.5 px `--label-2`, numbered | opaque `--ink`, no number | drawn by the reviewer; a click selects it, Delete removes it, undo takes it back |
 | Region number | 18 px pill on the region's top-left corner, `--elevated`, `--shadow-control`, caption weight 600 | hidden | the region's place in drawing order, as its sidebar row ("Region 2") says; renumbered when one is removed |
 | Drawing (draft) | `--accent` at 12 %, dashed `--accent` | same | the rectangle being dragged |
 | Word selection | `--accent` at 28 %, no outline, one box per line (neighbouring words joined) | not shown | words dragged over or double-clicked, to add as a finding |
@@ -147,20 +156,16 @@ text shows a quiet remove button (×, as a region's) before its switch, visible
 on hover or selection. A **list footer** under the findings (caption,
 `--label-2`, hairline above, text-select icon) says how to add a missed word.
 
-**Summary pill.** "12 redacted · 2 kept · 6 hidden removed"; counts animate.
-
-**Empty state.** Centered icon, title, one sentence on privacy, *Open PDF…* (primary)
-and *Open Review…* (secondary), shortcut hints.
-
-**Home** (no document). A centred column (560 px): app icon, name and one
-line; the **drop area** (dashed `--separator` border, `--elevated`, *Open PDF…*
-primary; while a file is dragged over the window: `--accent` border on
-`--accent-fill`, "Drop to open"); a **Detection** card of option rows (label,
-one-line note in `--label-2`, control on the right: the language segmented (*Auto* first, the default)
-control, setting switches); *Manage models…* and *Settings…* as plain buttons
-under it; *Continue a saved review…* as a plain button; a
-footer "Works offline · version". The model's row says why
-its switch is disabled and what to run.
+**Home** (no document). A 960 px column: a header row (48 px app icon, name,
+one line); then two columns, one under 860 px. Left: the **drop area**
+(dashed `--separator` border, `--elevated`, as tall as the options beside it,
+*Open Document…* primary; while a file is dragged over the window: `--accent`
+border on `--accent-fill`, "Drop to open") and *Continue a Saved Review…*
+(secondary) under it. Right: a **Detection** card of option rows (label,
+one-line note in `--label-2`, control on the right; the language segmented
+control, *Auto* first, sits under its note, full width), *Manage Models…* and
+*Settings…* as plain buttons under it. A footer: the version and the shortcuts
+key. The model's row says why its switch is disabled and what to run.
 
 **Choices under an option** (`.option-choices`, `Choices` in `Home.tsx`: the
 OCR engines under *Scanned pages*, the name models under *Names and addresses*
@@ -202,7 +207,8 @@ focus goes to the action marked `data-default`, otherwise the last one; mark Can
 when the other choice carries a risk. While a sheet is open, window shortcuts are off.
 A sheet without actions shows a running task. Used for export: consent for pages
 without a text layer, progress, the leak check's findings, then the result (summary
-rows and "Leak check: Passed", "Off", or "Saved with N warnings" in `--warning`).
+rows and "Leak check: Passed", "Off", or "Saved with N warnings" in `--warning`;
+*Show in Finder* beside *Done*).
 
 **Leak findings** (wide `warning` sheet, *Don't Save* default, *Save Anyway*).
 Sections in order: left under a box, hidden content still in the file, redacted
@@ -218,9 +224,16 @@ to the page.
 what on and off do) and *Models* (the models folder with *Change…*, then *Manage
 models…*). Opened from the home screen, the toolbar's gear, or Cmd/Ctrl+,.
 
-**Toast.** Bottom centre, `--elevated` with blur, icon + one line, 4 s; errors use
-`--danger` for the icon only. An optional action (*Undo*) follows the message as
-`--accent` text, weight 600; using it closes the toast.
+**Toast.** Bottom centre, `--elevated` with blur, icon + one line + a small
+dismiss ×; 4 s, 8 s with an action, 7 s for an error, and the time stops while
+the pointer or the focus is on it. Errors use `--danger` for the icon only. An
+optional action (*Undo*) follows the message as `--accent` text, weight 600;
+using it closes the toast.
+
+**Keyboard shortcuts sheet** (wide, *Done*; `?`, the toolbar's keyboard
+button, or the home footer's hint). Three sections side by side where they fit
+(Document, Deciding, Pages), each a list of action and `kbd` keys with
+hairlines between, keys named as the platform names them.
 
 **Buttons.** Primary (accent fill), secondary (`--fill`), plain icon (transparent,
 hover `--fill`). 28 px, radius `--radius-control`, focus ring 3 px `--accent` at 40 %.

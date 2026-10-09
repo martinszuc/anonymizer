@@ -73,7 +73,7 @@ export function SettingsSheet({
           <ModelFolder folder={status.models_folder} downloading={downloading} onChange={onChangeFolder} />
         )}
         <Button variant="plain" onClick={onModels}>
-          Manage models…
+          Manage Models…
         </Button>
       </section>
     </Sheet>

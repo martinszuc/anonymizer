@@ -9,20 +9,23 @@ Visual design (tokens, components, box states) lives in
 [`packages/ui/frontend/DESIGN.md`](../packages/ui/frontend/DESIGN.md);
 package usage in [`packages/ui/README.md`](../packages/ui/README.md).
 
-## Status (after choosing the name model, 2026-10-09)
+## Status (after the redesign, 2026-10-09)
 
 Works, for PDFs with a text layer, for scanned pages read by OCR, and for
 photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
 
-- **Home screen** (no document open): a drop area with *Open document…*, the
-  detection options that apply to the next PDF (language: Auto, the default,
+- **Home screen** (no document open), in two columns that fit one window
+  (one in a narrow window): a drop area with *Open Document…* and *Continue a
+  Saved Review…* on the left; on the right the detection options that apply
+  to the next PDF (language: Auto, the default,
   recognised from the text after reading, falling back to every rule when
   unclear; All; or one with its own rules; the name model on or off, and
   which one when the catalog has several; scanned pages on or off, and the
   OCR engine; marking repeats), the models' states (ready, not installed,
-  files missing with the fetch command), and *Continue a saved review…*.
-  The options live for the session; the model is on by default when it is
-  ready.
+  files missing with the fetch command). The options are kept in the
+  settings file as the reviewer leaves them and restored on the next start
+  (a model or an engine no longer ready starts off); before the first
+  change, every ready model is on.
 - Open a PDF or an image from the dialog, by **dropping it on the window** (on
   the home screen or over an open document), or `anonymize-ui file.pdf --lang cs
   [--ner | --name-model MODEL] [--ocr [kraken]]`. An image is wrapped into a PDF page by the core
@@ -35,7 +38,9 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
   bar while a model loads (the names model's first load takes about ten
   seconds; models stay loaded for the session), with the steps below.
 - **Close the document** (the back chevron in the toolbar) returns home,
-  asking first if decisions are unsaved.
+  asking first if decisions are unsaved. Closing the window asks too while
+  anything is unsaved (pywebview's `confirm_close`, set from the page's
+  dirty flag; the question is `CLOSE_QUESTION` in `app.py`).
 - Reopen a saved review: pick the session file, then the original PDF or
   image (a session stores a fingerprint, not a path).
 - Every page rendered, proposed redactions drawn over it. **Review mode**
@@ -44,8 +49,10 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
 - Click a box or a row switch to toggle redact / keep; hover shows a popover.
   The locate toggle in the toolbar (L) makes a click on a box only select it and
   find its row in the list, so the row's switch is the one way to decide.
-- Sidebar: counts, findings grouped by type, a dot on items not yet reviewed,
-  arrow keys and Space. Identical findings of a type (case and spacing ignored)
+- Sidebar: the review's progress ("4 of 10 decided", a thin bar) with *Next
+  undecided* (N, Shift+N back: the list's order, a group of repeats one
+  stop), what export will do (redacted, kept, hidden removed), findings
+  grouped by type, a dot on items not yet reviewed, arrow keys and Space. Identical findings of a type (case and spacing ignored)
   are one row with a count and one switch for all of them (`set_reviews`);
   opened (chevron or →), each occurrence has its own switch, and a group decided
   both ways shows a mixed switch whose click redacts everything. Clicking a group
@@ -71,6 +78,15 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
   export does with it and the findings it contains; selecting one outlines it
   on its page. A file with attachments gets a warning: their contents are
   never opened or checked.
+- **Undo and redo** (Cmd/Ctrl+Z, Shift+Cmd/Ctrl+Z, two toolbar buttons whose
+  tooltips name the step): every decision, a group's, *Keep N*, an added
+  word or region, and the removal of one. Kept per document in the page
+  (`history.ts`); an item added back gets new ids from Python and later steps
+  follow it. A toast's *Undo* undoes its own step while it is the last one.
+- **Pages:** the toolbar's page field shows the page in view; type a number and
+  Return (Cmd/Ctrl+G focuses it), or use the arrows beside it.
+- **Keyboard shortcuts:** `?` or the keyboard button opens a sheet listing them
+  all. Letter shortcuts never fire while typing in a field.
 - **Export** (Cmd/Ctrl+E, the primary toolbar action): save dialog (default
   `<name>-redacted.pdf`), written through core's `export_redacted`. A sheet
   asks for consent first when pages have no text layer. While it runs, a
@@ -83,11 +99,12 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
   found), each row taking the reviewer to its finding or page, and offers
   *Save Anyway*, which writes the same copy to the chosen file without
   checking again (`export_unchecked`). The result sheet shows the counts and
-  the check's outcome: Passed, Off, or Saved with N warnings.
+  the check's outcome: Passed, Off, or Saved with N warnings, and *Show in
+  Finder* (Explorer; the folder on Linux) for the copy just written.
 - **Settings** (*Settings…* on the home screen, the toolbar's gear,
   Cmd/Ctrl+,): the leak check on or off (on by default; off, export writes
   the copy as redaction made it, faster and without warnings), and the
-  models folder with *Manage models…*. Kept in the settings file.
+  models folder with *Manage Models…*. Kept in the settings file.
 - **Add a missed word or phrase**: in review mode, drag across words on the
   page (as text is selected in any PDF viewer; the cursor is a text cursor
   over words) or double-click one word. A drag may start on a box, so a
@@ -100,21 +117,20 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
   (`Novák,` → `Novák`; the box still covers the comma), added `manual` and
   `confirmed`, and its other occurrences are proposed as repeats (exact text,
   whole words; not inflected forms) when the document was opened marking
-  repeats. A toast offers Undo; Cmd/Ctrl+Z removes the last item added
-  (word or region); × on its row or Delete removes it with the repeats only
-  it explained. Text already marked for redaction is refused; overlapping a
+  repeats. A toast offers Undo, as does Cmd/Ctrl+Z; × on its row or Delete
+  removes it with the repeats only it explained. Text already marked for redaction is refused; overlapping a
   finding partly, or text inside a kept one, is allowed (the union of boxes is
   removed). Works on OCR'd pages with OCR's words. A footer under the list
   says how.
 - **Draw a region** over a photo, signature or stamp: the region tool (R) or
   holding Alt, then drag. The region is hatched in review mode, black in
   preview; a click selects it, Delete (or × in its sidebar row) removes it,
-  Cmd/Ctrl+Z removes the last one drawn since the document opened. Regions are
+  and undo takes it back like any other step. Regions are
   numbered in drawing order on the page and in the sidebar ("Region 2"), and
   renumbered when one is removed. A region is saved in the session and removed
   with everything under it on export (text, the drawings it touches, image
   pixels); overlapping regions are fine.
-- **Models** (*Manage models…* on the home screen): a sheet listing what
+- **Models** (*Manage Models…* on the home screen): a sheet listing what
   each feature needs, with a one-line note on what it is for (names and
   addresses: one feature per catalog name model, GLiNER and its tokenizer
   today; scanned pages with OnnxTR: its two
@@ -148,8 +164,9 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
   for consent only for scans OCR did not read (they keep the warning). A
   saved review of scans reopens with the engine it names (`ocr_engine` in
   the session), loading it first.
-- Zoom (fit width by default, Cmd/Ctrl +/−/0), save the review, toasts for
-  errors, light and dark mode, reduced motion respected.
+- Zoom (fit width by default, Cmd/Ctrl +/−/0), save the review, toasts
+  (they wait while the pointer is on them; longer with an Undo or an error),
+  light and dark mode, reduced motion respected.
 
 Verified: macOS (real window driven from Python, see *Verifying the real
 window*). Linux and Windows: the *Window tour* workflow opens the window and
@@ -157,7 +174,7 @@ photographs it on every run (see *Window tour*); its first runs are the first
 time the window opens there.
 
 Not yet: resizing a box, changing options on an open
-document, remembered preferences, mixing OCR engines within one document.
+document, mixing OCR engines within one document.
 See *Backlog*.
 
 ## Architecture
@@ -182,7 +199,8 @@ frontend/src/components  Toolbar, Sidebar, PageView, EmptyState, Toasts, control
 | `packages/ui/src/anonymizer/ui/app.py` | Window creation, file dialogs, what the window loads (build, `--dev-server`, or a "not built" notice). |
 | `frontend/src/types.ts` | TypeScript mirror of the payloads `api.py` returns. |
 | `frontend/src/bridge.ts` | The method list the page may call; waits for `pywebviewready`; falls back to `demo.ts` in a plain browser under `npm run dev`. |
-| `frontend/src/review.ts` | Pure review rules (toggle, grouping, summary, render resolution, zoom, which OCR engine to offer). Unit-tested. |
+| `frontend/src/review.ts` | Pure review rules (toggle, grouping, summary, progress, next undecided, render resolution, zoom, which OCR engine to offer). Unit-tested. |
+| `frontend/src/history.ts` | Undo and redo as data: the edits, renaming ids of items added back. Unit-tested in `history.test.ts`. |
 | `frontend/src/pageImages.ts` | Page image cache per document and resolution. |
 | `frontend/src/selection.ts` | Pure word-selection rules (hit test, nearest word, range, line highlight, type guess). Unit-tested in `selection.test.ts`. |
 | `frontend/src/pageWords.ts` | Page word cache per document, for selecting missed text. |
@@ -228,6 +246,8 @@ Methods the page calls (all return promises in JS):
 |---|---|---|
 | `status()` | `AppStatus` | version, languages with their own rules, `models_folder`, the state of each name model (`names: {default, models}`) and each OCR engine (`ocr: {default, engines}`), `settings`; loads nothing |
 | `set_leak_check(enabled)` | `AppStatus` | turns the leak check of later exports on or off, kept in the settings file; only a boolean is accepted |
+| `set_open_options(options)` | `AppStatus` | keeps the home screen's options (`{language, propagate, use_model, name_model, use_ocr, ocr_engine}`, exactly these, checked in `api.open_options`) in the settings file; `status().settings.open_options` returns them, or null |
+| `set_unsaved_changes(unsaved)` | `None` | while true, closing the window asks first; only `true` asks |
 | `choose_models_folder()` | `AppStatus \| null` | folder dialog; stores models there from now on (settings file); null = cancelled; rejects while a download runs |
 | `models()` | `FeatureModels[]` | each feature's models and whether they are stored; nothing is hashed |
 | `download_models(feature)` | `FeatureModels[]` | `names-<catalog id>`, `ocr-onnxtr` or `ocr-kraken`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while one of its models is already downloading or when a checksum fails |
@@ -240,6 +260,7 @@ Methods the page calls (all return promises in JS):
 | `page_words(index)` | `WordInfo[]` | a page's words in reading order (OCR's on a page OCR read); fetched once per page when it nears the viewport |
 | `add_finding(page_index, start, end, type)` | `EntityInfo[]` | a selection by word offsets, widened to whole words (`pipeline.add_finding`); the finding first, then its repeats; refuses a non-integer, a region type, text already marked for redaction |
 | `export_as(allow_pages_without_text)` | `ExportResult \| null` | save dialog; null = cancelled; raises (rejects) when scans OCR did not read remain and consent is false; checks for leaks when the setting says so; steps as `anonymizer:export` |
+| `show_export()` | `None` | opens the file manager at the copy last written (`open -R`, `explorer /select,`, `xdg-open` on its folder); rejects when there is none; the page passes no path |
 | `export_unchecked()` | `ExportResult` | writes the copy the leak check just refused, to the file chosen for it, without checking again; Python keeps that path, so the page passes none; rejects unless the last export of this document was refused |
 | `choose_session()` | `DocumentInfo \| null` | asks for session, then PDF; reads it with the OCR engine the session names |
 | `save_session_as()` | `bool` | false = cancelled |
@@ -279,8 +300,8 @@ page's own drag listeners only draw the highlight.
   written only on the reviewer's Save. Do not add "recent files" or caches
   that persist paths or content: a file name can itself be personal data.
   The one file the window keeps between runs is the settings file
-  (`core.settings`), holding the models folder and whether export checks for
-  leaks, and nothing about any document.
+  (`core.settings`), holding the models folder, whether export checks for
+  leaks and the home screen's detection options, and nothing about any document.
 - **Logs hold no file names, paths or exception messages**, and document text
   only at DEBUG (`docs/logging.md`). A new `ReviewApi` method logs counts and
   ids; a new `WindowApi` method gets `@_logged`.
@@ -466,13 +487,12 @@ In suggested order. Each item names where it plugs in.
 3. **Change options on an open document:** re-run detection with another
    language or with the model, carrying decisions over by span. Opening
    options already live on the home screen.
-4. **Remembered preferences:** the home screen's options kept between runs
-   in a small settings file (no personal data), and an **opt-in** list of
-   recent files, off by default: a file name can be personal data.
-5. **Unsaved changes on close:** pywebview `confirm_close` or a closing
-   event tied to the `dirty` flag; today only opening another document asks.
-6. **Undo / redo** of decisions (Cmd/Ctrl+Z), kept in the frontend as a
-   stack of `set_review` calls.
+4. **Done:** ~~remembered preferences~~ (the home screen's options). Still
+   open: an **opt-in** list of recent files, off by default (a file name can
+   be personal data), and the window's size and place.
+5. **Done:** ~~unsaved changes on close~~.
+6. **Done:** ~~undo / redo of decisions~~ (and of additions). Still open:
+   undo across a saved and reopened review (the history lives in the page).
 7. **Models sheet, next steps:** cancel a running download; verify stored
    files on request (`verify_resource`, hashing takes seconds per GB).
    **Done:** ~~choose between OCR engines~~ (OnnxTR or kraken on the home
@@ -520,7 +540,7 @@ the repository, a test, a fixture or a commit message.
 
 4. **Done.** ~~Download several models at once.~~ Features that share no model download
    side by side; a second download of the same models is refused.
-5. **Done.** ~~Choose where models are stored.~~ *Manage models… → Change…*; the
+5. **Done.** ~~Choose where models are stored.~~ *Manage Models… → Change…*; the
    choice is kept in a settings file. Without one, models live in `./models` when the
    working directory has it, else in a per-user folder; the CLI and the benchmark
    resolve the same way (`resources.resolve_resource_root`).
@@ -541,8 +561,8 @@ the repository, a test, a fixture or a commit message.
 8. **Done.** ~~Clicking a box both selects and toggles it.~~ Decided: a click still
    toggles by default; the toolbar's locate toggle (L) makes it only select and find
    the item.
-9. **Done** for regions and added words: Cmd/Ctrl+Z removes the last item added since
-   the document opened. Undo of decisions stays in *Backlog*.
+9. **Done.** ~~Undo~~: Cmd/Ctrl+Z undoes any step since the document opened, decisions
+   included, and Shift+Cmd/Ctrl+Z redoes it.
 10. **Done.** ~~Number the drawn regions.~~ Numbered in drawing order on the page and in
     the list; removing one closes the gap.
 

@@ -114,6 +114,19 @@ class WindowApi:
         return self._review.set_leak_check(enabled)
 
     @_logged
+    def set_open_options(self, options: Any) -> dict[str, Any]:
+        """Keep the home screen's options for later runs; see `ReviewApi.set_open_options`."""
+        return self._review.set_open_options(options)
+
+    @_logged
+    def set_unsaved_changes(self, unsaved: bool) -> None:
+        """Ask before the window closes while the review has changes not saved.
+
+        pywebview asks with its own dialog, worded by `CLOSE_QUESTION`.
+        """
+        self._attached().confirm_close = unsaved is True
+
+    @_logged
     def models(self) -> list[dict[str, Any]]:
         """Describe each feature's models and whether they are stored; see `ReviewApi.models`."""
         return self._review.models()
@@ -360,6 +373,14 @@ class WindowApi:
         return self._window
 
 
+CLOSE_QUESTION = {
+    "global.quitConfirmation": "Your decisions on this document are not saved. Close anyway?",
+    "global.quit": "Close",
+    "global.cancel": "Cancel",
+}
+"""pywebview's question before closing a window with unsaved changes, in the window's words."""
+
+
 def _ignore(_event: dict[str, Any]) -> None:
     """A drag over the page needs a handler only so the drop is allowed."""
 
@@ -504,7 +525,7 @@ def main(argv: list[str] | None = None) -> int:
     # --debug enables the inspector (context menu, F12 where the platform has it);
     # pywebview would also open it on every start.
     webview.settings["OPEN_DEVTOOLS_IN_DEBUG"] = False
-    webview.start(debug=args.debug, private_mode=True)
+    webview.start(debug=args.debug, private_mode=True, localization=CLOSE_QUESTION)
     log.info("window closed")
     return 0
 

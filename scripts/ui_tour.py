@@ -178,7 +178,7 @@ class Tour:
         )
         self.shot("language", "Language set to Czech before opening")
 
-        self.click_button("Open document…")
+        self.click_button("Open Document…")
         self.wait_for("document.querySelectorAll('.redaction').length >= 3", "proposed redactions")
         self.wait_for("document.querySelector('.page img, .page canvas')", "the rendered page")
         boxes = self.js("document.querySelectorAll('.redaction').length")
@@ -200,10 +200,10 @@ class Tour:
         self.shot("hidden", "Hidden tab: link and metadata that export clears")
 
         self.click_button("Findings")
-        self.click_button("Preview the redacted output")
+        self.click_button("Preview the redacted copy")
         self.wait_for("document.querySelector('.toggle[aria-pressed=\"true\"]')", "preview mode")
         self.shot("preview", "Preview: the opaque black boxes the output will contain")
-        self.click_button("Preview the redacted output")
+        self.click_button("Preview the redacted copy")
 
         self.click_button("Export…")
         self.wait_for("document.querySelector('.sheet-passed')", "the leak-check result")

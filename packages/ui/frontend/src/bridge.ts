@@ -16,6 +16,10 @@ export interface ReviewBridge {
   status(): Promise<AppStatus>;
   /** Turns the leak check of later exports on or off, kept for later runs. */
   set_leak_check(enabled: boolean): Promise<AppStatus>;
+  /** Keeps the home screen's detection options for later runs. */
+  set_open_options(options: OpenOptions): Promise<AppStatus>;
+  /** While true, closing the window asks first. */
+  set_unsaved_changes(unsaved: boolean): Promise<void>;
   /** Each feature's models and whether they are stored. */
   models(): Promise<FeatureModels[]>;
   /** Downloads a feature's models from their official sources, verified; progress as events. */

@@ -11,7 +11,7 @@ from anonymizer.core.ingest import OCR_ENGINES, load_document
 from anonymizer.core.redact import Leak, LeakLayer
 from anonymizer.core.redact import export as export_module
 from anonymizer.core.resources import Catalog
-from anonymizer.core.settings import read_settings
+from anonymizer.core.settings import read_settings, write_setting
 from anonymizer.core.types import DetectionSource, Document, Entity, EntityType, Page
 from anonymizer.ui import api
 from anonymizer.ui.api import MAX_DPI, ReviewApi, ReviewError
@@ -289,13 +289,54 @@ class TestExport:
         assert told[4:] == [layer.value for layer in LeakLayer if layer is not LeakLayer.OCR]
 
 
+OPTIONS = {
+    "language": "auto",
+    "propagate": False,
+    "use_model": True,
+    "name_model": "gliner-multi-v2.1",
+    "use_ocr": True,
+    "ocr_engine": "kraken",
+}
+
+
+class TestOpenOptionsSetting:
+    def test_kept_for_later_runs(self):
+        assert ReviewApi().set_open_options(OPTIONS)["settings"]["open_options"] == OPTIONS
+        assert ReviewApi().status()["settings"]["open_options"] == OPTIONS
+        assert read_settings() == {"open_options": OPTIONS}
+
+    @pytest.mark.parametrize(
+        ("options", "message"),
+        [
+            ("auto", "need exactly"),
+            ({**OPTIONS, "path": "/tmp/x.pdf"}, "need exactly"),
+            ({key: value for key, value in OPTIONS.items() if key != "use_ocr"}, "need exactly"),
+            ({**OPTIONS, "propagate": "yes"}, "propagate has the wrong kind"),
+            ({**OPTIONS, "language": "xx"}, "unknown language 'xx'"),
+        ],
+    )
+    def test_anything_else_is_refused_and_nothing_is_kept(self, options: object, message: str):
+        with pytest.raises(ReviewError, match=message):
+            ReviewApi().set_open_options(options)
+        assert read_settings() == {}
+
+    def test_every_language_choice_is_accepted(self):
+        for language in (None, "auto", "cs"):
+            ReviewApi().set_open_options({**OPTIONS, "language": language})
+            assert ReviewApi().status()["settings"]["open_options"]["language"] == language
+
+    def test_a_stored_value_of_another_shape_is_ignored(self):
+        write_setting("open_options", {"language": "cs"})
+        assert ReviewApi().status()["settings"]["open_options"] is None
+
+
 class TestLeakCheckSetting:
     def test_is_on_by_default(self):
-        assert ReviewApi().status()["settings"] == {"leak_check": True}
+        assert ReviewApi().status()["settings"] == {"leak_check": True, "open_options": None}
 
     def test_turned_off_it_is_kept_for_later_runs(self):
-        assert ReviewApi().set_leak_check(False)["settings"] == {"leak_check": False}
-        assert ReviewApi().status()["settings"] == {"leak_check": False}
+        assert ReviewApi().set_leak_check(False)["settings"]["leak_check"] is False
+        assert ReviewApi().status()["settings"]["leak_check"] is False
         assert read_settings() == {"leak_check": False}
 
     def test_turned_off_export_writes_without_checking(
@@ -314,7 +355,7 @@ class TestLeakCheckSetting:
     def test_an_export_may_leave_the_check_out_while_it_is_on(self, review: ReviewApi, pdf: Path):
         result = review.export(str(pdf.with_name("cv-redacted.pdf")), check=False)
         assert result["leak_check"] == "off"
-        assert review.status()["settings"] == {"leak_check": True}
+        assert review.status()["settings"]["leak_check"] is True
 
     @pytest.mark.parametrize("value", [0, "false", None])
     def test_only_a_boolean_is_accepted(self, value: object):

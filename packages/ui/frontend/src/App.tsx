@@ -150,13 +150,26 @@ export function App() {
       if (opened) show(opened);
       const installed = await connected.status();
       setStatus(installed);
-      setOptions((current) => ({
-        ...current,
-        ...nameModelOptions(installed.names, { use_model: true, name_model: installed.names.default }),
-        ...ocrOptions(installed.ocr, { use_ocr: true, ocr_engine: installed.ocr.default }),
-      }));
+      // The options as last left, or the defaults with every ready model on; either way only
+      // what is ready now is turned on.
+      const kept = installed.settings.open_options;
+      setOptions((current) => {
+        const start = kept ?? {
+          ...current,
+          use_model: true,
+          name_model: installed.names.default,
+          use_ocr: true,
+          ocr_engine: installed.ocr.default,
+        };
+        return { ...start, ...nameModelOptions(installed.names, start), ...ocrOptions(installed.ocr, start) };
+      });
     });
   }, []);
+
+  // Closing the window asks first while the review has unsaved changes.
+  useEffect(() => {
+    bridge?.set_unsaved_changes(dirty).catch((error: unknown) => reportError(errorMessage(error)));
+  }, [bridge, dirty, reportError]);
 
   // Preview and the region tool have no use for selected words.
   useEffect(() => {
@@ -256,6 +269,12 @@ export function App() {
     } catch (error) {
       reportError(errorMessage(error));
     }
+  }
+
+  /** Change the home screen's options, kept for later runs. */
+  function changeOptions(next: OpenOptions) {
+    setOptions(next);
+    bridge?.set_open_options(next).catch((error: unknown) => reportError(errorMessage(error)));
   }
 
   const openPdf = () => open((api) => api.choose_pdf(options));
@@ -834,7 +853,7 @@ export function App() {
               options={options}
               busy={busy}
               dragging={dragging}
-              onOptions={setOptions}
+              onOptions={changeOptions}
               onOpen={openPdf}
               onOpenReview={openReview}
               onModels={() => void openModels()}

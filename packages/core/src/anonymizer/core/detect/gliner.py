@@ -25,7 +25,6 @@ which keeps it testable without the model.
 
 from __future__ import annotations
 
-import importlib.util
 import logging
 import os
 import re
@@ -38,15 +37,13 @@ from typing import Any, Protocol, cast
 
 from anonymizer.core.detect.base import describe, merge_entities
 from anonymizer.core.log import fields, step
-from anonymizer.core.resources import load_catalog, missing_resources
+from anonymizer.core.resources import Catalog, load_catalog, missing_resources
 from anonymizer.core.types import DetectionSource, Entity, EntityType, Page
 
 log = logging.getLogger(__name__)
 
 GLINER_RESOURCE = "gliner-multi-v2.1"
-"""Catalog id of the model; its requirements hold the encoder tokenizer."""
-
-ENCODER_RESOURCE = "mdeberta-v3-base-tokenizer"
+"""Catalog id of the zero-shot model; its requirements hold the encoder tokenizer."""
 
 DEFAULT_LABELS: Mapping[str, EntityType] = {
     "person": EntityType.PERSON,
@@ -286,68 +283,87 @@ def _windows(text: str) -> Iterator[_Window]:
             return
 
 
-def gliner_installed() -> bool:
-    """Whether the optional `ner` dependencies are installed.
-
-    Checked without importing them: `gliner` pulls in PyTorch, which takes
-    seconds to load, too slow for a status check.
-
-    Returns:
-        `True` if the `gliner` package can be imported.
-    """
-    try:
-        return importlib.util.find_spec("gliner") is not None
-    except (ImportError, ValueError):
-        # find_spec raises for a module that is present but broken or blocked.
-        return False
-
-
-def missing_gliner_files(root: Path) -> list[str]:
-    """Return the catalog ids of the model resources not stored under a root.
-
-    Args:
-        root: Storage root holding `models/` (see `scripts/download.py`).
-
-    Returns:
-        Ids in download order; empty when the model can be loaded.
-    """
-    return missing_resources(load_catalog(), GLINER_RESOURCE, root)
-
-
 def load_gliner_detector(
     root: Path,
+    model_id: str = GLINER_RESOURCE,
     *,
+    catalog: Catalog | None = None,
     labels: Mapping[str, EntityType] = DEFAULT_LABELS,
     threshold: float = DEFAULT_THRESHOLD,
 ) -> GlinerDetector:
-    """Build the GLiNER detector from the catalog's files under a storage root.
+    """Build a GLiNER detector from a catalog model stored under a storage root.
 
     Args:
         root: Storage root holding `models/` (see `scripts/download.py`).
+        model_id: Catalog id of a GLiNER model; a fine-tuned one differs only
+            in its weights.
+        catalog: The resource catalog; the one shipped with the core when omitted.
         labels: Prompt label → entity type.
         threshold: Minimum score for a span to be reported.
 
     Returns:
-        A ready detector.
+        A ready detector, named after the model.
 
     Raises:
         FileNotFoundError: If the model or its encoder files are not stored.
         ImportError: If the `gliner` package is not installed.
     """
-    missing = missing_gliner_files(root)
+    model = load_gliner_model(root, model_id, catalog=catalog)
+    return GlinerDetector(model, labels=labels, threshold=threshold, name=model_id)
+
+
+def load_gliner_model(
+    root: Path, model_id: str = GLINER_RESOURCE, *, catalog: Catalog | None = None
+) -> SpanModel:
+    """Load a catalog GLiNER model and its encoder from a storage root.
+
+    Args:
+        root: Storage root holding `models/` (see `scripts/download.py`).
+        model_id: Catalog id of a GLiNER model.
+        catalog: The resource catalog; the one shipped with the core when omitted.
+
+    Returns:
+        The loaded model.
+
+    Raises:
+        FileNotFoundError: If the model or its encoder files are not stored.
+        ImportError: If the `gliner` package is not installed.
+    """
+    catalog = catalog or load_catalog()
+    missing = missing_resources(catalog, model_id, root)
     if missing:
         msg = (
             f"model files missing under {root}: {', '.join(missing)}; "
-            f"fetch them with: uv run python scripts/download.py fetch {GLINER_RESOURCE}"
+            f"fetch them with: uv run python scripts/download.py fetch {model_id}"
         )
         raise FileNotFoundError(msg)
-    catalog = load_catalog()
-    with step(log, "load name model", done_level=logging.INFO, model=GLINER_RESOURCE):
-        model = load_gliner(
-            catalog[GLINER_RESOURCE].directory(root),
-            catalog[ENCODER_RESOURCE].directory(root),
+    with step(log, "load name model", done_level=logging.INFO, model=model_id):
+        return load_gliner(
+            catalog[model_id].directory(root),
+            catalog[encoder_resource(catalog, model_id)].directory(root),
         )
-    return GlinerDetector(model, labels=labels, threshold=threshold)
+
+
+def encoder_resource(catalog: Catalog, model_id: str) -> str:
+    """Return the catalog id of the encoder tokenizer a GLiNER model requires.
+
+    Args:
+        catalog: The resource catalog.
+        model_id: Catalog id of a GLiNER model.
+
+    Returns:
+        The id of its one requirement used as a tokenizer.
+
+    Raises:
+        ValueError: If the model does not require exactly one tokenizer.
+    """
+    encoders = [
+        required for required in catalog[model_id].requires if "tokenizer" in catalog[required].uses
+    ]
+    if len(encoders) != 1:
+        msg = f"{model_id}: a GLiNER model requires exactly one tokenizer, found {len(encoders)}"
+        raise ValueError(msg)
+    return encoders[0]
 
 
 def load_gliner(model_dir: Path, encoder_dir: Path) -> SpanModel:

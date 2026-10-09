@@ -7,8 +7,15 @@ reports and presentations. Everything here is invented and safe to publish.
 uv sync --group ner --group benchmark        # GLiNER and matplotlib
 uv run python -m benchmark run --out benchmark-results
 uv run python -m benchmark run --out benchmark-results --systems rules   # no model
+uv run python -m benchmark run --out benchmark-results --systems rules,rules+<catalog id>
 uv run python -m benchmark history run-a/results.json run-b/results.json --out charts
 ```
+
+A system is `rules` or `rules+<model>`, the model a catalog name model
+(`uses = ["ner"]`) by id; `rules+gliner` is the default model under its earlier
+name, so it and `rules+gliner-multi-v2.1` give the same scores. Each model is
+loaded once however many systems name it. The history charts draw `rules` and
+`rules+gliner` only.
 
 ## Scanned variants (OCR)
 

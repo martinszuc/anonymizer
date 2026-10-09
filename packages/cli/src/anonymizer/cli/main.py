@@ -32,6 +32,7 @@ import pymupdf
 from anonymizer.cli.commands import (
     EXIT_ERROR,
     CommandError,
+    NameModel,
     Output,
     run_check,
     run_detect,
@@ -39,6 +40,7 @@ from anonymizer.cli.commands import (
     run_redact,
 )
 from anonymizer.core import __version__
+from anonymizer.core.detect import DEFAULT_NAME_MODEL, name_models
 from anonymizer.core.ingest import OCR_ENGINES, load_ocr_engine
 from anonymizer.core.log import LEVEL_NAMES, configure_logging, resolve_level
 from anonymizer.core.resources import resolve_resource_root
@@ -158,8 +160,15 @@ def _add_detection_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--ner",
         action="store_true",
-        help="also detect names and addresses with the GLiNER model (install with "
-        "uv sync --group ner, fetch with scripts/download.py)",
+        help=f"also detect names and addresses with the name model {DEFAULT_NAME_MODEL} "
+        "(install with uv sync --group ner, fetch with scripts/download.py)",
+    )
+    parser.add_argument(
+        "--name-model",
+        choices=[model.id for model in name_models()],
+        metavar="MODEL",
+        help="detect names and addresses with this catalog model instead; implies --ner "
+        "(choices: %(choices)s)",
     )
     _add_ocr_options(parser)
 
@@ -213,14 +222,14 @@ def main(argv: list[str] | None = None) -> int:
 def _dispatch(args: argparse.Namespace, output: Output) -> int:
     """Run the command the arguments name."""
     ocr = load_ocr_engine(args.ocr, args.resource_root) if args.ocr else None
-    ner_root = args.resource_root if getattr(args, "ner", False) else None
+    name_model = _name_model(args)
     if args.command == "detect":
         return run_detect(
             args.input,
             args.output,
             language=args.lang,
             propagate=args.propagate,
-            ner_root=ner_root,
+            name_model=name_model,
             show=args.show,
             force=args.force,
             output=output,
@@ -233,7 +242,7 @@ def _dispatch(args: argparse.Namespace, output: Output) -> int:
             session=args.session,
             language=args.lang,
             propagate=args.propagate,
-            ner_root=ner_root,
+            name_model=name_model,
             allow_pages_without_text=args.allow_pages_without_text,
             force=args.force,
             output=output,
@@ -246,13 +255,21 @@ def _dispatch(args: argparse.Namespace, output: Output) -> int:
             session=args.session,
             language=args.lang,
             propagate=args.propagate,
-            ner_root=ner_root,
+            name_model=name_model,
             dpi=args.dpi,
             force=args.force,
             output=output,
             ocr=ocr,
         )
     return run_check(args.redacted, args.source, args.session, output=output, ocr=ocr)
+
+
+def _name_model(args: argparse.Namespace) -> NameModel | None:
+    """The name model the options choose, if any; `check` takes none."""
+    model_id = getattr(args, "name_model", None)
+    if model_id is None and getattr(args, "ner", False):
+        model_id = DEFAULT_NAME_MODEL
+    return NameModel(model_id, args.resource_root) if model_id is not None else None
 
 
 if __name__ == "__main__":

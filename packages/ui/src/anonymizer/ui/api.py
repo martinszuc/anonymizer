@@ -27,13 +27,16 @@ from typing import Any
 
 import pymupdf
 from anonymizer.core.detect import (
+    DEFAULT_NAME_MODEL,
     Detector,
-    gliner_installed,
-    load_gliner_detector,
-    missing_gliner_files,
+    load_name_model,
+    missing_name_model_files,
+    name_model,
+    name_model_installed,
+    name_models,
 )
 from anonymizer.core.detect.base import describe
-from anonymizer.core.detect.gliner import GLINER_RESOURCE
+from anonymizer.core.detect.models import name_model_engine
 from anonymizer.core.ingest import (
     OCR_ENGINE_RESOURCES,
     OCR_ENGINES,
@@ -61,6 +64,7 @@ from anonymizer.core.resources import (
     ChecksumError,
     Opener,
     PinRequiredError,
+    Resource,
     ResourceFile,
     choose_resource_root,
     fetch_with_requirements,
@@ -117,6 +121,14 @@ OCR_CHOICES = {
 }
 """Every engine of `ingest.OCR_ENGINES`, as the window offers it."""
 
+NAME_MODEL_DESCRIPTIONS = {
+    "gliner-multi-v2.1": "Zero-shot and multilingual. Finds names and addresses the rules cannot.",
+}
+"""What the window tells the reviewer a name model is for, by catalog id; a model
+missing here is described by `NAME_MODEL_DESCRIPTION`."""
+
+NAME_MODEL_DESCRIPTION = "Finds names and addresses the rules cannot."
+
 Progress = Callable[[str, int, int], None]
 """Told each step of opening a PDF as it starts and, page by page, as it goes: the
 step (`loading_ocr`, `reading`, `ocr`, `loading_model`, `detecting`), then the pages
@@ -152,18 +164,29 @@ def _ocr_feature(engine: str) -> _Feature:
     )
 
 
-FEATURES = {
-    "names": _Feature(
-        "Names and addresses",
-        "Finds names and addresses the rules cannot.",
-        GLINER_RESOURCE,
-        "ner",
-        gliner_installed,
-    ),
-    **{f"ocr-{engine}": _ocr_feature(engine) for engine in OCR_ENGINES},
-}
-"""The features whose models the window can download, by the name the page uses: the
-name model, then one per OCR engine (`ocr-<engine>`, as its dependency group is named)."""
+def _name_model_feature(model: Resource, catalog: Catalog) -> _Feature:
+    return _Feature(
+        f"Names and addresses: {model.name}",
+        NAME_MODEL_DESCRIPTIONS.get(model.id, NAME_MODEL_DESCRIPTION),
+        model.id,
+        name_model_engine(model.id, catalog).group,
+        lambda: name_model_installed(model.id, catalog),
+    )
+
+
+def features(catalog: Catalog) -> dict[str, _Feature]:
+    """The features whose models the window can download, by the name the page uses.
+
+    One per name model of the catalog (`names-<catalog id>`), then one per OCR
+    engine (`ocr-<engine>`, as its dependency group is named).
+    """
+    return {
+        **{
+            f"names-{model.id}": _name_model_feature(model, catalog)
+            for model in name_models(catalog)
+        },
+        **{f"ocr-{engine}": _ocr_feature(engine) for engine in OCR_ENGINES},
+    }
 
 
 class ReviewError(Exception):
@@ -212,13 +235,14 @@ class ReviewApi:
             resource_root if resource_root is not None else resolve_resource_root()
         )
         self._catalog = catalog or load_catalog()
+        self._features = features(self._catalog)
         self._opener = opener
         # Catalog ids being downloaded: two downloads of one model would write
         # the same files, while features sharing no model download side by side.
         self._downloads_lock = threading.Lock()
         self._downloading: set[str] = set()
         # Loaded on first use and kept: loading takes seconds, detecting does not.
-        self._model: Detector | None = None
+        self._models: dict[str, Detector] = {}
         self._ocr: dict[str, OcrEngine] = {}
         self._leak_check = read_settings().get(LEAK_CHECK_SETTING) is not False
 
@@ -230,19 +254,18 @@ class ReviewApi:
 
         Returns:
             The version, the languages with their own rules, the folder models
-            are stored in, the state of the name model and of every OCR
-            engine (`ready`, `not_installed`: the optional dependencies are
-            missing, or `files_missing`, with the catalog ids to fetch), the
-            OCR engine offered first, and the settings (`leak_check`).
+            are stored in, the state of every name model and every OCR engine
+            (`ready`, `not_installed`: the optional dependencies are missing,
+            or `files_missing`, with the catalog ids to fetch), the name model
+            and the OCR engine offered first, and the settings (`leak_check`).
         """
-        model_missing = missing_gliner_files(self._resource_root)
         return {
             "version": __version__,
             "languages": [{"code": code, "name": name} for code, name in LANGUAGES.items()],
             "models_folder": str(self._resource_root / "models"),
-            "model": {
-                "state": _state(gliner_installed(), model_missing),
-                "missing": model_missing,
+            "names": {
+                "default": DEFAULT_NAME_MODEL,
+                "models": [self._name_model_status(model) for model in name_models(self._catalog)],
             },
             "ocr": {
                 "default": DEFAULT_OCR_ENGINE,
@@ -251,9 +274,23 @@ class ReviewApi:
             "settings": {"leak_check": self._leak_check},
         }
 
+    def _name_model_status(self, model: Resource) -> dict[str, Any]:
+        missing = missing_name_model_files(model.id, self._resource_root, self._catalog)
+        key = f"names-{model.id}"
+        feature = self._features[key]
+        return {
+            "name": model.id,
+            "title": model.name,
+            "description": feature.description,
+            "feature": key,
+            "state": _state(feature.installed(), missing),
+            "missing": missing,
+            "install_command": f"uv sync --group {feature.group}",
+        }
+
     def _ocr_engine_status(self, engine: str) -> dict[str, Any]:
         missing = missing_ocr_files(engine, self._resource_root)
-        feature = FEATURES[f"ocr-{engine}"]
+        feature = self._features[f"ocr-{engine}"]
         return {
             "name": engine,
             "title": OCR_CHOICES[engine].title,
@@ -295,7 +332,7 @@ class ReviewApi:
             it is, its licence, languages, source, version, size and state
             (`present`, `partial` or `absent`, from the files on disk).
         """
-        return [self._feature_payload(key, feature) for key, feature in FEATURES.items()]
+        return [self._feature_payload(key, feature) for key, feature in self._features.items()]
 
     def download_models(
         self, feature: str, progress: Downloaded | None = None
@@ -307,7 +344,7 @@ class ReviewApi:
         model download at the same time.
 
         Args:
-            feature: A key of `FEATURES`.
+            feature: A key of `features()`.
             progress: Told the bytes received and the bytes in all, as they arrive.
 
         Returns:
@@ -318,11 +355,11 @@ class ReviewApi:
                 already downloading, or a download fails or does not match
                 its checksum (the file is then removed).
         """
-        if feature not in FEATURES:
+        if feature not in self._features:
             msg = f"unknown feature {feature!r}"
             raise ReviewError(msg)
         log.info("download requested: feature=%s", feature)
-        resources = self._catalog.with_requirements(FEATURES[feature].resource_id)
+        resources = self._catalog.with_requirements(self._features[feature].resource_id)
         ids = {resource.id for resource in resources}
         with self._downloads_lock:
             if ids & self._downloading:
@@ -361,12 +398,12 @@ class ReviewApi:
             with _as_review_error():
                 choose_resource_root(root)
             self._resource_root = root
-            self._model = None
+            self._models.clear()
             self._ocr.clear()
         return self.status()
 
     def _download(self, feature: str, progress: Downloaded) -> None:
-        resource_id = FEATURES[feature].resource_id
+        resource_id = self._features[feature].resource_id
         # Stored files are verified, not downloaded, so only missing ones count.
         total = sum(
             item.size
@@ -428,7 +465,7 @@ class ReviewApi:
         path: str,
         language: str | None = None,
         propagate: bool = True,
-        use_model: bool = False,
+        name_model: str | None = None,
         progress: Progress | None = None,
         ocr_engine: str | None = None,
     ) -> dict[str, Any]:
@@ -442,7 +479,8 @@ class ReviewApi:
             language: BCP 47 tag selecting the rules, or `language.AUTO` to
                 recognise it from the text; every rule runs when omitted.
             propagate: Also mark further occurrences of the text found.
-            use_model: Also run the name model (see `status`).
+            name_model: Also run this name model, a catalog id (see `status`);
+                none when omitted.
             progress: Told each step as it starts.
             ocr_engine: Read scanned pages with this engine, a key of
                 `ingest.OCR_ENGINES` (see `status`); none when omitted.
@@ -451,21 +489,24 @@ class ReviewApi:
             The document as `document()` describes it.
 
         Raises:
-            ReviewError: If the file is missing or unreadable, the OCR engine
-                is unknown, or the model or the OCR engine was asked for but
+            ReviewError: If the file is missing or unreadable, the name model
+                or the OCR engine is unknown, or either was asked for but
                 cannot be loaded.
         """
         log.debug(
             "open pdf:%s",
-            fields(language=language, propagate=propagate, model=use_model, ocr=ocr_engine),
+            fields(language=language, propagate=propagate, model=name_model, ocr=ocr_engine),
         )
         if ocr_engine is not None and ocr_engine not in OCR_ENGINES:
             msg = f"unknown OCR engine {ocr_engine!r}"
             raise ReviewError(msg)
+        if name_model is not None:
+            with _as_review_error():
+                name_model = _name_model_id(name_model, self._catalog)
         report = progress or _no_progress
         ocr = self._loaded_ocr(ocr_engine, report) if ocr_engine is not None else None
         document, pdf_bytes = _read(path, ocr, report, language=language)
-        model = self._loaded_model(report) if use_model else None
+        model = self._loaded_model(name_model, report) if name_model is not None else None
         resolved = resolve_language(document, language)
         run_detection(
             document,
@@ -482,19 +523,21 @@ class ReviewApi:
         )
         return self.document()
 
-    def _loaded_model(self, report: Progress) -> Detector:
-        """Return the name model, loading it the first time."""
-        if self._model is not None:
-            log.debug("name model already loaded")
+    def _loaded_model(self, model_id: str, report: Progress) -> Detector:
+        """Return a name model, loading it the first time."""
+        if model_id in self._models:
+            log.debug("name model %s already loaded", model_id)
         else:
             report("loading_model", 0, 0)
             try:
-                self._model = load_gliner_detector(self._resource_root)
+                self._models[model_id] = load_name_model(
+                    model_id, self._resource_root, self._catalog
+                )
             except (ImportError, FileNotFoundError) as error:
                 log.warning("the name model is not available", exc_info=True)
                 msg = f"the name model is not available: {error}"
                 raise ReviewError(msg) from error
-        return self._model
+        return self._models[model_id]
 
     def _loaded_ocr(self, name: str, report: Progress) -> OcrEngine:
         """Return an OCR engine, loading it the first time."""
@@ -850,6 +893,11 @@ class ReviewApi:
 
 def _no_progress(_step: str, _done: int, _total: int) -> None:
     pass
+
+
+def _name_model_id(model_id: str, catalog: Catalog) -> str:
+    """The catalog id of a name model the page named, which may be an earlier name."""
+    return name_model(model_id, catalog).id
 
 
 def _read(

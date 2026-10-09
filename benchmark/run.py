@@ -23,8 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import anonymizer.core
-from anonymizer.core.detect import Detector, load_gliner_detector
-from anonymizer.core.detect.gliner import GLINER_RESOURCE
+from anonymizer.core.detect import Detector, load_name_model, system_model
 from anonymizer.core.ingest import load_document
 from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import find_leaks, redact_pdf
@@ -47,6 +46,9 @@ from benchmark.spec import DocumentSpec, load_documents, spec_summary
 
 RESULTS_SCHEMA = 1
 SYSTEMS = ("rules", "rules+gliner")
+"""The systems run by default: the rules alone, then with the default name model.
+Any `rules+<model>` naming a catalog name model runs too (see
+`detect.system_model`)."""
 
 DetectorFactory = Callable[[str], Detector]
 
@@ -62,8 +64,8 @@ def run(
 
     Args:
         output: Directory for results, PDFs and images.
-        systems: Detector systems to run (`rules`, `rules+gliner`).
-        resource_root: Storage root holding `models/`, for GLiNER.
+        systems: Detector systems to run (`rules`, `rules+<model>`).
+        resource_root: Storage root holding `models/`, for the name models.
         specs: Documents to run; every file in `benchmark/documents` by default.
 
     Returns:
@@ -166,23 +168,26 @@ def _draw(
 
 
 def detector_factories(systems: tuple[str, ...], resource_root: Path) -> dict[str, DetectorFactory]:
-    """Return a detector factory per system name, loading GLiNER once if needed.
+    """Return a detector factory per system name, loading each name model once.
 
     Raises:
         ValueError: If a system name is unknown.
     """
-    unknown = set(systems) - set(SYSTEMS)
-    if unknown:
-        msg = f"unknown systems {sorted(unknown)}; choose from {list(SYSTEMS)}"
-        raise ValueError(msg)
-    factories: dict[str, DetectorFactory] = {}
-    if "rules" in systems:
-        factories["rules"] = build_detector
-    if "rules+gliner" in systems:
-        # Load once; the model takes seconds to read.
-        model = load_gliner_detector(resource_root)
-        factories["rules+gliner"] = lambda language: build_detector(language, model=model)
-    return factories
+    models = {system: system_model(system) for system in systems}
+    # Load each once; a model takes seconds to read.
+    loaded = {
+        model_id: load_name_model(model_id, resource_root)
+        for model_id in dict.fromkeys(models.values())
+        if model_id is not None
+    }
+    return {
+        system: (build_detector if model_id is None else _with_model(loaded[model_id]))
+        for system, model_id in models.items()
+    }
+
+
+def _with_model(model: Detector) -> DetectorFactory:
+    return lambda language: build_detector(language, model=model)
 
 
 def _totals(documents: dict[str, Any], systems: list[str]) -> dict[str, Any]:
@@ -242,11 +247,12 @@ def _kind_totals(documents: list[dict[str, Any]], system: str) -> dict[str, int]
 
 
 def _model_versions(systems: tuple[str, ...]) -> dict[str, str]:
-    if "rules+gliner" not in systems:
-        return {}
     catalog = load_catalog()
     return {
-        resource.id: resource.version for resource in catalog.with_requirements(GLINER_RESOURCE)
+        resource.id: resource.version
+        for system in systems
+        if (model_id := system_model(system)) is not None
+        for resource in catalog.with_requirements(model_id)
     }
 
 

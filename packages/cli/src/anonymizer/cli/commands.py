@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TextIO
 
 from anonymizer.cli import html_report, report
-from anonymizer.core.detect import load_gliner_detector
+from anonymizer.core.detect import load_name_model
 from anonymizer.core.ingest import OcrEngine, load_document, pages_needing_ocr
 from anonymizer.core.pipeline import build_detector, resolve_language, run_detection
 from anonymizer.core.redact import export_redacted, find_leaks
@@ -28,6 +28,19 @@ class CommandError(Exception):
 
 
 @dataclass(frozen=True)
+class NameModel:
+    """The name model chosen for detection, loaded only when detection runs.
+
+    Attributes:
+        model_id: A catalog id from `detect.name_models`.
+        root: Storage root holding `models/`.
+    """
+
+    model_id: str
+    root: Path
+
+
+@dataclass(frozen=True)
 class Output:
     """Where a command writes its messages."""
 
@@ -40,17 +53,19 @@ def detected(
     language: str | None,
     *,
     propagate: bool,
-    ner_root: Path | None = None,
+    name_model: NameModel | None = None,
     ocr: OcrEngine | None = None,
 ) -> Document:
     """Load a PDF or an image and run the detectors over its pages and surfaces.
 
-    The rules for the language always run; with `ner_root`, so does the name
-    model stored under that directory. With `ocr`, scanned pages are read
-    through that engine first. A document with nothing to review is refused:
-    an image, or a scan without hidden items, read without `ocr`.
+    The rules for the language always run; with `name_model`, so does that
+    model. With `ocr`, scanned pages are read through that engine first. A
+    document with nothing to review is refused: an image, or a scan without
+    hidden items, read without `ocr`.
     """
-    model = load_gliner_detector(ner_root) if ner_root is not None else None
+    model = (
+        load_name_model(name_model.model_id, name_model.root) if name_model is not None else None
+    )
     document = load_document(source, language=language, ocr=ocr)
     _refuse_unread_document(document)
     language = resolve_language(document, language)
@@ -64,7 +79,7 @@ def run_detect(
     *,
     language: str | None,
     propagate: bool,
-    ner_root: Path | None,
+    name_model: NameModel | None,
     show: bool,
     force: bool,
     output: Output,
@@ -72,7 +87,7 @@ def run_detect(
 ) -> int:
     """Detect personal data and save it as a session file for review."""
     _refuse_existing(session, force=force)
-    document = detected(source, language, propagate=propagate, ner_root=ner_root, ocr=ocr)
+    document = detected(source, language, propagate=propagate, name_model=name_model, ocr=ocr)
     save_session(document, session)
     print(f"{source.name}: {report.document_summary(document)}", file=output.out)
     if show:
@@ -88,7 +103,7 @@ def run_redact(
     session: Path | None,
     language: str | None,
     propagate: bool,
-    ner_root: Path | None,
+    name_model: NameModel | None,
     allow_pages_without_text: bool,
     force: bool,
     output: Output,
@@ -100,7 +115,7 @@ def run_redact(
         raise CommandError(msg)
     _refuse_existing(destination, force=force)
     document = _reviewed_or_detected(
-        source, session, language, propagate=propagate, ner_root=ner_root, ocr=ocr
+        source, session, language, propagate=propagate, name_model=name_model, ocr=ocr
     )
     _refuse_unreadable_pages(document, allow=allow_pages_without_text, output=output)
 
@@ -145,7 +160,7 @@ def run_inspect(
     session: Path | None,
     language: str | None,
     propagate: bool,
-    ner_root: Path | None,
+    name_model: NameModel | None,
     dpi: int,
     force: bool,
     output: Output,
@@ -154,7 +169,7 @@ def run_inspect(
     """Write an HTML view of the pages with what detection or a review marked."""
     _refuse_existing(destination, force=force)
     document = _reviewed_or_detected(
-        source, session, language, propagate=propagate, ner_root=ner_root, ocr=ocr
+        source, session, language, propagate=propagate, name_model=name_model, ocr=ocr
     )
     destination.write_text(html_report.render_report(source, document, dpi=dpi), encoding="utf-8")
     print(f"{source.name}: {report.document_summary(document)}", file=output.out)
@@ -168,13 +183,13 @@ def _reviewed_or_detected(
     language: str | None,
     *,
     propagate: bool,
-    ner_root: Path | None,
+    name_model: NameModel | None,
     ocr: OcrEngine | None,
 ) -> Document:
     """Load a reviewed session for the source, or detect afresh without one."""
     if session is not None:
         return load_session(session, source, ocr=ocr)
-    return detected(source, language, propagate=propagate, ner_root=ner_root, ocr=ocr)
+    return detected(source, language, propagate=propagate, name_model=name_model, ocr=ocr)
 
 
 def _refuse_existing(path: Path, *, force: bool) -> None:

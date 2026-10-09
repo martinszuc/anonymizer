@@ -65,7 +65,7 @@ def probe(
         pdf: The document; it is read, never copied into the output.
         engines: Names from `anonymizer.core.ingest.OCR_ENGINES`.
         language: Detection language.
-        system: Detector system, as in the benchmark (`benchmark.run.SYSTEMS`).
+        system: Detector system, as in the benchmark (`detect.system_model`).
         truth: Expected text per page, `None` for a page not to score.
         resource_root: Storage root holding `models/`.
 

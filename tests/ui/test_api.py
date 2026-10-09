@@ -10,6 +10,7 @@ from anonymizer.core import pipeline
 from anonymizer.core.ingest import OCR_ENGINES, load_document
 from anonymizer.core.redact import Leak, LeakLayer
 from anonymizer.core.redact import export as export_module
+from anonymizer.core.resources import Catalog
 from anonymizer.core.settings import read_settings
 from anonymizer.core.types import DetectionSource, Document, Entity, EntityType, Page
 from anonymizer.ui import api
@@ -540,23 +541,33 @@ class NameModel:
 
 class TestStatus:
     def test_reports_version_languages_and_a_ready_model(self, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setattr(api, "gliner_installed", lambda: True)
-        monkeypatch.setattr(api, "missing_gliner_files", lambda root: [])
+        monkeypatch.setattr(api, "name_model_installed", lambda model_id, catalog: True)
+        monkeypatch.setattr(api, "missing_name_model_files", lambda model_id, root, catalog: [])
         status = ReviewApi().status()
         assert status["version"] == anonymizer.ui.__version__
         assert [language["code"] for language in status["languages"]] == ["cs", "sk", "en"]
-        assert status["model"] == {"state": "ready", "missing": []}
+        assert status["names"]["default"] == "gliner-multi-v2.1"
+        (model,) = status["names"]["models"]
+        assert (model["state"], model["missing"]) == ("ready", [])
 
     def test_model_files_missing(self, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setattr(api, "gliner_installed", lambda: True)
-        assert ReviewApi(Path("/nowhere")).status()["model"] == {
-            "state": "files_missing",
-            "missing": ["mdeberta-v3-base-tokenizer", "gliner-multi-v2.1"],
-        }
+        monkeypatch.setattr(api, "name_model_installed", lambda model_id, catalog: True)
+        assert ReviewApi(Path("/nowhere")).status()["names"]["models"] == [
+            {
+                "name": "gliner-multi-v2.1",
+                "title": "GLiNER multilingual v2.1",
+                "description": api.NAME_MODEL_DESCRIPTIONS["gliner-multi-v2.1"],
+                "feature": "names-gliner-multi-v2.1",
+                "state": "files_missing",
+                "missing": ["mdeberta-v3-base-tokenizer", "gliner-multi-v2.1"],
+                "install_command": "uv sync --group ner",
+            }
+        ]
 
     def test_model_not_installed(self, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setattr(api, "gliner_installed", lambda: False)
-        assert ReviewApi().status()["model"]["state"] == "not_installed"
+        monkeypatch.setattr(api, "name_model_installed", lambda model_id, catalog: False)
+        (model,) = ReviewApi().status()["names"]["models"]
+        assert model["state"] == "not_installed"
 
     def test_every_ocr_engine_with_its_files_and_onnxtr_first(
         self, monkeypatch: pytest.MonkeyPatch
@@ -602,24 +613,31 @@ class TestOpenWithModel:
     def test_the_model_adds_names_and_is_loaded_once(
         self, pdf: Path, monkeypatch: pytest.MonkeyPatch
     ):
-        loads: list[Path] = []
+        loads: list[tuple[str, Path]] = []
         model = NameModel()
 
-        def load(root: Path) -> NameModel:
-            loads.append(root)
+        def load(model_id: str, root: Path, catalog: Catalog) -> NameModel:
+            loads.append((model_id, root))
             return model
 
-        monkeypatch.setattr(api, "load_gliner_detector", load)
+        monkeypatch.setattr(api, "load_name_model", load)
         reviewer = ReviewApi(Path("/models-root"))
         steps: list[str] = []
-        payload = reviewer.open_pdf(str(pdf), "cs", True, True, lambda step, *_: steps.append(step))
+        payload = reviewer.open_pdf(
+            str(pdf), "cs", True, "gliner-multi-v2.1", lambda step, *_: steps.append(step)
+        )
         assert entity_of_type(payload, "person")["text"] == "Jan Novak"
         assert steps == ["reading", "loading_model", "detecting", "detecting"]
 
         steps.clear()
-        reviewer.open_pdf(str(pdf), "cs", True, True, lambda step, *_: steps.append(step))
+        # The earlier name is the same model, so it is not loaded again.
+        reviewer.open_pdf(str(pdf), "cs", True, "gliner", lambda step, *_: steps.append(step))
         assert steps == ["reading", "detecting", "detecting"]
-        assert loads == [Path("/models-root")]
+        assert loads == [("gliner-multi-v2.1", Path("/models-root"))]
+
+    def test_an_unknown_model_is_refused(self, pdf: Path):
+        with pytest.raises(ReviewError, match="unknown name model 'tesseract'"):
+            ReviewApi().open_pdf(str(pdf), "cs", True, "tesseract")
 
     def test_without_the_model_no_names_are_found(self, pdf: Path):
         payload = ReviewApi().open_pdf(str(pdf), "cs")
@@ -629,12 +647,12 @@ class TestOpenWithModel:
     def test_a_model_that_cannot_load_is_reported(
         self, pdf: Path, monkeypatch: pytest.MonkeyPatch, error: Exception
     ):
-        def fail(root: Path) -> NameModel:
+        def fail(model_id: str, root: Path, catalog: Catalog) -> NameModel:
             raise error
 
-        monkeypatch.setattr(api, "load_gliner_detector", fail)
+        monkeypatch.setattr(api, "load_name_model", fail)
         reviewer = ReviewApi()
         with pytest.raises(ReviewError, match="the name model is not available"):
-            reviewer.open_pdf(str(pdf), "cs", True, True)
+            reviewer.open_pdf(str(pdf), "cs", True, "gliner-multi-v2.1")
         with pytest.raises(ReviewError, match="no document is open"):
             reviewer.document()

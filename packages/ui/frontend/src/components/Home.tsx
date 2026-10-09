@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 
 import { gentle } from "../motion";
 import { shortcut } from "../platform";
-import { ocrReady } from "../review";
-import type { AppStatus, OcrEngineStatus, OcrStatus, OpenOptions } from "../types";
+import { nameModelReady, ocrReady } from "../review";
+import type { AppStatus, ChoiceStatus, OpenOptions } from "../types";
 import { Button } from "./Button";
 import { SegmentedControl } from "./SegmentedControl";
 import { Switch } from "./Switch";
@@ -36,7 +36,9 @@ export function Home({
   onSettings,
 }: HomeProps) {
   const languages = status?.languages ?? [];
-  const modelReady = status?.model.state === "ready";
+  const models = status?.names.models ?? [];
+  const modelAvailable = models.some((model) => model.state === "ready");
+  const modelOn = options.use_model && status !== null && nameModelReady(status.names, options.name_model);
   const ocrAvailable = status?.ocr.engines.some((engine) => engine.state === "ready") ?? false;
   const ocrOn = options.use_ocr && status !== null && ocrReady(status.ocr, options.ocr_engine);
   return (
@@ -90,15 +92,24 @@ export function Home({
               ]}
             />
           </OptionRow>
-          <OptionRow label="Names and addresses" note={modelNote(status)}>
+          <OptionRow label="Names and addresses" note={modelNote(status, modelAvailable)}>
             <Switch
-              checked={options.use_model && modelReady}
-              disabled={!modelReady}
+              checked={modelOn}
+              disabled={!modelAvailable}
               tone="setting"
               label="Find names and addresses with the AI model"
               onChange={(checked) => onOptions({ ...options, use_model: checked })}
             />
           </OptionRow>
+          {models.length > 1 && (modelOn || !modelAvailable) && (
+            <Choices
+              label="Name model"
+              group="name-model"
+              choices={models}
+              chosen={options.name_model}
+              onChoose={(name) => onOptions({ ...options, name_model: name })}
+            />
+          )}
           <OptionRow label="Scanned pages" note={ocrNote(status, ocrAvailable)}>
             <Switch
               checked={ocrOn}
@@ -109,8 +120,10 @@ export function Home({
             />
           </OptionRow>
           {status && (ocrOn || !ocrAvailable) && (
-            <OcrEngines
-              ocr={status.ocr}
+            <Choices
+              label="OCR engine"
+              group="ocr-engine"
+              choices={status.ocr.engines}
               chosen={options.ocr_engine}
               onChoose={(name) => onOptions({ ...options, ocr_engine: name })}
             />
@@ -170,26 +183,36 @@ function ocrNote(status: AppStatus | null, available: boolean): ReactNode {
     : "No OCR engine is ready yet. What each needs is listed below.";
 }
 
-/** The OCR engines to choose from, each with what it is for; one that cannot read says why. */
-function OcrEngines({ ocr, chosen, onChoose }: { ocr: OcrStatus; chosen: string; onChoose: (name: string) => void }) {
+interface ChoicesProps {
+  /** Names the group for assistive technology. */
+  label: string;
+  /** The radio group's form name. */
+  group: string;
+  choices: ChoiceStatus[];
+  chosen: string;
+  onChoose: (name: string) => void;
+}
+
+/** OCR engines or name models to choose from, each with what it is for; one that cannot run says why. */
+function Choices({ label, group, choices, chosen, onChoose }: ChoicesProps) {
   return (
-    <div className="option-choices" role="radiogroup" aria-label="OCR engine">
-      {ocr.engines.map((engine) => {
-        const ready = engine.state === "ready";
+    <div className="option-choices" role="radiogroup" aria-label={label}>
+      {choices.map((choice) => {
+        const ready = choice.state === "ready";
         return (
-          <label key={engine.name} className="option-choice" data-disabled={!ready}>
+          <label key={choice.name} className="option-choice" data-disabled={!ready}>
             <input
               type="radio"
-              name="ocr-engine"
-              value={engine.name}
-              checked={ready && engine.name === chosen}
+              name={group}
+              value={choice.name}
+              checked={ready && choice.name === chosen}
               disabled={!ready}
-              onChange={() => onChoose(engine.name)}
+              onChange={() => onChoose(choice.name)}
             />
             <span className="option-text">
-              <span className="option-label">{engine.title}</span>
-              <span className="option-note">{engine.description}</span>
-              {!ready && <span className="option-note">{engineReason(engine)}</span>}
+              <span className="option-label">{choice.title}</span>
+              <span className="option-note">{choice.description}</span>
+              {!ready && <span className="option-note">{choiceReason(choice)}</span>}
             </span>
           </label>
         );
@@ -200,31 +223,25 @@ function OcrEngines({ ocr, chosen, onChoose }: { ocr: OcrStatus; chosen: string;
 
 const FILES_MISSING = "Model files missing: download them in Manage models.";
 
-/** Why an engine cannot read yet, and what to do about it. */
-function engineReason(engine: OcrEngineStatus): ReactNode {
-  return engine.state === "not_installed" ? (
+/** Why an engine or a model cannot run yet, and what to do about it. */
+function choiceReason(choice: ChoiceStatus): ReactNode {
+  return choice.state === "not_installed" ? (
     <>
-      Not installed. Install it with <code>{engine.install_command}</code>.
+      Not installed. Install it with <code>{choice.install_command}</code>.
     </>
   ) : (
     FILES_MISSING
   );
 }
 
-/** What the name model can do here, or how to make it available. */
-function modelNote(status: AppStatus | null): ReactNode {
-  switch (status?.model.state) {
-    case "ready":
-      return "An AI model finds names and addresses the rules cannot. Opening takes longer.";
-    case "not_installed":
-      return (
-        <>
-          Not installed. Install it with <code>uv sync --group ner</code>.
-        </>
-      );
-    case "files_missing":
-      return FILES_MISSING;
-    default:
-      return "Checking…";
-  }
+/**
+ * What the name model can do here, or how to make it available. With several models, the
+ * list below says what each needs; with one, the note says it.
+ */
+function modelNote(status: AppStatus | null, available: boolean): ReactNode {
+  if (status === null) return "Checking…";
+  if (available) return "An AI model finds names and addresses the rules cannot. Opening takes longer.";
+  const [first, ...others] = status.names.models;
+  if (first === undefined) return "No name model is in the catalog.";
+  return others.length > 0 ? "No name model is ready yet. What each needs is listed below." : choiceReason(first);
 }

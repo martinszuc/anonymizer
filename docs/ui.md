@@ -9,7 +9,7 @@ Visual design (tokens, components, box states) lives in
 [`packages/ui/frontend/DESIGN.md`](../packages/ui/frontend/DESIGN.md);
 package usage in [`packages/ui/README.md`](../packages/ui/README.md).
 
-## Status (after choosing the OCR engine, 2026-10-06)
+## Status (after choosing the name model, 2026-10-09)
 
 Works, for PDFs with a text layer, for scanned pages read by OCR, and for
 photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
@@ -17,14 +17,15 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
 - **Home screen** (no document open): a drop area with *Open document…*, the
   detection options that apply to the next PDF (language: Auto, the default,
   recognised from the text after reading, falling back to every rule when
-  unclear; All; or one with its own rules; the name model on or off; scanned
-  pages on or off, and the OCR engine; marking repeats), the models'
-  states (ready, not installed, files missing with the fetch command), and
-  *Continue a saved review…*. The options live for the session; the model
-  is on by default when it is ready.
+  unclear; All; or one with its own rules; the name model on or off, and
+  which one when the catalog has several; scanned pages on or off, and the
+  OCR engine; marking repeats), the models' states (ready, not installed,
+  files missing with the fetch command), and *Continue a saved review…*.
+  The options live for the session; the model is on by default when it is
+  ready.
 - Open a PDF or an image from the dialog, by **dropping it on the window** (on
   the home screen or over an open document), or `anonymize-ui file.pdf --lang cs
-  [--ner] [--ocr [kraken]]`. An image is wrapped into a PDF page by the core
+  [--ner | --name-model MODEL] [--ocr [kraken]]`. An image is wrapped into a PDF page by the core
   (`ingest.as_pdf`: upright by its EXIF orientation, pixels only, no metadata)
   and needs *Scanned pages* on: without OCR it opens with the page warning of a
   scan OCR did not read, and export asks for consent as for any such page. The
@@ -115,7 +116,8 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
   pixels); overlapping regions are fine.
 - **Models** (*Manage models…* on the home screen): a sheet listing what
   each feature needs, with a one-line note on what it is for (names and
-  addresses: GLiNER and its tokenizer; scanned pages with OnnxTR: its two
+  addresses: one feature per catalog name model, GLiNER and its tokenizer
+  today; scanned pages with OnnxTR: its two
   models; scanned pages with kraken: BLLA and PP-OCRv6) with size, licence,
   languages, source and
   whether the files are stored, and a *Download* per feature. Files come from
@@ -211,23 +213,26 @@ kept, not_reviewed, hidden_removed, pages_without_text: number[] (1-based scans 
 leak_check: passed | failed | off, leaks: { layer, where, page: number | null (1-based), text,
 entity_id: string | null, kind: text | under_box | leftover }[] }`; nothing was
 written unless `written`. `AppStatus` carries `settings: { leak_check }` and
-`ocr: { default, engines: OcrEngineStatus[] }`, one per `ingest.OCR_ENGINES` entry in
-its order: `{ name, title, description, feature, state: ready | not_installed |
-files_missing, missing, install_command }` (`feature` is its key for `download_models`).
-The engine's title and description come from `OCR_CHOICES` in `api.py`, which must
-name every engine the core offers (a test checks).
+`ocr: { default, engines: ChoiceStatus[] }`, one per `ingest.OCR_ENGINES` entry in
+its order, and `names: { default, models: ChoiceStatus[] }`, one per catalog name
+model (`detect.name_models`) in catalog order. A `ChoiceStatus` is `{ name, title,
+description, feature, state: ready | not_installed | files_missing, missing,
+install_command }` (`feature` is its key for `download_models`). An engine's title and
+description come from `OCR_CHOICES` in `api.py`, which must name every engine the core
+offers (a test checks); a name model's title is its catalog name, its description from
+`NAME_MODEL_DESCRIPTIONS`, or a general line for a model missing there.
 
 Methods the page calls (all return promises in JS):
 
 | Method | Returns | Notes |
 |---|---|---|
-| `status()` | `AppStatus` | version, languages with their own rules, `models_folder`, the state of the model and of each OCR engine (`ocr: {default, engines}`), `settings`; loads nothing |
+| `status()` | `AppStatus` | version, languages with their own rules, `models_folder`, the state of each name model (`names: {default, models}`) and each OCR engine (`ocr: {default, engines}`), `settings`; loads nothing |
 | `set_leak_check(enabled)` | `AppStatus` | turns the leak check of later exports on or off, kept in the settings file; only a boolean is accepted |
 | `choose_models_folder()` | `AppStatus \| null` | folder dialog; stores models there from now on (settings file); null = cancelled; rejects while a download runs |
 | `models()` | `FeatureModels[]` | each feature's models and whether they are stored; nothing is hashed |
-| `download_models(feature)` | `FeatureModels[]` | `names`, `ocr-onnxtr` or `ocr-kraken`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while one of its models is already downloading or when a checksum fails |
+| `download_models(feature)` | `FeatureModels[]` | `names-<catalog id>`, `ocr-onnxtr` or `ocr-kraken`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while one of its models is already downloading or when a checksum fails |
 | `current_document()` | `DocumentInfo \| null` | on start: a PDF given on the command line |
-| `choose_pdf(options)` | `DocumentInfo \| null` | options `{language, propagate, use_model, use_ocr, ocr_engine}`, checked in Python (`language`: a code, `"auto"` or null; `ocr_engine`: a key of `OCR_ENGINES`, OnnxTR when absent, used only with `use_ocr`); null = cancelled |
+| `choose_pdf(options)` | `DocumentInfo \| null` | options `{language, propagate, use_model, name_model, use_ocr, ocr_engine}`, checked in Python (`language`: a code, `"auto"` or null; `name_model`: a catalog name model, the default when absent, used only with `use_model`; `ocr_engine`: a key of `OCR_ENGINES`, OnnxTR when absent, used only with `use_ocr`); null = cancelled |
 | `open_dropped(options)` | `DocumentInfo \| null` | opens the PDF Python kept from the last drop; null if none |
 | `close_document()` | `None` | forgets the document, window title back to "Anonymizer" |
 | `add_region(page_index, x0, y0, x1, y1)` | `EntityInfo` | points, corners in any order; clipped to the page; `manual`, `confirmed` |
@@ -436,8 +441,8 @@ display (the script in a Linux container), not your desktop.
 | `ingest.read_source`, `document_from_bytes`, `as_pdf` | `open_pdf`: the file is read once; the document is loaded from those bytes and pages render from the PDF they are read as (an image wrapped by `as_pdf`) |
 | `ingest.SOURCE_SUFFIXES`, `IMAGE_SUFFIXES` | the open dialog's file types and which dropped file is taken; the type itself is read from the content |
 | `pipeline.build_detector(language, model=...)`, `run_detection` | detection on open, with the options from the home screen |
-| `detect.load_gliner_detector(root)` | the name model, loaded on first use from `--resource-root` and kept for the session |
-| `detect.gliner_installed`, `missing_gliner_files` | the model's state on the home screen, without loading it |
+| `detect.load_name_model(model_id, root, catalog)` | a name model, loaded on first use from `--resource-root` and kept for the session, one per model chosen |
+| `detect.name_models`, `name_model_installed`, `missing_name_model_files` | the models listed on the home screen and in the Models sheet, with their states, without loading them |
 | `session.save_session` / `apply_session` | save and reopen; same files as `anonymize detect` / `redact --session` |
 | `Document.adjust_span(entity_id, start, end)` | **not wired**: resizing a box to other words |
 | `Document.add_region`, `Document.remove_entity` | drawing and removing a region |
@@ -471,8 +476,10 @@ In suggested order. Each item names where it plugs in.
 7. **Models sheet, next steps:** cancel a running download; verify stored
    files on request (`verify_resource`, hashing takes seconds per GB).
    **Done:** ~~choose between OCR engines~~ (OnnxTR or kraken on the home
-   screen). Still open: mixing engines within one document (kraken for a
-   handwritten page, OnnxTR for the rest).
+   screen) and ~~between name models~~ (every catalog name model). Still
+   open: mixing engines within one document (kraken for a handwritten page,
+   OnnxTR for the rest); a session does not record which name model proposed
+   its items (reopening never runs a model, so nothing runs another silently).
 8. **OCR quality in review:** show OCR's confidence per word and flag
     low-confidence words (an `@` read as `(m` hides an email from the rules),
     and offer a second engine once RapidOCR or EasyOCR is in the catalog.

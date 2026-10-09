@@ -3,12 +3,17 @@
 Every name and number is invented.
 """
 
+import dataclasses
 import json
 import re
 from pathlib import Path
 from typing import Any
 
 import pytest
+from anonymizer.core.detect import models as models_module
+from anonymizer.core.resources import Catalog, load_catalog
+
+from experiments import systems as systems_module
 
 CNEC_LINES = [
     "Včera přijel <P<pf Jan> <ps Novák>> do <gu Brna> .",
@@ -127,3 +132,22 @@ def resource_root(tmp_path: Path) -> Path:
         json.dumps(redact_records(), ensure_ascii=False), encoding="utf-8"
     )
     return root
+
+
+@pytest.fixture
+def tuned_catalog(monkeypatch: pytest.MonkeyPatch) -> Catalog:
+    """The shipped catalog with a fine-tuned GLiNER and a token classifier added."""
+    shipped = load_catalog()
+    base = shipped["gliner-multi-v2.1"]
+    catalog = Catalog(
+        {
+            **shipped.resources,
+            "gliner-cs-tuned": dataclasses.replace(base, id="gliner-cs-tuned"),
+            "token-classifier": dataclasses.replace(
+                base, id="token-classifier", engine="transformers", requires=()
+            ),
+        }
+    )
+    monkeypatch.setattr(models_module, "load_catalog", lambda: catalog)
+    monkeypatch.setattr(systems_module, "load_catalog", lambda: catalog)
+    return catalog

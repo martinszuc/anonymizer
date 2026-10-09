@@ -38,7 +38,8 @@ FOUND = {
 def _run(resource_root: Path, tmp_path: Path, stand_in: ScoredStandIn) -> dict[str, Any]:
     loads: list[int] = []
 
-    def load() -> ScoredStandIn:
+    def load(model_id: str) -> ScoredStandIn:
+        assert model_id == "gliner-multi-v2.1"
         loads.append(1)
         return stand_in
 
@@ -192,3 +193,28 @@ def test_command_line(resource_root: Path, tmp_path: Path, capsys: pytest.Captur
     assert "cnec-2.0/dtest (dev, cs): 1 documents" in printed
     assert "cnec-2.0/train: not stored" in printed
     assert "Novák" not in printed
+
+
+def test_the_earlier_name_and_the_catalog_id_run_one_model(resource_root: Path, tmp_path: Path):
+    loads: list[str] = []
+
+    def load(model_id: str) -> ScoredStandIn:
+        loads.append(model_id)
+        return ScoredStandIn(FOUND)
+
+    config = {
+        **CONFIG,
+        "compare": [],
+        "systems": {
+            "rules+gliner": {"model": "gliner"},
+            "rules+gliner-multi-v2.1": {"model": "gliner-multi-v2.1"},
+        },
+    }
+    results = run(
+        parse_config(config), resource_root=resource_root, cache_dir=tmp_path, load_model=load
+    )
+    assert loads == ["gliner-multi-v2.1"]
+    for corpus in results["corpora"].values():
+        systems = corpus["systems"]
+        assert systems["rules+gliner"]["scores"] == systems["rules+gliner-multi-v2.1"]["scores"]
+        assert systems["rules+gliner-multi-v2.1"]["cache"]["misses"] == 0

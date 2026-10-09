@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 from anonymizer.core.detect import CombinedDetector, GlinerDetector, NamesOnly, RuleDetector
+from anonymizer.core.detect import models as models_module
+from anonymizer.core.resources import Catalog
 from anonymizer.core.types import Document, EntityType
 
 from experiments.datasets import make_page
@@ -71,7 +73,7 @@ class TestParseSystem:
         ("table", "message"),
         [
             ({"modle": "gliner"}, "unknown options"),
-            ({"model": "spacy"}, "model must be"),
+            ({"model": "spacy"}, "unknown name model 'spacy'"),
             ({"language": "cs"}, "language must be"),
             ({"threshold": 0.05}, "threshold must"),
         ],
@@ -177,7 +179,7 @@ class TestCache:
         assert len(PredictionCache(cache.path)) == 1
 
     def test_path_names_model_dataset_and_split(self, tmp_path: Path):
-        path = cache_path(tmp_path, "cnec-2.0", "hdl:11858/00-097C", "dtest")
+        path = cache_path(tmp_path, "gliner-multi-v2.1", "cnec-2.0", "hdl:11858/00-097C", "dtest")
         assert path.parent.name == "cnec-2.0@hdl_11858_00-097C"
         assert path.parent.parent.name.startswith("gliner-multi-v2.1@")
         assert path.name == "dtest.json"
@@ -185,10 +187,41 @@ class TestCache:
 
 def test_loader_reports_missing_model(tmp_path: Path):
     with pytest.raises(FileNotFoundError, match="model files missing"):
-        gliner_loader(tmp_path)()
+        gliner_loader(tmp_path)("gliner-multi-v2.1")
 
 
 def test_model_versions():
     assert model_versions([SystemConfig("rules")]) == {}
     versions = model_versions([SystemConfig("x", model="gliner")])
     assert set(versions) == {"gliner-multi-v2.1", "mdeberta-v3-base-tokenizer"}
+
+
+class TestModels:
+    def test_the_earlier_name_and_the_catalog_id_are_one_model(self):
+        assert SystemConfig("x", model="gliner").model_id == "gliner-multi-v2.1"
+        assert SystemConfig("x", model="gliner-multi-v2.1").model_id == "gliner-multi-v2.1"
+        assert SystemConfig("x").model_id is None
+        # Results keep the name the config used.
+        assert parse_system("x", {"model": "gliner"}).describe()["model"] == "gliner"
+
+    def test_another_catalog_gliner_model_is_a_system_model(
+        self, monkeypatch: pytest.MonkeyPatch, tuned_catalog: Catalog
+    ):
+        system = parse_system("tuned", {"model": "gliner-cs-tuned"})
+        assert system.model_id == "gliner-cs-tuned"
+        assert set(model_versions([system])) == {"gliner-cs-tuned", "mdeberta-v3-base-tokenizer"}
+        detector = build_system_detector(system, "cs", ScoredStandIn({}))
+        assert isinstance(detector, CombinedDetector)
+        assert "gliner-cs-tuned" in detector.name
+
+    def test_a_model_of_another_engine_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch, tuned_catalog: Catalog
+    ):
+        # A second engine the core can run, whose output the harness cannot cache yet.
+        monkeypatch.setitem(
+            models_module.NAME_MODEL_ENGINES,
+            "transformers",
+            models_module.NameModelEngine(lambda *_: RuleDetector([]), "transformers", "ner"),
+        )
+        with pytest.raises(ValueError, match="runs on transformers, not gliner"):
+            parse_system("x", {"model": "token-classifier"})

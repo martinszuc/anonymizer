@@ -2,6 +2,7 @@
 
 import type {
   Box,
+  ChoiceStatus,
   DocumentInfo,
   EntityInfo,
   ExportProgress,
@@ -9,6 +10,7 @@ import type {
   ExportStep,
   LeakInfo,
   LeakKind,
+  NamesStatus,
   OcrStatus,
   OpenOptions,
   OpenProgress,
@@ -415,35 +417,63 @@ export function pagesWithoutText(document: DocumentInfo): number[] {
   return document.pages.filter(isUnreadScan).map((page) => page.index + 1);
 }
 
+/** Whether a choice can run now: installed, with its models stored. */
+export function choiceReady(choices: ChoiceStatus[], name: string): boolean {
+  return choices.some((choice) => choice.name === name && choice.state === "ready");
+}
+
+/**
+ * The choice to run: the first ready one of `preferred`, then the default, then any ready
+ * one. With none ready, the first preferred, so a choice outlasts a missing model.
+ */
+export function chooseReady(choices: ChoiceStatus[], fallback: string, preferred: (string | null)[]): string {
+  const order = [...preferred, fallback, ...choices.map((choice) => choice.name)].filter(
+    (name): name is string => name !== null,
+  );
+  return order.find((name) => choiceReady(choices, name)) ?? order[0] ?? fallback;
+}
+
 /** OCR's part of the options a PDF opens with. */
 export type OcrOptions = Pick<OpenOptions, "use_ocr" | "ocr_engine">;
 
 /** Whether an engine can read now: installed, with its models stored. */
 export function ocrReady(ocr: OcrStatus, name: string): boolean {
-  return ocr.engines.some((engine) => engine.name === name && engine.state === "ready");
+  return choiceReady(ocr.engines, name);
 }
 
-/**
- * The engine to read with: the first ready one of `preferred`, then the default, then any
- * ready one. With none ready, the first preferred, so a choice outlasts a missing engine.
- */
+/** The engine to read with (see `chooseReady`). */
 export function chooseOcrEngine(ocr: OcrStatus, preferred: (string | null)[]): string {
-  const order = [...preferred, ocr.default, ...ocr.engines.map((engine) => engine.name)].filter(
-    (name): name is string => name !== null,
-  );
-  return order.find((name) => ocrReady(ocr, name)) ?? order[0] ?? ocr.default;
+  return chooseReady(ocr.engines, ocr.default, preferred);
 }
 
 /**
  * OCR's options once the installation changed. The choice stays while its engine is ready,
  * otherwise a ready one takes its place; OCR stays on only with a ready engine. `downloaded`
- * names an engine whose models just arrived: it is chosen and OCR turns on, as the name
- * model's switch does after its download.
+ * names an engine whose models just arrived: it is chosen and OCR turns on.
  */
 export function ocrOptions(ocr: OcrStatus, current: OcrOptions, downloaded: string | null = null): OcrOptions {
   const engine = chooseOcrEngine(ocr, [downloaded, current.ocr_engine]);
   const turnedOn = downloaded !== null && ocrReady(ocr, downloaded);
   return { ocr_engine: engine, use_ocr: (current.use_ocr || turnedOn) && ocrReady(ocr, engine) };
+}
+
+/** The name model's part of the options a PDF opens with. */
+export type NameModelOptions = Pick<OpenOptions, "use_model" | "name_model">;
+
+/** Whether a name model can run now: installed, with its files stored. */
+export function nameModelReady(names: NamesStatus, name: string): boolean {
+  return choiceReady(names.models, name);
+}
+
+/** The name model's options once the installation changed, as `ocrOptions` keeps OCR's. */
+export function nameModelOptions(
+  names: NamesStatus,
+  current: NameModelOptions,
+  downloaded: string | null = null,
+): NameModelOptions {
+  const model = chooseReady(names.models, names.default, [downloaded, current.name_model]);
+  const turnedOn = downloaded !== null && nameModelReady(names, downloaded);
+  return { name_model: model, use_model: (current.use_model || turnedOn) && nameModelReady(names, model) };
 }
 
 /** A size for people: "980 B", "42.3 MB", "1.16 GB" (decimal units, as downloads show). */

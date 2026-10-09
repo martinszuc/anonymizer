@@ -31,13 +31,18 @@ from anonymizer.core.detect.contact import (
     find_ocr_emails,
 )
 from anonymizer.core.detect.document import detect_document, detect_surface
-from anonymizer.core.detect.gliner import (
-    GlinerDetector,
-    gliner_installed,
-    load_gliner_detector,
-    missing_gliner_files,
-)
+from anonymizer.core.detect.gliner import GlinerDetector, load_gliner_detector
 from anonymizer.core.detect.iban import find_ibans, is_valid_iban, normalize_iban
+from anonymizer.core.detect.models import (
+    DEFAULT_NAME_MODEL,
+    NAME_MODEL_ENGINES,
+    load_name_model,
+    missing_name_model_files,
+    name_model,
+    name_model_installed,
+    name_models,
+    system_model,
+)
 from anonymizer.core.detect.propagate import propagate_occurrences
 from anonymizer.core.detect.roles import NamesOnly, cut_to_address, cut_to_name, role_words_for
 from anonymizer.core.detect.titles import extend_with_titles
@@ -127,7 +132,9 @@ def detector_for(language: str | None) -> RuleDetector:
 
 
 __all__ = [
+    "DEFAULT_NAME_MODEL",
     "LANGUAGE_INDEPENDENT_FINDERS",
+    "NAME_MODEL_ENGINES",
     "OCR_FINDERS",
     "OVERLAP_PRIORITY",
     "RULE_LANGUAGES",
@@ -161,17 +168,21 @@ __all__ = [
     "find_urls",
     "find_us_addresses",
     "finders_for",
-    "gliner_installed",
     "is_valid_account_number",
     "is_valid_birth_number",
     "is_valid_card_number",
     "is_valid_company_id",
     "is_valid_iban",
     "load_gliner_detector",
+    "load_name_model",
     "merge_entities",
-    "missing_gliner_files",
+    "missing_name_model_files",
+    "name_model",
+    "name_model_installed",
+    "name_models",
     "normalize_iban",
     "passes_luhn",
     "propagate_occurrences",
     "role_words_for",
+    "system_model",
 ]

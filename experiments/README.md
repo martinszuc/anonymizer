@@ -24,9 +24,11 @@ the catalog.
 2. **Detects** with each configured system (`systems.py`), built by
    `core.pipeline.build_detector` and run by `core.pipeline.run_detection`,
    exactly as the command line and the review window run them. A system's
-   options only switch what those functions offer: the name model's
+   options only switch what those functions offer: the name model (`none`,
+   or a catalog GLiNER model by id; `gliner` is the default one), its
    threshold, labels and distractors, the name filter, propagation, and the
-   language (the corpus's, recognised from the text, or none).
+   language (the corpus's, recognised from the text, or none). Results keep
+   the model name the config used.
 3. **Scores** (`metrics.py`) per type and for any type: precision, recall,
    F1 and F2, with strict (exact span) and partial (any overlap) matching,
    and 95 % bootstrap intervals over documents (seeded). Pairs named in
@@ -76,7 +78,7 @@ REDACT sample is development data; its test data will be the full file.
 
 ## Cache
 
-The name model's raw output is cached per window under
+Each name model's raw output is cached per window under
 `<resource root>/.cache/experiments/<model>@<version>/<dataset>@<version>/<split>.json`,
 keyed by a hash of the model input (window text, labels, decoding mode), so a
 changed text or prompt misses instead of answering wrongly. The files hold
@@ -91,6 +93,8 @@ seconds and does not load the model.
 ```sh
 uv run python -m experiments leaks scan.pdf --out leaks/ --engines onnxtr --system rules+gliner
 ```
+
+`--system` is `rules` or `rules+<catalog name model>`, as in the benchmark.
 
 Loads one PDF with each OCR engine, detects, redacts and runs the leak check,
 then counts why it failed (`leaks.py`): reports grouped by layer, page and

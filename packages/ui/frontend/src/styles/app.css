@@ -1905,6 +1905,24 @@ button.leak-row:focus-visible {
   cursor: pointer;
 }
 
+.toast-close {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-left: var(--space-1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--label-3);
+}
+
+.toast-close:hover {
+  background: var(--fill-hover);
+  color: var(--label-2);
+}
+
 .toast-action:focus-visible {
   border-radius: var(--radius-control);
   box-shadow: var(--focus-ring);

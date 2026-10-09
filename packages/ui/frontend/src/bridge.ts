@@ -38,6 +38,8 @@ export interface ReviewBridge {
   export_as(allowPagesWithoutText: boolean): Promise<ExportResult | null>;
   /** Writes the copy the leak check just refused, to the file chosen for it, without checking again. */
   export_unchecked(): Promise<ExportResult>;
+  /** Shows the copy last exported in the system's file manager. */
+  show_export(): Promise<void>;
   page_image(index: number, dpi: number): Promise<string>;
   set_review(entityId: string, state: ReviewState): Promise<EntityInfo>;
   /** One decision on several entities, all or none; returns them in the order given. */

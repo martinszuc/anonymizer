@@ -2,6 +2,9 @@
 
 export const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
 
+/** What the system's file manager is called, for "Show in …". */
+export const fileManager = isMac ? "Finder" : /Windows/.test(navigator.userAgent) ? "Explorer" : "Folder";
+
 export function shortcut(key: string, { shift = false } = {}): string {
   if (isMac) return `${shift ? "⇧" : ""}⌘${key}`;
   return `Ctrl+${shift ? "Shift+" : ""}${key}`;

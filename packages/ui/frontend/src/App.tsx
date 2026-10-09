@@ -61,7 +61,6 @@ import type {
   SurfaceInfo,
 } from "./types";
 
-const TOAST_MS = 4000;
 const TOAST_TEXT_LENGTH = 40;
 const CANVAS_PADDING = 48;
 const MIN_SCALE = 0.25;
@@ -135,9 +134,8 @@ export function App() {
     (kind: Toast["kind"], message: string, action?: Toast["action"]) => {
       const id = Date.now() + Math.random();
       setToasts((current) => [...current, { id, kind, message, action }]);
-      setTimeout(() => dismissToast(id), TOAST_MS);
     },
-    [dismissToast],
+    [],
   );
   const reportError = useCallback((message: string) => notify("error", message), [notify]);
   const updateEntities = (change: (entities: EntityInfo[]) => EntityInfo[]) =>
@@ -202,7 +200,7 @@ export function App() {
   }
 
   const discardConfirmed = () =>
-    !dirty || window.confirm("Your decisions on this document are not saved. Discard them?");
+    !dirty || window.confirm("Your decisions on this document are not saved. Close it anyway?");
 
   /** `name` is known for a dropped file; a dialog's choice is named once it opens. */
   async function open(choose: (api: ReviewBridge) => Promise<DocumentInfo | null>, name: string | null = null) {
@@ -842,7 +840,7 @@ export function App() {
             </div>
             {dragging && (
               <div className="drop-overlay" aria-hidden>
-                <p>Drop to open another document</p>
+                <p>Drop to open</p>
               </div>
             )}
           </>
@@ -867,6 +865,7 @@ export function App() {
           onExportAnyway={() => void runExport(true)}
           onSaveAnyway={() => void saveAnyway()}
           onShowLeak={showLeak}
+          onShowFile={() => bridge?.show_export().catch((error: unknown) => reportError(errorMessage(error)))}
           onClose={closeExport}
         />
         <SettingsSheet

@@ -383,7 +383,7 @@ describe("openStatus", () => {
 
   it("leaves the bar indeterminate while a model loads", () => {
     expect(openStatus({ step: "loading_model", done: 0, total: 0 })).toEqual({
-      label: "Loading the names model",
+      label: "Loading the name model",
       count: null,
       fraction: null,
     });

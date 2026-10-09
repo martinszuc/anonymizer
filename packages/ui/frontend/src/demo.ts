@@ -543,6 +543,7 @@ export function demoBridge(): ReviewBridge {
       return demoStatus();
     },
     set_unsaved_changes: async () => {},
+    show_export: async () => {},
     export_as: async (allowPagesWithoutText: boolean): Promise<ExportResult | null> => {
       await pause();
       if (!current) throw new Error("no document is open");

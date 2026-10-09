@@ -16,6 +16,7 @@ import functools
 import json
 import logging
 import platform
+import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -98,6 +99,8 @@ class WindowApi:
         # Where the last export the leak check refused was going, and whether it
         # allowed unread scans: saving it anyway reuses them, so that call takes no path.
         self._refused_export: tuple[str, bool] | None = None
+        # The copy last written, which the page may ask to be shown in the file manager.
+        self._written: Path | None = None
 
     def _attach(self, window: webview.Window) -> None:
         """Give the API the window its dialogs open over; private so the page cannot."""
@@ -189,6 +192,7 @@ class WindowApi:
         self._review.close()
         self._dropped = None
         self._refused_export = None
+        self._written = None
         self._attached().title = "Anonymizer"
 
     @_logged
@@ -230,7 +234,9 @@ class WindowApi:
         if path is None:
             return None
         result = self._review.export(path, allow_pages_without_text, self._export_progress)
-        if not result["written"]:
+        if result["written"]:
+            self._written = Path(path)
+        else:
             self._refused_export = (path, bool(allow_pages_without_text))
         return result
 
@@ -245,9 +251,22 @@ class WindowApi:
             msg = "there is no refused export to save"
             raise ReviewError(msg)
         (path, allow_pages_without_text), self._refused_export = self._refused_export, None
-        return self._review.export(
+        result = self._review.export(
             path, allow_pages_without_text, self._export_progress, check=False
         )
+        self._written = Path(path)
+        return result
+
+    @_logged
+    def show_export(self) -> None:
+        """Show the copy just exported in the system's file manager.
+
+        The path is the one the reviewer chose in the save dialog; the page names none.
+        """
+        if self._written is None or not self._written.is_file():
+            msg = "there is no exported copy to show"
+            raise ReviewError(msg)
+        _reveal(self._written)
 
     @_logged
     def page_image(self, index: int, dpi: int = 144) -> str:
@@ -371,6 +390,18 @@ class WindowApi:
             msg = "the window is not ready"
             raise ReviewError(msg)
         return self._window
+
+
+def _reveal(path: Path) -> None:
+    """Open the file manager at a file, selected where the platform allows it."""
+    if sys.platform == "darwin":
+        command = ["open", "-R", str(path)]
+    elif sys.platform == "win32":
+        command = ["explorer", f"/select,{path}"]
+    else:
+        command = ["xdg-open", str(path.parent)]
+    # A list, no shell: the path cannot be read as a command.
+    subprocess.Popen(command)
 
 
 CLOSE_QUESTION = {

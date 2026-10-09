@@ -347,7 +347,7 @@ function ListTools({ entities, sections, view, onView, onKeep }: ListToolsProps)
         <div className="list-actions">
           <Button
             disabled={keep.length === 0}
-            title="Keep the undecided findings shown; decisions you made stay as they are"
+            title="Keep the undecided findings shown; decided ones stay as they are"
             onClick={() => onKeep(keep)}
           >
             {keep.length > 0 ? `Keep ${keep.length}` : "Nothing to keep"}
@@ -436,9 +436,9 @@ function Findings({
       </div>
     ) : (
       <div className="sidebar-empty">
-        <p>Nothing was found in the text.</p>
-        <p className="muted">Hidden items are still removed on export.</p>
-        <p className="muted">Missed something? Select its words on the page to add it.</p>
+        <p>Nothing found in the text.</p>
+        <p className="muted">Hidden items are removed on export all the same.</p>
+        <p className="muted">To add a missed word, drag across it on the page.</p>
       </div>
     );
   }
@@ -631,7 +631,7 @@ function GroupRow({ group, open, showType, selected, selectedId, onOpen, onSelec
           onChange={() => onToggleGroup(members)}
         />
       ) : (
-        <span className="row-locked" title="In hidden data: export removes it with the hidden item">
+        <span className="row-locked" title="In hidden data, which export removes">
           <Lock size={12} aria-hidden />
           Always removed
         </span>
@@ -696,7 +696,7 @@ function EntityRow({ entity, regionNumber, showType, selected, onSelect, onToggl
       {entity.surface_id !== null ? (
         <span
           className="row-locked"
-          title="In hidden data (a link, metadata, a note...): export removes it with the hidden item, so there is nothing to decide"
+          title="In hidden data, which export removes"
         >
           <Lock size={12} aria-hidden />
           Always removed
@@ -756,7 +756,6 @@ function rowMeta(entity: EntityInfo, showType: boolean): string {
   const parts = [place, SOURCE_LABELS[entity.source] ?? entity.source];
   if (showType) parts.unshift(typeLabel(entity.type));
   if (entity.score !== null) parts.push(`${Math.round(entity.score * 100)} %`);
-  if (entity.surface_id) parts.push("hidden");
   return parts.join(" · ");
 }
 
@@ -812,18 +811,12 @@ function HiddenItems({ surfaces, entities, selectedSurfaceId, onSelectSurface }:
     <div className="list">
       <p className="notice">
         <Info size={14} aria-hidden />
-        <span>
-          Data outside the visible text. All of it is removed on export, whether or not anything
-          personal was found in it, so there is nothing to decide here.
-        </span>
+        <span>Data outside the page text. Export removes all of it, so there is nothing to decide.</span>
       </p>
       {hasAttachments && (
         <p className="notice" data-tone="warning">
           <Paperclip size={14} aria-hidden />
-          <span>
-            This file has attachments. Their contents are never opened or checked; they are
-            removed on export.
-          </span>
+          <span>This file has attachments. Export removes them; their contents are not checked.</span>
         </p>
       )}
       {groups.length === 0 && (

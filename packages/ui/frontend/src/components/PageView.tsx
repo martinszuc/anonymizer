@@ -291,14 +291,14 @@ function Page({
       {isUnreadScan(page) && (
         <p className="page-warning">
           <TriangleAlert size={14} aria-hidden />
-          This page looks like a scan, and OCR did not read it: nothing on it is detected. Turn on
-          scanned pages on the home screen and open it again.
+          A scan OCR did not read: nothing on it was found, and export leaves it as it is. To read
+          it, turn on Scanned pages and open the document again.
         </p>
       )}
       {page.raster_dpi !== null && (
         <p className="page-note">
           <ScanText size={14} aria-hidden />
-          Scanned page, read by OCR. OCR can misread a word, so check what it found.
+          Read by OCR, which can misread words.
         </p>
       )}
       <div ref={pageRef} className="page" style={{ width, height }}>

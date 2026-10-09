@@ -763,7 +763,7 @@ const OPEN_STATUS: Record<OpenStep, string> = {
   loading_ocr: "Loading the OCR engine",
   reading: "Reading the text layer",
   ocr: "Reading scanned pages with OCR",
-  loading_model: "Loading the names model",
+  loading_model: "Loading the name model",
   detecting: "Finding personal data",
 };
 

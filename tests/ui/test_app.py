@@ -328,6 +328,45 @@ class TestExportDialog:
         with pytest.raises(ReviewError, match="no refused export"):
             api.export_unchecked()
 
+    def test_shows_the_exported_copy_in_the_file_manager(
+        self, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        shown: list[Path] = []
+        monkeypatch.setattr(app, "_reveal", shown.append)
+        destination = pdf.with_name("chosen.pdf")
+        api = attached(StandInWindow(answers=[(str(pdf),), str(destination)]))
+        with pytest.raises(ReviewError, match="no exported copy"):
+            api.show_export()
+        api.choose_pdf({"language": "cs"})
+        api.export_as()
+        api.show_export()
+        assert shown == [destination]
+        api.close_document()
+        with pytest.raises(ReviewError, match="no exported copy"):
+            api.show_export()
+
+    @pytest.mark.parametrize(
+        ("platform_name", "command"),
+        [
+            ("darwin", ["open", "-R", "{path}"]),
+            ("win32", ["explorer", "/select,{path}"]),
+            ("linux", ["xdg-open", "{folder}"]),
+        ],
+    )
+    def test_each_platform_opens_its_file_manager(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        platform_name: str,
+        command: list[str],
+    ):
+        run: list[list[str]] = []
+        monkeypatch.setattr(app.sys, "platform", platform_name)
+        monkeypatch.setattr(app.subprocess, "Popen", run.append)
+        path = tmp_path / "copy.pdf"
+        app._reveal(path)
+        assert run == [[part.format(path=path, folder=tmp_path) for part in command]]
+
     def test_the_leak_check_setting_is_forwarded(self):
         api = WindowApi(ReviewApi())
         assert api.set_leak_check(False)["settings"]["leak_check"] is False

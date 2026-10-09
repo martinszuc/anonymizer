@@ -94,12 +94,12 @@ export interface ExportResult {
 
 export type ModelState = "ready" | "not_installed" | "files_missing";
 
-/** An OCR engine the reviewer can choose (`ReviewApi.status`). */
-export interface OcrEngineStatus {
-  /** The name `open_pdf` takes, a key of `ingest.OCR_ENGINES`. */
+/** An OCR engine or a name model the reviewer can choose (`ReviewApi.status`). */
+export interface ChoiceStatus {
+  /** The name `open_pdf` takes: a key of `ingest.OCR_ENGINES`, or a name model's catalog id. */
   name: string;
   title: string;
-  /** One line on what it reads and how fast. */
+  /** One line on what it is for and how fast. */
   description: string;
   /** The Models sheet's feature holding its models. */
   feature: string;
@@ -111,7 +111,13 @@ export interface OcrEngineStatus {
 /** The OCR engines, and the one offered first. */
 export interface OcrStatus {
   default: string;
-  engines: OcrEngineStatus[];
+  engines: ChoiceStatus[];
+}
+
+/** The name models of the resource catalog, and the one offered first. */
+export interface NamesStatus {
+  default: string;
+  models: ChoiceStatus[];
 }
 
 /** What `ReviewApi.status` says about the installation, for the home screen. */
@@ -120,7 +126,7 @@ export interface AppStatus {
   languages: { code: string; name: string }[];
   /** Where models are stored and looked for; the reviewer can choose another folder. */
   models_folder: string;
-  model: { state: ModelState; missing: string[] };
+  names: NamesStatus;
   ocr: OcrStatus;
   /** Preferences kept between runs. */
   settings: { leak_check: boolean };
@@ -131,7 +137,10 @@ export interface OpenOptions {
   /** A language code, "auto" to recognise it from the text, or null for every language's rules. */
   language: string | null;
   propagate: boolean;
+  /** Find names and addresses with a name model. */
   use_model: boolean;
+  /** The model it finds them with; kept while the model is off, as `ocr_engine` is. */
+  name_model: string;
   /** Read scanned pages with OCR. */
   use_ocr: boolean;
   /** The engine OCR reads with; kept while OCR is off, so turning it on again restores it. */

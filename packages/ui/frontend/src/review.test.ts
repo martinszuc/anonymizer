@@ -25,6 +25,8 @@ import {
   lastAdded,
   lowConfidence,
   chooseOcrEngine,
+  nameModelOptions,
+  nameModelReady,
   ocrOptions,
   ocrReady,
   scoreRange,
@@ -42,7 +44,7 @@ import {
   summarize,
   toggled,
 } from "./review";
-import type { DocumentInfo, EntityInfo, LeakInfo, ModelState, OcrStatus } from "./types";
+import type { DocumentInfo, EntityInfo, LeakInfo, ModelState, NamesStatus, OcrStatus } from "./types";
 
 function entity(overrides: Partial<EntityInfo>): EntityInfo {
   return {
@@ -651,5 +653,46 @@ describe("choosing the OCR engine", () => {
     expect(ocrReady(status, "tesseract")).toBe(false);
     expect(chooseOcrEngine(status, [null, "onnxtr"])).toBe("kraken");
     expect(chooseOcrEngine(ocr("ready", "ready"), ["kraken"])).toBe("kraken");
+  });
+});
+
+describe("choosing the name model", () => {
+  function names(zeroShot: ModelState, tuned: ModelState): NamesStatus {
+    const model = (name: string, state: ModelState) => ({
+      name,
+      title: name,
+      description: "",
+      feature: `names-${name}`,
+      state,
+      missing: [],
+      install_command: "uv sync --group ner",
+    });
+    return { default: "gliner-multi-v2.1", models: [model("gliner-multi-v2.1", zeroShot), model("tuned", tuned)] };
+  }
+  const start = { use_model: true, name_model: "gliner-multi-v2.1" };
+
+  it("starts with the default when it is ready, else with a ready model, else off", () => {
+    expect(nameModelOptions(names("ready", "ready"), start)).toEqual(start);
+    expect(nameModelOptions(names("files_missing", "ready"), start)).toEqual({ use_model: true, name_model: "tuned" });
+    expect(nameModelOptions(names("not_installed", "files_missing"), start)).toEqual({
+      use_model: false,
+      name_model: "gliner-multi-v2.1",
+    });
+  });
+
+  it("keeps a ready choice, on or off, and turns on a model whose files just arrived", () => {
+    const tunedOff = { use_model: false, name_model: "tuned" };
+    expect(nameModelOptions(names("ready", "ready"), tunedOff)).toEqual(tunedOff);
+    const off = { use_model: false, name_model: "gliner-multi-v2.1" };
+    expect(nameModelOptions(names("ready", "ready"), off, "tuned")).toEqual({ use_model: true, name_model: "tuned" });
+    // A download of an OCR engine names no model: nothing changes.
+    expect(nameModelOptions(names("ready", "ready"), off, null)).toEqual(off);
+  });
+
+  it("reads readiness per model", () => {
+    const status = names("files_missing", "ready");
+    expect(nameModelReady(status, "tuned")).toBe(true);
+    expect(nameModelReady(status, "gliner-multi-v2.1")).toBe(false);
+    expect(nameModelReady(status, "other")).toBe(false);
   });
 });

@@ -6,6 +6,7 @@ import type { ReviewBridge } from "./bridge";
 import type {
   AppStatus,
   Box,
+  ChoiceStatus,
   DocumentInfo,
   EntityInfo,
   ExportProgress,
@@ -244,13 +245,22 @@ interface DemoFeature {
 }
 
 const DEMO_MODELS: Record<string, DemoFeature> = {
-  names: {
-    title: "Names and addresses",
-    description: "Finds names and addresses the rules cannot.",
+  "names-gliner-multi-v2.1": {
+    title: "Names and addresses: GLiNER multilingual v2.1",
+    description: "Zero-shot and multilingual. Finds names and addresses the rules cannot.",
     group: "ner",
     models: [
       ["mdeberta-v3-base-tokenizer", "mDeBERTa-v3 base: config and tokenizer", 4_309_802],
       ["gliner-multi-v2.1", "GLiNER multilingual v2.1", 1_155_830_112],
+    ],
+  },
+  "names-gliner-cs-demo": {
+    title: "Names and addresses: fine-tuned GLiNER (demo)",
+    description: "A stand-in for a model trained on Czech and Slovak names.",
+    group: "ner",
+    models: [
+      ["mdeberta-v3-base-tokenizer", "mDeBERTa-v3 base: config and tokenizer", 4_309_802],
+      ["gliner-cs-demo", "Fine-tuned GLiNER (demo)", 1_155_830_112],
     ],
   },
   "ocr-onnxtr": {
@@ -273,6 +283,18 @@ const DEMO_MODELS: Record<string, DemoFeature> = {
   },
 };
 
+/**
+ * The demo's name models: their name, title and feature. The second, a stand-in for a model
+ * trained here, is offered with `?name_models=2`, so the choice between models shows.
+ */
+function demoNameModels() {
+  const models = [
+    { name: "gliner-multi-v2.1", title: "GLiNER multilingual v2.1", feature: "names-gliner-multi-v2.1" },
+    { name: "gliner-cs-demo", title: "Fine-tuned GLiNER (demo)", feature: "names-gliner-cs-demo" },
+  ];
+  return new URLSearchParams(window.location.search).get("name_models") === "2" ? models : models.slice(0, 1);
+}
+
 /** The demo's OCR engines: their name, title and feature. */
 const DEMO_ENGINES = [
   { name: "onnxtr", title: "OnnxTR", feature: "ocr-onnxtr" },
@@ -280,19 +302,20 @@ const DEMO_ENGINES = [
 ];
 
 /**
- * A feature's state. The home screen's states can be tried in the address: `?model=`,
- * `?ocr=` (OnnxTR) or `?kraken=`, each `ready`, `not_installed` or `files_missing`.
- * kraken starts with its files missing, so both kinds of engine row show.
+ * A feature's state. The home screen's states can be tried in the address: `?model=`
+ * (GLiNER), `?ocr=` (OnnxTR) or `?kraken=`, each `ready`, `not_installed` or
+ * `files_missing`. kraken and the demo's second name model start with their files missing,
+ * so both kinds of row show.
  */
 function featureState(feature: string): ModelState {
   if (downloaded.has(feature)) return "ready";
   if (emptyFolder) return "files_missing";
-  if (feature === "names") return requestedState("model", "ready");
+  if (feature === "names-gliner-multi-v2.1") return requestedState("model", "ready");
+  if (feature === "names-gliner-cs-demo") return "files_missing";
   return feature === "ocr-onnxtr" ? requestedState("ocr", "ready") : requestedState("kraken", "files_missing");
 }
 
 function demoStatus(): AppStatus {
-  const state = featureState("names");
   return {
     version: "demo",
     models_folder: modelsFolder,
@@ -301,31 +324,36 @@ function demoStatus(): AppStatus {
       { code: "sk", name: "Slovak" },
       { code: "en", name: "English" },
     ],
-    model: {
-      state,
-      missing: state === "files_missing" ? ["mdeberta-v3-base-tokenizer", "gliner-multi-v2.1"] : [],
-    },
+    names: { default: "gliner-multi-v2.1", models: demoNameModels().map(demoChoice) },
     ocr: {
       default: "onnxtr",
-      engines: DEMO_ENGINES.map(({ name, title, feature }) => {
-        const engineState = featureState(feature);
-        return {
-          name,
-          title,
-          description: DEMO_MODELS[feature]?.description ?? "",
-          feature,
-          state: engineState,
-          missing: engineState === "files_missing" ? (DEMO_MODELS[feature]?.models.map(([id]) => id) ?? []) : [],
-          install_command: `uv sync --group ${feature}`,
-        };
-      }),
+      engines: DEMO_ENGINES.map(demoChoice),
     },
     settings: { leak_check: leakCheck },
   };
 }
 
+/** An OCR engine or a name model as `status` describes it. */
+function demoChoice({ name, title, feature }: { name: string; title: string; feature: string }): ChoiceStatus {
+  const entry = DEMO_MODELS[feature];
+  const state = featureState(feature);
+  return {
+    name,
+    title,
+    description: entry?.description ?? "",
+    feature,
+    state,
+    missing: state === "files_missing" ? (entry?.models.map(([id]) => id) ?? []) : [],
+    install_command: `uv sync --group ${entry?.group ?? feature}`,
+  };
+}
+
 function demoModels(): FeatureModels[] {
-  return Object.entries(DEMO_MODELS).map(([feature, entry]) => {
+  const offered = new Set(demoNameModels().map((model) => model.feature));
+  const features = Object.entries(DEMO_MODELS).filter(
+    ([feature]) => !feature.startsWith("names-") || offered.has(feature),
+  );
+  return features.map(([feature, entry]) => {
     const state = featureState(feature);
     const stored = state !== "files_missing";
     return {

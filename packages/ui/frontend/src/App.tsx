@@ -23,6 +23,7 @@ import {
   groupToggled,
   isDecidable,
   lastAdded,
+  nameModelOptions,
   ocrOptions,
   pagesWithoutText,
   plural,
@@ -61,6 +62,7 @@ export function App() {
     language: "auto",
     propagate: true,
     use_model: false,
+    name_model: "gliner-multi-v2.1",
     use_ocr: false,
     ocr_engine: "onnxtr",
   });
@@ -130,7 +132,7 @@ export function App() {
       setStatus(installed);
       setOptions((current) => ({
         ...current,
-        use_model: installed.model.state === "ready",
+        ...nameModelOptions(installed.names, { use_model: true, name_model: installed.names.default }),
         ...ocrOptions(installed.ocr, { use_ocr: true, ocr_engine: installed.ocr.default }),
       }));
     });
@@ -203,10 +205,11 @@ export function App() {
       setModels(await bridge.download_models(feature));
       const installed = await bridge.status();
       setStatus(installed);
+      const model = installed.names.models.find((item) => item.feature === feature);
       const engine = installed.ocr.engines.find((item) => item.feature === feature);
       setOptions((current) => ({
         ...current,
-        use_model: current.use_model || (feature === "names" && installed.model.state === "ready"),
+        ...nameModelOptions(installed.names, current, model?.name ?? null),
         ...ocrOptions(installed.ocr, current, engine?.name ?? null),
       }));
       notify("success", "Downloaded and checked");
@@ -226,7 +229,7 @@ export function App() {
       setStatus(installed);
       setOptions((current) => ({
         ...current,
-        use_model: current.use_model && installed.model.state === "ready",
+        ...nameModelOptions(installed.names, current),
         ...ocrOptions(installed.ocr, current),
       }));
       setModels(await bridge.models());

@@ -143,10 +143,9 @@ class TestOpenpii:
             ("person", "Jan Novák"),
             ("address", "Lipová č. 12, 602 00 Brno"),
             ("email", "jan.novak@example.cz"),
-            ("phone", "+420 777 123 456"),
         ]
-        # The title, the invented identifier and a city on its own are not scored.
-        assert sorted(record.unmapped) == ["CITY", "SOCIALNUM", "TITLE"]
+        # The title, the invented identifier and phone, and a city on its own are not scored.
+        assert sorted(record.unmapped) == ["CITY", "SOCIALNUM", "TELEPHONENUM", "TITLE"]
 
     @pytest.mark.parametrize("gap", [" ", "\u00a0", "\u202f", ""])
     def test_name_parts_join_across_spaces(self, gap: str):
@@ -240,7 +239,7 @@ class TestLoadCorpus:
         train = load_corpus("openpii-1m-cs", "train", resource_root)
         assert train.role is Role.TRAIN
         assert len(train.documents) == 6
-        assert train.gold_counts() == {"address": 6, "email": 6, "person": 6, "phone": 6}
+        assert train.gold_counts() == {"address": 6, "email": 6, "person": 6}
         slovak = load_corpus("openpii-1m-sk", "train", resource_root)
         assert (slovak.language, slovak.gold_counts()) == ("sk", {"person": 1})
 

@@ -10,6 +10,7 @@ from anonymizer.core.detect.address import find_czech_slovak_addresses, find_us_
 from anonymizer.core.detect.bank_account import find_account_numbers, is_valid_account_number
 from anonymizer.core.detect.base import (
     OVERLAP_PRIORITY,
+    AgreementDetector,
     CombinedDetector,
     Detector,
     Finder,
@@ -139,6 +140,7 @@ __all__ = [
     "OVERLAP_PRIORITY",
     "RULE_LANGUAGES",
     "STRUCTURED_FINDERS",
+    "AgreementDetector",
     "CombinedDetector",
     "Detector",
     "Finder",

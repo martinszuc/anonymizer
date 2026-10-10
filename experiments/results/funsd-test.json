@@ -1,0 +1,2888 @@
+{
+  "schema": 1,
+  "created": "2026-10-10T17:25:05+00:00",
+  "tool_version": "0.4.0",
+  "git_commit": "6d9072f94fdde45173d39b446d2ba407310c47a6",
+  "machine": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "processor": "arm",
+    "python": "3.12.14"
+  },
+  "dataset": {
+    "id": "funsd",
+    "version": "8905aca92b3181853307e2880e3d6f71dee8e9f3",
+    "split": "test"
+  },
+  "forms": 50,
+  "items": {
+    "address": 10,
+    "person": 103,
+    "phone": 69
+  },
+  "engines": [
+    "onnxtr",
+    "kraken"
+  ],
+  "models": {
+    "onnxtr-fast-base": "9e1b4f4773acfee2f252523c7fa563bf699c1fe5",
+    "onnxtr-parseq-multilingual-v1": "7d7329948dbcff02637a3eb9c14ae0c4440c5ed0",
+    "kraken-blla": "a314f84f42da49a34079a4166305a7f378bb9c71",
+    "kraken-ppocr-v6-medium": "doi:10.5281/zenodo.21788410"
+  },
+  "system": "rules+gliner",
+  "runs": {
+    "onnxtr": {
+      "test": {
+        "documents": {
+          "funsd/test/0000": {
+            "pages": 1,
+            "seconds": 2.153,
+            "text": {
+              "characters": 1345,
+              "character_errors": 178,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 223,
+              "boxed": 169,
+              "ink": 31056,
+              "ink_covered": 30770,
+              "partly_outside": 4
+            },
+            "items": {
+              "gold": 6,
+              "found": 3,
+              "partial": 2,
+              "missed": 1,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 6,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0001": {
+            "pages": 1,
+            "seconds": 1.601,
+            "text": {
+              "characters": 835,
+              "character_errors": 187,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 167,
+              "boxed": 118,
+              "ink": 17729,
+              "ink_covered": 15759,
+              "partly_outside": 18
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 5,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0002": {
+            "pages": 1,
+            "seconds": 3.2,
+            "text": {
+              "characters": 1332,
+              "character_errors": 217,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 214,
+              "boxed": 169,
+              "ink": 23319,
+              "ink_covered": 22094,
+              "partly_outside": 28
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0003": {
+            "pages": 1,
+            "seconds": 4.439,
+            "text": {
+              "characters": 1329,
+              "character_errors": 186,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 222,
+              "boxed": 131,
+              "ink": 33270,
+              "ink_covered": 33270,
+              "partly_outside": 0
+            },
+            "items": {
+              "gold": 2,
+              "found": 1,
+              "partial": 0,
+              "missed": 1,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 3,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0004": {
+            "pages": 1,
+            "seconds": 1.793,
+            "text": {
+              "characters": 667,
+              "character_errors": 108,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 108,
+              "boxed": 103,
+              "ink": 17209,
+              "ink_covered": 16504,
+              "partly_outside": 19
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0005": {
+            "pages": 1,
+            "seconds": 2.697,
+            "text": {
+              "characters": 1197,
+              "character_errors": 119,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 187,
+              "boxed": 160,
+              "ink": 22384,
+              "ink_covered": 22076,
+              "partly_outside": 10
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 2,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0006": {
+            "pages": 1,
+            "seconds": 2.299,
+            "text": {
+              "characters": 1307,
+              "character_errors": 169,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 234,
+              "boxed": 178,
+              "ink": 20746,
+              "ink_covered": 20300,
+              "partly_outside": 8
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 5,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0007": {
+            "pages": 1,
+            "seconds": 2.177,
+            "text": {
+              "characters": 1216,
+              "character_errors": 233,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 228,
+              "boxed": 178,
+              "ink": 19182,
+              "ink_covered": 18174,
+              "partly_outside": 27
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 2,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0008": {
+            "pages": 1,
+            "seconds": 1.187,
+            "text": {
+              "characters": 636,
+              "character_errors": 86,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 116,
+              "boxed": 78,
+              "ink": 14281,
+              "ink_covered": 14152,
+              "partly_outside": 5
+            },
+            "items": {
+              "gold": 4,
+              "found": 2,
+              "partial": 1,
+              "missed": 1,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 1,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0009": {
+            "pages": 1,
+            "seconds": 0.834,
+            "text": {
+              "characters": 477,
+              "character_errors": 39,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 70,
+              "boxed": 61,
+              "ink": 9460,
+              "ink_covered": 9458,
+              "partly_outside": 1
+            },
+            "items": {
+              "gold": 1,
+              "found": 0,
+              "partial": 1,
+              "missed": 0,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 6,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0010": {
+            "pages": 1,
+            "seconds": 0.788,
+            "text": {
+              "characters": 444,
+              "character_errors": 80,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 63,
+              "boxed": 55,
+              "ink": 8408,
+              "ink_covered": 8397,
+              "partly_outside": 2
+            },
+            "items": {
+              "gold": 1,
+              "found": 0,
+              "partial": 1,
+              "missed": 0,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 8,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0011": {
+            "pages": 1,
+            "seconds": 1.907,
+            "text": {
+              "characters": 1164,
+              "character_errors": 343,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 190,
+              "boxed": 161,
+              "ink": 24901,
+              "ink_covered": 24652,
+              "partly_outside": 5
+            },
+            "items": {
+              "gold": 5,
+              "found": 4,
+              "partial": 0,
+              "missed": 1,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 7,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0012": {
+            "pages": 1,
+            "seconds": 1.673,
+            "text": {
+              "characters": 803,
+              "character_errors": 173,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 135,
+              "boxed": 110,
+              "ink": 19074,
+              "ink_covered": 18932,
+              "partly_outside": 3
+            },
+            "items": {
+              "gold": 2,
+              "found": 0,
+              "partial": 2,
+              "missed": 0,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 9,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0013": {
+            "pages": 1,
+            "seconds": 1.25,
+            "text": {
+              "characters": 621,
+              "character_errors": 129,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 112,
+              "boxed": 94,
+              "ink": 16709,
+              "ink_covered": 16581,
+              "partly_outside": 1
+            },
+            "items": {
+              "gold": 3,
+              "found": 0,
+              "partial": 3,
+              "missed": 0,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 1,
+            "safe": false,
+            "leak_check_passed": false
+          },
+          "funsd/test/0014": {
+            "pages": 1,
+            "seconds": 1.843,
+            "text": {
+              "characters": 1163,
+              "character_errors": 205,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 194,
+              "boxed": 160,
+              "ink": 21457,
+              "ink_covered": 20926,
+              "partly_outside": 5
+            },
+            "items": {
+              "gold": 4,
+              "found": 0,
+              "partial": 1,
+              "missed": 3,
+              "readable_after": 4,
+              "partly_after": 0
+            },
+            "false_alarms": 4,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0015": {
+            "pages": 1,
+            "seconds": 2.012,
+            "text": {
+              "characters": 1231,
+              "character_errors": 538,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 204,
+              "boxed": 137,
+              "ink": 27793,
+              "ink_covered": 27710,
+              "partly_outside": 2
+            },
+            "items": {
+              "gold": 18,
+              "found": 16,
+              "partial": 2,
+              "missed": 0,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 3,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0016": {
+            "pages": 1,
+            "seconds": 2.539,
+            "text": {
+              "characters": 1745,
+              "character_errors": 613,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 299,
+              "boxed": 227,
+              "ink": 31376,
+              "ink_covered": 30757,
+              "partly_outside": 8
+            },
+            "items": {
+              "gold": 18,
+              "found": 17,
+              "partial": 1,
+              "missed": 0,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 6,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0017": {
+            "pages": 1,
+            "seconds": 1.04,
+            "text": {
+              "characters": 528,
+              "character_errors": 91,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 87,
+              "boxed": 75,
+              "ink": 18288,
+              "ink_covered": 18189,
+              "partly_outside": 2
+            },
+            "items": {
+              "gold": 3,
+              "found": 2,
+              "partial": 1,
+              "missed": 0,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 3,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0018": {
+            "pages": 1,
+            "seconds": 1.691,
+            "text": {
+              "characters": 1140,
+              "character_errors": 246,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 190,
+              "boxed": 143,
+              "ink": 20776,
+              "ink_covered": 20511,
+              "partly_outside": 4
+            },
+            "items": {
+              "gold": 6,
+              "found": 2,
+              "partial": 0,
+              "missed": 4,
+              "readable_after": 4,
+              "partly_after": 0
+            },
+            "false_alarms": 4,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0019": {
+            "pages": 1,
+            "seconds": 1.879,
+            "text": {
+              "characters": 832,
+              "character_errors": 640,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 141,
+              "boxed": 108,
+              "ink": 18277,
+              "ink_covered": 18068,
+              "partly_outside": 4
+            },
+            "items": {
+              "gold": 3,
+              "found": 2,
+              "partial": 1,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 10,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0020": {
+            "pages": 1,
+            "seconds": 2.156,
+            "text": {
+              "characters": 1217,
+              "character_errors": 261,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 209,
+              "boxed": 174,
+              "ink": 18893,
+              "ink_covered": 18784,
+              "partly_outside": 3
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 3,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0021": {
+            "pages": 1,
+            "seconds": 2.735,
+            "text": {
+              "characters": 1454,
+              "character_errors": 605,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 236,
+              "boxed": 188,
+              "ink": 28325,
+              "ink_covered": 28015,
+              "partly_outside": 2
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 9,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0022": {
+            "pages": 1,
+            "seconds": 1.568,
+            "text": {
+              "characters": 1002,
+              "character_errors": 412,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 162,
+              "boxed": 122,
+              "ink": 19099,
+              "ink_covered": 18939,
+              "partly_outside": 1
+            },
+            "items": {
+              "gold": 3,
+              "found": 1,
+              "partial": 1,
+              "missed": 1,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 5,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0023": {
+            "pages": 1,
+            "seconds": 1.063,
+            "text": {
+              "characters": 627,
+              "character_errors": 92,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 98,
+              "boxed": 77,
+              "ink": 14801,
+              "ink_covered": 14351,
+              "partly_outside": 7
+            },
+            "items": {
+              "gold": 3,
+              "found": 2,
+              "partial": 1,
+              "missed": 0,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0024": {
+            "pages": 1,
+            "seconds": 1.173,
+            "text": {
+              "characters": 499,
+              "character_errors": 44,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 80,
+              "boxed": 76,
+              "ink": 9480,
+              "ink_covered": 9461,
+              "partly_outside": 1
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0025": {
+            "pages": 1,
+            "seconds": 1.847,
+            "text": {
+              "characters": 980,
+              "character_errors": 114,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 154,
+              "boxed": 130,
+              "ink": 32048,
+              "ink_covered": 31887,
+              "partly_outside": 11
+            },
+            "items": {
+              "gold": 3,
+              "found": 0,
+              "partial": 2,
+              "missed": 1,
+              "readable_after": 3,
+              "partly_after": 0
+            },
+            "false_alarms": 5,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0026": {
+            "pages": 1,
+            "seconds": 0.476,
+            "text": {
+              "characters": 199,
+              "character_errors": 16,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 25,
+              "boxed": 19,
+              "ink": 7428,
+              "ink_covered": 7002,
+              "partly_outside": 1
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 1,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0027": {
+            "pages": 1,
+            "seconds": 1.987,
+            "text": {
+              "characters": 628,
+              "character_errors": 63,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 94,
+              "boxed": 59,
+              "ink": 17374,
+              "ink_covered": 17352,
+              "partly_outside": 2
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0028": {
+            "pages": 1,
+            "seconds": 1.821,
+            "text": {
+              "characters": 722,
+              "character_errors": 131,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 125,
+              "boxed": 83,
+              "ink": 9482,
+              "ink_covered": 9257,
+              "partly_outside": 16
+            },
+            "items": {
+              "gold": 5,
+              "found": 2,
+              "partial": 1,
+              "missed": 2,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 2,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0029": {
+            "pages": 1,
+            "seconds": 2.614,
+            "text": {
+              "characters": 1311,
+              "character_errors": 270,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 210,
+              "boxed": 197,
+              "ink": 38249,
+              "ink_covered": 37771,
+              "partly_outside": 3
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0030": {
+            "pages": 1,
+            "seconds": 1.185,
+            "text": {
+              "characters": 442,
+              "character_errors": 18,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 75,
+              "boxed": 63,
+              "ink": 10789,
+              "ink_covered": 10768,
+              "partly_outside": 4
+            },
+            "items": {
+              "gold": 5,
+              "found": 2,
+              "partial": 0,
+              "missed": 3,
+              "readable_after": 3,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0031": {
+            "pages": 1,
+            "seconds": 1.448,
+            "text": {
+              "characters": 806,
+              "character_errors": 316,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 134,
+              "boxed": 112,
+              "ink": 11130,
+              "ink_covered": 10856,
+              "partly_outside": 12
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 3,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0032": {
+            "pages": 1,
+            "seconds": 1.408,
+            "text": {
+              "characters": 793,
+              "character_errors": 83,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 118,
+              "boxed": 110,
+              "ink": 21924,
+              "ink_covered": 21256,
+              "partly_outside": 13
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0033": {
+            "pages": 1,
+            "seconds": 0.958,
+            "text": {
+              "characters": 484,
+              "character_errors": 62,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 80,
+              "boxed": 78,
+              "ink": 12460,
+              "ink_covered": 12339,
+              "partly_outside": 2
+            },
+            "items": {
+              "gold": 1,
+              "found": 0,
+              "partial": 1,
+              "missed": 0,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0034": {
+            "pages": 1,
+            "seconds": 1.155,
+            "text": {
+              "characters": 555,
+              "character_errors": 80,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 90,
+              "boxed": 71,
+              "ink": 17532,
+              "ink_covered": 16600,
+              "partly_outside": 6
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 1,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0035": {
+            "pages": 1,
+            "seconds": 1.465,
+            "text": {
+              "characters": 1130,
+              "character_errors": 129,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 199,
+              "boxed": 108,
+              "ink": 31963,
+              "ink_covered": 31816,
+              "partly_outside": 2
+            },
+            "items": {
+              "gold": 35,
+              "found": 31,
+              "partial": 4,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 7,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0036": {
+            "pages": 1,
+            "seconds": 0.727,
+            "text": {
+              "characters": 364,
+              "character_errors": 120,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 56,
+              "boxed": 51,
+              "ink": 9196,
+              "ink_covered": 8762,
+              "partly_outside": 11
+            },
+            "items": {
+              "gold": 1,
+              "found": 0,
+              "partial": 0,
+              "missed": 1,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 2,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0037": {
+            "pages": 1,
+            "seconds": 1.863,
+            "text": {
+              "characters": 1136,
+              "character_errors": 87,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 194,
+              "boxed": 156,
+              "ink": 29469,
+              "ink_covered": 29174,
+              "partly_outside": 6
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 2,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0038": {
+            "pages": 1,
+            "seconds": 0.933,
+            "text": {
+              "characters": 438,
+              "character_errors": 88,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 72,
+              "boxed": 59,
+              "ink": 12959,
+              "ink_covered": 12259,
+              "partly_outside": 5
+            },
+            "items": {
+              "gold": 1,
+              "found": 0,
+              "partial": 0,
+              "missed": 1,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0039": {
+            "pages": 1,
+            "seconds": 0.917,
+            "text": {
+              "characters": 515,
+              "character_errors": 168,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 76,
+              "boxed": 65,
+              "ink": 15468,
+              "ink_covered": 14529,
+              "partly_outside": 13
+            },
+            "items": {
+              "gold": 1,
+              "found": 1,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 1
+            },
+            "false_alarms": 1,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0040": {
+            "pages": 1,
+            "seconds": 1.974,
+            "text": {
+              "characters": 1280,
+              "character_errors": 214,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 204,
+              "boxed": 189,
+              "ink": 26419,
+              "ink_covered": 25377,
+              "partly_outside": 13
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 8,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0041": {
+            "pages": 1,
+            "seconds": 1.473,
+            "text": {
+              "characters": 986,
+              "character_errors": 174,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 158,
+              "boxed": 135,
+              "ink": 22652,
+              "ink_covered": 22214,
+              "partly_outside": 3
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 5,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0042": {
+            "pages": 1,
+            "seconds": 1.815,
+            "text": {
+              "characters": 1110,
+              "character_errors": 288,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 187,
+              "boxed": 151,
+              "ink": 20953,
+              "ink_covered": 20780,
+              "partly_outside": 5
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0043": {
+            "pages": 1,
+            "seconds": 1.885,
+            "text": {
+              "characters": 1235,
+              "character_errors": 259,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 198,
+              "boxed": 165,
+              "ink": 36294,
+              "ink_covered": 35797,
+              "partly_outside": 9
+            },
+            "items": {
+              "gold": 1,
+              "found": 1,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 1,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0044": {
+            "pages": 1,
+            "seconds": 4.108,
+            "text": {
+              "characters": 2301,
+              "character_errors": 934,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 411,
+              "boxed": 349,
+              "ink": 52990,
+              "ink_covered": 39554,
+              "partly_outside": 39
+            },
+            "items": {
+              "gold": 4,
+              "found": 1,
+              "partial": 1,
+              "missed": 2,
+              "readable_after": 3,
+              "partly_after": 0
+            },
+            "false_alarms": 4,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0045": {
+            "pages": 1,
+            "seconds": 4.477,
+            "text": {
+              "characters": 2780,
+              "character_errors": 1098,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 433,
+              "boxed": 406,
+              "ink": 42906,
+              "ink_covered": 41110,
+              "partly_outside": 31
+            },
+            "items": {
+              "gold": 8,
+              "found": 5,
+              "partial": 2,
+              "missed": 1,
+              "readable_after": 1,
+              "partly_after": 4
+            },
+            "false_alarms": 17,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0046": {
+            "pages": 1,
+            "seconds": 2.989,
+            "text": {
+              "characters": 1941,
+              "character_errors": 330,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 311,
+              "boxed": 277,
+              "ink": 35566,
+              "ink_covered": 35093,
+              "partly_outside": 11
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 2,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0047": {
+            "pages": 1,
+            "seconds": 3.28,
+            "text": {
+              "characters": 2175,
+              "character_errors": 637,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 354,
+              "boxed": 312,
+              "ink": 29722,
+              "ink_covered": 29057,
+              "partly_outside": 17
+            },
+            "items": {
+              "gold": 7,
+              "found": 0,
+              "partial": 5,
+              "missed": 2,
+              "readable_after": 7,
+              "partly_after": 0
+            },
+            "false_alarms": 4,
+            "safe": false,
+            "leak_check_passed": false
+          },
+          "funsd/test/0048": {
+            "pages": 1,
+            "seconds": 2.415,
+            "text": {
+              "characters": 1661,
+              "character_errors": 347,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 270,
+              "boxed": 229,
+              "ink": 43001,
+              "ink_covered": 40901,
+              "partly_outside": 14
+            },
+            "items": {
+              "gold": 4,
+              "found": 2,
+              "partial": 2,
+              "missed": 0,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 6,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0049": {
+            "pages": 1,
+            "seconds": 3.068,
+            "text": {
+              "characters": 1960,
+              "character_errors": 525,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 310,
+              "boxed": 271,
+              "ink": 24239,
+              "ink_covered": 23983,
+              "partly_outside": 6
+            },
+            "items": {
+              "gold": 2,
+              "found": 0,
+              "partial": 1,
+              "missed": 1,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 6,
+            "safe": false,
+            "leak_check_passed": true
+          }
+        },
+        "totals": {
+          "character_error_rate": 0.2379,
+          "diacritic_error_rate": null,
+          "boxed": 0.8151,
+          "ink_under_boxes": 0.9677,
+          "words_partly_outside": 425,
+          "items": {
+            "gold": 182,
+            "found": 119,
+            "partial": 37,
+            "missed": 26,
+            "readable_after": 51,
+            "partly_after": 5
+          },
+          "false_positives": 179,
+          "safe_documents": 23,
+          "leak_check_passed": 48,
+          "documents": 50,
+          "seconds_per_page": 1.9197
+        }
+      }
+    },
+    "kraken": {
+      "test": {
+        "documents": {
+          "funsd/test/0000": {
+            "pages": 1,
+            "seconds": 9.799,
+            "text": {
+              "characters": 1345,
+              "character_errors": 279,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 223,
+              "boxed": 127,
+              "ink": 31056,
+              "ink_covered": 30580,
+              "partly_outside": 7
+            },
+            "items": {
+              "gold": 6,
+              "found": 4,
+              "partial": 2,
+              "missed": 0,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 4,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0001": {
+            "pages": 1,
+            "seconds": 10.317,
+            "text": {
+              "characters": 835,
+              "character_errors": 365,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 167,
+              "boxed": 37,
+              "ink": 17729,
+              "ink_covered": 13700,
+              "partly_outside": 43
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 1,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0002": {
+            "pages": 1,
+            "seconds": 13.707,
+            "text": {
+              "characters": 1332,
+              "character_errors": 428,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 214,
+              "boxed": 39,
+              "ink": 23319,
+              "ink_covered": 21556,
+              "partly_outside": 25
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0003": {
+            "pages": 1,
+            "seconds": 15.32,
+            "text": {
+              "characters": 1329,
+              "character_errors": 283,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 222,
+              "boxed": 83,
+              "ink": 33270,
+              "ink_covered": 29717,
+              "partly_outside": 25
+            },
+            "items": {
+              "gold": 2,
+              "found": 1,
+              "partial": 0,
+              "missed": 1,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 2,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0004": {
+            "pages": 1,
+            "seconds": 13.032,
+            "text": {
+              "characters": 667,
+              "character_errors": 215,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 108,
+              "boxed": 73,
+              "ink": 17209,
+              "ink_covered": 15889,
+              "partly_outside": 25
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0005": {
+            "pages": 1,
+            "seconds": 10.585,
+            "text": {
+              "characters": 1197,
+              "character_errors": 204,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 187,
+              "boxed": 84,
+              "ink": 22384,
+              "ink_covered": 22017,
+              "partly_outside": 10
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 4,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0006": {
+            "pages": 1,
+            "seconds": 15.545,
+            "text": {
+              "characters": 1307,
+              "character_errors": 389,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 234,
+              "boxed": 35,
+              "ink": 20746,
+              "ink_covered": 18959,
+              "partly_outside": 25
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 1,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0007": {
+            "pages": 1,
+            "seconds": 17.465,
+            "text": {
+              "characters": 1216,
+              "character_errors": 438,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 228,
+              "boxed": 56,
+              "ink": 19182,
+              "ink_covered": 17438,
+              "partly_outside": 46
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0008": {
+            "pages": 1,
+            "seconds": 9.871,
+            "text": {
+              "characters": 636,
+              "character_errors": 194,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 116,
+              "boxed": 37,
+              "ink": 14281,
+              "ink_covered": 13904,
+              "partly_outside": 6
+            },
+            "items": {
+              "gold": 4,
+              "found": 1,
+              "partial": 1,
+              "missed": 2,
+              "readable_after": 3,
+              "partly_after": 0
+            },
+            "false_alarms": 1,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0009": {
+            "pages": 1,
+            "seconds": 7.225,
+            "text": {
+              "characters": 477,
+              "character_errors": 52,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 70,
+              "boxed": 56,
+              "ink": 9460,
+              "ink_covered": 8757,
+              "partly_outside": 3
+            },
+            "items": {
+              "gold": 1,
+              "found": 0,
+              "partial": 1,
+              "missed": 0,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 4,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0010": {
+            "pages": 1,
+            "seconds": 8.132,
+            "text": {
+              "characters": 444,
+              "character_errors": 51,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 63,
+              "boxed": 47,
+              "ink": 8408,
+              "ink_covered": 7771,
+              "partly_outside": 2
+            },
+            "items": {
+              "gold": 1,
+              "found": 0,
+              "partial": 1,
+              "missed": 0,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 4,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0011": {
+            "pages": 1,
+            "seconds": 10.482,
+            "text": {
+              "characters": 1164,
+              "character_errors": 155,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 190,
+              "boxed": 109,
+              "ink": 24901,
+              "ink_covered": 22958,
+              "partly_outside": 8
+            },
+            "items": {
+              "gold": 5,
+              "found": 5,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 4,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0012": {
+            "pages": 1,
+            "seconds": 9.514,
+            "text": {
+              "characters": 803,
+              "character_errors": 369,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 135,
+              "boxed": 96,
+              "ink": 19074,
+              "ink_covered": 18682,
+              "partly_outside": 2
+            },
+            "items": {
+              "gold": 2,
+              "found": 0,
+              "partial": 2,
+              "missed": 0,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 7,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0013": {
+            "pages": 1,
+            "seconds": 10.263,
+            "text": {
+              "characters": 621,
+              "character_errors": 135,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 112,
+              "boxed": 80,
+              "ink": 16709,
+              "ink_covered": 16299,
+              "partly_outside": 5
+            },
+            "items": {
+              "gold": 3,
+              "found": 0,
+              "partial": 3,
+              "missed": 0,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 3,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0014": {
+            "pages": 1,
+            "seconds": 9.756,
+            "text": {
+              "characters": 1163,
+              "character_errors": 112,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 194,
+              "boxed": 97,
+              "ink": 21457,
+              "ink_covered": 20647,
+              "partly_outside": 6
+            },
+            "items": {
+              "gold": 4,
+              "found": 0,
+              "partial": 1,
+              "missed": 3,
+              "readable_after": 4,
+              "partly_after": 0
+            },
+            "false_alarms": 6,
+            "safe": false,
+            "leak_check_passed": false
+          },
+          "funsd/test/0015": {
+            "pages": 1,
+            "seconds": 12.665,
+            "text": {
+              "characters": 1231,
+              "character_errors": 339,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 204,
+              "boxed": 107,
+              "ink": 27793,
+              "ink_covered": 27024,
+              "partly_outside": 12
+            },
+            "items": {
+              "gold": 18,
+              "found": 16,
+              "partial": 2,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 6,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0016": {
+            "pages": 1,
+            "seconds": 13.983,
+            "text": {
+              "characters": 1745,
+              "character_errors": 466,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 299,
+              "boxed": 173,
+              "ink": 31376,
+              "ink_covered": 28361,
+              "partly_outside": 11
+            },
+            "items": {
+              "gold": 18,
+              "found": 15,
+              "partial": 1,
+              "missed": 2,
+              "readable_after": 3,
+              "partly_after": 0
+            },
+            "false_alarms": 7,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0017": {
+            "pages": 1,
+            "seconds": 8.263,
+            "text": {
+              "characters": 528,
+              "character_errors": 103,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 87,
+              "boxed": 58,
+              "ink": 18288,
+              "ink_covered": 14268,
+              "partly_outside": 14
+            },
+            "items": {
+              "gold": 3,
+              "found": 2,
+              "partial": 0,
+              "missed": 1,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 4,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0018": {
+            "pages": 1,
+            "seconds": 9.017,
+            "text": {
+              "characters": 1140,
+              "character_errors": 130,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 190,
+              "boxed": 77,
+              "ink": 20776,
+              "ink_covered": 20078,
+              "partly_outside": 7
+            },
+            "items": {
+              "gold": 6,
+              "found": 3,
+              "partial": 0,
+              "missed": 3,
+              "readable_after": 3,
+              "partly_after": 0
+            },
+            "false_alarms": 5,
+            "safe": false,
+            "leak_check_passed": false
+          },
+          "funsd/test/0019": {
+            "pages": 1,
+            "seconds": 8.778,
+            "text": {
+              "characters": 832,
+              "character_errors": 420,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 141,
+              "boxed": 61,
+              "ink": 18277,
+              "ink_covered": 17689,
+              "partly_outside": 7
+            },
+            "items": {
+              "gold": 3,
+              "found": 2,
+              "partial": 1,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 7,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0020": {
+            "pages": 1,
+            "seconds": 18.528,
+            "text": {
+              "characters": 1217,
+              "character_errors": 260,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 209,
+              "boxed": 70,
+              "ink": 18893,
+              "ink_covered": 17750,
+              "partly_outside": 24
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 1,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0021": {
+            "pages": 1,
+            "seconds": 12.225,
+            "text": {
+              "characters": 1454,
+              "character_errors": 543,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 236,
+              "boxed": 167,
+              "ink": 28325,
+              "ink_covered": 27629,
+              "partly_outside": 2
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 9,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0022": {
+            "pages": 1,
+            "seconds": 9.608,
+            "text": {
+              "characters": 1002,
+              "character_errors": 301,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 162,
+              "boxed": 82,
+              "ink": 19099,
+              "ink_covered": 18585,
+              "partly_outside": 5
+            },
+            "items": {
+              "gold": 3,
+              "found": 1,
+              "partial": 1,
+              "missed": 1,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 7,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0023": {
+            "pages": 1,
+            "seconds": 11.243,
+            "text": {
+              "characters": 627,
+              "character_errors": 265,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 98,
+              "boxed": 62,
+              "ink": 14801,
+              "ink_covered": 14161,
+              "partly_outside": 6
+            },
+            "items": {
+              "gold": 3,
+              "found": 1,
+              "partial": 1,
+              "missed": 1,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0024": {
+            "pages": 1,
+            "seconds": 9.505,
+            "text": {
+              "characters": 499,
+              "character_errors": 79,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 80,
+              "boxed": 65,
+              "ink": 9480,
+              "ink_covered": 8836,
+              "partly_outside": 5
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 1,
+            "safe": true,
+            "leak_check_passed": false
+          },
+          "funsd/test/0025": {
+            "pages": 1,
+            "seconds": 14.628,
+            "text": {
+              "characters": 980,
+              "character_errors": 145,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 154,
+              "boxed": 108,
+              "ink": 32048,
+              "ink_covered": 28657,
+              "partly_outside": 24
+            },
+            "items": {
+              "gold": 3,
+              "found": 1,
+              "partial": 2,
+              "missed": 0,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0026": {
+            "pages": 1,
+            "seconds": 5.195,
+            "text": {
+              "characters": 199,
+              "character_errors": 17,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 25,
+              "boxed": 18,
+              "ink": 7428,
+              "ink_covered": 6902,
+              "partly_outside": 1
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 1,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0027": {
+            "pages": 1,
+            "seconds": 12.988,
+            "text": {
+              "characters": 628,
+              "character_errors": 55,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 94,
+              "boxed": 51,
+              "ink": 17374,
+              "ink_covered": 16850,
+              "partly_outside": 1
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0028": {
+            "pages": 1,
+            "seconds": 11.954,
+            "text": {
+              "characters": 722,
+              "character_errors": 169,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 125,
+              "boxed": 61,
+              "ink": 9482,
+              "ink_covered": 8593,
+              "partly_outside": 13
+            },
+            "items": {
+              "gold": 5,
+              "found": 2,
+              "partial": 1,
+              "missed": 2,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 1,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0029": {
+            "pages": 1,
+            "seconds": 14.63,
+            "text": {
+              "characters": 1311,
+              "character_errors": 143,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 210,
+              "boxed": 163,
+              "ink": 38249,
+              "ink_covered": 37736,
+              "partly_outside": 4
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0030": {
+            "pages": 1,
+            "seconds": 8.786,
+            "text": {
+              "characters": 442,
+              "character_errors": 44,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 75,
+              "boxed": 46,
+              "ink": 10789,
+              "ink_covered": 10397,
+              "partly_outside": 2
+            },
+            "items": {
+              "gold": 5,
+              "found": 2,
+              "partial": 0,
+              "missed": 3,
+              "readable_after": 3,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0031": {
+            "pages": 1,
+            "seconds": 12.696,
+            "text": {
+              "characters": 806,
+              "character_errors": 313,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 134,
+              "boxed": 38,
+              "ink": 11130,
+              "ink_covered": 10034,
+              "partly_outside": 23
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 3,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0032": {
+            "pages": 1,
+            "seconds": 8.229,
+            "text": {
+              "characters": 793,
+              "character_errors": 287,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 118,
+              "boxed": 69,
+              "ink": 21924,
+              "ink_covered": 20005,
+              "partly_outside": 18
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 1,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0033": {
+            "pages": 1,
+            "seconds": 8.077,
+            "text": {
+              "characters": 484,
+              "character_errors": 265,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 80,
+              "boxed": 59,
+              "ink": 12460,
+              "ink_covered": 12238,
+              "partly_outside": 2
+            },
+            "items": {
+              "gold": 1,
+              "found": 0,
+              "partial": 1,
+              "missed": 0,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0034": {
+            "pages": 1,
+            "seconds": 8.275,
+            "text": {
+              "characters": 555,
+              "character_errors": 168,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 90,
+              "boxed": 63,
+              "ink": 17532,
+              "ink_covered": 16445,
+              "partly_outside": 11
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 2,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0035": {
+            "pages": 1,
+            "seconds": 15.433,
+            "text": {
+              "characters": 1130,
+              "character_errors": 174,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 199,
+              "boxed": 83,
+              "ink": 31963,
+              "ink_covered": 31536,
+              "partly_outside": 3
+            },
+            "items": {
+              "gold": 35,
+              "found": 31,
+              "partial": 3,
+              "missed": 1,
+              "readable_after": 1,
+              "partly_after": 1
+            },
+            "false_alarms": 6,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0036": {
+            "pages": 1,
+            "seconds": 6.895,
+            "text": {
+              "characters": 364,
+              "character_errors": 166,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 56,
+              "boxed": 40,
+              "ink": 9196,
+              "ink_covered": 7944,
+              "partly_outside": 17
+            },
+            "items": {
+              "gold": 1,
+              "found": 0,
+              "partial": 0,
+              "missed": 1,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 3,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0037": {
+            "pages": 1,
+            "seconds": 16.13,
+            "text": {
+              "characters": 1136,
+              "character_errors": 104,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 194,
+              "boxed": 96,
+              "ink": 29469,
+              "ink_covered": 28731,
+              "partly_outside": 8
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 2,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0038": {
+            "pages": 1,
+            "seconds": 6.687,
+            "text": {
+              "characters": 438,
+              "character_errors": 54,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 72,
+              "boxed": 50,
+              "ink": 12959,
+              "ink_covered": 11593,
+              "partly_outside": 8
+            },
+            "items": {
+              "gold": 1,
+              "found": 0,
+              "partial": 0,
+              "missed": 1,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 0,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0039": {
+            "pages": 1,
+            "seconds": 7.101,
+            "text": {
+              "characters": 515,
+              "character_errors": 234,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 76,
+              "boxed": 28,
+              "ink": 15468,
+              "ink_covered": 13734,
+              "partly_outside": 15
+            },
+            "items": {
+              "gold": 1,
+              "found": 1,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 1
+            },
+            "false_alarms": 3,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0040": {
+            "pages": 1,
+            "seconds": 11.151,
+            "text": {
+              "characters": 1280,
+              "character_errors": 212,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 204,
+              "boxed": 110,
+              "ink": 26419,
+              "ink_covered": 25694,
+              "partly_outside": 7
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 5,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0041": {
+            "pages": 1,
+            "seconds": 9.763,
+            "text": {
+              "characters": 986,
+              "character_errors": 71,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 158,
+              "boxed": 99,
+              "ink": 22652,
+              "ink_covered": 22381,
+              "partly_outside": 6
+            },
+            "items": {
+              "gold": 2,
+              "found": 2,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 7,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0042": {
+            "pages": 1,
+            "seconds": 8.954,
+            "text": {
+              "characters": 1110,
+              "character_errors": 287,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 187,
+              "boxed": 92,
+              "ink": 20953,
+              "ink_covered": 19594,
+              "partly_outside": 15
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 2,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0043": {
+            "pages": 1,
+            "seconds": 13.596,
+            "text": {
+              "characters": 1235,
+              "character_errors": 145,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 198,
+              "boxed": 132,
+              "ink": 36294,
+              "ink_covered": 35544,
+              "partly_outside": 15
+            },
+            "items": {
+              "gold": 1,
+              "found": 1,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 1
+            },
+            "false_alarms": 3,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0044": {
+            "pages": 1,
+            "seconds": 14.701,
+            "text": {
+              "characters": 2301,
+              "character_errors": 348,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 411,
+              "boxed": 226,
+              "ink": 52990,
+              "ink_covered": 40145,
+              "partly_outside": 19
+            },
+            "items": {
+              "gold": 4,
+              "found": 2,
+              "partial": 0,
+              "missed": 2,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 11,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0045": {
+            "pages": 1,
+            "seconds": 16.504,
+            "text": {
+              "characters": 2780,
+              "character_errors": 958,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 433,
+              "boxed": 321,
+              "ink": 42906,
+              "ink_covered": 42124,
+              "partly_outside": 13
+            },
+            "items": {
+              "gold": 8,
+              "found": 6,
+              "partial": 2,
+              "missed": 0,
+              "readable_after": 1,
+              "partly_after": 0
+            },
+            "false_alarms": 7,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0046": {
+            "pages": 1,
+            "seconds": 14.239,
+            "text": {
+              "characters": 1941,
+              "character_errors": 252,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 311,
+              "boxed": 174,
+              "ink": 35566,
+              "ink_covered": 34970,
+              "partly_outside": 12
+            },
+            "items": {
+              "gold": 0,
+              "found": 0,
+              "partial": 0,
+              "missed": 0,
+              "readable_after": 0,
+              "partly_after": 0
+            },
+            "false_alarms": 3,
+            "safe": true,
+            "leak_check_passed": true
+          },
+          "funsd/test/0047": {
+            "pages": 1,
+            "seconds": 14.618,
+            "text": {
+              "characters": 2175,
+              "character_errors": 703,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 354,
+              "boxed": 238,
+              "ink": 29722,
+              "ink_covered": 29112,
+              "partly_outside": 11
+            },
+            "items": {
+              "gold": 7,
+              "found": 0,
+              "partial": 4,
+              "missed": 3,
+              "readable_after": 5,
+              "partly_after": 0
+            },
+            "false_alarms": 5,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0048": {
+            "pages": 1,
+            "seconds": 14.0,
+            "text": {
+              "characters": 1661,
+              "character_errors": 531,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 270,
+              "boxed": 185,
+              "ink": 43001,
+              "ink_covered": 42323,
+              "partly_outside": 18
+            },
+            "items": {
+              "gold": 4,
+              "found": 1,
+              "partial": 2,
+              "missed": 1,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 7,
+            "safe": false,
+            "leak_check_passed": true
+          },
+          "funsd/test/0049": {
+            "pages": 1,
+            "seconds": 17.726,
+            "text": {
+              "characters": 1960,
+              "character_errors": 522,
+              "diacritics": 0,
+              "diacritic_errors": 0
+            },
+            "boxes": {
+              "words": 310,
+              "boxed": 156,
+              "ink": 24239,
+              "ink_covered": 24133,
+              "partly_outside": 5
+            },
+            "items": {
+              "gold": 2,
+              "found": 0,
+              "partial": 2,
+              "missed": 0,
+              "readable_after": 2,
+              "partly_after": 0
+            },
+            "false_alarms": 6,
+            "safe": false,
+            "leak_check_passed": true
+          }
+        },
+        "totals": {
+          "character_error_rate": 0.2454,
+          "diacritic_error_rate": null,
+          "boxed": 0.538,
+          "ink_under_boxes": 0.9394,
+          "words_partly_outside": 602,
+          "items": {
+            "gold": 182,
+            "found": 120,
+            "partial": 34,
+            "missed": 28,
+            "readable_after": 48,
+            "partly_after": 3
+          },
+          "false_positives": 166,
+          "safe_documents": 23,
+          "leak_check_passed": 47,
+          "documents": 50,
+          "seconds_per_page": 11.5557
+        }
+      }
+    }
+  }
+}

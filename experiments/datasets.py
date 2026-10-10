@@ -55,13 +55,15 @@ language: `openpii-1m-cs`, `-sk`, `-en`)
              between (", ", " č. ", ", PSČ "). A run without a street or a
              postcode (a city alone, "born in Brno") is not an address.
     email    EMAIL.
-    phone    TELEPHONENUM.
     Not mapped: the identifiers (SOCIALNUM, IDCARDNUM, PASSPORTNUM,
     DRIVERLICENSENUM, TAXNUM, CREDITCARDNUMBER), because they are invented
     without their checksums: 184 of 1,522 Czech SOCIALNUMs in validation
     pass the rodné číslo rule (2026-10-10), so recall on them would measure
-    the generator, and identifiers are the rules' job. DATE (ours is a date
-    of birth only), AGE, SEX, GENDER, TITLE.
+    the generator, and identifiers are the rules' job. TELEPHONENUM, for
+    the same reason: the numbers follow no numbering plan (`+42008.128.8025`,
+    `(48)-1071 6019`; 604 of 1,915 Czech dev numbers even start with the
+    country code), and the phone rule found 8.7 % of them. DATE (ours is a
+    date of birth only), AGE, SEX, GENDER, TITLE.
     Splits: `train` is the source's train split. The source has no test
     split, so its validation split is cut in two by a hash of the record's
     uid: `dev` for tuning, `test` reserved (`openpii_half`).
@@ -546,7 +548,7 @@ OPENPII_ADDRESS_GAP = 8
 _OPENPII_PERSON = frozenset({"GIVENNAME", "SURNAME"})
 _OPENPII_ADDRESS = frozenset({"STREET", "BUILDINGNUM", "ZIPCODE", "CITY"})
 _OPENPII_ADDRESS_ANCHORS = frozenset({"STREET", "ZIPCODE"})
-_OPENPII_TYPES = {"EMAIL": EntityType.EMAIL, "TELEPHONENUM": EntityType.PHONE}
+_OPENPII_TYPES = {"EMAIL": EntityType.EMAIL}
 _OPENPII_FILES = {"train": "train.jsonl", "dev": "validation.jsonl", "test": "validation.jsonl"}
 _HORIZONTAL_SPACE = re.compile(r"[^\S\n]*")
 
@@ -700,9 +702,7 @@ DATASETS: dict[str, DatasetSpec] = {
         f"{OPENPII_ID}-{language}": DatasetSpec(
             id=f"{OPENPII_ID}-{language}",
             language=language,
-            types=frozenset(
-                {EntityType.PERSON, EntityType.ADDRESS, EntityType.EMAIL, EntityType.PHONE}
-            ),
+            types=frozenset({EntityType.PERSON, EntityType.ADDRESS, EntityType.EMAIL}),
             splits={"train": Role.TRAIN, "dev": Role.DEV, "test": Role.TEST},
             read=openpii_reader(language),
             resource=OPENPII_ID,

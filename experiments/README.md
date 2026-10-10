@@ -48,7 +48,7 @@ results file, and the files can be committed.
 | `cnec-2.0` | `train` (train), `dtest` (dev), `etest` (test) | cs | person, address, phone, email, url |
 | `uner-sk-snk` | `train` (train), `dev` (dev), `test` (test) | sk | person |
 | `redact` | `sample` (dev) | cs | person, email, phone, address, date, birth_number, id_number |
-| `openpii-1m-cs`, `-sk`, `-en` | `train` (train), `dev` (dev), `test` (test) | cs, sk, en | person, address, email, phone |
+| `openpii-1m-cs`, `-sk`, `-en` | `train` (train), `dev` (dev), `test` (test) | cs, sk, en | person, address, email |
 
 Only the types a corpus annotates are scored on it; any other prediction is
 counted under `unscored_predictions`. The full mapping from each corpus's
@@ -59,8 +59,8 @@ titles); UNER persons are `PER`; REDACT is read for its Czech records only
 (it has no Slovak), and a full name nested over its first name counts once.
 OpenPII 1M is one catalog entry read as one dataset per language. It has no
 test split, so its validation split is cut in two by a hash of each record's
-uid: `dev` for tuning, `test` reserved. Its identifiers are not scored: they
-are invented without checksums.
+uid: `dev` for tuning, `test` reserved. Its identifiers and phone numbers are
+not scored: they are invented without checksums or a numbering plan.
 
 UNER keeps each sentence as written (`# text`) and groups pages by source
 document. `text = "tokens"` on a dataset entry builds the text instead from

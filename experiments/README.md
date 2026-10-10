@@ -67,6 +67,20 @@ document. `text = "tokens"` on a dataset entry builds the text instead from
 tokens joined by spaces, cut into pages across document boundaries: how the
 2026-10-02 sweep did it.
 
+## FUNSD scans
+
+`python -m experiments funsd --work outputs/funsd --engines onnxtr,kraken` reads
+FUNSD's 50 test forms (real noisy scans, English) with each OCR engine, runs
+detection, redacts, and runs the leak check; `experiments.funsd` describes the
+ground truth. Scoring is the scanned benchmark's (`benchmark.ocr_run.score_scan`),
+but false alarms are counted and never written, since the forms name real
+people. The table goes to `results/funsd-test.md`; the work directory receives
+the scans and redacted copies and must stay out of git.
+
+FUNSD labels no personal data. An answer linked to a question naming a person,
+phone or address field is an item of that type: 103 persons, 69 phones and 10
+addresses on the test forms. These are derived, not annotated.
+
 ## Configurations
 
 | file | what |

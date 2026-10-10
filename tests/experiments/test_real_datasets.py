@@ -6,11 +6,14 @@ points it at the main checkout).
 """
 
 import os
+from collections import Counter
 from pathlib import Path
 
 import pytest
+from anonymizer.core.resources import load_catalog
 
 from experiments.datasets import TextForm, load_corpus
+from experiments.funsd import read_forms
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 ROOT = Path(os.environ.get("ANONYMIZER_RESOURCE_ROOT", REPOSITORY))
@@ -71,3 +74,15 @@ def test_openpii_validation_halves(language: str, dev: int, test: int):
     assert all(
         set(corpus.gold_counts()) == {"address", "email", "person", "phone"} for corpus in halves
     )
+
+
+@pytest.mark.dataset
+def test_funsd_test_forms_and_derived_items():
+    try:
+        forms = read_forms(load_catalog()["funsd"].directory(ROOT), "test")
+    except FileNotFoundError:
+        pytest.skip(f"funsd not stored under {ROOT}")
+    kinds = Counter(str(kind) for form in forms for kind, _ in form.items)
+    assert len(forms) == 50
+    assert sum(len(form.words) for form in forms) == 8707
+    assert kinds == {"person": 103, "phone": 69, "address": 10}

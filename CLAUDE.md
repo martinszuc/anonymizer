@@ -99,7 +99,9 @@ docstrings, not here; they go stale in two places.
   the benchmark and experiments. A fine-tuned GLiNER is a catalog entry and
   nothing else; a new kind of model adds one loader there. `gliner` stays
   accepted as the default model's earlier name, so `rules+gliner` results and
-  configs keep working.
+  configs keep working. A model trained here (`python -m experiments train`) is
+  an entry of its storage root's `models/trained.json`, not of the shipped
+  catalog: clients that know the root read it with `load_catalog(root=...)`.
 - A model's person and address spans pass `detect.NamesOnly` (`roles.py`,
   applied by `build_detector`): lowercase edge words trimmed, spans of role
   nouns only ("Kupující", "Adult") dropped; address-field labels ("Post Code",
@@ -110,9 +112,9 @@ docstrings, not here; they go stale in two places.
 
 - Every model and dataset is an entry in `core/resources/catalog.toml`: official
   source, immutable version, licence, languages, and per file a URL, size and
-  SHA-256. Add an entry there rather than downloading from code; a library that
-  fetches its own weights (GLiNER's encoder tokenizer, OCR engines) must be given
-  local paths instead.
+  SHA-256 (a model trained here: no URL, never fetched). Add an entry there
+  rather than downloading from code; a library that fetches its own weights
+  (GLiNER's encoder tokenizer, OCR engines) must be given local paths instead.
 
 - All components exchange data through `core/types.py`: `Document → Page → Word(bbox)` and `Document → Surface`, with `Entity` pointing at a page and optionally a surface. Change the contract deliberately; it is consumed by CLI, UI and serialized review files.
 - OCR engines, detectors and redaction strategies sit behind interfaces. Add implementations, do not special-case callers.

@@ -62,6 +62,7 @@ from anonymizer.core.redact import Leak, export_redacted
 from anonymizer.core.resources import (
     Catalog,
     ChecksumError,
+    NotDownloadableError,
     Opener,
     PinRequiredError,
     Resource,
@@ -452,10 +453,10 @@ class ReviewApi:
             for item in resource.files
             if not (resource.directory(self._resource_root) / item.path).exists()
         )
-        received_by_file: dict[str, int] = {}
+        received_by_file: dict[ResourceFile, int] = {}
 
         def report(item: ResourceFile, received: int) -> None:
-            received_by_file[item.url] = received
+            received_by_file[item] = received
             progress(feature, sum(received_by_file.values()), total)
 
         try:
@@ -466,7 +467,7 @@ class ReviewApi:
                 opener=self._opener,
                 progress=report,
             )
-        except (PinRequiredError, ChecksumError, OSError) as error:
+        except (PinRequiredError, NotDownloadableError, ChecksumError, OSError) as error:
             msg = f"the download failed: {error}"
             raise ReviewError(msg) from error
         progress(feature, total, total)

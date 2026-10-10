@@ -297,7 +297,8 @@ def load_gliner_detector(
         root: Storage root holding `models/` (see `scripts/download.py`).
         model_id: Catalog id of a GLiNER model; a fine-tuned one differs only
             in its weights.
-        catalog: The resource catalog; the one shipped with the core when omitted.
+        catalog: The resource catalog; the shipped one and the root's
+            trained models when omitted.
         labels: Prompt label → entity type.
         threshold: Minimum score for a span to be reported.
 
@@ -320,7 +321,8 @@ def load_gliner_model(
     Args:
         root: Storage root holding `models/` (see `scripts/download.py`).
         model_id: Catalog id of a GLiNER model.
-        catalog: The resource catalog; the one shipped with the core when omitted.
+        catalog: The resource catalog; the shipped one and the root's
+            trained models when omitted.
 
     Returns:
         The loaded model.
@@ -329,13 +331,15 @@ def load_gliner_model(
         FileNotFoundError: If the model or its encoder files are not stored.
         ImportError: If the `gliner` package is not installed.
     """
-    catalog = catalog or load_catalog()
+    catalog = catalog or load_catalog(root=root)
     missing = missing_resources(catalog, model_id, root)
     if missing:
-        msg = (
-            f"model files missing under {root}: {', '.join(missing)}; "
-            f"fetch them with: uv run python scripts/download.py fetch {model_id}"
+        remedy = (
+            f"it was trained on this machine, as {catalog[model_id].source} records"
+            if catalog[model_id].trained and model_id in missing
+            else f"fetch them with: uv run python scripts/download.py fetch {model_id}"
         )
+        msg = f"model files missing under {root}: {', '.join(missing)}; {remedy}"
         raise FileNotFoundError(msg)
     with step(log, "load name model", done_level=logging.INFO, model=model_id):
         return load_gliner(

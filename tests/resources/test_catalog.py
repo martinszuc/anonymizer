@@ -1,9 +1,10 @@
 import copy
+import json
 from pathlib import Path
 from typing import Any
 
 import pytest
-from anonymizer.core.resources import load_catalog
+from anonymizer.core.resources import load_catalog, trained_catalog_path
 from anonymizer.core.resources.catalog import parse_catalog
 
 SHA256_HELLO = "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"
@@ -49,6 +50,7 @@ def test_shipped_catalog_is_valid():
 def test_shipped_catalog_pins_every_file_to_https():
     for resource in load_catalog().resources.values():
         for item in resource.files:
+            assert item.url is not None
             assert item.url.startswith("https://")
             assert item.sha256 is not None or item.source_digest is not None
 
@@ -156,3 +158,85 @@ def test_requirement_cycle_is_refused():
     raw["resource"].append(second)
     with pytest.raises(ValueError, match="requirement cycle"):
         parse_catalog(raw)
+
+
+def trained_entry(**change: Any) -> dict[str, Any]:
+    entry: dict[str, Any] = {
+        "id": "gliner-cs-tuned",
+        "name": "GLiNER fine-tuned for Czech",
+        "kind": "model",
+        "uses": ["ner"],
+        "engine": "gliner",
+        "trained": True,
+        "source": "experiments/results/train-cs.json",
+        "version": SHA256_HELLO,
+        "licence": "LicenseRef-Trained-Locally",
+        "languages": ["cs", "sk"],
+        "requires": ["mdeberta-v3-base-tokenizer"],
+        "files": [{"path": "model.safetensors", "size": 6, "sha256": SHA256_HELLO}],
+    }
+    entry.update(change)
+    return entry
+
+
+def store_trained(root: Path, *entries: dict[str, Any]) -> None:
+    path = trained_catalog_path(root)
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"schema": 1, "resource": list(entries)}), encoding="utf-8")
+
+
+class TestTrainedModels:
+    def test_a_roots_trained_models_join_the_shipped_catalog(self, tmp_path: Path):
+        store_trained(tmp_path, trained_entry())
+        catalog = load_catalog(root=tmp_path)
+        trained = catalog["gliner-cs-tuned"]
+        assert trained.trained
+        assert trained.files[0].url is None
+        assert [resource.id for resource in catalog.with_requirements(trained.id)] == [
+            "mdeberta-v3-base-tokenizer",
+            "gliner-cs-tuned",
+        ]
+        assert "gliner-cs-tuned" not in load_catalog().resources
+
+    def test_a_root_without_trained_models_reads_the_shipped_catalog(self, tmp_path: Path):
+        assert load_catalog(root=tmp_path) == load_catalog()
+
+    @pytest.mark.parametrize(
+        ("change", "message"),
+        [
+            ({"id": "gliner-multi-v2.1"}, "duplicate resource id"),
+            ({"trained": False}, "sets trained = true"),
+            ({"kind": "dataset"}, "only a model can be trained"),
+            (
+                {
+                    "files": [
+                        {
+                            "path": "model.safetensors",
+                            "url": "https://example.org/m",
+                            "size": 6,
+                            "sha256": SHA256_HELLO,
+                        }
+                    ]
+                },
+                "has no url",
+            ),
+            (
+                {
+                    "files": [
+                        {"path": "model.safetensors", "size": 6, "source_digest": "md5:" + "0" * 32}
+                    ]
+                },
+                "needs its sha256",
+            ),
+        ],
+    )
+    def test_invalid_trained_entries_are_refused(
+        self, tmp_path: Path, change: dict[str, Any], message: str
+    ):
+        store_trained(tmp_path, trained_entry(**change))
+        with pytest.raises(ValueError, match=message):
+            load_catalog(root=tmp_path)
+
+    def test_the_shipped_catalog_lists_no_trained_model(self):
+        with pytest.raises(ValueError, match=r"only a storage root's trained\.json"):
+            parse_catalog(_with({"trained": True}))

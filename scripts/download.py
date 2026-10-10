@@ -10,6 +10,8 @@ Nothing is fetched without naming a resource and confirming the prompt:
 `fetch` also fetches what the resource requires, shows the licence and size of
 each first, and refuses any file whose checksum differs from the catalog.
 Files are stored under `models/<id>/` and `data/<id>/` below `--root`.
+Models trained under `--root` (`models/trained.json`) are listed and verified
+too, but never fetched: they have no source to download from.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from pathlib import Path
 
 from anonymizer.core.resources import (
     ChecksumError,
+    NotDownloadableError,
     PinRequiredError,
     Resource,
     ResourceFile,
@@ -57,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("id", nargs="?")
     args = parser.parse_args(argv)
 
-    catalog = load_catalog()
+    catalog = load_catalog(root=args.root)
     try:
         if args.command == "list":
             return _list(list(catalog.resources.values()), args.root)
@@ -104,6 +107,8 @@ def _describe(resource: Resource) -> None:
         print(f"  requires   {', '.join(resource.requires)}")
     if resource.real_personal_data:
         print("  contains   names of real people: local evaluation only, never a fixture")
+    if resource.trained:
+        print("  trained    on this machine: verified, never downloaded")
     for item in resource.files:
         check = f"sha256 {item.sha256}" if item.sha256 else _source_digest(item)
         print(f"  file       {item.path} ({_human_size(item.size)}, {check})")
@@ -115,6 +120,18 @@ def _fetch(resources: list[Resource], root: Path, assume_yes: bool, pin: bool) -
     for resource in resources:
         _describe(resource)
         print(f"  target     {resource.directory(root)}")
+    lost = [
+        resource.id
+        for resource in resources
+        if resource.trained and resource_status(resource, root) != "present"
+    ]
+    if lost:
+        print(
+            f"error: {', '.join(lost)} was trained on this machine and is not stored under "
+            f"{root}; there is nothing to download it from",
+            file=sys.stderr,
+        )
+        return 1
     unpinned = [
         resource.id for resource in resources if any(item.sha256 is None for item in resource.files)
     ]
@@ -132,7 +149,7 @@ def _fetch(resources: list[Resource], root: Path, assume_yes: bool, pin: bool) -
     for resource in resources:
         try:
             result = fetch_resource(resource, root, pin=pin, progress=_print_progress)
-        except (PinRequiredError, ChecksumError, OSError) as error:
+        except (PinRequiredError, NotDownloadableError, ChecksumError, OSError) as error:
             print(f"\nerror: {error}", file=sys.stderr)
             return 1
         print(

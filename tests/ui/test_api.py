@@ -588,12 +588,21 @@ class TestStatus:
         assert status["version"] == anonymizer.ui.__version__
         assert [language["code"] for language in status["languages"]] == ["cs", "sk", "en"]
         assert status["names"]["default"] == "gliner-multi-v2.1"
-        (model,) = status["names"]["models"]
-        assert (model["state"], model["missing"]) == ("ready", [])
+        models = {model["name"]: model for model in status["names"]["models"]}
+        assert (models["gliner-multi-v2.1"]["state"], models["gliner-multi-v2.1"]["missing"]) == (
+            "ready",
+            [],
+        )
 
     def test_model_files_missing(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(api, "name_model_installed", lambda model_id, catalog: True)
-        assert ReviewApi(Path("/nowhere")).status()["names"]["models"] == [
+        models = ReviewApi(Path("/nowhere")).status()["names"]["models"]
+        assert [model["name"] for model in models] == [
+            "gliner-multi-v2.1",
+            "nametag3-czech-cnec2.0-240830",
+            "nametag3-multilingual-260521",
+        ]
+        assert models[:1] == [
             {
                 "name": "gliner-multi-v2.1",
                 "title": "GLiNER multilingual v2.1",
@@ -607,8 +616,8 @@ class TestStatus:
 
     def test_model_not_installed(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(api, "name_model_installed", lambda model_id, catalog: False)
-        (model,) = ReviewApi().status()["names"]["models"]
-        assert model["state"] == "not_installed"
+        models = ReviewApi().status()["names"]["models"]
+        assert {model["state"] for model in models} == {"not_installed"}
 
     def test_every_ocr_engine_with_its_files_and_onnxtr_first(
         self, monkeypatch: pytest.MonkeyPatch

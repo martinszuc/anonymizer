@@ -16,6 +16,7 @@ from pathlib import Path
 
 from anonymizer.core.detect.base import Detector
 from anonymizer.core.detect.gliner import GLINER_RESOURCE, load_gliner_detector
+from anonymizer.core.detect.nametag import NAMETAG_ENGINE, load_nametag_detector
 from anonymizer.core.resources import Catalog, Resource, load_catalog, missing_resources
 
 DEFAULT_NAME_MODEL = GLINER_RESOURCE
@@ -45,6 +46,11 @@ NAME_MODEL_ENGINES: dict[str, NameModelEngine] = {
     "gliner": NameModelEngine(
         lambda root, model_id, catalog: load_gliner_detector(root, model_id, catalog=catalog),
         package="gliner",
+        group="ner",
+    ),
+    NAMETAG_ENGINE: NameModelEngine(
+        lambda root, model_id, catalog: load_nametag_detector(root, model_id, catalog=catalog),
+        package="ufal.udpipe",
         group="ner",
     ),
 }

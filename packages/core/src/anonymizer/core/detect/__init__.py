@@ -44,6 +44,7 @@ from anonymizer.core.detect.models import (
     name_models,
     system_model,
 )
+from anonymizer.core.detect.nametag import NametagDetector, load_nametag_detector
 from anonymizer.core.detect.propagate import propagate_occurrences
 from anonymizer.core.detect.roles import NamesOnly, cut_to_address, cut_to_name, role_words_for
 from anonymizer.core.detect.titles import extend_with_titles
@@ -147,6 +148,7 @@ __all__ = [
     "GlinerDetector",
     "Match",
     "NamesOnly",
+    "NametagDetector",
     "RuleDetector",
     "cut_to_address",
     "cut_to_name",
@@ -177,6 +179,7 @@ __all__ = [
     "is_valid_iban",
     "load_gliner_detector",
     "load_name_model",
+    "load_nametag_detector",
     "merge_entities",
     "missing_name_model_files",
     "name_model",

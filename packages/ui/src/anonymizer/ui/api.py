@@ -123,6 +123,13 @@ OCR_CHOICES = {
 
 NAME_MODEL_DESCRIPTIONS = {
     "gliner-multi-v2.1": "Zero-shot and multilingual. Finds names and addresses the rules cannot.",
+    "nametag3-czech-cnec2.0-240830": (
+        "Trained on Czech news (CNEC 2.0). Czech only; free for non-commercial use."
+    ),
+    "nametag3-multilingual-260521": (
+        "Trained on news and web text in 20 languages, Czech and Slovak among them. "
+        "Names only; free for non-commercial use."
+    ),
 }
 """What the window tells the reviewer a name model is for, by catalog id; a model
 missing here is described by `NAME_MODEL_DESCRIPTION`."""

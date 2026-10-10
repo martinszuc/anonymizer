@@ -23,6 +23,9 @@ dev = [
     "rapidfuzz>=3",
 ]
 ner = ["anonymizer-core[ner]"]
+# Fine-tuning a name model (`python -m experiments train`): gliner's Trainer is
+# transformers' Trainer, which needs accelerate.
+train = ["anonymizer-core[ner]", "accelerate>=1.1"]
 ocr-onnxtr = ["anonymizer-core[ocr-onnxtr]"]
 ocr-kraken = ["anonymizer-core[ocr-kraken]"]
 benchmark = ["matplotlib>=3.9"]

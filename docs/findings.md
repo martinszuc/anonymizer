@@ -826,6 +826,45 @@ links (103 persons, 69 phones, 10 addresses; 9 forms have none), not annotated.
 - **The leak check failed on 2 and 3 forms** (different forms per engine). Not yet
   broken down (`python -m experiments leaks`).
 
+### 2026-10-10 · Fine-tuning GLiNER on the M4 Pro (smoke run)
+
+`python -m experiments train --config experiments/configs/train-smoke.toml` at commit
+`aa9a994` (`experiments/results/train-smoke.json`): GLiNER multilingual v2.1, 100
+examples drawn from each of OpenPII-cs, OpenPII-sk, CNEC 2.0 and UNER-SK train,
+40 steps of 8, focal loss (alpha 0.75, gamma 2), on the Apple GPU (MPS) of an
+Apple M4 Pro, torch 2.14.0, transformers 5.12.1, gliner 0.2.29, accelerate 1.15.0.
+Benchmark runs shared the machine (load average 5 to 10). The scores of this run
+say nothing about the model (40 steps, 25 documents per development split).
+
+- **Time per step.** 40 steps took 57.8 s, 1.44 s per step of 8 examples
+  averaging 81 GLiNER tokens (32,403 tokens in 400 examples), the first step's
+  warm-up included. A design probe before (15 steps of 8 OpenPII records of 67
+  tokens on average) took a median 1.02 s per step after a first step of 10 s.
+  At 1.4 s, 4,000 steps take about 1.5 hours.
+- **Same seed, nearly the same run.** Three runs with the same seed and training
+  code logged losses that agreed to two decimals or better (at step 40: 2.8782,
+  2.8782, 2.8768) and gave the same person counts on every development split,
+  but the SHA-256 of the weights differed each time: MPS kernels are not
+  bit-reproducible. A model's cache follows the hash of its weights, so every
+  retrain starts its cache afresh, and a difference between two trained models
+  smaller than this run-to-run noise needs several seeds before it is claimed.
+- **Addresses too wide to learn.** Of the 78,519 examples converted from the four
+  train splits, examples holding 1,650 street-address spans and 1 person span
+  wider than the model's 12 tokens (`max_width`) were left out; GLiNER cannot
+  predict such a span, and training on its parts would teach them as
+  non-addresses.
+- **gliner's saved config does not reload with the catalog's tokenizer.** The
+  `gliner_config.json` that `save_pretrained` writes pins `class_token_index =
+  250103`, the index of a special token gliner adds to the tokenizer when the
+  config does not pin it; loading the trained model with the catalog's mDeBERTa
+  tokenizer (250,102 tokens) then failed. Training changes the weights only, so
+  the base model's own config is stored beside them.
+- **Warm-up only by ratio.** With `warmup_steps = 4` passed through gliner's
+  training arguments, the learning rate logged at step 5 was 4.5e-5, a linear
+  decay from step 0 with no warm-up; with `warmup_ratio = 0.1` it was 5e-5,
+  the peak after four warm-up steps. transformers calls the ratio deprecated,
+  but it is the one gliner applies.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

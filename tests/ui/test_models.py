@@ -4,6 +4,7 @@ The catalog carries the real model ids, so the window's features find them,
 but each file is a few bytes served from memory: nothing touches the network.
 """
 
+import dataclasses
 import hashlib
 import io
 import threading
@@ -17,6 +18,7 @@ from anonymizer.ui.api import ReviewApi, ReviewError
 from anonymizer.ui.app import WindowApi
 
 from tests.pdf_builders import write_pdf
+from tests.resources.test_catalog import store_trained, trained_entry
 from tests.ui.test_app import StandInWindow
 
 
@@ -307,3 +309,34 @@ def test_a_second_name_model_in_the_catalog_is_offered_and_opened(
     assert loads == ["gliner-cs-tuned"]
     with pytest.raises(ReviewError, match="unknown name model 'other'"):
         review.open_pdf(str(pdf), name_model="other")
+
+
+def test_a_folders_trained_models_are_offered_once_it_is_chosen(tmp_path: Path):
+    store_trained(tmp_path / "second", trained_entry())
+    review = ReviewApi(tmp_path / "first")
+    assert "gliner-cs-tuned" not in [model["name"] for model in review.status()["names"]["models"]]
+    status = review.choose_models_folder(str(tmp_path / "second"))
+    assert "gliner-cs-tuned" in [model["name"] for model in status["names"]["models"]]
+    assert "names-gliner-cs-tuned" in {feature["feature"] for feature in review.models()}
+
+
+def test_a_folder_with_a_malformed_list_of_trained_models_is_not_chosen(tmp_path: Path):
+    store_trained(tmp_path / "second", trained_entry(trained=False))
+    review = ReviewApi(tmp_path / "first", opener=FakeServer({}))
+    with pytest.raises(ReviewError, match="trained = true"):
+        review.choose_models_folder(str(tmp_path / "second"))
+    assert review.status()["models_folder"] == str(tmp_path / "first" / "models")
+
+
+def test_a_trained_model_is_never_downloaded(tmp_path: Path, server: FakeServer):
+    trained = dataclasses.replace(
+        _resource("gliner-cs-tuned", ("mdeberta-v3-base-tokenizer",), ("ner",), "gliner"),
+        files=(dataclasses.replace(_file("gliner-cs-tuned", b"tuned"), url=None),),
+        trained=True,
+    )
+    review = ReviewApi(
+        tmp_path, catalog=Catalog({**CATALOG.resources, trained.id: trained}), opener=server
+    )
+    with pytest.raises(ReviewError, match="trained on this machine"):
+        review.download_models("names-gliner-cs-tuned")
+    assert server.requests == ["https://example.org/mdeberta-v3-base-tokenizer.bin"]

@@ -274,13 +274,22 @@ def _windows(text: str) -> Iterator[_Window]:
     overlap gives the next window the whole word, and spans are widened to
     whole words anyway.
     """
-    tokens = [match.span() for match in _GLINER_TOKEN.finditer(text)]
+    tokens = gliner_tokens(text)
     step = WINDOW_TOKENS - OVERLAP_TOKENS
     for first in range(0, len(tokens), step):
         chunk = tokens[first : first + WINDOW_TOKENS]
         yield _Window(chunk[0][0], chunk[-1][1])
         if first + WINDOW_TOKENS >= len(tokens):
             return
+
+
+def gliner_tokens(text: str) -> list[tuple[int, int]]:
+    """Return the model's own tokens of a text as character spans.
+
+    These are the tokens `MODEL_MAX_TOKENS` and `WINDOW_TOKENS` count, and the
+    units a GLiNER training example is written in.
+    """
+    return [match.span() for match in _GLINER_TOKEN.finditer(text)]
 
 
 def load_gliner_detector(
@@ -297,7 +306,8 @@ def load_gliner_detector(
         root: Storage root holding `models/` (see `scripts/download.py`).
         model_id: Catalog id of a GLiNER model; a fine-tuned one differs only
             in its weights.
-        catalog: The resource catalog; the one shipped with the core when omitted.
+        catalog: The resource catalog; the shipped one and the root's
+            trained models when omitted.
         labels: Prompt label → entity type.
         threshold: Minimum score for a span to be reported.
 
@@ -320,7 +330,8 @@ def load_gliner_model(
     Args:
         root: Storage root holding `models/` (see `scripts/download.py`).
         model_id: Catalog id of a GLiNER model.
-        catalog: The resource catalog; the one shipped with the core when omitted.
+        catalog: The resource catalog; the shipped one and the root's
+            trained models when omitted.
 
     Returns:
         The loaded model.
@@ -329,13 +340,15 @@ def load_gliner_model(
         FileNotFoundError: If the model or its encoder files are not stored.
         ImportError: If the `gliner` package is not installed.
     """
-    catalog = catalog or load_catalog()
+    catalog = catalog or load_catalog(root=root)
     missing = missing_resources(catalog, model_id, root)
     if missing:
-        msg = (
-            f"model files missing under {root}: {', '.join(missing)}; "
-            f"fetch them with: uv run python scripts/download.py fetch {model_id}"
+        remedy = (
+            f"it was trained on this machine, as {catalog[model_id].source} records"
+            if catalog[model_id].trained and model_id in missing
+            else f"fetch them with: uv run python scripts/download.py fetch {model_id}"
         )
+        msg = f"model files missing under {root}: {', '.join(missing)}; {remedy}"
         raise FileNotFoundError(msg)
     with step(log, "load name model", done_level=logging.INFO, model=model_id):
         return load_gliner(

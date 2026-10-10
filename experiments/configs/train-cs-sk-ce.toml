@@ -1,0 +1,47 @@
+name = "train-cs-sk-ce"
+description = """
+RQ6, first full run: GLiNER multilingual fine-tuned for Czech and Slovak names and
+addresses with binary cross-entropy, the loss the comparison starts from.
+Every CNEC 2.0 and UNER Slovak-SNK train example and 10,000 drawn from each OpenPII 1M
+train split; 4,000 steps of 8 (about 1.4 passes). Its twin config differs only in the loss."""
+model = "gliner-cs-sk-ce"
+base = "gliner-multi-v2.1"
+seed = 20261010
+device = "mps"
+
+[training]
+steps = 4000
+batch_size = 8
+learning_rate = 1e-5
+head_learning_rate = 5e-5
+weight_decay = 0.01
+warmup_ratio = 0.1
+loss = "ce"
+logging_steps = 50
+
+[[corpora]]
+id = "cnec-2.0"
+split = "train"
+
+[[corpora]]
+id = "uner-sk-snk"
+split = "train"
+
+[[corpora]]
+id = "openpii-1m-cs"
+split = "train"
+examples = 10000
+
+[[corpora]]
+id = "openpii-1m-sk"
+split = "train"
+examples = 10000
+
+[evaluate]
+datasets = [
+    { id = "cnec-2.0", split = "dtest" },
+    { id = "uner-sk-snk", split = "dev" },
+    { id = "redact", split = "sample" },
+    { id = "openpii-1m-cs", split = "dev" },
+    { id = "openpii-1m-sk", split = "dev" },
+]

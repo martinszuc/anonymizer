@@ -21,7 +21,7 @@ from typing import Any
 
 import anonymizer.core
 from anonymizer.core.detect.gliner import SpanModel
-from anonymizer.core.resources import load_catalog
+from anonymizer.core.resources import Catalog, load_catalog
 from anonymizer.core.types import EntityType
 
 from experiments.config import RunConfig
@@ -60,26 +60,31 @@ def run(
     cache_dir: Path,
     load_model: Callable[[str], SpanModel] | None = None,
     progress: Progress = lambda _: None,
+    limit: int | None = None,
 ) -> dict[str, Any]:
     """Run the configured systems on the configured splits and score them.
 
     Args:
         config: The run configuration.
-        resource_root: Storage root holding `data/` and `models/`.
+        resource_root: Storage root holding `data/` and `models/`; the models
+            trained under it can be run as well.
         cache_dir: Where the name models' output is cached.
         load_model: Returns a name model by catalog id; from the catalog's
             files under `resource_root` by default.
         progress: Told what is running (no corpus text).
+        limit: Score only the first documents of each split, for a quick
+            look; recorded in the results.
 
     Returns:
         The results, as the command line stores them in `<name>.json`.
     """
+    catalog = load_catalog(root=resource_root)
     load_model = _once(load_model or gliner_loader(resource_root))
     corpora: dict[str, Any] = {}
     for reference in config.datasets:
-        corpus = load_corpus(reference.id, reference.split, resource_root, reference.text)
+        corpus = load_corpus(reference.id, reference.split, resource_root, reference.text, limit)
         progress(f"{corpus.key}: {len(corpus.documents)} documents")
-        corpora[corpus.key] = _run_corpus(config, corpus, cache_dir, load_model, progress)
+        corpora[corpus.key] = _run_corpus(config, corpus, cache_dir, load_model, catalog, progress)
     return {
         "schema": RESULTS_SCHEMA,
         "name": config.name,
@@ -92,13 +97,14 @@ def run(
         "seed": config.seed,
         "resamples": config.resamples,
         "cache_floor": CACHE_FLOOR,
-        "models": model_versions(config.systems),
+        "models": model_versions(config.systems, catalog),
         "datasets": {
             reference.id: load_catalog()[DATASETS[reference.id].catalog_id].version
             for reference in config.datasets
         },
         "systems": {system.name: system.describe() for system in config.systems},
         "config": config.raw,
+        **({"limit": limit} if limit is not None else {}),
         "corpora": corpora,
     }
 
@@ -120,6 +126,7 @@ def _run_corpus(
     corpus: Corpus,
     cache_dir: Path,
     load_model: Callable[[str], SpanModel],
+    catalog: Catalog,
     progress: Progress,
 ) -> dict[str, Any]:
     types = corpus.types if config.types is None else corpus.types & config.types
@@ -127,7 +134,9 @@ def _run_corpus(
         model_id: CachedSpanModel(
             functools.partial(load_model, model_id),
             PredictionCache(
-                cache_path(cache_dir, model_id, corpus.dataset, corpus.version, corpus.split)
+                cache_path(
+                    cache_dir, model_id, corpus.dataset, corpus.version, corpus.split, catalog
+                )
             ),
         )
         for model_id in dict.fromkeys(system.model_id for system in config.systems)

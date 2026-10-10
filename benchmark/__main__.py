@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from anonymizer.core.detect import system_model
-from anonymizer.core.resources import resolve_resource_root
+from anonymizer.core.resources import load_catalog, resolve_resource_root
 
 from benchmark.degrade import LEVELS, level_named
 from benchmark.ocr_margin import MARGINS, margins_markdown, run_margins
@@ -43,9 +43,7 @@ def main(argv: list[str] | None = None) -> int:
         default=",".join(level.name for level in LEVELS),
         help="comma-separated degradation levels (default: all)",
     )
-    ocr_parser.add_argument(
-        "--system", default="rules", type=_system, help="detector system (default: rules)"
-    )
+    ocr_parser.add_argument("--system", default="rules", help="detector system (default: rules)")
     _add_resource_root(ocr_parser)
     margin_parser = commands.add_parser(
         "ocr-margin", help="measure how far OCR boxes must grow to cover their words"
@@ -70,9 +68,7 @@ def main(argv: list[str] | None = None) -> int:
     probe_parser.add_argument("--out", type=Path, required=True, help="directory for results")
     probe_parser.add_argument("--engines", required=True, help="comma-separated OCR engines")
     probe_parser.add_argument("--lang", default="cs", help="detection language (default: cs)")
-    probe_parser.add_argument(
-        "--system", default="rules", type=_system, help="detector system (default: rules)"
-    )
+    probe_parser.add_argument("--system", default="rules", help="detector system (default: rules)")
     probe_parser.add_argument(
         "--truth", type=Path, help="JSON list of each page's expected text, null to skip a page"
     )
@@ -83,6 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command != "history":
         args.resource_root = resolve_resource_root(args.resource_root)
+        _check_system(parser, args)
 
     if args.command == "history":
         from benchmark.history import draw
@@ -138,13 +135,14 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _system(name: str) -> str:
-    """A detector system from the command line: `rules` or `rules+<name model>`."""
+def _check_system(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    """Refuse an unknown `--system`; the models trained under the resource root count too."""
+    if not hasattr(args, "system"):
+        return
     try:
-        system_model(name)
+        system_model(args.system, load_catalog(root=args.resource_root))
     except ValueError as error:
-        raise argparse.ArgumentTypeError(str(error)) from error
-    return name
+        parser.error(str(error))
 
 
 def _add_resource_root(parser: argparse.ArgumentParser) -> None:

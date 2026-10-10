@@ -205,6 +205,6 @@ def tuned_catalog(monkeypatch: pytest.MonkeyPatch) -> Catalog:
             ),
         }
     )
-    monkeypatch.setattr(models_module, "load_catalog", lambda: catalog)
-    monkeypatch.setattr(systems_module, "load_catalog", lambda: catalog)
+    monkeypatch.setattr(models_module, "load_catalog", lambda **_: catalog)
+    monkeypatch.setattr(systems_module, "load_catalog", lambda **_: catalog)
     return catalog

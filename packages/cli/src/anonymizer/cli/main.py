@@ -40,10 +40,10 @@ from anonymizer.cli.commands import (
     run_redact,
 )
 from anonymizer.core import __version__
-from anonymizer.core.detect import DEFAULT_NAME_MODEL, name_models
+from anonymizer.core.detect import DEFAULT_NAME_MODEL, name_model, name_models
 from anonymizer.core.ingest import OCR_ENGINES, load_ocr_engine
 from anonymizer.core.log import LEVEL_NAMES, configure_logging, resolve_level
-from anonymizer.core.resources import resolve_resource_root
+from anonymizer.core.resources import load_catalog, resolve_resource_root
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -165,10 +165,10 @@ def _add_detection_options(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--name-model",
-        choices=[model.id for model in name_models()],
         metavar="MODEL",
         help="detect names and addresses with this catalog model instead; implies --ner "
-        "(choices: %(choices)s)",
+        f"({', '.join(model.id for model in name_models())}, or a model trained under "
+        "--resource-root)",
     )
     _add_ocr_options(parser)
 
@@ -198,9 +198,11 @@ def main(argv: list[str] | None = None) -> int:
     Returns:
         Process exit code.
     """
+    parser = build_parser()
     try:
-        args = build_parser().parse_args(argv)
+        args = parser.parse_args(argv)
         args.resource_root = resolve_resource_root(args.resource_root)
+        _check_name_model(parser, args)
     except SystemExit as exit_request:
         # argparse exits for --help, --version and invalid arguments.
         return exit_request.code if isinstance(exit_request.code, int) else EXIT_ERROR
@@ -262,6 +264,20 @@ def _dispatch(args: argparse.Namespace, output: Output) -> int:
             ocr=ocr,
         )
     return run_check(args.redacted, args.source, args.session, output=output, ocr=ocr)
+
+
+def _check_name_model(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    """Refuse an unknown `--name-model` as argparse refuses a bad choice.
+
+    Known only once the resource root is: its trained models are choices too.
+    """
+    model_id = getattr(args, "name_model", None)
+    if model_id is None:
+        return
+    try:
+        args.name_model = name_model(model_id, load_catalog(root=args.resource_root)).id
+    except ValueError as error:
+        parser.error(str(error))
 
 
 def _name_model(args: argparse.Namespace) -> NameModel | None:

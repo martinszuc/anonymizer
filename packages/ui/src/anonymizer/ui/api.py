@@ -62,6 +62,7 @@ from anonymizer.core.redact import Leak, export_redacted
 from anonymizer.core.resources import (
     Catalog,
     ChecksumError,
+    NotDownloadableError,
     Opener,
     PinRequiredError,
     Resource,
@@ -238,16 +239,17 @@ class ReviewApi:
             resource_root: Directory holding `models/`, as for the CLI's
                 `--resource-root`; `resources.resolve_resource_root` picks it
                 when omitted.
-            catalog: The resource catalog; the one shipped with the core when
-                omitted.
+            catalog: The resource catalog; when omitted, the one shipped
+                with the core and the models trained under the resource root,
+                read again when the reviewer picks another folder.
             opener: Opens a download URL; the default opens the network.
         """
         self._open: _OpenDocument | None = None
         self._resource_root = (
             resource_root if resource_root is not None else resolve_resource_root()
         )
-        self._catalog = catalog or load_catalog()
-        self._features = features(self._catalog)
+        self._given_catalog = catalog
+        self._catalog, self._features = self._read_catalog(self._resource_root)
         self._opener = opener
         # Catalog ids being downloaded: two downloads of one model would write
         # the same files, while features sharing no model download side by side.
@@ -437,11 +439,22 @@ class ReviewApi:
                 raise ReviewError(msg)
             root = Path(path).resolve()
             with _as_review_error():
+                catalog, offered = self._read_catalog(root)
                 choose_resource_root(root)
             self._resource_root = root
+            self._catalog, self._features = catalog, offered
             self._models.clear()
             self._ocr.clear()
         return self.status()
+
+    def _read_catalog(self, root: Path) -> tuple[Catalog, dict[str, _Feature]]:
+        """The catalog for a models folder, with the features it offers.
+
+        Raises:
+            ValueError: If the folder's list of trained models is malformed.
+        """
+        catalog = self._given_catalog or load_catalog(root=root)
+        return catalog, features(catalog)
 
     def _download(self, feature: str, progress: Downloaded) -> None:
         resource_id = self._features[feature].resource_id
@@ -452,10 +465,10 @@ class ReviewApi:
             for item in resource.files
             if not (resource.directory(self._resource_root) / item.path).exists()
         )
-        received_by_file: dict[str, int] = {}
+        received_by_file: dict[ResourceFile, int] = {}
 
         def report(item: ResourceFile, received: int) -> None:
-            received_by_file[item.url] = received
+            received_by_file[item] = received
             progress(feature, sum(received_by_file.values()), total)
 
         try:
@@ -466,7 +479,7 @@ class ReviewApi:
                 opener=self._opener,
                 progress=report,
             )
-        except (PinRequiredError, ChecksumError, OSError) as error:
+        except (PinRequiredError, NotDownloadableError, ChecksumError, OSError) as error:
             msg = f"the download failed: {error}"
             raise ReviewError(msg) from error
         progress(feature, total, total)

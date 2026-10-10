@@ -12,6 +12,7 @@ from anonymizer.core.redact import Leak, LeakLayer
 
 from tests.detect.test_gliner import StandInModel
 from tests.pdf_builders import CONTACT_EMAIL, ENGLISH_LETTER, write_pdf
+from tests.resources.test_catalog import store_trained, trained_entry
 
 PHONE = "+420 603 123 456"
 LINES = ["Jan Novak", f"e-mail {CONTACT_EMAIL}", f"tel. {PHONE}", "KEEP this line"]
@@ -98,12 +99,29 @@ class TestNer:
         content = json.loads(session.read_text(encoding="utf-8"))
         assert "person" in {entity["type"] for entity in content["entities"]}
 
+    def test_a_model_trained_under_the_resource_root_can_be_chosen(
+        self, pdf: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        root = tmp_path / "store"
+        store_trained(root, trained_entry())
+        loads: list[str] = []
+
+        def load(model_id: str, root: Path) -> GlinerDetector:
+            loads.append(model_id)
+            return GlinerDetector(StandInModel({"Jan Novak": "person"}))
+
+        monkeypatch.setattr(commands, "load_name_model", load)
+        session = pdf.with_name("review.json")
+        args = ["detect", str(pdf), "-o", str(session), "--name-model", "gliner-cs-tuned"]
+        assert main([*args, "--resource-root", str(root)]) == 0
+        assert loads == ["gliner-cs-tuned"]
+
     def test_an_unknown_name_model_is_an_invalid_argument(
         self, pdf: Path, capsys: pytest.CaptureFixture
     ):
         args = ["detect", str(pdf), "-o", str(pdf.with_name("r.json")), "--name-model", "x"]
         assert main(args) == 2
-        assert "invalid choice: 'x'" in capsys.readouterr().err
+        assert "unknown name model 'x'" in capsys.readouterr().err
 
     def test_a_reviewed_session_does_not_load_the_model(
         self, pdf: Path, monkeypatch: pytest.MonkeyPatch

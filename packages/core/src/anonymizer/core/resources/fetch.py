@@ -8,6 +8,9 @@ and checksums match the catalog; a mismatch deletes the temporary file.
 A file for which the source publishes no SHA-256 is fetched only with
 `pin=True`: it is then verified against the source's own digest (MD5 or git
 blob SHA-1), and its SHA-256 is returned so it can be recorded in the catalog.
+
+A model trained on this machine has no URL: its stored files are verified
+like any others, and a missing one is refused (`NotDownloadableError`).
 """
 
 from __future__ import annotations
@@ -44,6 +47,10 @@ class ChecksumError(ValueError):
 
 class PinRequiredError(ValueError):
     """A file has no SHA-256 in the catalog and pinning was not requested."""
+
+
+class NotDownloadableError(ValueError):
+    """A file of a model trained on this machine is missing; there is nowhere to fetch it from."""
 
 
 @dataclass(frozen=True)
@@ -89,6 +96,7 @@ def fetch_resource(
         PinRequiredError: If a file has no SHA-256 and `pin` is false. Nothing is
             downloaded in that case.
         ChecksumError: If a file differs from the catalog. The file is removed.
+        NotDownloadableError: If a trained model's file is missing.
         OSError: If a download or a write fails.
     """
     unpinned = [item.path for item in resource.files if item.sha256 is None]
@@ -149,6 +157,7 @@ def fetch_with_requirements(
         PinRequiredError: If a file has no recorded SHA-256. Nothing is
             downloaded in that case.
         ChecksumError: If a file differs from the catalog. The file is removed.
+        NotDownloadableError: If a trained model's file is missing.
         OSError: If a download or a write fails.
     """
     resources = catalog.with_requirements(resource_id)
@@ -239,16 +248,23 @@ def _download(
     open_url: Opener,
     progress: Progress | None,
 ) -> str:
+    url = item.url
+    if url is None:
+        msg = (
+            f"{resource_id} was trained on this machine and {item.path} is missing; "
+            "there is nothing to download it from, train the model again"
+        )
+        raise NotDownloadableError(msg)
     target.parent.mkdir(parents=True, exist_ok=True)
     partial = target.with_name(target.name + ".part")
     hasher = _Hasher(item)
     # The one place a connection is opened, so it is always on record.
     log.info(
-        "network: downloading %s %s (%d bytes) from %s", resource_id, item.path, item.size, item.url
+        "network: downloading %s %s (%d bytes) from %s", resource_id, item.path, item.size, url
     )
     try:
         with step(log, "download", done_level=logging.INFO, resource=resource_id, file=item.path):
-            with open_url(item.url) as response, partial.open("wb") as output:
+            with open_url(url) as response, partial.open("wb") as output:
                 while chunk := response.read(CHUNK_SIZE):
                     hasher.update(chunk)
                     # Stop early instead of filling the disk with an unexpected payload.

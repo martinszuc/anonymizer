@@ -5,10 +5,12 @@ from anonymizer.core.resources.catalog import (
     Resource,
     ResourceFile,
     load_catalog,
+    trained_catalog_path,
 )
 from anonymizer.core.resources.fetch import (
     ChecksumError,
     FetchResult,
+    NotDownloadableError,
     Opener,
     PinRequiredError,
     Progress,
@@ -30,6 +32,7 @@ __all__ = [
     "Catalog",
     "ChecksumError",
     "FetchResult",
+    "NotDownloadableError",
     "Opener",
     "PinRequiredError",
     "Progress",
@@ -44,6 +47,7 @@ __all__ = [
     "resolve_resource_root",
     "resource_status",
     "settings_file",
+    "trained_catalog_path",
     "user_resource_root",
     "verify_resource",
 ]

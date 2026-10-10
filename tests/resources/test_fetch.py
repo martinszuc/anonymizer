@@ -7,6 +7,7 @@ import pytest
 from anonymizer.core.resources import (
     Catalog,
     ChecksumError,
+    NotDownloadableError,
     PinRequiredError,
     Resource,
     ResourceFile,
@@ -174,10 +175,13 @@ def _zip(members: dict[str, bytes]) -> bytes:
     return buffer.getvalue()
 
 
+ARCHIVE_URL = "https://example.org/corpus.zip"
+
+
 def _archive_item(payload: bytes) -> ResourceFile:
     return ResourceFile(
         path="corpus.zip",
-        url="https://example.org/corpus.zip",
+        url=ARCHIVE_URL,
         size=len(payload),
         sha256=hashlib.sha256(payload).hexdigest(),
         unpack="zip",
@@ -187,7 +191,7 @@ def _archive_item(payload: bytes) -> ResourceFile:
 def test_archive_is_unpacked_after_verification(tmp_path):
     payload = _zip({"corpus/train.txt": "Příliš žluťoučký kůň".encode()})
     item = _archive_item(payload)
-    fetch_resource(_resource(item), tmp_path, opener=FakeServer({item.url: payload}))
+    fetch_resource(_resource(item), tmp_path, opener=FakeServer({ARCHIVE_URL: payload}))
     extracted = tmp_path / "data" / "sample" / "corpus" / "corpus" / "train.txt"
     assert extracted.read_text(encoding="utf-8") == "Příliš žluťoučký kůň"
 
@@ -196,7 +200,7 @@ def test_archive_member_escaping_destination_is_refused(tmp_path):
     payload = _zip({"../../escaped.txt": b"x"})
     item = _archive_item(payload)
     with pytest.raises(ChecksumError, match="escapes"):
-        fetch_resource(_resource(item), tmp_path, opener=FakeServer({item.url: payload}))
+        fetch_resource(_resource(item), tmp_path, opener=FakeServer({ARCHIVE_URL: payload}))
     assert not list(tmp_path.rglob("escaped.txt"))
     assert not (tmp_path / "data" / "sample" / "corpus").exists()
 
@@ -232,3 +236,18 @@ def test_an_unpinned_file_refuses_before_any_download(tmp_path: Path):
     with pytest.raises(PinRequiredError, match="top"):
         fetch_with_requirements(catalog, "top", tmp_path, opener=server)
     assert server.requests == []
+
+
+def test_a_trained_model_is_verified_but_never_downloaded(tmp_path: Path):
+    trained = Resource(**{**_resource(_hello(url=None), kind="model").__dict__, "trained": True})
+    server = FakeServer({})
+    with pytest.raises(NotDownloadableError, match="trained on this machine"):
+        fetch_resource(trained, tmp_path, opener=server)
+    assert server.requests == []
+    stored = tmp_path / "models" / "sample" / "hello.txt"
+    stored.parent.mkdir(parents=True)
+    stored.write_bytes(HELLO)
+    assert fetch_resource(trained, tmp_path, opener=server).present == ("hello.txt",)
+    stored.write_bytes(b"hellO\n")
+    with pytest.raises(ChecksumError):
+        fetch_resource(trained, tmp_path, opener=server)

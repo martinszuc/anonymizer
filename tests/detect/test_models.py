@@ -25,6 +25,7 @@ from anonymizer.core.detect.gliner import (
 from anonymizer.core.resources import Catalog, Resource, ResourceFile, load_catalog
 
 from tests.detect.test_gliner import StandInModel
+from tests.resources.test_catalog import store_trained, trained_entry
 
 
 def _resource(
@@ -154,6 +155,24 @@ class TestLoading:
             (root / "models" / "gliner-cs-tuned", root / "models" / "encoder-tokenizer")
         ]
 
+    def test_a_model_trained_under_the_root_loads_from_there(
+        self, tmp_path: Path, loaded_from: list[tuple[Path, Path]]
+    ):
+        store_trained(tmp_path, trained_entry())
+        detector = load_name_model("gliner-cs-tuned", tmp_path)
+        assert detector.name == "gliner-cs-tuned"
+        assert loaded_from == [
+            (
+                tmp_path / "models" / "gliner-cs-tuned",
+                tmp_path / "models" / "mdeberta-v3-base-tokenizer",
+            )
+        ]
+
+    def test_a_missing_trained_model_points_to_its_training_record(self, tmp_path: Path):
+        store_trained(tmp_path, trained_entry())
+        with pytest.raises(FileNotFoundError, match=r"trained on this machine.*train-cs\.json"):
+            load_name_model("gliner-cs-tuned", tmp_path)
+
     def test_missing_files_name_the_fetch_command_of_that_model(self, tmp_path: Path):
         with pytest.raises(FileNotFoundError, match=r"download\.py fetch gliner-cs-tuned"):
             load_name_model("gliner-cs-tuned", tmp_path, CATALOG)
@@ -178,6 +197,14 @@ class TestSystems:
     )
     def test_a_system_names_its_model(self, system: str, model_id: str | None):
         assert system_model(system) == model_id
+
+    def test_a_trained_model_is_known_to_its_roots_catalog_only(self, tmp_path: Path):
+        store_trained(tmp_path, trained_entry())
+        assert system_model("rules+gliner-cs-tuned", load_catalog(root=tmp_path)) == (
+            "gliner-cs-tuned"
+        )
+        with pytest.raises(ValueError, match="unknown name model"):
+            system_model("rules+gliner-cs-tuned")
 
     @pytest.mark.parametrize("system", ["gliner", "model+gliner", "rules+"])
     def test_other_names_are_refused(self, system: str):

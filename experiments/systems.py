@@ -33,9 +33,10 @@ from anonymizer.core.detect.gliner import (
     SpanModel,
     load_gliner_model,
 )
+from anonymizer.core.detect.models import NAME_MODEL_ALIASES
 from anonymizer.core.language import AUTO
 from anonymizer.core.pipeline import build_detector, resolve_language, run_detection
-from anonymizer.core.resources import load_catalog
+from anonymizer.core.resources import Catalog, load_catalog
 from anonymizer.core.types import Document, EntityType
 
 CACHE_FLOOR = 0.1
@@ -76,7 +77,7 @@ class SystemConfig:
     @property
     def model_id(self) -> str | None:
         """The catalog id of the system's name model; `None` for the rules alone."""
-        return None if self.model == "none" else name_model(self.model).id
+        return None if self.model == "none" else NAME_MODEL_ALIASES.get(self.model, self.model)
 
     def describe(self) -> dict[str, Any]:
         """Return the options as plain data, for the results file."""
@@ -100,12 +101,15 @@ _SYSTEM_KEYS = frozenset(
 )
 
 
-def parse_system(name: str, table: Mapping[str, Any]) -> SystemConfig:
+def parse_system(
+    name: str, table: Mapping[str, Any], catalog: Catalog | None = None
+) -> SystemConfig:
     """Read a system from its config table, rejecting unknown options.
 
     Args:
         name: The table's name.
         table: Its options.
+        catalog: The catalog naming the models; the shipped one when omitted.
 
     Returns:
         The system.
@@ -119,7 +123,7 @@ def parse_system(name: str, table: Mapping[str, Any]) -> SystemConfig:
         raise ValueError(msg)
     model = str(table.get("model", "none"))
     if model != "none":
-        _check_model(name, model)
+        _check_model(name, model, catalog or load_catalog())
     language = str(table.get("language", "dataset"))
     if language not in LANGUAGES:
         msg = f"system {name!r}: language must be one of {LANGUAGES}"
@@ -144,10 +148,10 @@ def parse_system(name: str, table: Mapping[str, Any]) -> SystemConfig:
     )
 
 
-def _check_model(system: str, model: str) -> None:
+def _check_model(system: str, model: str, catalog: Catalog) -> None:
     """Refuse a model that is not a catalog GLiNER model, whose output the harness can cache."""
     try:
-        engine = name_model(model).engine
+        engine = name_model(model, catalog).engine
     except ValueError as error:
         msg = f"system {system!r}: {error}, or none"
         raise ValueError(msg) from error
@@ -281,10 +285,19 @@ def _stored(span: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def cache_path(
-    cache_dir: Path, model_id: str, dataset: str, dataset_version: str, split: str
+    cache_dir: Path,
+    model_id: str,
+    dataset: str,
+    dataset_version: str,
+    split: str,
+    catalog: Catalog | None = None,
 ) -> Path:
-    """Return the cache file for a name model on one split of a dataset."""
-    model = load_catalog()[model_id]
+    """Return the cache file for a name model on one split of a dataset.
+
+    The model's version is part of the path: a trained model's is the hash of
+    its weights, so a model trained again under the same id starts a new cache.
+    """
+    model = (catalog or load_catalog())[model_id]
     return (
         cache_dir
         / f"{model.id}@{_safe(model.version)}"
@@ -307,9 +320,11 @@ def gliner_loader(resource_root: Path) -> Callable[[str], SpanModel]:
     return lambda model_id: load_gliner_model(resource_root, model_id)
 
 
-def model_versions(systems: Sequence[SystemConfig]) -> dict[str, str]:
+def model_versions(
+    systems: Sequence[SystemConfig], catalog: Catalog | None = None
+) -> dict[str, str]:
     """Return the catalog version of every model the systems use."""
-    catalog = load_catalog()
+    catalog = catalog or load_catalog()
     return {
         resource.id: resource.version
         for system in systems

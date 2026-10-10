@@ -6,11 +6,14 @@ points it at the main checkout).
 """
 
 import os
+from collections import Counter
 from pathlib import Path
 
 import pytest
+from anonymizer.core.resources import load_catalog
 
 from experiments.datasets import TextForm, load_corpus
+from experiments.funsd import read_forms
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 ROOT = Path(os.environ.get("ANONYMIZER_RESOURCE_ROOT", REPOSITORY))
@@ -57,3 +60,29 @@ def test_every_gold_span_cuts_its_text():
             for entity in gold.gold:
                 page = gold.document.page(entity.page_index or 0)
                 assert page.text[entity.start : entity.end] == entity.text
+
+
+@pytest.mark.dataset
+@pytest.mark.parametrize(
+    ("language", "dev", "test"),
+    [("cs", 4672, 4550), ("sk", 4451, 4552)],
+)
+def test_openpii_validation_halves(language: str, dev: int, test: int):
+    halves = [_load(f"openpii-1m-{language}", split) for split in ("dev", "test")]
+    assert [len(corpus.documents) for corpus in halves] == [dev, test]
+    assert all(corpus.skipped == 0 for corpus in halves)
+    assert all(
+        set(corpus.gold_counts()) == {"address", "email", "person", "phone"} for corpus in halves
+    )
+
+
+@pytest.mark.dataset
+def test_funsd_test_forms_and_derived_items():
+    try:
+        forms = read_forms(load_catalog()["funsd"].directory(ROOT), "test")
+    except FileNotFoundError:
+        pytest.skip(f"funsd not stored under {ROOT}")
+    kinds = Counter(str(kind) for form in forms for kind, _ in form.items)
+    assert len(forms) == 50
+    assert sum(len(form.words) for form in forms) == 8707
+    assert kinds == {"person": 103, "phone": 69, "address": 10}

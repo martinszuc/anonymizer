@@ -2,6 +2,10 @@
 
 `leaks scan.pdf --engines onnxtr --system rules+gliner --out leaks/` counts
 why the leak check fails on one document (`experiments.leaks`).
+
+`funsd --work outputs/funsd --engines onnxtr,kraken` reads FUNSD's real
+scanned forms with each engine and writes counts to `results/funsd-test.*`
+(`experiments.funsd`); the work directory receives the scans and stays out of git.
 """
 
 from __future__ import annotations
@@ -19,6 +23,7 @@ from anonymizer.core.resources import resolve_resource_root
 
 from experiments.config import load_config
 from experiments.datasets import DATASETS, load_corpus
+from experiments.funsd import SPLITS, run_funsd, write_results
 from experiments.leaks import breakdown, breakdown_markdown, write_breakdown
 from experiments.report import latex, markdown
 from experiments.run import run
@@ -53,7 +58,22 @@ def main(argv: list[str] | None = None) -> int:
         help="rules, or rules+<name model> (default: rules+gliner)",
     )
     leaks.add_argument("--language", default="cs", help="detection language")
-    for command in (run_parser, datasets, leaks):
+    funsd = commands.add_parser("funsd", help="score OCR engines on FUNSD's scanned forms")
+    funsd.add_argument(
+        "--work", type=Path, required=True, help="directory for scans and redacted copies"
+    )
+    funsd.add_argument("--engines", required=True, help="comma-separated OCR engines")
+    funsd.add_argument(
+        "--system",
+        default="rules+gliner",
+        help="rules, or rules+<name model> (default: rules+gliner)",
+    )
+    funsd.add_argument("--split", default="test", choices=sorted(SPLITS), help="default: test")
+    funsd.add_argument("--limit", type=int, help="score only the first forms")
+    funsd.add_argument(
+        "--out", type=Path, default=RESULTS, help=f"results directory (default: {RESULTS})"
+    )
+    for command in (run_parser, datasets, leaks, funsd):
         command.add_argument(
             "--resource-root",
             type=Path,
@@ -70,6 +90,8 @@ def main(argv: list[str] | None = None) -> int:
         return _count(root)
     if args.command == "leaks":
         return _leaks(args, root)
+    if args.command == "funsd":
+        return _funsd(args, root)
     config = load_config(args.config)
     cache_dir = args.cache_dir or root / ".cache" / "experiments"
     results = run(config, resource_root=root, cache_dir=cache_dir, progress=print)
@@ -95,6 +117,20 @@ def _leaks(args: argparse.Namespace, root: Path) -> int:
     results = breakdown(args.pdf, engines, detector, args.language)
     write_breakdown(results, args.out)
     print(breakdown_markdown(results))
+    return 0
+
+
+def _funsd(args: argparse.Namespace, root: Path) -> int:
+    results = run_funsd(
+        args.work,
+        engines=tuple(args.engines.split(",")),
+        system=args.system,
+        split=args.split,
+        resource_root=root,
+        limit=args.limit,
+    )
+    path = write_results(results, args.out)
+    print(path.with_suffix(".md").read_text(encoding="utf-8"))
     return 0
 
 

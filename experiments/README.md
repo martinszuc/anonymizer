@@ -48,6 +48,7 @@ results file, and the files can be committed.
 | `cnec-2.0` | `train` (train), `dtest` (dev), `etest` (test) | cs | person, address, phone, email, url |
 | `uner-sk-snk` | `train` (train), `dev` (dev), `test` (test) | sk | person |
 | `redact` | `sample` (dev) | cs | person, email, phone, address, date, birth_number, id_number |
+| `openpii-1m-cs`, `-sk`, `-en` | `train` (train), `dev` (dev), `test` (test) | cs, sk, en | person, address, email, phone |
 
 Only the types a corpus annotates are scored on it; any other prediction is
 counted under `unscored_predictions`. The full mapping from each corpus's
@@ -56,11 +57,29 @@ docstring. In short: CNEC persons are the outermost `P` containers plus first
 names and surnames standing alone (not inhabitants, mythological persons or
 titles); UNER persons are `PER`; REDACT is read for its Czech records only
 (it has no Slovak), and a full name nested over its first name counts once.
+OpenPII 1M is one catalog entry read as one dataset per language. It has no
+test split, so its validation split is cut in two by a hash of each record's
+uid: `dev` for tuning, `test` reserved. Its identifiers are not scored: they
+are invented without checksums.
 
 UNER keeps each sentence as written (`# text`) and groups pages by source
 document. `text = "tokens"` on a dataset entry builds the text instead from
 tokens joined by spaces, cut into pages across document boundaries: how the
 2026-10-02 sweep did it.
+
+## FUNSD scans
+
+`python -m experiments funsd --work outputs/funsd --engines onnxtr,kraken` reads
+FUNSD's 50 test forms (real noisy scans, English) with each OCR engine, runs
+detection, redacts, and runs the leak check; `experiments.funsd` describes the
+ground truth. Scoring is the scanned benchmark's (`benchmark.ocr_run.score_scan`),
+but false alarms are counted and never written, since the forms name real
+people. The table goes to `results/funsd-test.md`; the work directory receives
+the scans and redacted copies and must stay out of git.
+
+FUNSD labels no personal data. An answer linked to a question naming a person,
+phone or address field is an item of that type: 103 persons, 69 phones and 10
+addresses on the test forms. These are derived, not annotated.
 
 ## Configurations
 
@@ -69,6 +88,7 @@ tokens joined by spaces, cut into pages across document boundaries: how the
 | `configs/rq1-dev.toml` | rules vs rules+gliner as shipped, cs and sk, dev splits |
 | `configs/rq1-ablations-dev.toml` | one option away from the shipped settings: threshold 0.2–0.6, no distractor, no name filter, no propagation, recognised language |
 | `configs/gliner-sweep.toml` | the 2026-10-02 measurement behind PR #55, reproduced |
+| `configs/openpii-dev.toml` | rules vs rules+gliner on the OpenPII dev halves, cs and sk: the bar for the own model |
 | `configs/rq1-test.toml` | the final table on the test splits; run once settings are fixed |
 
 A config names every split explicitly. A test split is refused unless the

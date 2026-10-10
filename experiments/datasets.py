@@ -45,6 +45,27 @@ REDACT (synthetic records; Czech records only, as the corpus has no Slovak)
     of birth, and the special categories (health, religion, ...), which have
     no type of ours.
 
+OpenPII 1M (ai4privacy; synthetic records in 23 languages, one dataset per
+language: `openpii-1m-cs`, `-sk`, `-en`)
+    person   GIVENNAME and SURNAME, a run of them joined when only spaces lie
+             between (no line break, no "a"/"and"): one name, as in CNEC.
+             Not TITLE (CNEC leaves titles out too).
+    address  STREET, BUILDINGNUM, ZIPCODE and CITY, a run of them joined when
+             at most `OPENPII_ADDRESS_GAP` characters and no line break lie
+             between (", ", " č. ", ", PSČ "). A run without a street or a
+             postcode (a city alone, "born in Brno") is not an address.
+    email    EMAIL.
+    phone    TELEPHONENUM.
+    Not mapped: the identifiers (SOCIALNUM, IDCARDNUM, PASSPORTNUM,
+    DRIVERLICENSENUM, TAXNUM, CREDITCARDNUMBER), because they are invented
+    without their checksums: 184 of 1,522 Czech SOCIALNUMs in validation
+    pass the rodné číslo rule (2026-10-10), so recall on them would measure
+    the generator, and identifiers are the rules' job. DATE (ours is a date
+    of birth only), AGE, SEX, GENDER, TITLE.
+    Splits: `train` is the source's train split. The source has no test
+    split, so its validation split is cut in two by a hash of the record's
+    uid: `dev` for tuning, `test` reserved (`openpii_half`).
+
 Spans of one type nested in another of the same type are reduced to the
 outermost (REDACT marks a full name and its first name), so a detector is not
 asked to find a name twice.
@@ -52,6 +73,7 @@ asked to find a name twice.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import re
@@ -61,6 +83,7 @@ from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 from anonymizer.core.resources import load_catalog
 from anonymizer.core.types import (
@@ -192,6 +215,8 @@ class DatasetSpec:
         types: Types the corpus annotates.
         splits: Split name → role.
         read: Reads a split from the dataset directory, in a text form.
+        resource: Catalog id when it differs from `id` (one language of a
+            multilingual resource).
     """
 
     id: str
@@ -199,6 +224,12 @@ class DatasetSpec:
     types: frozenset[EntityType]
     splits: dict[str, Role]
     read: Callable[[Path, str, TextForm], list[list[Sentence]]]
+    resource: str | None = None
+
+    @property
+    def catalog_id(self) -> str:
+        """The catalog entry holding the files."""
+        return self.resource or self.id
 
 
 # --- CNEC 2.0 ---------------------------------------------------------------
@@ -503,6 +534,134 @@ def read_redact(directory: Path, split: str, form: TextForm) -> list[list[Senten
     return parse_redact(records, _REDACT_LANGUAGE)
 
 
+# --- OpenPII 1M -------------------------------------------------------------
+
+OPENPII_ID = "openpii-1m"
+OPENPII_LANGUAGES = ("cs", "sk", "en")
+"""Languages registered as datasets; any of the source's 23 can be added here."""
+
+OPENPII_ADDRESS_GAP = 8
+"""Most characters between two address parts of one address (", PSČ " is six)."""
+
+_OPENPII_PERSON = frozenset({"GIVENNAME", "SURNAME"})
+_OPENPII_ADDRESS = frozenset({"STREET", "BUILDINGNUM", "ZIPCODE", "CITY"})
+_OPENPII_ADDRESS_ANCHORS = frozenset({"STREET", "ZIPCODE"})
+_OPENPII_TYPES = {"EMAIL": EntityType.EMAIL, "TELEPHONENUM": EntityType.PHONE}
+_OPENPII_FILES = {"train": "train.jsonl", "dev": "validation.jsonl", "test": "validation.jsonl"}
+_HORIZONTAL_SPACE = re.compile(r"[^\S\n]*")
+
+
+def openpii_half(uid: int) -> str:
+    """Return `dev` or `test`: which half of the source's validation split a record is in.
+
+    A hash of the uid rather than its parity or position, so the halves do not
+    follow however the source numbered or ordered its records.
+    """
+    digest = hashlib.sha256(f"{OPENPII_ID}:{uid}".encode()).digest()
+    return "dev" if digest[0] % 2 == 0 else "test"
+
+
+def parse_openpii(records: Iterable[dict[str, Any]], language: str) -> list[list[Sentence]]:
+    """Turn OpenPII records of one language into one-record documents.
+
+    Args:
+        records: Parsed JSON lines.
+        language: The source's language code, e.g. `cs`.
+
+    Returns:
+        One document per record, holding the record as a single "sentence";
+        spans whose offsets do not cut out their value are counted as skipped.
+    """
+    documents: list[list[Sentence]] = []
+    for record in records:
+        if record.get("language") != language:
+            continue
+        raw = str(record["source_text"])
+        labelled: list[tuple[str, int, int]] = []
+        unmapped: list[str] = []
+        for span in record.get("privacy_mask") or []:
+            start, end = span.get("start"), span.get("end")
+            if (
+                not isinstance(start, int)
+                or not isinstance(end, int)
+                or end <= start
+                or raw[start:end] != span.get("value")
+            ):
+                unmapped.append(_SKIPPED)
+            else:
+                labelled.append((str(span["label"]), start, end))
+        spans: list[SourceSpan] = []
+        for run in _openpii_runs(raw, sorted(labelled, key=lambda item: item[1])):
+            labels = {label for label, _, _ in run}
+            kind = _openpii_type(labels)
+            if kind is None:
+                unmapped += [label for label, _, _ in run]
+                continue
+            start, end = run[0][1], run[-1][2]
+            spans.append(SourceSpan(kind, _nfc_offset(raw, start), _nfc_offset(raw, end)))
+        text = unicodedata.normalize("NFC", raw)
+        documents.append([Sentence(text, tuple(spans), tuple(unmapped))])
+    return documents
+
+
+def _openpii_runs(
+    text: str, labelled: list[tuple[str, int, int]]
+) -> Iterator[list[tuple[str, int, int]]]:
+    """Group adjacent name parts and adjacent address parts; every other span stands alone."""
+    run: list[tuple[str, int, int]] = []
+    for item in labelled:
+        if run and _joins(text, run[-1], item):
+            run.append(item)
+            continue
+        if run:
+            yield run
+        run = [item]
+    if run:
+        yield run
+
+
+def _joins(text: str, previous: tuple[str, int, int], current: tuple[str, int, int]) -> bool:
+    gap = text[previous[2] : current[1]]
+    if previous[0] in _OPENPII_PERSON and current[0] in _OPENPII_PERSON:
+        return _HORIZONTAL_SPACE.fullmatch(gap) is not None
+    if previous[0] in _OPENPII_ADDRESS and current[0] in _OPENPII_ADDRESS:
+        return len(gap) <= OPENPII_ADDRESS_GAP and "\n" not in gap
+    return False
+
+
+def _openpii_type(labels: set[str]) -> EntityType | None:
+    if labels <= _OPENPII_PERSON:
+        return EntityType.PERSON
+    if labels <= _OPENPII_ADDRESS:
+        return EntityType.ADDRESS if labels & _OPENPII_ADDRESS_ANCHORS else None
+    (label,) = labels
+    return _OPENPII_TYPES.get(label)
+
+
+def openpii_reader(language: str) -> Callable[[Path, str, TextForm], list[list[Sentence]]]:
+    """Return the reader of one language's records (see `parse_openpii`)."""
+
+    def read(directory: Path, split: str, form: TextForm) -> list[list[Sentence]]:  # noqa: ARG001
+        return parse_openpii(
+            _openpii_records(directory / _OPENPII_FILES[split], language, split), language
+        )
+
+    return read
+
+
+def _openpii_records(path: Path, language: str, split: str) -> Iterator[dict[str, Any]]:
+    """Yield the records of one language, and of one half for `dev` and `test`."""
+    # Checking the raw line first skips parsing the other 22 languages' records.
+    marker = f'"language": "{language}"'
+    with path.open(encoding="utf-8") as lines:
+        for line in lines:
+            if marker not in line:
+                continue
+            record = json.loads(line)
+            if split == "train" or openpii_half(int(record["uid"])) == split:
+                yield record
+
+
 # --- Registry and assembly --------------------------------------------------
 
 DATASETS: dict[str, DatasetSpec] = {
@@ -537,6 +696,19 @@ DATASETS: dict[str, DatasetSpec] = {
         splits={"sample": Role.DEV},
         read=read_redact,
     ),
+    **{
+        f"{OPENPII_ID}-{language}": DatasetSpec(
+            id=f"{OPENPII_ID}-{language}",
+            language=language,
+            types=frozenset(
+                {EntityType.PERSON, EntityType.ADDRESS, EntityType.EMAIL, EntityType.PHONE}
+            ),
+            splits={"train": Role.TRAIN, "dev": Role.DEV, "test": Role.TEST},
+            read=openpii_reader(language),
+            resource=OPENPII_ID,
+        )
+        for language in OPENPII_LANGUAGES
+    },
 }
 
 
@@ -566,7 +738,7 @@ def load_corpus(
     if role is None:
         msg = f"{dataset} has no split {split!r}; choose from {sorted(spec.splits)}"
         raise ValueError(msg)
-    resource = load_catalog()[dataset]
+    resource = load_catalog()[spec.catalog_id]
     groups = spec.read(resource.directory(resource_root), split, form)
     return build_corpus(spec, split, resource.version, groups, form)
 

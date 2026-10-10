@@ -25,7 +25,7 @@ from anonymizer.core.resources import load_catalog
 from anonymizer.core.types import EntityType
 
 from experiments.config import RunConfig
-from experiments.datasets import Corpus, load_corpus
+from experiments.datasets import DATASETS, Corpus, load_corpus
 from experiments.metrics import (
     MATCHES,
     METRICS,
@@ -94,7 +94,8 @@ def run(
         "cache_floor": CACHE_FLOOR,
         "models": model_versions(config.systems),
         "datasets": {
-            reference.id: load_catalog()[reference.id].version for reference in config.datasets
+            reference.id: load_catalog()[DATASETS[reference.id].catalog_id].version
+            for reference in config.datasets
         },
         "systems": {system.name: system.describe() for system in config.systems},
         "config": config.raw,

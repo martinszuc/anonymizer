@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 import anonymizer.core
+from anonymizer.core.detect import Detector
 from anonymizer.core.ingest import (
     OCR_ENGINE_RESOURCES,
     OCR_ENGINES,
@@ -40,9 +41,11 @@ from anonymizer.core.ingest import (
 from anonymizer.core.pipeline import run_detection
 from anonymizer.core.redact import find_leaks, redact_pdf
 from anonymizer.core.resources import load_catalog
+from anonymizer.core.types import Page
 
 from benchmark.degrade import LEVELS, Level
 from benchmark.ocr_score import (
+    WordLocations,
     box_scores,
     item_locations,
     item_residue,
@@ -119,7 +122,7 @@ def run_ocr(
                 spec.name: _run_one(spec, level, engine, factories[engine], detector_for, output)
                 for spec in specs
             }
-            runs[engine][level.name] = {"documents": documents, "totals": _totals(documents)}
+            runs[engine][level.name] = {"documents": documents, "totals": scan_totals(documents)}
     results = {
         "schema": OCR_RESULTS_SCHEMA,
         "created": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
@@ -127,7 +130,7 @@ def run_ocr(
         "git_commit": git_commit(),
         "machine": machine(),
         "engines": list(engines),
-        "models": _model_versions(engines),
+        "models": ocr_model_versions(engines),
         "system": system,
         "levels": [dataclasses.asdict(level) | {"name": level.name} for level in levels],
         "runs": runs,
@@ -152,43 +155,80 @@ def _run_one(
         render(spec, original)
     scan = output / "scans" / f"{spec.name}.{level.name}.pdf"
     truth = scan_document(original, level, scan)
-    engine = engine_for(truth)
-
-    started = time.perf_counter()
-    document = load_document(scan, language=spec.language, ocr=engine)
-    seconds = time.perf_counter() - started
-    run_detection(document, detector_for(spec.language))
     on_page = dataclasses.replace(
         spec, gold=tuple(item for item in spec.gold if item.carrier == "page")
     )
-    locations = item_locations(truth, document.pages, on_page.gold)
-    detection = score_detection(on_page, document, locations)
-
     redacted = output / "scans" / f"{spec.name}.{level.name}.{engine_name}.pdf"
+    return score_scan(
+        scan, truth, on_page, engine_for(truth), detector_for(spec.language), redacted
+    )
+
+
+def score_scan(
+    scan: Path,
+    truth: list[TruthPage],
+    spec: DocumentSpec,
+    engine: OcrEngine,
+    detector: Detector,
+    redacted: Path,
+    *,
+    located: WordLocations | None = None,
+    record_texts: bool = True,
+    reading_order: Callable[[Page], Page] | None = None,
+) -> dict[str, Any]:
+    """Read a scan with an engine, detect, redact, check, and score against the truth.
+
+    Args:
+        scan: A picture-only PDF.
+        truth: Its ground truth, one page per page.
+        spec: The document's page items in `gold`, and its language.
+        engine: The OCR engine.
+        detector: The detector to run on what the engine read.
+        redacted: Where to write the redacted scan.
+        located: Each item's ground-truth words; by default found by its text.
+        record_texts: Keep the texts of false alarms. A corpus with real
+            personal data keeps their count only.
+        reading_order: Rewrites a read page into the order the truth's text
+            follows, for the character error rate only; by default the
+            engine's own order is compared.
+
+    Returns:
+        The document's scores, as `ocr-results.json` holds them.
+    """
+    started = time.perf_counter()
+    document = load_document(scan, language=spec.language, ocr=engine)
+    seconds = time.perf_counter() - started
+    run_detection(document, detector)
+    locations = item_locations(truth, document.pages, spec.gold, located)
+    detection = score_detection(spec, document, locations)
+
     redact_pdf(scan, document, redacted)
     leak_check_passed = not find_leaks(redacted, document, ocr=engine)
-    shares = item_residue(scan, redacted, truth, on_page.gold)
+    shares = item_residue(scan, redacted, truth, spec.gold, located)
     residue = residue_counts(shares)
     found = Counter(outcome for outcome, _ in detection)
+    wrong = false_positives(spec, document, locations)
+    read = [reading_order(page) for page in document.pages] if reading_order else document.pages
     return {
         "pages": len(truth),
         "seconds": round(seconds, 3),
-        "text": text_errors(truth, document.pages),
+        "text": text_errors(truth, read),
         "boxes": box_scores(scan, truth, document.pages),
         "items": {
-            "gold": len(on_page.gold),
+            "gold": len(spec.gold),
             "found": found["found"],
             "partial": found["partial"],
             "missed": found["missed"],
         }
         | residue,
-        "false_positives": false_positives(on_page, document, locations),
+        "false_alarms": len(wrong),
         "safe": residue["readable_after"] + residue["partly_after"] == 0,
         "leak_check_passed": leak_check_passed,
-    }
+    } | ({"false_positives": wrong} if record_texts else {})
 
 
-def _model_versions(engines: tuple[str, ...]) -> dict[str, str]:
+def ocr_model_versions(engines: tuple[str, ...]) -> dict[str, str]:
+    """Return the catalog version of every model the engines use."""
     catalog = load_catalog()
     return {
         resource_id: catalog[resource_id].version
@@ -197,7 +237,8 @@ def _model_versions(engines: tuple[str, ...]) -> dict[str, str]:
     }
 
 
-def _totals(documents: dict[str, Any]) -> dict[str, Any]:
+def scan_totals(documents: dict[str, Any]) -> dict[str, Any]:
+    """Pool the scores of one engine's documents at one level."""
     results = list(documents.values())
     text: Counter[str] = Counter()
     items: Counter[str] = Counter()
@@ -214,7 +255,7 @@ def _totals(documents: dict[str, Any]) -> dict[str, Any]:
         "ink_under_boxes": _rate(boxes["ink_covered"], boxes["ink"]),
         "words_partly_outside": boxes["partly_outside"],
         "items": dict(items),
-        "false_positives": sum(len(result["false_positives"]) for result in results),
+        "false_positives": sum(result["false_alarms"] for result in results),
         "safe_documents": sum(result["safe"] for result in results),
         "leak_check_passed": sum(result["leak_check_passed"] for result in results),
         "documents": len(results),
@@ -226,11 +267,11 @@ def _rate(part: float, whole: float) -> float | None:
     return round(part / whole, 4) if whole else None
 
 
-def ocr_markdown(results: dict[str, Any]) -> str:
+def ocr_markdown(results: dict[str, Any], title: str = "Scanned benchmark") -> str:
     """Render a scanned-benchmark run as Markdown, one table per engine."""
     machine = results["machine"]
     lines = [
-        f"# Scanned benchmark: anonymizer {results['tool_version']}",
+        f"# {title}: anonymizer {results['tool_version']}",
         "",
         f"Run {results['created']} on {machine['system']} {machine['machine']}, "
         f"Python {machine['python']}"

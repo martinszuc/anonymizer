@@ -733,6 +733,33 @@ readable by either engine at these levels.)
   reads almost nothing. (Since the split-address rules above, the window
   offers both; OnnxTR stays its default.)
 
+### 2026-10-10 · OpenPII 1M, Czech and Slovak records (synthetic)
+
+ai4privacy `pii-masking-openpii-1m` at `ecfdc547`, read with `experiments/datasets.py`.
+The records are synthetic, so they could be read in full.
+
+- **Size.** Validation: 9,222 Czech and 9,003 Slovak records. Train: 37,251 Czech
+  and 36,736 Slovak records. Every span's offsets cut out its value exactly. Twelve
+  records were not NFC (3 Slovak in validation, 3 Czech and 9 Slovak in train).
+- **Validation does not repeat train.** Of 9,218 distinct Czech validation texts with
+  their values masked, 5 also occur in train; of 9,002 Slovak ones, 3. The texts are
+  not filled from a small set of templates, so a held-out half of validation is a
+  test of more than memorised sentences.
+- **Identifiers are invented without checksums.** Of 1,522 Czech `SOCIALNUM` values in
+  validation, 184 pass the rodné číslo rule; of 1,514 Slovak ones, 146. Scoring them
+  would measure the generator, so they are not mapped.
+- **Name parts and address parts are separate spans.** Between a given name and a
+  surname: a plain space 9,045 times in Czech validation, " a " (two people) 122
+  times, a line break 21 times. Between address parts: a space 2,709 times, ", "
+  1,723, " č. " 1,223, " v " 421, " (PSČ " 113. The reader joins name parts across
+  horizontal spaces only and address parts across at most eight characters on one line.
+- **Names do not always fit the language.** A Czech application form held a given name
+  and surname of Italian and invented shape, and the sex and gender fields contradicted
+  each other ("Male / Žena"). Not counted; a model trained on this data alone learns
+  the generator's name distribution, so CNEC, UNER and REDACT stay the real-text tests.
+- **Halves.** `dev` and `test` split validation by a hash of the uid: Czech 4,672 and
+  4,550, Slovak 4,451 and 4,552.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

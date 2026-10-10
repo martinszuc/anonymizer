@@ -24,7 +24,7 @@ KIND_DIRECTORIES: dict[str, str] = {"model": "models", "dataset": "data"}
 """Top-level directory each kind is stored under, relative to the storage root."""
 
 USES = frozenset(
-    {"ner", "tokenizer", "ocr-detection", "ocr-recognition", "ocr-layout", "benchmark"}
+    {"ner", "tokenizer", "ocr-detection", "ocr-recognition", "ocr-layout", "benchmark", "training"}
 )
 DIGEST_ALGORITHMS = frozenset({"md5", "git-sha1"})
 UNPACK_FORMATS = frozenset({"zip"})

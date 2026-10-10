@@ -43,6 +43,9 @@ from benchmark.scans import TruthPage, covers, ink_inside, ink_under_boxes
 from benchmark.score import Location, words_pattern
 from benchmark.spec import GoldItem
 
+WordLocations = list[tuple[int, list[int]] | None]
+"""Per item, its ground-truth page and the indices of its words there, or None."""
+
 BOXED_IOU = 0.5
 # Below this share of its ink under OCR boxes, a word's ink is partly outside them.
 FULLY_COVERED = 0.99
@@ -91,14 +94,19 @@ def box_scores(scan: Path, truth: Sequence[TruthPage], read: Sequence[Page]) -> 
 
 
 def item_residue(
-    scan: Path, redacted: Path, truth: Sequence[TruthPage], items: Sequence[GoldItem]
+    scan: Path,
+    redacted: Path,
+    truth: Sequence[TruthPage],
+    items: Sequence[GoldItem],
+    located: WordLocations | None = None,
 ) -> list[float]:
     """Return, per planted page item, the largest share of a word's ink left after redaction.
 
     An item not found in the ground truth (it should always be) counts as
     fully readable, so a fault in the harness cannot pass as a safe document.
+    `located` gives each item's words; by default they are found by its text.
     """
-    locations = _locate(truth, items)
+    locations = located if located is not None else _locate(truth, items)
     shares: list[float] = []
     for location in locations:
         if location is None:
@@ -117,7 +125,10 @@ def item_residue(
 
 
 def item_locations(
-    truth: Sequence[TruthPage], read: Sequence[Page], items: Sequence[GoldItem]
+    truth: Sequence[TruthPage],
+    read: Sequence[Page],
+    items: Sequence[GoldItem],
+    located: WordLocations | None = None,
 ) -> dict[int, Location | None]:
     """Locate each planted page item in the OCR text by its ground-truth boxes.
 
@@ -125,13 +136,15 @@ def item_locations(
         truth: The ground truth, one page per scanned page.
         read: The pages as OCR read them.
         items: The planted page items.
+        located: Each item's ground-truth words; by default found by its text.
 
     Returns:
         Per item index, its page and span in that page's text, or None when
         no OCR word lies on it.
     """
     locations: dict[int, Location | None] = {}
-    for index, location in enumerate(_locate(truth, items)):
+    words = located if located is not None else _locate(truth, items)
+    for index, location in enumerate(words):
         if location is None:
             locations[index] = None
             continue

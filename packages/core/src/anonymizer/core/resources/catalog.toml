@@ -8,7 +8,7 @@
 #   id          stable name; the files land in models/<id>/ or data/<id>/
 #   kind        "model" or "dataset"
 #   uses        what it serves: ner, tokenizer, ocr-detection, ocr-recognition,
-#               ocr-layout, benchmark
+#               ocr-layout, benchmark, training
 #   engine      the package that consumes a model (gliner, easyocr, ...)
 #   version     the source's own immutable pin: a commit, or a repository handle
 #   licence     SPDX identifier where one exists
@@ -299,3 +299,82 @@ url = "https://huggingface.co/datasets/universalner/UNER_Slovak-SNK/resolve/1dc4
 size = 325286
 sha256 = "b2f48b43e60bf5a18f8075805592273cb91a1cd3f37dd11d6f11e81d10de3c04"
 source_digest = "git-sha1:4548a51e0659806dc3a7842a7e98d1c332f0d77d"
+
+[[resource]]
+id = "funsd"
+name = "FUNSD: Form Understanding in Noisy Scanned Documents"
+kind = "dataset"
+uses = ["benchmark"]
+source = "https://guillaumejaume.github.io/FUNSD/"
+version = "8905aca92b3181853307e2880e3d6f71dee8e9f3"
+licence = "LicenseRef-FUNSD-Terms"
+languages = ["en"]
+real_personal_data = true
+notes = """
+199 scanned English forms (149 train, 50 test) from RVL-CDIP: page images with \
+words, boxes, header/question/answer labels and question-answer links. No \
+personal-data labels. Terms (work.html): "solely for non-commercial, research \
+and educational purposes"; the images are under copyright. Real names and \
+addresses: local evaluation only, results as counts, no page shown or published. \
+FUNSD+ (konfuzio/funsd_plus) is not used: its LICENSE grants rights to one named \
+licensee only (read 2026-10-10). The files sit in the site's repository, which \
+publishes only git blob SHA-1s; the SHA-256 was recorded after a download \
+verified against it."""
+
+[[resource.files]]
+path = "work.html"
+url = "https://raw.githubusercontent.com/guillaumejaume/FUNSD/8905aca92b3181853307e2880e3d6f71dee8e9f3/work.html"
+size = 5308
+sha256 = "630c7ab540620fc475088b0722b3d7833fcb0aa0156a03c67de8e4ceda9acff5"
+source_digest = "git-sha1:b193a121ab0b50d9e89b0336cd32e49fe008de7f"
+
+[[resource.files]]
+path = "dataset.zip"
+url = "https://raw.githubusercontent.com/guillaumejaume/FUNSD/8905aca92b3181853307e2880e3d6f71dee8e9f3/dataset.zip"
+size = 16838830
+sha256 = "c31735649e4f441bcbb4fd0f379574f7520b42286e80b01d80b445649d54761f"
+source_digest = "git-sha1:514c5d3766eefb21c74607f9424fee66901dae11"
+unpack = "zip"
+
+[[resource]]
+id = "openpii-1m"
+name = "ai4privacy OpenPII 1M"
+kind = "dataset"
+uses = ["benchmark", "training"]
+source = "https://huggingface.co/datasets/ai4privacy/pii-masking-openpii-1m"
+version = "ecfdc547f4a0955600cfe6ab98ba2a162207fcc0"
+licence = "CC-BY-4.0"
+languages = ["mul", "cs", "sk", "en"]
+notes = """
+1,428,143 synthetic texts in 23 languages (46,473 Czech, 45,739 Slovak, 179,419 \
+English; distribution.json), 19 labels (GIVENNAME, SURNAME, STREET, CITY, \
+IDCARDNUM, ...) as character spans and BIO tokens. Train and validation splits \
+only. Synthetic PII only, per the card. Credit "Ai4Privacy / Ai Suisse SA" and \
+link the repository (CC BY 4.0, read 2026-10-10). Checksums of the data files \
+are their Git LFS object ids."""
+
+[[resource.files]]
+path = "README.md"
+url = "https://huggingface.co/datasets/ai4privacy/pii-masking-openpii-1m/resolve/ecfdc547f4a0955600cfe6ab98ba2a162207fcc0/README.md"
+size = 9106
+sha256 = "f6c425ec1b231ed9756b461682d82cec746183dea6031b860ce55d8e3854ad48"
+source_digest = "git-sha1:cf2e636864c0abd8b5ca85e95e539e6d11c3f394"
+
+[[resource.files]]
+path = "distribution.json"
+url = "https://huggingface.co/datasets/ai4privacy/pii-masking-openpii-1m/resolve/ecfdc547f4a0955600cfe6ab98ba2a162207fcc0/distribution.json"
+size = 1019
+sha256 = "16d2829ccc33c00fd410dd535fd96b058be3af0be788b2e0bbd2e085cfaac918"
+source_digest = "git-sha1:8001b9c9a6ce0e06f73dd47e5b0af2849b103563"
+
+[[resource.files]]
+path = "validation.jsonl"
+url = "https://huggingface.co/datasets/ai4privacy/pii-masking-openpii-1m/resolve/ecfdc547f4a0955600cfe6ab98ba2a162207fcc0/data/validation.jsonl"
+size = 920284464
+sha256 = "f945f662cab477e8aef02ce6d9a5525d8b9d4ff6436809649d8c398156fea010"
+
+[[resource.files]]
+path = "train.jsonl"
+url = "https://huggingface.co/datasets/ai4privacy/pii-masking-openpii-1m/resolve/ecfdc547f4a0955600cfe6ab98ba2a162207fcc0/data/train.jsonl"
+size = 3690456830
+sha256 = "f167e4290bc8dc9d92866e1e7be57821e3847f0dc4b02140a9a5540fb9151743"

@@ -1,0 +1,22 @@
+name = "openpii-dev"
+description = """
+The bar the own model must beat on OpenPII 1M: the rules alone against the rules with the
+name model as shipped, on the development half of the Czech and Slovak validation records."""
+stage = "dev"
+seed = 20261010
+resamples = 1000
+compare = [["rules", "rules+gliner"]]
+
+[[datasets]]
+id = "openpii-1m-cs"
+split = "dev"
+
+[[datasets]]
+id = "openpii-1m-sk"
+split = "dev"
+
+[systems.rules]
+model = "none"
+
+[systems."rules+gliner"]
+model = "gliner"

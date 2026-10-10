@@ -12,6 +12,7 @@ from experiments.config import load_config, parse_config
 from experiments.report import UNDEFINED, format_difference, format_interval, latex, markdown
 from experiments.run import run
 from tests.experiments.conftest import ScoredStandIn
+from tests.resources.test_catalog import store_trained, trained_entry
 
 CONFIG: dict[str, Any] = {
     "name": "synthetic",
@@ -221,3 +222,27 @@ def test_the_earlier_name_and_the_catalog_id_run_one_model(resource_root: Path, 
         systems = corpus["systems"]
         assert systems["rules+gliner"]["scores"] == systems["rules+gliner-multi-v2.1"]["scores"]
         assert systems["rules+gliner-multi-v2.1"]["cache"]["misses"] == 0
+
+
+def test_a_model_trained_under_the_root_runs_as_a_system(resource_root: Path, tmp_path: Path):
+    store_trained(resource_root, trained_entry())
+    loads: list[str] = []
+
+    def load(model_id: str) -> ScoredStandIn:
+        loads.append(model_id)
+        return ScoredStandIn(FOUND)
+
+    config = {**CONFIG, "compare": [], "systems": {"tuned": {"model": "gliner-cs-tuned"}}}
+    with pytest.raises(ValueError, match="unknown name model 'gliner-cs-tuned'"):
+        parse_config(config)
+    catalog = load_catalog(root=resource_root)
+    results = run(
+        parse_config(config, catalog),
+        resource_root=resource_root,
+        cache_dir=tmp_path,
+        load_model=load,
+    )
+    assert loads == ["gliner-cs-tuned"]
+    assert results["models"]["gliner-cs-tuned"] == trained_entry()["version"]
+    # The cache is kept per weights: a model trained again under its id starts afresh.
+    assert list(tmp_path.glob(f"gliner-cs-tuned@{trained_entry()['version']}/*/*.json"))

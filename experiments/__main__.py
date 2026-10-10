@@ -19,7 +19,7 @@ from typing import Any
 from anonymizer.core.detect import load_name_model, system_model
 from anonymizer.core.ingest import load_ocr_engine
 from anonymizer.core.pipeline import build_detector
-from anonymizer.core.resources import resolve_resource_root
+from anonymizer.core.resources import load_catalog, resolve_resource_root
 
 from experiments.config import load_config
 from experiments.datasets import DATASETS, load_corpus
@@ -92,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
         return _leaks(args, root)
     if args.command == "funsd":
         return _funsd(args, root)
-    config = load_config(args.config)
+    config = load_config(args.config, load_catalog(root=root))
     cache_dir = args.cache_dir or root / ".cache" / "experiments"
     results = run(config, resource_root=root, cache_dir=cache_dir, progress=print)
     args.out.mkdir(parents=True, exist_ok=True)
@@ -110,7 +110,7 @@ def _write_tables(results: dict[str, Any], folder: Path) -> None:
 
 
 def _leaks(args: argparse.Namespace, root: Path) -> int:
-    model_id = system_model(args.system)
+    model_id = system_model(args.system, load_catalog(root=root))
     model = load_name_model(model_id, root) if model_id is not None else None
     engines = {name: load_ocr_engine(name, root) for name in args.engines.split(",")}
     detector = build_detector(args.language, model=model)

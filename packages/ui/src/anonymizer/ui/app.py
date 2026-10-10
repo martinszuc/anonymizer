@@ -469,9 +469,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--name-model",
-        choices=[model.id for model in name_models()],
         metavar="MODEL",
-        help="run this catalog name model instead; implies --ner (choices: %(choices)s)",
+        help="run this catalog name model instead; implies --ner "
+        f"({', '.join(model.id for model in name_models())}, or a model trained under "
+        "--resource-root)",
     )
     parser.add_argument(
         "--ocr",

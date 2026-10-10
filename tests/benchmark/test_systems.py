@@ -9,12 +9,13 @@ from benchmark import run as run_module
 from benchmark.__main__ import main
 from benchmark.run import detector_factories
 from tests.detect.test_gliner import StandInModel
+from tests.resources.test_catalog import store_trained, trained_entry
 
 
 def test_each_model_is_loaded_once_whatever_its_systems_call_it(monkeypatch: pytest.MonkeyPatch):
     loads: list[tuple[str, Path]] = []
 
-    def load(model_id: str, root: Path) -> GlinerDetector:
+    def load(model_id: str, root: Path, catalog: object) -> GlinerDetector:
         loads.append((model_id, root))
         return GlinerDetector(StandInModel({}), name=model_id)
 
@@ -30,12 +31,15 @@ def test_each_model_is_loaded_once_whatever_its_systems_call_it(monkeypatch: pyt
     assert combined.name == factories["rules+gliner-multi-v2.1"]("cs").name
 
 
-def test_model_versions_cover_every_system_model():
-    assert run_module._model_versions(("rules",)) == {}
-    assert set(run_module._model_versions(("rules", "rules+gliner"))) == {
+def test_model_versions_cover_every_system_model(tmp_path: Path):
+    assert run_module._model_versions(("rules",), tmp_path) == {}
+    assert set(run_module._model_versions(("rules", "rules+gliner"), tmp_path)) == {
         "gliner-multi-v2.1",
         "mdeberta-v3-base-tokenizer",
     }
+    store_trained(tmp_path, trained_entry())
+    versions = run_module._model_versions(("rules+gliner-cs-tuned",), tmp_path)
+    assert versions["gliner-cs-tuned"] == trained_entry()["version"]
 
 
 @pytest.mark.parametrize("system", ["gliner", "rules+spacy"])

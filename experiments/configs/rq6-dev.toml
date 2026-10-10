@@ -1,0 +1,45 @@
+name = "rq6-dev"
+description = """
+RQ6, development data: GLiNER fine-tuned here (train-cs-sk-ce, train-cs-sk-focal) against
+GLiNER zero-shot as shipped, each beside the rules, on every development split. Train the
+two models first (python -m experiments train); they are found under the resource root."""
+stage = "dev"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+gliner", "rules+gliner-cs-sk-ce"],
+    ["rules+gliner", "rules+gliner-cs-sk-focal"],
+    ["rules+gliner-cs-sk-ce", "rules+gliner-cs-sk-focal"],
+]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[[datasets]]
+id = "openpii-1m-cs"
+split = "dev"
+
+[[datasets]]
+id = "openpii-1m-sk"
+split = "dev"
+
+[systems.rules]
+model = "none"
+
+[systems."rules+gliner"]
+model = "gliner"
+
+[systems."rules+gliner-cs-sk-ce"]
+model = "gliner-cs-sk-ce"
+
+[systems."rules+gliner-cs-sk-focal"]
+model = "gliner-cs-sk-focal"

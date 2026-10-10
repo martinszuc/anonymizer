@@ -729,7 +729,11 @@ DATASETS: dict[str, DatasetSpec] = {
 
 
 def load_corpus(
-    dataset: str, split: str, resource_root: Path, form: TextForm = TextForm.WRITTEN
+    dataset: str,
+    split: str,
+    resource_root: Path,
+    form: TextForm = TextForm.WRITTEN,
+    limit: int | None = None,
 ) -> Corpus:
     """Load one split of a catalogued dataset from the storage root.
 
@@ -738,6 +742,8 @@ def load_corpus(
         split: Split name as the source calls it.
         resource_root: Storage root holding `data/<id>/`.
         form: How sentences become page text.
+        limit: Keep only the first documents, for a quick look; every count
+            of the corpus describes those.
 
     Returns:
         The corpus with its documents and gold spans.
@@ -756,7 +762,7 @@ def load_corpus(
         raise ValueError(msg)
     resource = load_catalog()[spec.catalog_id]
     groups = spec.read(resource.directory(resource_root), split, form)
-    return build_corpus(spec, split, resource.version, groups, form)
+    return build_corpus(spec, split, resource.version, groups[:limit], form)
 
 
 def build_corpus(

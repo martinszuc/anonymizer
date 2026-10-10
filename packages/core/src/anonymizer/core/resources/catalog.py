@@ -164,6 +164,11 @@ class Catalog:
         return ordered
 
 
+def is_resource_id(value: str) -> bool:
+    """Whether a string can be a resource id (it also names the resource's folder)."""
+    return bool(_ID_PATTERN.match(value))
+
+
 def load_catalog(path: Path | None = None, *, root: Path | None = None) -> Catalog:
     """Read and validate the resource catalog.
 

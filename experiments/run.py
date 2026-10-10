@@ -60,6 +60,7 @@ def run(
     cache_dir: Path,
     load_model: Callable[[str], SpanModel] | None = None,
     progress: Progress = lambda _: None,
+    limit: int | None = None,
 ) -> dict[str, Any]:
     """Run the configured systems on the configured splits and score them.
 
@@ -71,6 +72,8 @@ def run(
         load_model: Returns a name model by catalog id; from the catalog's
             files under `resource_root` by default.
         progress: Told what is running (no corpus text).
+        limit: Score only the first documents of each split, for a quick
+            look; recorded in the results.
 
     Returns:
         The results, as the command line stores them in `<name>.json`.
@@ -79,7 +82,7 @@ def run(
     load_model = _once(load_model or gliner_loader(resource_root))
     corpora: dict[str, Any] = {}
     for reference in config.datasets:
-        corpus = load_corpus(reference.id, reference.split, resource_root, reference.text)
+        corpus = load_corpus(reference.id, reference.split, resource_root, reference.text, limit)
         progress(f"{corpus.key}: {len(corpus.documents)} documents")
         corpora[corpus.key] = _run_corpus(config, corpus, cache_dir, load_model, catalog, progress)
     return {
@@ -101,6 +104,7 @@ def run(
         },
         "systems": {system.name: system.describe() for system in config.systems},
         "config": config.raw,
+        **({"limit": limit} if limit is not None else {}),
         "corpora": corpora,
     }
 

@@ -1,6 +1,7 @@
 """A whole run on synthetic corpora: configs, results, tables and the command line."""
 
 import json
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,7 @@ from experiments.__main__ import main
 from experiments.config import load_config, parse_config
 from experiments.report import UNDEFINED, format_difference, format_interval, latex, markdown
 from experiments.run import run
+from experiments.train import register
 from tests.experiments.conftest import ScoredStandIn
 from tests.resources.test_catalog import store_trained, trained_entry
 
@@ -167,12 +169,17 @@ class TestConfig:
         results = run(config, resource_root=resource_root, cache_dir=tmp_path)
         assert results["corpora"]["cnec-2.0/dtest"]["scored_types"] == ["person"]
 
-    def test_shipped_configs_parse(self):
+    def test_shipped_configs_parse(self, tmp_path: Path):
         folder = Path(__file__).resolve().parents[2] / "experiments" / "configs"
-        configs = sorted(folder.glob("*.toml"))
+        # Training configs are checked in test_train; run configs may name the
+        # models they train, found under a resource root once trained.
+        configs = sorted(set(folder.glob("*.toml")) - set(folder.glob("train-*.toml")))
         assert configs
+        for path in sorted(folder.glob("train-*.toml")):
+            model = tomllib.loads(path.read_text(encoding="utf-8"))["model"]
+            register(tmp_path, trained_entry(id=model))
         for path in configs:
-            assert load_config(path).name == path.stem
+            assert load_config(path, load_catalog(root=tmp_path)).name == path.stem
 
 
 def test_command_line(resource_root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]):

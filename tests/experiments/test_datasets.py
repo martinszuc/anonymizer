@@ -298,3 +298,11 @@ def test_outermost_keeps_one_of_each_nesting():
         (EntityType.PERSON, "Jan Novák"),
         (EntityType.ADDRESS, "Novák"),
     ]
+
+
+def test_a_limit_keeps_the_first_documents_and_counts_only_those(resource_root: Path):
+    whole = load_corpus("openpii-1m-cs", "dev", resource_root)
+    first = load_corpus("openpii-1m-cs", "dev", resource_root, limit=2)
+    assert [doc.name for doc in first.documents] == [doc.name for doc in whole.documents[:2]]
+    assert first.sentences == 2
+    assert sum(first.gold_counts().values()) < sum(whole.gold_counts().values())

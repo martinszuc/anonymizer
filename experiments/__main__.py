@@ -1,5 +1,9 @@
 """Command line: `uv run python -m experiments run --config experiments/configs/rq1-dev.toml`.
 
+`train --config experiments/configs/train-<name>.toml` fine-tunes a name
+model, lists it under the resource root and scores it on development data
+(`experiments.train`; needs `uv sync --group train`).
+
 `leaks scan.pdf --engines onnxtr --system rules+gliner --out leaks/` counts
 why the leak check fails on one document (`experiments.leaks`).
 
@@ -27,6 +31,7 @@ from experiments.funsd import SPLITS, run_funsd, write_results
 from experiments.leaks import breakdown, breakdown_markdown, write_breakdown
 from experiments.report import latex, markdown
 from experiments.run import run
+from experiments.train import load_train_config, train, write_training
 
 RESULTS = Path(__file__).parent / "results"
 
@@ -41,6 +46,20 @@ def main(argv: list[str] | None = None) -> int:
         "--out", type=Path, default=RESULTS, help=f"results directory (default: {RESULTS})"
     )
     run_parser.add_argument(
+        "--cache-dir",
+        type=Path,
+        help="name model cache (default: <resource root>/.cache/experiments)",
+    )
+    train_parser = commands.add_parser(
+        "train", help="fine-tune a name model and score it on development data"
+    )
+    train_parser.add_argument(
+        "--config", type=Path, required=True, help="training configuration (TOML)"
+    )
+    train_parser.add_argument(
+        "--out", type=Path, default=RESULTS, help=f"results directory (default: {RESULTS})"
+    )
+    train_parser.add_argument(
         "--cache-dir",
         type=Path,
         help="name model cache (default: <resource root>/.cache/experiments)",
@@ -73,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     funsd.add_argument(
         "--out", type=Path, default=RESULTS, help=f"results directory (default: {RESULTS})"
     )
-    for command in (run_parser, datasets, leaks, funsd):
+    for command in (run_parser, train_parser, datasets, leaks, funsd):
         command.add_argument(
             "--resource-root",
             type=Path,
@@ -92,6 +111,8 @@ def main(argv: list[str] | None = None) -> int:
         return _leaks(args, root)
     if args.command == "funsd":
         return _funsd(args, root)
+    if args.command == "train":
+        return _train(args, root)
     config = load_config(args.config, load_catalog(root=root))
     cache_dir = args.cache_dir or root / ".cache" / "experiments"
     results = run(config, resource_root=root, cache_dir=cache_dir, progress=print)
@@ -100,6 +121,15 @@ def main(argv: list[str] | None = None) -> int:
     path.write_text(json.dumps(results, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     _write_tables(results, args.out)
     print(f"wrote {path} and its .md and .tex")
+    return 0
+
+
+def _train(args: argparse.Namespace, root: Path) -> int:
+    config = load_train_config(args.config, load_catalog(root=root))
+    cache_dir = args.cache_dir or root / ".cache" / "experiments"
+    results = train(config, resource_root=root, cache_dir=cache_dir, progress=print)
+    path = write_training(results, args.out)
+    print(f"stored {config.model} under {root / 'models'}; wrote {path}")
     return 0
 
 

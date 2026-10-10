@@ -1,0 +1,66 @@
+name = "nametag-dev"
+description = """
+RQ1 model comparison, development data: GLiNER as shipped against NameTag 3 (Czech CNEC 2.0
+and multilingual), each beside the rules, and GLiNER with each NameTag model as a union and
+as agreement-only. NameTag 3 Czech was trained on CNEC 2.0 train and the multilingual model
+on CNEC 2.0 and UNER Slovak-SNK train, so those two corpora favour it; REDACT and OpenPII are
+the fairer comparisons."""
+stage = "dev"
+seed = 20261011
+resamples = 1000
+compare = [
+  ["rules+gliner", "rules+nametag-cs"],
+  ["rules+gliner", "rules+nametag-multi"],
+  ["rules+gliner", "rules+gliner|nametag-cs"],
+  ["rules+gliner", "rules+gliner&nametag-cs"],
+  ["rules+gliner", "rules+gliner|nametag-multi"],
+  ["rules+gliner", "rules+gliner&nametag-multi"],
+]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[[datasets]]
+id = "openpii-1m-cs"
+split = "dev"
+
+[[datasets]]
+id = "openpii-1m-sk"
+split = "dev"
+
+[systems.rules]
+model = "none"
+
+[systems."rules+gliner"]
+model = "gliner"
+
+[systems."rules+nametag-cs"]
+model = "nametag3-czech-cnec2.0-240830"
+
+[systems."rules+nametag-multi"]
+model = "nametag3-multilingual-260521"
+
+[systems."rules+gliner|nametag-cs"]
+model = ["gliner", "nametag3-czech-cnec2.0-240830"]
+combine = "union"
+
+[systems."rules+gliner&nametag-cs"]
+model = ["gliner", "nametag3-czech-cnec2.0-240830"]
+combine = "agreement"
+
+[systems."rules+gliner|nametag-multi"]
+model = ["gliner", "nametag3-multilingual-260521"]
+combine = "union"
+
+[systems."rules+gliner&nametag-multi"]
+model = ["gliner", "nametag3-multilingual-260521"]
+combine = "agreement"

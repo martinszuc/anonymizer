@@ -10,7 +10,6 @@ real people, cannot leak through a results file.
 from __future__ import annotations
 
 import datetime
-import functools
 import platform
 import subprocess
 import time
@@ -20,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import anonymizer.core
-from anonymizer.core.detect.gliner import SpanModel
+from anonymizer.core.detect.nametag import SentenceSplitter
 from anonymizer.core.resources import load_catalog
 from anonymizer.core.types import EntityType
 
@@ -39,13 +38,15 @@ from experiments.metrics import (
 )
 from experiments.systems import (
     CACHE_FLOOR,
-    CachedSpanModel,
+    NameModel,
     PredictionCache,
     SystemConfig,
     cache_path,
+    cached_model,
     detect,
-    gliner_loader,
+    model_loader,
     model_versions,
+    splitter_loader,
 )
 
 RESULTS_SCHEMA = 1
@@ -58,7 +59,8 @@ def run(
     *,
     resource_root: Path,
     cache_dir: Path,
-    load_model: Callable[[str], SpanModel] | None = None,
+    load_model: Callable[[str], Any] | None = None,
+    load_splitter: Callable[[str], SentenceSplitter] | None = None,
     progress: Progress = lambda _: None,
 ) -> dict[str, Any]:
     """Run the configured systems on the configured splits and score them.
@@ -69,17 +71,22 @@ def run(
         cache_dir: Where the name models' output is cached.
         load_model: Returns a name model by catalog id; from the catalog's
             files under `resource_root` by default.
+        load_splitter: Returns a NameTag model's sentence splitter by catalog
+            id; from the same files by default.
         progress: Told what is running (no corpus text).
 
     Returns:
         The results, as the command line stores them in `<name>.json`.
     """
-    load_model = _once(load_model or gliner_loader(resource_root))
+    load_model = _once(load_model or model_loader(resource_root))
+    load_splitter = _once(load_splitter or splitter_loader(resource_root))
     corpora: dict[str, Any] = {}
     for reference in config.datasets:
         corpus = load_corpus(reference.id, reference.split, resource_root, reference.text)
         progress(f"{corpus.key}: {len(corpus.documents)} documents")
-        corpora[corpus.key] = _run_corpus(config, corpus, cache_dir, load_model, progress)
+        corpora[corpus.key] = _run_corpus(
+            config, corpus, cache_dir, load_model, load_splitter, progress
+        )
     return {
         "schema": RESULTS_SCHEMA,
         "name": config.name,
@@ -103,11 +110,11 @@ def run(
     }
 
 
-def _once(load_model: Callable[[str], SpanModel]) -> Callable[[str], SpanModel]:
+def _once[Loaded](load_model: Callable[[str], Loaded]) -> Callable[[str], Loaded]:
     """Load each model on first use only, however many corpora ask for it."""
-    loaded: dict[str, SpanModel] = {}
+    loaded: dict[str, Loaded] = {}
 
-    def load(model_id: str) -> SpanModel:
+    def load(model_id: str) -> Loaded:
         if model_id not in loaded:
             loaded[model_id] = load_model(model_id)
         return loaded[model_id]
@@ -119,19 +126,23 @@ def _run_corpus(
     config: RunConfig,
     corpus: Corpus,
     cache_dir: Path,
-    load_model: Callable[[str], SpanModel],
+    load_model: Callable[[str], Any],
+    load_splitter: Callable[[str], SentenceSplitter],
     progress: Progress,
 ) -> dict[str, Any]:
     types = corpus.types if config.types is None else corpus.types & config.types
-    models = {
-        model_id: CachedSpanModel(
-            functools.partial(load_model, model_id),
+    models: dict[str, NameModel] = {
+        model_id: cached_model(
+            model_id,
             PredictionCache(
                 cache_path(cache_dir, model_id, corpus.dataset, corpus.version, corpus.split)
             ),
+            load_model,
+            load_splitter,
         )
-        for model_id in dict.fromkeys(system.model_id for system in config.systems)
-        if model_id is not None
+        for model_id in dict.fromkeys(
+            model_id for system in config.systems for model_id in system.model_ids
+        )
     }
     draws = resamples(len(corpus.documents), config.resamples, config.seed)
 
@@ -139,14 +150,20 @@ def _run_corpus(
     systems: dict[str, Any] = {}
     for system in config.systems:
         started = time.perf_counter()
-        model = models.get(system.model_id) if system.model_id is not None else None
-        hits, misses = (model.hits, model.misses) if model else (0, 0)
-        counts, details = _run_system(system, corpus, types, model)
+        used = {model_id: models[model_id] for model_id in system.model_ids}
+        before = {model_id: (model.hits, model.misses) for model_id, model in used.items()}
+        counts, details = _run_system(system, corpus, types, used)
         per_system[system.name] = counts
         details["seconds"] = round(time.perf_counter() - started, 2)
-        if model is not None:
+        for model in used.values():
             model.cache.save()
-            details["cache"] = {"hits": model.hits - hits, "misses": model.misses - misses}
+        if used:
+            details["cache"] = {
+                "hits": sum(model.hits - before[model_id][0] for model_id, model in used.items()),
+                "misses": sum(
+                    model.misses - before[model_id][1] for model_id, model in used.items()
+                ),
+            }
         details["scores"] = _scores(counts, draws)
         systems[system.name] = details
         progress(f"{corpus.key}: {system.name} done in {details['seconds']} s")
@@ -181,13 +198,13 @@ def _run_system(
     system: SystemConfig,
     corpus: Corpus,
     types: frozenset[EntityType],
-    model: CachedSpanModel | None,
+    models: dict[str, NameModel],
 ) -> tuple[dict[tuple[str, str], list[Counts]], dict[str, Any]]:
     counts: dict[tuple[str, str], list[Counts]] = {}
     unscored: Counter[str] = Counter()
     languages: Counter[str] = Counter()
     for gold in corpus.documents:
-        detect(system, gold.document, corpus.language, model)
+        detect(system, gold.document, corpus.language, models)
         found = gold.document.entities
         for key, value in document_counts(found, gold.gold, types).items():
             counts.setdefault(key, []).append(value)

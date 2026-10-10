@@ -11,7 +11,7 @@ from experiments.__main__ import main
 from experiments.config import load_config, parse_config
 from experiments.report import UNDEFINED, format_difference, format_interval, latex, markdown
 from experiments.run import run
-from tests.experiments.conftest import ScoredStandIn
+from tests.experiments.conftest import ScoredStandIn, StandInSplitter, StandInTagger
 
 CONFIG: dict[str, Any] = {
     "name": "synthetic",
@@ -221,3 +221,50 @@ def test_the_earlier_name_and_the_catalog_id_run_one_model(resource_root: Path, 
         systems = corpus["systems"]
         assert systems["rules+gliner"]["scores"] == systems["rules+gliner-multi-v2.1"]["scores"]
         assert systems["rules+gliner-multi-v2.1"]["cache"]["misses"] == 0
+
+
+def test_nametag_and_a_union_run_and_rerun_from_the_cache(resource_root: Path, tmp_path: Path):
+    nametag = "nametag3-czech-cnec2.0-240830"
+    config = {
+        **CONFIG,
+        "datasets": [{"id": "cnec-2.0", "split": "dtest"}],
+        "compare": [["rules+gliner", "rules+gliner|nametag"]],
+        "systems": {
+            "rules+gliner": {"model": "gliner"},
+            "rules+nametag": {"model": nametag},
+            "rules+gliner|nametag": {"model": ["gliner", nametag]},
+        },
+    }
+    loads: list[str] = []
+
+    def load(model_id: str) -> Any:
+        loads.append(model_id)
+        if model_id == nametag:
+            return StandInTagger({("Karla", "Dvořáka"): ("P", 0.95)})
+        return ScoredStandIn(FOUND)
+
+    def results() -> dict[str, Any]:
+        return run(
+            parse_config(config),
+            resource_root=resource_root,
+            cache_dir=tmp_path / "cache",
+            load_model=load,
+            load_splitter=lambda _: StandInSplitter(),
+        )
+
+    first = results()
+    assert sorted(loads) == ["gliner-multi-v2.1", nametag]
+    assert set(first["models"]) >= {nametag, "robeczech-base-v1.1-tokenizer"}
+    systems = first["corpora"]["cnec-2.0/dtest"]["systems"]
+    person = {
+        name: system["scores"]["partial"]["person"]["counts"]["gold_matched"]
+        for name, system in systems.items()
+    }
+    assert person == {"rules+gliner": 2, "rules+nametag": 1, "rules+gliner|nametag": 3}
+    assert systems["rules+nametag"]["cache"] == {"hits": 0, "misses": 1}
+
+    loads.clear()
+    second = results()
+    assert loads == []
+    for system in second["corpora"]["cnec-2.0/dtest"]["systems"].values():
+        assert system["cache"]["misses"] == 0

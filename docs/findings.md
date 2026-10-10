@@ -759,6 +759,72 @@ The records are synthetic, so they could be read in full.
   the generator's name distribution, so CNEC, UNER and REDACT stay the real-text tests.
 - **Halves.** `dev` and `test` split validation by a hash of the uid: Czech 4,672 and
   4,550, Slovak 4,451 and 4,552.
+- **Phone numbers follow no numbering plan** (`+42008.128.8025`, `(48)-1071 6019`,
+  `+0-26 245-1574`): 604 of the 1,915 Czech dev numbers start with the country code at
+  all. The phone rule found 8.7 % (cs) and 7.0 % (sk) of them, rightly, so phone numbers
+  are not scored either.
+
+### 2026-10-10 · The bar on OpenPII dev: rules + GLiNER zero-shot
+
+`experiments/configs/openpii-dev.toml`, commit `6d9072f`, dev halves (cs 4,672 and sk
+4,451 records), types person, address and email; `experiments/results/openpii-dev.md`.
+
+| rules+gliner | person F2 (partial) | person R | person F2 (strict) | address F2 (partial) | address F2 (strict) |
+|---|---|---|---|---|---|
+| cs | 0.931 [0.92, 0.94] | 0.944 | 0.554 | 0.882 | 0.326 |
+| sk | 0.933 [0.93, 0.94] | 0.945 | 0.545 | 0.890 | 0.342 |
+
+- **Zero-shot GLiNER finds nearly every OpenPII name** (recall 0.94), against 0.82 on
+  CNEC dtest and 0.67 on UNER-SK dev (`rq1-dev`). The synthetic names are easier than
+  real text, so a trained model's gain has to show on the real corpora and on span
+  boundaries, not on OpenPII person recall.
+- **Boundaries are where it loses.** Strict person F2 is 0.55 against 0.93 partial: the
+  model finds the name and cuts it differently from the gold span (title, a joined or
+  split first name and surname). Address strict F2 is about 0.33.
+- Email is the rules' (F2 0.99); the rules alone find no persons and a quarter of the
+  addresses (R 0.26 cs).
+
+### 2026-10-10 · rq1-dev and the benchmark after PRs #70–#85
+
+Re-run at `6d9072f` to check that the name-model registry (#83) changed no score. The
+committed `rq1-dev` table was from `09ab6dc` (2026-10-04), so the comparison spans
+#70–#85. Person rows are identical on every corpus; one REDACT sample cell moved:
+`rules+gliner` predicted one more address (partial P 0.500 → 0.495, recall unchanged
+at 27/27). The benchmark (`outputs/benchmark-2026-10-10`): rules 86/224 found, rules +
+GLiNER 198/224 (199 on 2026-10-04), 44 false alarms, 17/26 safe documents, leak check
+26/26 for both systems (25/26 for rules + GLiNER on 2026-10-04). Not traced to a single
+PR.
+
+### 2026-10-10 · OnnxTR and kraken on FUNSD's real scanned forms
+
+`python -m experiments funsd --engines onnxtr,kraken` with `rules+gliner`, FUNSD test
+(50 English forms, about 90 DPI, typewriter, fax noise, some handwriting), commit
+`6d9072f`; `experiments/results/funsd-test.md`. Items are derived from question-answer
+links (103 persons, 69 phones, 10 addresses; 9 forms have none), not annotated.
+
+| | OnnxTR | kraken |
+|---|---|---|
+| character error rate (geometric reading order) | 23.8 % | 24.5 % |
+| words boxed (IoU ≥ 0.5) | 81.5 % | 53.8 % |
+| words with ink outside every box | 425 / 8,707 | 602 / 8,707 |
+| items found / partial / missed of 182 | 119 / 37 / 26 | 120 / 34 / 28 |
+| items readable after redaction | 51 (+5 partly) | 48 (+3 partly) |
+| safe forms | 23 / 50 | 23 / 50 |
+| leak check passed | 48 / 50 | 47 / 50 |
+| seconds per page | 1.92 | 11.56 |
+
+- **On real forms kraken reads about as accurately as OnnxTR but places words worse**
+  and is six times slower. The two-form smoke run earlier the same day (29.5 % against
+  16.7 %) did not hold on 50 forms.
+- **kraken drops lines it cannot outline.** Its segmenter logged "Polygonizer failed on
+  line …" during the run and leaves such a line out (`kraken/blla.py`: a line whose
+  polygon is None is not appended), so the line is never read. Not counted per form;
+  a likely part of its lower boxed share.
+- **The engines end level on safety.** Each leaves 27 forms unsafe (not checked to be
+  the same forms) and about a quarter of the derived items readable. Not yet split into
+  misses of the name model, misses of the rules and labels the derivation got wrong.
+- **The leak check failed on 2 and 3 forms** (different forms per engine). Not yet
+  broken down (`python -m experiments leaks`).
 
 ### Toolchain findings: redaction
 

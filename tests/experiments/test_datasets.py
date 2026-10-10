@@ -50,6 +50,7 @@ class TestCnec:
         assert ("person", "Karla Dvořáka") in _spans(sentence)
         assert ("address", "Kounicova 12") in _spans(sentence)
         assert "Pražané" not in [text for _, text in _spans(sentence)]
+        assert ("organization", "Nadace Karla Dvořáka") in _spans(sentence)
         assert "pc" in sentence.unmapped
         # Name and address parts are covered by their containers, not left out.
         assert not {"pf", "ps", "gs", "ah"} & set(sentence.unmapped)
@@ -77,7 +78,8 @@ class TestIob2:
         assert first.text == "Ján Kováč prišiel do Bratislavy."
         assert _spans(first) == [("person", "Ján Kováč")]
         assert first.unmapped == ("LOC",)
-        assert documents[1][0].unmapped == ("ORG",)
+        assert _spans(documents[1][0]) == [("organization", "Tatra")]
+        assert documents[1][0].unmapped == ()
 
     def test_tokens_form_joins_tokens_and_ignores_documents(self):
         documents = parse_iob2(UNER_TEXT, TextForm.TOKENS)
@@ -208,7 +210,13 @@ class TestLoadCorpus:
         assert corpus.role is Role.DEV
         assert corpus.language == "cs"
         assert corpus.sentences == len(CNEC_LINES)
-        assert corpus.gold_counts() == {"address": 1, "email": 1, "person": 3, "phone": 1}
+        assert corpus.gold_counts() == {
+            "address": 1,
+            "email": 1,
+            "organization": 1,
+            "person": 3,
+            "phone": 1,
+        }
         for gold in corpus.documents:
             for entity in gold.gold:
                 page = gold.document.page(entity.page_index or 0)

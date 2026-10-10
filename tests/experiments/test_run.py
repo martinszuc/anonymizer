@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from anonymizer.core.resources import load_catalog
 
 from experiments.__main__ import main
 from experiments.config import load_config, parse_config
@@ -23,6 +24,7 @@ CONFIG: dict[str, Any] = {
         {"id": "cnec-2.0", "split": "dtest"},
         {"id": "uner-sk-snk", "split": "dev", "text": "tokens"},
         {"id": "redact", "split": "sample"},
+        {"id": "openpii-1m-cs", "split": "dev"},
     ],
     "systems": {"rules": {}, "rules+gliner": {"model": "gliner"}},
 }
@@ -58,7 +60,8 @@ def test_scores_and_provenance(resource_root: Path, tmp_path: Path):
     assert results["stage"] == "dev"
     assert results["seed"] == 1
     assert set(results["models"]) == {"gliner-multi-v2.1", "mdeberta-v3-base-tokenizer"}
-    assert set(results["datasets"]) == {"cnec-2.0", "uner-sk-snk", "redact"}
+    assert set(results["datasets"]) == {"cnec-2.0", "uner-sk-snk", "redact", "openpii-1m-cs"}
+    assert results["datasets"]["openpii-1m-cs"] == load_catalog()["openpii-1m"].version
     assert set(results["git"]) == {"commit", "dirty"}
 
     cnec = results["corpora"]["cnec-2.0/dtest"]

@@ -1,4 +1,4 @@
-"""Synthetic corpora in the formats of CNEC 2.0, UNER and REDACT, and a scored stand-in model.
+"""Synthetic corpora in the formats of CNEC 2.0, UNER, REDACT and OpenPII; a scored stand-in.
 
 Every name and number is invented.
 """
@@ -85,6 +85,58 @@ def redact_records() -> list[dict[str, Any]]:
     return records
 
 
+def openpii_record(
+    text: str, labelled: list[tuple[str, str]], *, uid: int, language: str = "cs"
+) -> dict[str, Any]:
+    """An OpenPII record; each value is looked up after the previous one."""
+    mask: list[dict[str, Any]] = []
+    position = 0
+    for label, value in labelled:
+        start = text.index(value, position)
+        mask.append({"label": label, "start": start, "end": start + len(value), "value": value})
+        position = start + len(value)
+    return {
+        "source_text": text,
+        "privacy_mask": mask,
+        "uid": uid,
+        "language": language,
+    }
+
+
+OPENPII_FORM = (
+    "Jméno: Ing. Jan Novák\n"
+    "Adresa: Lipová č. 12, 602 00 Brno\n"
+    "E-mail: jan.novak@example.cz, tel. +420 777 123 456\n"
+    "Rodné číslo: 123456/7890, narozen v Brně."
+)
+OPENPII_FORM_LABELS = [
+    ("TITLE", "Ing."),
+    ("GIVENNAME", "Jan"),
+    ("SURNAME", "Novák"),
+    ("STREET", "Lipová"),
+    ("BUILDINGNUM", "12"),
+    ("ZIPCODE", "602 00"),
+    ("CITY", "Brno"),
+    ("EMAIL", "jan.novak@example.cz"),
+    ("TELEPHONENUM", "+420 777 123 456"),
+    ("SOCIALNUM", "123456/7890"),
+    ("CITY", "Brně"),
+]
+
+
+def openpii_records(split: str) -> list[dict[str, Any]]:
+    """Czech records of one source split, with Slovak and English ones among them."""
+    first = 1 if split == "validation" else 101
+    return [
+        openpii_record(OPENPII_FORM, OPENPII_FORM_LABELS, uid=first + number) for number in range(6)
+    ] + [
+        openpii_record(
+            "Ján Kováč", [("GIVENNAME", "Ján"), ("SURNAME", "Kováč")], uid=first + 50, language="sk"
+        ),
+        openpii_record("John Smith", [("GIVENNAME", "John")], uid=first + 60, language="en"),
+    ]
+
+
 class ScoredStandIn:
     """Finds fixed strings with fixed scores and honours the threshold, like GLiNER."""
 
@@ -117,7 +169,7 @@ class ScoredStandIn:
 
 @pytest.fixture
 def resource_root(tmp_path: Path) -> Path:
-    """A storage root holding the three synthetic corpora where the catalog expects them."""
+    """A storage root holding the synthetic corpora where the catalog expects them."""
     root = tmp_path / "resources"
     plain = root / "data/cnec-2.0/Czech_Named_Entity_Corpus_2.0/cnec2.0/data/plain"
     plain.mkdir(parents=True)
@@ -131,6 +183,11 @@ def resource_root(tmp_path: Path) -> Path:
     (redact / "pii_benchmark_sample1000.json").write_text(
         json.dumps(redact_records(), ensure_ascii=False), encoding="utf-8"
     )
+    openpii = root / "data/openpii-1m"
+    openpii.mkdir(parents=True)
+    for split in ("train", "validation"):
+        lines = (json.dumps(record, ensure_ascii=False) for record in openpii_records(split))
+        (openpii / f"{split}.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return root
 
 

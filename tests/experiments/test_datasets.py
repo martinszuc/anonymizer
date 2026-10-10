@@ -6,17 +6,28 @@ import pytest
 from anonymizer.core.types import Entity, EntityType
 
 from experiments.datasets import (
+    DATASETS,
+    OPENPII_LANGUAGES,
     SENTENCES_PER_PAGE,
     Role,
     TextForm,
     load_corpus,
     make_page,
+    openpii_half,
     outermost,
     parse_cnec_line,
     parse_iob2,
+    parse_openpii,
     parse_redact,
 )
-from tests.experiments.conftest import CNEC_LINES, UNER_TEXT, redact_records
+from tests.experiments.conftest import (
+    CNEC_LINES,
+    OPENPII_FORM,
+    OPENPII_FORM_LABELS,
+    UNER_TEXT,
+    openpii_record,
+    redact_records,
+)
 
 
 def _spans(sentence) -> list[tuple[str, str]]:
@@ -120,6 +131,78 @@ class TestRedact:
         assert _spans(record) == [("person", "Jan")]
 
 
+def _openpii(text: str, labelled: list[tuple[str, str]]):
+    (document,) = parse_openpii([openpii_record(text, labelled, uid=1)], "cs")
+    return document[0]
+
+
+class TestOpenpii:
+    def test_a_form_mapped_to_our_types(self):
+        record = _openpii(OPENPII_FORM, OPENPII_FORM_LABELS)
+        assert _spans(record) == [
+            ("person", "Jan Novák"),
+            ("address", "Lipová č. 12, 602 00 Brno"),
+            ("email", "jan.novak@example.cz"),
+            ("phone", "+420 777 123 456"),
+        ]
+        # The title, the invented identifier and a city on its own are not scored.
+        assert sorted(record.unmapped) == ["CITY", "SOCIALNUM", "TITLE"]
+
+    @pytest.mark.parametrize("gap", [" ", "\u00a0", "\u202f", ""])
+    def test_name_parts_join_across_spaces(self, gap: str):
+        text = f"Eva{gap}Malá"
+        record = _openpii(text, [("GIVENNAME", "Eva"), ("SURNAME", "Malá")])
+        assert _spans(record) == [("person", text)]
+
+    @pytest.mark.parametrize("gap", [" a ", "\n", ", "])
+    def test_names_stay_apart_across_words_lines_and_commas(self, gap: str):
+        record = _openpii(f"Petr{gap}Svoboda", [("GIVENNAME", "Petr"), ("SURNAME", "Svoboda")])
+        assert _spans(record) == [("person", "Petr"), ("person", "Svoboda")]
+
+    def test_address_parts_apart_by_a_long_gap_or_a_line_are_two_addresses(self):
+        text = "Lipová 12 a o kus dál 602 00\nBrno"
+        record = _openpii(
+            text,
+            [("STREET", "Lipová"), ("BUILDINGNUM", "12"), ("ZIPCODE", "602 00"), ("CITY", "Brno")],
+        )
+        assert _spans(record) == [("address", "Lipová 12"), ("address", "602 00")]
+        assert record.unmapped == ("CITY",)
+
+    def test_a_name_next_to_an_address_stays_a_name(self):
+        record = _openpii("Jan Novák Lipová 3", [("SURNAME", "Novák"), ("STREET", "Lipová")])
+        assert _spans(record) == [("person", "Novák"), ("address", "Lipová")]
+
+    def test_spans_that_miss_their_value_are_skipped(self):
+        record = openpii_record("Jan Novák", [("GIVENNAME", "Jan")], uid=1)
+        record["privacy_mask"].append({"label": "SURNAME", "start": 4, "end": 9, "value": "Malý"})
+        record["privacy_mask"].append({"label": "SURNAME", "start": None, "end": 9, "value": "x"})
+        (document,) = parse_openpii([record], "cs")
+        assert _spans(document[0]) == [("person", "Jan")]
+        assert document[0].unmapped.count("(span not in text)") == 2
+
+    def test_offsets_follow_nfc_normalisation(self):
+        decomposed = "Pan Nova\u0301k a Jan"
+        record = _openpii(decomposed, [("SURNAME", "Nova\u0301k"), ("GIVENNAME", "Jan")])
+        assert record.text == "Pan Novák a Jan"
+        assert _spans(record) == [("person", "Novák"), ("person", "Jan")]
+
+    def test_other_languages_are_left_out(self):
+        records = [openpii_record("Ján Kováč", [("GIVENNAME", "Ján")], uid=1, language="sk")]
+        assert parse_openpii(records, "cs") == []
+
+    def test_halves_are_stable_and_both_used(self):
+        halves = [openpii_half(uid) for uid in range(200)]
+        assert halves == [openpii_half(uid) for uid in range(200)]
+        assert 60 < halves.count("dev") < 140
+        assert set(halves) == {"dev", "test"}
+
+    def test_every_language_is_a_dataset_of_the_one_catalog_entry(self):
+        for language in OPENPII_LANGUAGES:
+            spec = DATASETS[f"openpii-1m-{language}"]
+            assert spec.catalog_id == "openpii-1m"
+            assert spec.language == language
+
+
 class TestLoadCorpus:
     def test_cnec_split_with_gold_and_roles(self, resource_root: Path):
         corpus = load_corpus("cnec-2.0", "dtest", resource_root)
@@ -146,6 +229,20 @@ class TestLoadCorpus:
         tokens = load_corpus("uner-sk-snk", "dev", resource_root, TextForm.TOKENS)
         assert len(tokens.documents) == 1
         assert tokens.key == "uner-sk-snk/dev+tokens"
+
+    def test_openpii_dev_and_test_split_the_validation_records(self, resource_root: Path):
+        dev = load_corpus("openpii-1m-cs", "dev", resource_root)
+        test = load_corpus("openpii-1m-cs", "test", resource_root)
+        assert (dev.role, test.role) == (Role.DEV, Role.TEST)
+        assert len(dev.documents) + len(test.documents) == 6
+        assert dev.key == "openpii-1m-cs/dev"
+        assert dev.version == test.version != ""
+        train = load_corpus("openpii-1m-cs", "train", resource_root)
+        assert train.role is Role.TRAIN
+        assert len(train.documents) == 6
+        assert train.gold_counts() == {"address": 6, "email": 6, "person": 6, "phone": 6}
+        slovak = load_corpus("openpii-1m-sk", "train", resource_root)
+        assert (slovak.language, slovak.gold_counts()) == ("sk", {"person": 1})
 
     def test_unknown_dataset_and_split(self, resource_root: Path):
         with pytest.raises(ValueError, match="unknown dataset"):

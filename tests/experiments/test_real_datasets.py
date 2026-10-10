@@ -57,3 +57,17 @@ def test_every_gold_span_cuts_its_text():
             for entity in gold.gold:
                 page = gold.document.page(entity.page_index or 0)
                 assert page.text[entity.start : entity.end] == entity.text
+
+
+@pytest.mark.dataset
+@pytest.mark.parametrize(
+    ("language", "dev", "test"),
+    [("cs", 4672, 4550), ("sk", 4451, 4552)],
+)
+def test_openpii_validation_halves(language: str, dev: int, test: int):
+    halves = [_load(f"openpii-1m-{language}", split) for split in ("dev", "test")]
+    assert [len(corpus.documents) for corpus in halves] == [dev, test]
+    assert all(corpus.skipped == 0 for corpus in halves)
+    assert all(
+        set(corpus.gold_counts()) == {"address", "email", "person", "phone"} for corpus in halves
+    )

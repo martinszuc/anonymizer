@@ -11,7 +11,16 @@ dependencies = ["pillow>=11", "platformdirs>=4", "py3langid>=0.3", "pymupdf>=1.2
 
 [project.optional-dependencies]
 # Name detection. Pulls in PyTorch, so it is kept out of the default install.
-ner = ["gliner>=0.2.29,<0.3", "protobuf>=4"]
+# NameTag 3 runs on torch and transformers directly: h5py reads its Keras
+# checkpoint, ufal.udpipe the tokenizer shipped with each model.
+ner = [
+    "gliner>=0.2.29,<0.3",
+    "h5py>=3.12",
+    "protobuf>=4",
+    "torch>=2.8",
+    "transformers>=5.5",
+    "ufal.udpipe>=1.4",
+]
 # OCR with OnnxTR: onnxruntime, no PyTorch. Headless OpenCV, as no window is opened.
 ocr-onnxtr = ["onnxtr[cpu-headless]>=0.9,<0.10"]
 # Handwriting-capable OCR with kraken (baseline segmentation, PP-OCRv6 line recognition).

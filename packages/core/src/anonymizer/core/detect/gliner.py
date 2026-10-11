@@ -368,11 +368,11 @@ def load_gliner_model(
 
 
 def encoder_resource(catalog: Catalog, model_id: str) -> str:
-    """Return the catalog id of the encoder tokenizer a GLiNER model requires.
+    """Return the catalog id of the encoder tokenizer a model requires (GLiNER, NameTag 3).
 
     Args:
         catalog: The resource catalog.
-        model_id: Catalog id of a GLiNER model.
+        model_id: Catalog id of the model.
 
     Returns:
         The id of its one requirement used as a tokenizer.
@@ -384,7 +384,7 @@ def encoder_resource(catalog: Catalog, model_id: str) -> str:
         required for required in catalog[model_id].requires if "tokenizer" in catalog[required].uses
     ]
     if len(encoders) != 1:
-        msg = f"{model_id}: a GLiNER model requires exactly one tokenizer, found {len(encoders)}"
+        msg = f"{model_id}: the model requires exactly one tokenizer, found {len(encoders)}"
         raise ValueError(msg)
     return encoders[0]
 

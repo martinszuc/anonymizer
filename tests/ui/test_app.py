@@ -414,8 +414,8 @@ def drop_event(*paths: str) -> dict[str, Any]:
 class TestHomeScreenCalls:
     def test_status_is_forwarded(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(api_module, "name_model_installed", lambda model_id, catalog: False)
-        (model,) = WindowApi(ReviewApi()).status()["names"]["models"]
-        assert model["state"] == "not_installed"
+        models = WindowApi(ReviewApi()).status()["names"]["models"]
+        assert {model["state"] for model in models} == {"not_installed"}
 
     def test_opening_reports_each_step_to_the_page(self, pdf: Path):
         window = StandInWindow(answers=[(str(pdf),)])

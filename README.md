@@ -135,7 +135,10 @@ uv run python scripts/download.py verify
 
 Name models are chosen by catalog id: `--ner` runs the default
 (`gliner-multi-v2.1`), `--name-model <id>` another catalog entry used for `ner`,
-and the review window lists every such entry. A model trained in this repository
+and the review window lists every such entry. Besides GLiNER (zero-shot,
+Apache-2.0) the catalog holds NameTag 3 Czech and multilingual (ÚFAL, supervised,
+CC BY-NC-SA 4.0: non-commercial use only), run without Keras on the same `ner`
+dependency group. A model trained in this repository
 (`python -m experiments train`, see [`experiments/README.md`](experiments/README.md))
 has no download source: training lists it in its storage root's
 `models/trained.json` with the SHA-256 of each file, and it is chosen the same way
@@ -182,7 +185,7 @@ detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL, labelle
 dates of birth, postal addresses) scoped to the document's language, which can
 be recognised from the text (`--lang auto`, the window's default), names with the
 GLiNER model (optional,
-`--ner`, or another catalog name model with `--name-model`) widened over the academic titles beside them, review through
+`--ner`, or another catalog name model, such as NameTag 3, with `--name-model`) widened over the academic titles beside them, review through
 session files or the review window (a home screen with the detection options,
 models downloaded from the window and checked against their checksums, open or
 drop a PDF, toggle each item, add a missed word by selecting it, draw regions, save

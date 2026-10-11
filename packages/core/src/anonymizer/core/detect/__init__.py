@@ -10,6 +10,7 @@ from anonymizer.core.detect.address import find_czech_slovak_addresses, find_us_
 from anonymizer.core.detect.bank_account import find_account_numbers, is_valid_account_number
 from anonymizer.core.detect.base import (
     OVERLAP_PRIORITY,
+    AgreementDetector,
     CombinedDetector,
     Detector,
     Finder,
@@ -43,6 +44,7 @@ from anonymizer.core.detect.models import (
     name_models,
     system_model,
 )
+from anonymizer.core.detect.nametag import NametagDetector, load_nametag_detector
 from anonymizer.core.detect.propagate import propagate_occurrences
 from anonymizer.core.detect.roles import NamesOnly, cut_to_address, cut_to_name, role_words_for
 from anonymizer.core.detect.titles import extend_with_titles
@@ -139,12 +141,14 @@ __all__ = [
     "OVERLAP_PRIORITY",
     "RULE_LANGUAGES",
     "STRUCTURED_FINDERS",
+    "AgreementDetector",
     "CombinedDetector",
     "Detector",
     "Finder",
     "GlinerDetector",
     "Match",
     "NamesOnly",
+    "NametagDetector",
     "RuleDetector",
     "cut_to_address",
     "cut_to_name",
@@ -175,6 +179,7 @@ __all__ = [
     "is_valid_iban",
     "load_gliner_detector",
     "load_name_model",
+    "load_nametag_detector",
     "merge_entities",
     "missing_name_model_files",
     "name_model",

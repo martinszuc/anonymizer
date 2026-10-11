@@ -6,11 +6,13 @@ Every name and number is invented.
 import dataclasses
 import json
 import re
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 import pytest
 from anonymizer.core.detect import models as models_module
+from anonymizer.core.detect.nametag import Label, Token
 from anonymizer.core.resources import Catalog, load_catalog
 
 from experiments import systems as systems_module
@@ -165,6 +167,45 @@ class ScoredStandIn:
             ]
             for text in texts
         ]
+
+
+class StandInSplitter:
+    """One sentence per line, words and punctuation apart, like UDPipe."""
+
+    def sentences(self, text: str) -> list[list[Token]]:
+        sentences: list[list[Token]] = []
+        position = 0
+        for line in text.split("\n"):
+            tokens = [
+                Token(match.group(), position + match.start(), position + match.end())
+                for match in re.finditer(r"\w+|[^\w\s]", line)
+            ]
+            if tokens:
+                sentences.append(tokens)
+            position += len(line) + 1
+        return sentences
+
+
+class StandInTagger:
+    """Labels fixed token sequences, like NameTag: `{("Jan", "Novák"): ("P", 0.9)}`."""
+
+    def __init__(self, found: dict[tuple[str, ...], tuple[str, float]]) -> None:
+        self.found = found
+        self.calls = 0
+
+    def tag(self, sentences: Sequence[Sequence[str]]) -> list[list[list[Label]]]:
+        self.calls += 1
+        tagged: list[list[list[Label]]] = []
+        for sentence in sentences:
+            labels: list[list[Label]] = [[] for _ in sentence]
+            for needle, (kind, probability) in self.found.items():
+                for first in range(len(sentence) - len(needle) + 1):
+                    if tuple(sentence[first : first + len(needle)]) == needle:
+                        for offset in range(len(needle)):
+                            prefix = "B" if offset == 0 else "I"
+                            labels[first + offset].append((f"{prefix}-{kind}", probability))
+            tagged.append(labels)
+        return tagged
 
 
 @pytest.fixture

@@ -234,6 +234,82 @@ class CombinedDetector:
         return merged
 
 
+class AgreementDetector:
+    """Runs several detectors on a page and keeps what they agree on.
+
+    An entity survives when every other detector found an entity of the same
+    type overlapping it. Where two agree, both their spans are kept and
+    merged (`merge_entities`), so the wider reading still covers the whole
+    name. A precision-first combination for evaluation: it misses whatever
+    one detector alone found.
+
+    Attributes:
+        detectors: Detectors applied to every page, in order.
+    """
+
+    def __init__(self, detectors: Sequence[Detector], name: str | None = None) -> None:
+        """Initialize the detector.
+
+        Args:
+            detectors: Detectors applied to every page; at least two.
+            name: Identifier; the members' names joined with `&` by default.
+
+        Raises:
+            ValueError: If fewer than two detectors are given.
+        """
+        if len(detectors) < 2:
+            msg = "agreement needs at least two detectors"
+            raise ValueError(msg)
+        self.detectors = tuple(detectors)
+        self._name = name or "&".join(detector.name for detector in self.detectors)
+
+    @property
+    def name(self) -> str:
+        """Identifier used in logs and evaluation reports."""
+        return self._name
+
+    def detect(self, page: Page) -> list[Entity]:
+        """Return the entities every detector found, merged.
+
+        Args:
+            page: Page to scan; offsets refer to `page.text`.
+
+        Returns:
+            Entities in reading order; see `merge_entities`.
+        """
+        found = [detector.detect(page) for detector in self.detectors]
+        agreed = [
+            entity
+            for index, entities in enumerate(found)
+            for entity in entities
+            if all(
+                any(_same_reading(entity, other) for other in others)
+                for other_index, others in enumerate(found)
+                if other_index != index
+            )
+        ]
+        merged = merge_entities(agreed)
+        log.debug(
+            "%s: page %d: %d found, %d agreed",
+            self.name,
+            page.index,
+            sum(len(entities) for entities in found),
+            len(merged),
+        )
+        return merged
+
+
+def _same_reading(entity: Entity, other: Entity) -> bool:
+    """Whether two text entities have one type and overlap on the same text."""
+    if entity.is_region or other.is_region or entity.type != other.type:
+        return False
+    if (entity.page_index, entity.surface_id) != (other.page_index, other.surface_id):
+        return False
+    start, end = entity.span
+    other_start, other_end = other.span
+    return start < other_end and other_start < end
+
+
 class RuleDetector:
     """Runs a set of finders over a page and merges their matches.
 

@@ -90,6 +90,156 @@ size = 4305025
 sha256 = "13c8d666d62a7bc4ac8f040aab68e942c861f93303156cc28f5c7e885d86d6e3"
 
 [[resource]]
+id = "nametag3-czech-cnec2.0-240830"
+name = "NameTag 3 Czech (CNEC 2.0)"
+kind = "model"
+uses = ["ner"]
+engine = "nametag3"
+source = "https://hdl.handle.net/11234/1-5677"
+version = "hdl:11234/1-5677"
+licence = "CC-BY-NC-SA-4.0"
+languages = ["cs"]
+requires = ["robeczech-base-v1.1-tokenizer"]
+notes = """
+ÚFAL's nested Czech NER (RobeCzech with a seq2seq decoder), trained on CNEC 2.0 \
+train: CNEC scores favour it. Non-commercial licence; ÚFAL sells commercial \
+licences. Its weights are a Keras checkpoint read without Keras \
+(core/detect/nametag.py); the archive predates NameTag bundling the encoder's \
+config and tokenizer, hence the requirement. LINDAT publishes MD5 only; the \
+SHA-256 was recorded after a download verified against it."""
+
+[[resource.files]]
+path = "nametag3-czech-cnec2.0-240830.zip"
+url = "https://lindat.mff.cuni.cz/repository/server/api/core/bitstreams/c241fa1b-4659-4497-bbd6-d241ac2b78ed/content"
+size = 472653094
+sha256 = "9caa78559b8b89b18d88b5a5000464661959253182488f1cc5e3b03739711d50"
+source_digest = "md5:9a53053fa56f148076f009ae95d0cf71"
+unpack = "zip"
+
+[[resource]]
+id = "robeczech-base-v1.1-tokenizer"
+name = "RobeCzech base v1.1: config and tokenizer"
+kind = "model"
+uses = ["tokenizer"]
+engine = "transformers"
+source = "https://huggingface.co/ufal/robeczech-base"
+version = "a75ff238206b941c14d01260990e4c52913bf4d1"
+licence = "CC-BY-NC-SA-4.0"
+languages = ["cs"]
+notes = """
+Encoder config and tokenizer for NameTag 3 Czech: the last revision before that \
+model was trained (v1.1, whose vocabulary differs from v1.0). The encoder \
+weights come from the NameTag checkpoint."""
+
+[[resource.files]]
+path = "config.json"
+url = "https://huggingface.co/ufal/robeczech-base/resolve/a75ff238206b941c14d01260990e4c52913bf4d1/config.json"
+size = 516
+sha256 = "78860bdd2f77b6895919e0b5c6f5d0804c9957d47a1913fb4a6876962514cb84"
+source_digest = "git-sha1:e50ef0cec45f63fedf3dc9a1cdb443b9e1492717"
+
+[[resource.files]]
+path = "tokenizer_config.json"
+url = "https://huggingface.co/ufal/robeczech-base/resolve/a75ff238206b941c14d01260990e4c52913bf4d1/tokenizer_config.json"
+size = 184
+sha256 = "0b323638fa8806dd2f06b7265f7a39ce5780bf65234f99d1493e958867aff270"
+source_digest = "git-sha1:63d856f5c240359331efdaa8abbadebcf50bdfa2"
+
+[[resource.files]]
+path = "special_tokens_map.json"
+url = "https://huggingface.co/ufal/robeczech-base/resolve/a75ff238206b941c14d01260990e4c52913bf4d1/special_tokens_map.json"
+size = 963
+sha256 = "dea11db03530c61ee1a7d7702c0cbbcaaf8635dca038b31e4ad87451c88887b9"
+source_digest = "git-sha1:9540f2b9cbef0724fc05e59029a83cfb8b275e2d"
+
+[[resource.files]]
+path = "tokenizer.json"
+url = "https://huggingface.co/ufal/robeczech-base/resolve/a75ff238206b941c14d01260990e4c52913bf4d1/tokenizer.json"
+size = 1660637
+sha256 = "1fe2ce39441693ac013c0e7eef63a2604b4fa9650a10fc1844bb4c530ed54b57"
+source_digest = "git-sha1:417cf3f4f50e356852525c0e9dba1d72db0677d1"
+
+[[resource.files]]
+path = "vocab.json"
+url = "https://huggingface.co/ufal/robeczech-base/resolve/a75ff238206b941c14d01260990e4c52913bf4d1/vocab.json"
+size = 954665
+sha256 = "6e95ac89b1528fb579025f18806cbfdefbf72ac06f88f2fb4ce2eea51a5b5c49"
+source_digest = "git-sha1:2331134846fe98e3a06a152ca5763251d554e0d7"
+
+[[resource.files]]
+path = "merges.txt"
+url = "https://huggingface.co/ufal/robeczech-base/resolve/a75ff238206b941c14d01260990e4c52913bf4d1/merges.txt"
+size = 600872
+sha256 = "7730d79da7c715a6e60deaf87025d8b822a372daea0c8544e1b8d7bb3999335c"
+source_digest = "git-sha1:76523379cbd3c4af665857464462b8671587c822"
+
+[[resource]]
+id = "nametag3-multilingual-260521"
+name = "NameTag 3 multilingual 260521"
+kind = "model"
+uses = ["ner"]
+engine = "nametag3"
+source = "https://hdl.handle.net/11234/1-6163"
+version = "hdl:11234/1-6163"
+licence = "CC-BY-NC-SA-4.0"
+languages = ["mul"]
+requires = ["xlm-roberta-large-tokenizer"]
+notes = """
+ÚFAL's flat multilingual NER (XLM-R large, conll / uner / onto tagsets), \
+trained on 25 corpora including CNEC 2.0 and UNER Slovak-SNK train: both \
+favour it. Non-commercial licence. Read without Keras like the Czech model. \
+LINDAT publishes MD5 only; the SHA-256 was recorded after a download verified \
+against it."""
+
+[[resource.files]]
+path = "nametag3-multilingual-260521.zip"
+url = "https://lindat.mff.cuni.cz/repository/server/api/core/bitstreams/77dafd7f-fc7d-4424-af9d-60057bc43cb9/content"
+size = 1883039337
+sha256 = "5e7d03ae89bc18c93ef0ae5de10efa4cb03f1f27bcbf3031a537ff1a9e331ab9"
+source_digest = "md5:773a2164e9a3e42746614a6edca2babd"
+unpack = "zip"
+
+[[resource]]
+id = "xlm-roberta-large-tokenizer"
+name = "XLM-RoBERTa large: config and tokenizer"
+kind = "model"
+uses = ["tokenizer"]
+engine = "transformers"
+source = "https://huggingface.co/FacebookAI/xlm-roberta-large"
+version = "c23d21b0620b635a76227c604d44e43a9f0ee389"
+licence = "MIT"
+languages = ["mul"]
+notes = "Encoder config and tokenizer for NameTag 3 multilingual; the encoder weights come from its checkpoint."
+
+[[resource.files]]
+path = "config.json"
+url = "https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/c23d21b0620b635a76227c604d44e43a9f0ee389/config.json"
+size = 616
+sha256 = "ec7c3a99c58a38ebb702a2297f1c4586944e841b5eb29d201ff87e0f9c9abe0e"
+source_digest = "git-sha1:8e5fb14e1352fd8fc678a7b293b63cfb5cf091f6"
+
+[[resource.files]]
+path = "tokenizer_config.json"
+url = "https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/c23d21b0620b635a76227c604d44e43a9f0ee389/tokenizer_config.json"
+size = 25
+sha256 = "994f46754c5bf4014f1aa92d34b1374319c3a6b3f702105cd5b742beaecd18ce"
+source_digest = "git-sha1:34ddbd64a4cd3f2d9d8a9120d3662d0bf91baead"
+
+[[resource.files]]
+path = "tokenizer.json"
+url = "https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/c23d21b0620b635a76227c604d44e43a9f0ee389/tokenizer.json"
+size = 9096718
+sha256 = "a898ea75433890f6610f4e470b8ebeb0c21dce5c8dd61f892eb09eb5919d2e2c"
+source_digest = "git-sha1:463f3414782c1c9405828c9b31bfa36dda1f45c5"
+
+[[resource.files]]
+path = "sentencepiece.bpe.model"
+url = "https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/c23d21b0620b635a76227c604d44e43a9f0ee389/sentencepiece.bpe.model"
+size = 5069051
+sha256 = "cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865"
+source_digest = "git-sha1:db9af13bf09fd3028ca32be90d3fb66d5e470399"
+
+[[resource]]
 id = "onnxtr-fast-base"
 name = "OnnxTR FAST base: text detection"
 kind = "model"

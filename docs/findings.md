@@ -759,6 +759,111 @@ The records are synthetic, so they could be read in full.
   the generator's name distribution, so CNEC, UNER and REDACT stay the real-text tests.
 - **Halves.** `dev` and `test` split validation by a hash of the uid: Czech 4,672 and
   4,550, Slovak 4,451 and 4,552.
+- **Phone numbers follow no numbering plan** (`+42008.128.8025`, `(48)-1071 6019`,
+  `+0-26 245-1574`): 604 of the 1,915 Czech dev numbers start with the country code at
+  all. The phone rule found 8.7 % (cs) and 7.0 % (sk) of them, rightly, so phone numbers
+  are not scored either.
+
+### 2026-10-10 · The bar on OpenPII dev: rules + GLiNER zero-shot
+
+`experiments/configs/openpii-dev.toml`, commit `6d9072f`, dev halves (cs 4,672 and sk
+4,451 records), types person, address and email; `experiments/results/openpii-dev.md`.
+
+| rules+gliner | person F2 (partial) | person R | person F2 (strict) | address F2 (partial) | address F2 (strict) |
+|---|---|---|---|---|---|
+| cs | 0.931 [0.92, 0.94] | 0.944 | 0.554 | 0.882 | 0.326 |
+| sk | 0.933 [0.93, 0.94] | 0.945 | 0.545 | 0.890 | 0.342 |
+
+- **Zero-shot GLiNER finds nearly every OpenPII name** (recall 0.94), against 0.82 on
+  CNEC dtest and 0.67 on UNER-SK dev (`rq1-dev`). The synthetic names are easier than
+  real text, so a trained model's gain has to show on the real corpora and on span
+  boundaries, not on OpenPII person recall.
+- **Boundaries are where it loses.** Strict person F2 is 0.55 against 0.93 partial: the
+  model finds the name and cuts it differently from the gold span (title, a joined or
+  split first name and surname). Address strict F2 is about 0.33.
+- Email is the rules' (F2 0.99); the rules alone find no persons and a quarter of the
+  addresses (R 0.26 cs).
+
+### 2026-10-10 · rq1-dev and the benchmark after PRs #70–#85
+
+Re-run at `6d9072f` to check that the name-model registry (#83) changed no score. The
+committed `rq1-dev` table was from `09ab6dc` (2026-10-04), so the comparison spans
+#70–#85. Person rows are identical on every corpus; one REDACT sample cell moved:
+`rules+gliner` predicted one more address (partial P 0.500 → 0.495, recall unchanged
+at 27/27). The benchmark (`outputs/benchmark-2026-10-10`): rules 86/224 found, rules +
+GLiNER 198/224 (199 on 2026-10-04), 44 false alarms, 17/26 safe documents, leak check
+26/26 for both systems (25/26 for rules + GLiNER on 2026-10-04). Not traced to a single
+PR.
+
+### 2026-10-10 · OnnxTR and kraken on FUNSD's real scanned forms
+
+`python -m experiments funsd --engines onnxtr,kraken` with `rules+gliner`, FUNSD test
+(50 English forms, about 90 DPI, typewriter, fax noise, some handwriting), commit
+`6d9072f`; `experiments/results/funsd-test.md`. Items are derived from question-answer
+links (103 persons, 69 phones, 10 addresses; 9 forms have none), not annotated.
+
+| | OnnxTR | kraken |
+|---|---|---|
+| character error rate (geometric reading order) | 23.8 % | 24.5 % |
+| words boxed (IoU ≥ 0.5) | 81.5 % | 53.8 % |
+| words with ink outside every box | 425 / 8,707 | 602 / 8,707 |
+| items found / partial / missed of 182 | 119 / 37 / 26 | 120 / 34 / 28 |
+| items readable after redaction | 51 (+5 partly) | 48 (+3 partly) |
+| safe forms | 23 / 50 | 23 / 50 |
+| leak check passed | 48 / 50 | 47 / 50 |
+| seconds per page | 1.92 | 11.56 |
+
+- **On real forms kraken reads about as accurately as OnnxTR but places words worse**
+  and is six times slower. The two-form smoke run earlier the same day (29.5 % against
+  16.7 %) did not hold on 50 forms.
+- **kraken drops lines it cannot outline.** Its segmenter logged "Polygonizer failed on
+  line …" during the run and leaves such a line out (`kraken/blla.py`: a line whose
+  polygon is None is not appended), so the line is never read. Not counted per form;
+  a likely part of its lower boxed share.
+- **The engines end level on safety.** Each leaves 27 forms unsafe (not checked to be
+  the same forms) and about a quarter of the derived items readable. Not yet split into
+  misses of the name model, misses of the rules and labels the derivation got wrong.
+- **The leak check failed on 2 and 3 forms** (different forms per engine). Not yet
+  broken down (`python -m experiments leaks`).
+
+### 2026-10-10 · Fine-tuning GLiNER on the M4 Pro (smoke run)
+
+`python -m experiments train --config experiments/configs/train-smoke.toml` at commit
+`aa9a994` (`experiments/results/train-smoke.json`): GLiNER multilingual v2.1, 100
+examples drawn from each of OpenPII-cs, OpenPII-sk, CNEC 2.0 and UNER-SK train,
+40 steps of 8, focal loss (alpha 0.75, gamma 2), on the Apple GPU (MPS) of an
+Apple M4 Pro, torch 2.14.0, transformers 5.12.1, gliner 0.2.29, accelerate 1.15.0.
+Benchmark runs shared the machine (load average 5 to 10). The scores of this run
+say nothing about the model (40 steps, 25 documents per development split).
+
+- **Time per step.** 40 steps took 57.8 s, 1.44 s per step of 8 examples
+  averaging 81 GLiNER tokens (32,403 tokens in 400 examples), the first step's
+  warm-up included. A design probe before (15 steps of 8 OpenPII records of 67
+  tokens on average) took a median 1.02 s per step after a first step of 10 s.
+  At 1.4 s, 4,000 steps take about 1.5 hours.
+- **Same seed, nearly the same run.** Three runs with the same seed and training
+  code logged losses that agreed to two decimals or better (at step 40: 2.8782,
+  2.8782, 2.8768) and gave the same person counts on every development split,
+  but the SHA-256 of the weights differed each time: MPS kernels are not
+  bit-reproducible. A model's cache follows the hash of its weights, so every
+  retrain starts its cache afresh, and a difference between two trained models
+  smaller than this run-to-run noise needs several seeds before it is claimed.
+- **Addresses too wide to learn.** Of the 78,519 examples converted from the four
+  train splits, examples holding 1,650 street-address spans and 1 person span
+  wider than the model's 12 tokens (`max_width`) were left out; GLiNER cannot
+  predict such a span, and training on its parts would teach them as
+  non-addresses.
+- **gliner's saved config does not reload with the catalog's tokenizer.** The
+  `gliner_config.json` that `save_pretrained` writes pins `class_token_index =
+  250103`, the index of a special token gliner adds to the tokenizer when the
+  config does not pin it; loading the trained model with the catalog's mDeBERTa
+  tokenizer (250,102 tokens) then failed. Training changes the weights only, so
+  the base model's own config is stored beside them.
+- **Warm-up only by ratio.** With `warmup_steps = 4` passed through gliner's
+  training arguments, the learning rate logged at step 5 was 4.5e-5, a linear
+  decay from step 0 with no warm-up; with `warmup_ratio = 0.1` it was 5e-5,
+  the peak after four warm-up steps. transformers calls the ratio deprecated,
+  but it is the one gliner applies.
 
 ### Toolchain findings: redaction
 

@@ -71,9 +71,7 @@ def test_openpii_validation_halves(language: str, dev: int, test: int):
     halves = [_load(f"openpii-1m-{language}", split) for split in ("dev", "test")]
     assert [len(corpus.documents) for corpus in halves] == [dev, test]
     assert all(corpus.skipped == 0 for corpus in halves)
-    assert all(
-        set(corpus.gold_counts()) == {"address", "email", "person", "phone"} for corpus in halves
-    )
+    assert all(set(corpus.gold_counts()) == {"address", "email", "person"} for corpus in halves)
 
 
 @pytest.mark.dataset

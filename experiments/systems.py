@@ -46,6 +46,7 @@ from anonymizer.core.detect.gliner import (
     encoder_resource,
     load_gliner_model,
 )
+from anonymizer.core.detect.models import NAME_MODEL_ALIASES
 from anonymizer.core.detect.nametag import (
     NAMETAG_ENGINE,
     Label,
@@ -57,7 +58,7 @@ from anonymizer.core.detect.nametag import (
 )
 from anonymizer.core.language import AUTO
 from anonymizer.core.pipeline import build_detector, resolve_language, run_detection
-from anonymizer.core.resources import load_catalog
+from anonymizer.core.resources import Catalog, load_catalog
 from anonymizer.core.types import Document, EntityType
 
 CACHE_FLOOR = 0.1
@@ -91,6 +92,9 @@ class SystemConfig:
         propagate: Mark further occurrences of what was found.
         language: `dataset` (the corpus's language), `auto` (recognised from
             the text, as the review window does) or `none` (every rule).
+        engines: The engine of each model, as the catalog names them when
+            the system was parsed; empty when built directly, which reports
+            GLiNER's options.
     """
 
     name: str
@@ -102,6 +106,7 @@ class SystemConfig:
     names_only: bool = True
     propagate: bool = True
     language: str = "dataset"
+    engines: tuple[str, ...] = ()
 
     @property
     def model_names(self) -> tuple[str, ...]:
@@ -113,7 +118,7 @@ class SystemConfig:
     @property
     def model_ids(self) -> tuple[str, ...]:
         """The catalog ids of the system's name models; empty for the rules alone."""
-        return tuple(name_model(model).id for model in self.model_names)
+        return tuple(NAME_MODEL_ALIASES.get(model, model) for model in self.model_names)
 
     def describe(self) -> dict[str, Any]:
         """Return the options as plain data, for the results file."""
@@ -124,7 +129,7 @@ class SystemConfig:
         }
         if len(self.model_names) > 1:
             described["combine"] = self.combine
-        if any(name_model(model).engine == SPAN_MODEL_ENGINE for model in self.model_names):
+        if self.model_names and (not self.engines or SPAN_MODEL_ENGINE in self.engines):
             described |= {
                 "threshold": self.threshold,
                 "labels": {label: str(kind) for label, kind in self.labels.items()},
@@ -149,12 +154,15 @@ _SYSTEM_KEYS = frozenset(
 )
 
 
-def parse_system(name: str, table: Mapping[str, Any]) -> SystemConfig:
+def parse_system(
+    name: str, table: Mapping[str, Any], catalog: Catalog | None = None
+) -> SystemConfig:
     """Read a system from its config table, rejecting unknown options.
 
     Args:
         name: The table's name.
         table: Its options.
+        catalog: The catalog naming the models; the shipped one when omitted.
 
     Returns:
         The system.
@@ -171,9 +179,9 @@ def parse_system(name: str, table: Mapping[str, Any]) -> SystemConfig:
         tuple(str(item) for item in raw_model) if isinstance(raw_model, list) else str(raw_model)
     )
     models = model if isinstance(model, tuple) else ((model,) if model != "none" else ())
-    for item in models:
-        _check_model(name, item)
-    if isinstance(model, tuple) and len({name_model(item).id for item in models}) < 2:
+    catalog = catalog or load_catalog()
+    engines = tuple(_check_model(name, item, catalog) for item in models)
+    if isinstance(model, tuple) and len({name_model(item, catalog).id for item in models}) < 2:
         msg = f"system {name!r}: a list of models needs two different models"
         raise ValueError(msg)
     combine = str(table.get("combine", "union"))
@@ -202,19 +210,21 @@ def parse_system(name: str, table: Mapping[str, Any]) -> SystemConfig:
         names_only=bool(table.get("names_only", True)),
         propagate=bool(table.get("propagate", True)),
         language=language,
+        engines=engines,
     )
 
 
-def _check_model(system: str, model: str) -> None:
-    """Refuse a model that is not a catalog name model whose output the harness can cache."""
+def _check_model(system: str, model: str, catalog: Catalog) -> str:
+    """Return a model's engine; refuse one whose output the harness cannot cache."""
     try:
-        engine = name_model(model).engine
+        engine = name_model(model, catalog).engine
     except ValueError as error:
         msg = f"system {system!r}: {error}, or none"
         raise ValueError(msg) from error
     if engine not in ENGINES:
         msg = f"system {system!r}: model {model!r} runs on {engine}, not {' or '.join(ENGINES)}"
         raise ValueError(msg)
+    return engine
 
 
 class PredictionCache:
@@ -399,10 +409,19 @@ def _stored(span: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def cache_path(
-    cache_dir: Path, model_id: str, dataset: str, dataset_version: str, split: str
+    cache_dir: Path,
+    model_id: str,
+    dataset: str,
+    dataset_version: str,
+    split: str,
+    catalog: Catalog | None = None,
 ) -> Path:
-    """Return the cache file for a name model on one split of a dataset."""
-    model = load_catalog()[model_id]
+    """Return the cache file for a name model on one split of a dataset.
+
+    The model's version is part of the path: a trained model's is the hash of
+    its weights, so a model trained again under the same id starts a new cache.
+    """
+    model = (catalog or load_catalog())[model_id]
     return (
         cache_dir
         / f"{model.id}@{_safe(model.version)}"
@@ -425,18 +444,20 @@ def gliner_loader(resource_root: Path) -> Callable[[str], SpanModel]:
     return lambda model_id: load_gliner_model(resource_root, model_id)
 
 
-def model_loader(resource_root: Path) -> Callable[[str], SpanModel | Tagger]:
+def model_loader(
+    resource_root: Path, catalog: Catalog | None = None
+) -> Callable[[str], SpanModel | Tagger]:
     """Return a function loading a catalog name model of either engine, by id.
 
     Raises:
         FileNotFoundError: When called, if the model is not stored under the root.
     """
     load_gliner = gliner_loader(resource_root)
+    catalog = catalog or load_catalog()
 
     def load(model_id: str) -> SpanModel | Tagger:
-        if name_model(model_id).engine == SPAN_MODEL_ENGINE:
+        if name_model(model_id, catalog).engine == SPAN_MODEL_ENGINE:
             return load_gliner(model_id)
-        catalog = load_catalog()
         return load_nametag_tagger(
             model_directory(resource_root, model_id, catalog),
             catalog[encoder_resource(catalog, model_id)].directory(resource_root),
@@ -445,11 +466,14 @@ def model_loader(resource_root: Path) -> Callable[[str], SpanModel | Tagger]:
     return load
 
 
-def splitter_loader(resource_root: Path) -> Callable[[str], SentenceSplitter]:
+def splitter_loader(
+    resource_root: Path, catalog: Catalog | None = None
+) -> Callable[[str], SentenceSplitter]:
     """Return a function loading a NameTag model's sentence splitter, by id."""
+    catalog = catalog or load_catalog()
 
     def load(model_id: str) -> SentenceSplitter:
-        directory = model_directory(resource_root, model_id, load_catalog())
+        directory = model_directory(resource_root, model_id, catalog)
         return UDPipeSplitter(directory / "udpipe.tokenizer")
 
     return load
@@ -460,18 +484,21 @@ def cached_model(
     cache: PredictionCache,
     load_model: Callable[[str], Any],
     load_splitter: Callable[[str], SentenceSplitter],
+    catalog: Catalog | None = None,
 ) -> NameModel:
     """Wrap a name model, loaded on first need, in the cache of its engine."""
-    if name_model(model_id).engine == SPAN_MODEL_ENGINE:
+    if name_model(model_id, catalog).engine == SPAN_MODEL_ENGINE:
         return CachedSpanModel(functools.partial(load_model, model_id), cache)
     return CachedTagger(
         functools.partial(load_model, model_id), functools.partial(load_splitter, model_id), cache
     )
 
 
-def model_versions(systems: Sequence[SystemConfig]) -> dict[str, str]:
+def model_versions(
+    systems: Sequence[SystemConfig], catalog: Catalog | None = None
+) -> dict[str, str]:
     """Return the catalog version of every model the systems use."""
-    catalog = load_catalog()
+    catalog = catalog or load_catalog()
     return {
         resource.id: resource.version
         for system in systems
@@ -515,8 +542,8 @@ def build_system_detector(
     return build_detector(language, model=model, names_only=system.names_only)
 
 
-def _model_detector(system: SystemConfig, model_id: str, model: Any) -> Detector:
-    if name_model(model_id).engine == NAMETAG_ENGINE:
+def _model_detector(system: SystemConfig, model_id: str, model: NameModel) -> Detector:
+    if isinstance(model, CachedTagger):
         return NametagDetector(model, model.splitter, name=model_id)
     return GlinerDetector(
         model,

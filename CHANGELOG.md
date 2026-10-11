@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.0 (2026-10-10)
+
+## What's Changed
+* docs: record the thesis direction: a model of our own by @martinszuc in https://github.com/martinszuc/anonymizer/pull/75
+* fix: match emails and URLs that OCR split after a period by @martinszuc in https://github.com/martinszuc/anonymizer/pull/77
+* feat: read handwriting with a kraken OCR engine by @martinszuc in https://github.com/martinszuc/anonymizer/pull/78
+* feat: score scanned detection by where items are printed, and count false alarms by @martinszuc in https://github.com/martinszuc/anonymizer/pull/79
+* feat: choose the OCR engine in the review window by @martinszuc in https://github.com/martinszuc/anonymizer/pull/80
+* feat: open JPEG, PNG and TIFF images wherever a PDF is accepted by @martinszuc in https://github.com/martinszuc/anonymizer/pull/81
+* refactor: review cleanup across core, clients, benchmark and frontend by @martinszuc in https://github.com/martinszuc/anonymizer/pull/82
+* feat: choose the name model by catalog id by @martinszuc in https://github.com/martinszuc/anonymizer/pull/83
+* feat(ui): redesign the review window for long reviews by @martinszuc in https://github.com/martinszuc/anonymizer/pull/84
+* feat: FUNSD and OpenPII 1M as evaluation corpora by @martinszuc in https://github.com/martinszuc/anonymizer/pull/85
+
+
+**Full Changelog**: https://github.com/martinszuc/anonymizer/compare/v0.4.0...v0.5.0
+
 ## 0.4.0 (2026-10-05)
 
 ## What's Changed

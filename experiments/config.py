@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from anonymizer.core.resources import Catalog
 from anonymizer.core.types import EntityType
 
 from experiments.datasets import DATASETS, Role, TextForm
@@ -81,21 +82,27 @@ class RunConfig:
     raw: dict[str, Any]
 
 
-def load_config(path: Path) -> RunConfig:
+def load_config(path: Path, catalog: Catalog | None = None) -> RunConfig:
     """Read and validate a run configuration file.
+
+    Args:
+        path: The TOML file.
+        catalog: The catalog naming the models; the shipped one when omitted,
+            `load_catalog(root=...)` to allow the root's trained models.
 
     Raises:
         ValueError: If the file is invalid (see `parse_config`).
     """
     with path.open("rb") as handle:
-        return parse_config(tomllib.load(handle))
+        return parse_config(tomllib.load(handle), catalog)
 
 
-def parse_config(raw: dict[str, Any]) -> RunConfig:
+def parse_config(raw: dict[str, Any], catalog: Catalog | None = None) -> RunConfig:
     """Validate a parsed run configuration.
 
     Args:
         raw: The TOML contents.
+        catalog: The catalog naming the models; the shipped one when omitted.
 
     Returns:
         The configuration.
@@ -117,7 +124,9 @@ def parse_config(raw: dict[str, Any]) -> RunConfig:
     if not datasets:
         msg = "no datasets"
         raise ValueError(msg)
-    systems = tuple(parse_system(name, table) for name, table in raw.get("systems", {}).items())
+    systems = tuple(
+        parse_system(name, table, catalog) for name, table in raw.get("systems", {}).items()
+    )
     if not systems:
         msg = "no systems"
         raise ValueError(msg)

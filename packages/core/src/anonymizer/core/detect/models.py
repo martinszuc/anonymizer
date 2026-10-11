@@ -3,7 +3,10 @@
 A name model is a catalog entry used for `ner` whose `engine` has a loader
 here. A fine-tuned model of a known engine is therefore only a catalog entry:
 the command line, the review window, the benchmark and the experiments offer
-every such entry. A new kind of model (a token classifier, say) adds one
+every such entry. A model trained on this machine is an entry of its storage
+root's `models/trained.json`, so a client that knows the root reads its
+catalog with `load_catalog(root=...)`; the functions taking a root do so
+when given no catalog. A new kind of model (a token classifier, say) adds one
 loader to `NAME_MODEL_ENGINES` and the package that runs it.
 """
 
@@ -136,7 +139,8 @@ def missing_name_model_files(
     Args:
         model_id: A name model's catalog id.
         root: Storage root holding `models/` (see `scripts/download.py`).
-        catalog: The resource catalog; the one shipped with the core when omitted.
+        catalog: The resource catalog; the shipped one and the root's
+            trained models when omitted.
 
     Returns:
         Ids in download order; empty when the model can be loaded.
@@ -144,7 +148,7 @@ def missing_name_model_files(
     Raises:
         ValueError: If no name model has that id.
     """
-    catalog = catalog or load_catalog()
+    catalog = catalog or load_catalog(root=root)
     return missing_resources(catalog, name_model(model_id, catalog).id, root)
 
 
@@ -154,7 +158,8 @@ def load_name_model(model_id: str, root: Path, catalog: Catalog | None = None) -
     Args:
         model_id: A name model's catalog id, or an earlier name (`gliner`).
         root: Storage root holding `models/` (see `scripts/download.py`).
-        catalog: The resource catalog; the one shipped with the core when omitted.
+        catalog: The resource catalog; the shipped one and the root's
+            trained models when omitted.
 
     Returns:
         The ready detector, named after the model; give it to
@@ -165,12 +170,12 @@ def load_name_model(model_id: str, root: Path, catalog: Catalog | None = None) -
         FileNotFoundError: If its files are not stored.
         ImportError: If its optional dependencies are not installed.
     """
-    catalog = catalog or load_catalog()
+    catalog = catalog or load_catalog(root=root)
     resource = name_model(model_id, catalog)
     return name_model_engine(resource.id, catalog).load(root, resource.id, catalog)
 
 
-def system_model(system: str) -> str | None:
+def system_model(system: str, catalog: Catalog | None = None) -> str | None:
     """Return the catalog id of the name model an evaluated system runs; `None` for `rules`.
 
     The benchmark and the experiments name a system `rules` or
@@ -179,6 +184,8 @@ def system_model(system: str) -> str | None:
 
     Args:
         system: The system's name.
+        catalog: The resource catalog; the one shipped with the core when
+            omitted, which lists no trained model.
 
     Returns:
         The model's catalog id, or `None` for the rules alone.
@@ -192,4 +199,4 @@ def system_model(system: str) -> str | None:
     if prefix != "rules" or not plus:
         msg = f"unknown system {system!r}; choose rules or rules+<name model>"
         raise ValueError(msg)
-    return name_model(model_id).id
+    return name_model(model_id, catalog).id

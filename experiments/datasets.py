@@ -4,7 +4,9 @@ A loader turns one split of a corpus into `GoldDocument`s: a `Document` whose
 pages hold the text, as ingest would hand it to detection, and the gold spans
 as `Entity` objects of our `EntityType`s. Only the types a corpus annotates
 are scored on it (`Corpus.types`): CNEC marks no birth numbers, so a birth
-number found in it is neither right nor wrong.
+number found in it is neither right nor wrong. Organisations are kept in the
+gold of the corpora that mark them but never scored (`DatasetSpec.unscored`):
+they are what training teaches the name model's `organization` distractor.
 
 Sentence corpora are cut into page-like texts of `SENTENCES_PER_PAGE`
 sentences, one sentence per line, because detection runs on pages and the
@@ -23,10 +25,14 @@ CNEC 2.0 (plain format, nested `<type ...>` markup, tokens split by spaces)
     phone    `at` (telephone and fax numbers).
     email    `me`.
     url      `mi`.
+    organization (not scored)  `ic`, `if`, `io`, `i_`: cultural, educational
+             and scientific institutions, companies, government bodies, and
+             institutions of no finer type. Not `ia` (conferences, contests).
 
 UNER Slovak-SNK (IOB2; the sentence's own text is used where its tokens
 align with it, so punctuation sits where the writer put it)
-    person   `PER`. `LOC` and `ORG` are not personal data on their own.
+    person   `PER`. `LOC` is not personal data on its own.
+    organization (not scored)  `ORG`.
 
 REDACT (synthetic records; Czech records only, as the corpus has no Slovak)
     person        Full_Name, First_Given_Name, Last_Family_Name
@@ -55,13 +61,15 @@ language: `openpii-1m-cs`, `-sk`, `-en`)
              between (", ", " č. ", ", PSČ "). A run without a street or a
              postcode (a city alone, "born in Brno") is not an address.
     email    EMAIL.
-    phone    TELEPHONENUM.
     Not mapped: the identifiers (SOCIALNUM, IDCARDNUM, PASSPORTNUM,
     DRIVERLICENSENUM, TAXNUM, CREDITCARDNUMBER), because they are invented
     without their checksums: 184 of 1,522 Czech SOCIALNUMs in validation
     pass the rodné číslo rule (2026-10-10), so recall on them would measure
-    the generator, and identifiers are the rules' job. DATE (ours is a date
-    of birth only), AGE, SEX, GENDER, TITLE.
+    the generator, and identifiers are the rules' job. TELEPHONENUM, for
+    the same reason: the numbers follow no numbering plan (`+42008.128.8025`,
+    `(48)-1071 6019`; 604 of 1,915 Czech dev numbers even start with the
+    country code), and the phone rule found 8.7 % of them. DATE (ours is a
+    date of birth only), AGE, SEX, GENDER, TITLE.
     Splits: `train` is the source's train split. The source has no test
     split, so its validation split is cut in two by a hash of the record's
     uid: `dev` for tuning, `test` reserved (`openpii_half`).
@@ -212,11 +220,13 @@ class DatasetSpec:
     Attributes:
         id: Catalog id.
         language: Language of the text.
-        types: Types the corpus annotates.
+        types: Types the corpus annotates, and which are scored.
         splits: Split name → role.
         read: Reads a split from the dataset directory, in a text form.
         resource: Catalog id when it differs from `id` (one language of a
             multilingual resource).
+        unscored: Types the corpus marks throughout but which are not
+            personal data, so are kept in the gold for training only.
     """
 
     id: str
@@ -225,6 +235,7 @@ class DatasetSpec:
     splits: dict[str, Role]
     read: Callable[[Path, str, TextForm], list[list[Sentence]]]
     resource: str | None = None
+    unscored: frozenset[EntityType] = frozenset()
 
     @property
     def catalog_id(self) -> str:
@@ -238,6 +249,7 @@ _CNEC_TAG = re.compile(r"<([A-Za-z_?]+) ?")
 _CNEC_PERSON_PARTS = frozenset({"pf", "ps", "pm", "p_"})
 _CNEC_CONTAINERS = _CNEC_PERSON_PARTS | {"P", "A"}
 _CNEC_TYPES = {"at": EntityType.PHONE, "me": EntityType.EMAIL, "mi": EntityType.URL}
+_CNEC_ORGANIZATIONS = frozenset({"ic", "if", "io", "i_"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -331,6 +343,8 @@ def _cnec_type(entity: _Tagged) -> EntityType | None:
         return None if inside_name else EntityType.PERSON
     if entity.type == "A":
         return None if "A" in entity.ancestors else EntityType.ADDRESS
+    if entity.type in _CNEC_ORGANIZATIONS:
+        return EntityType.ORGANIZATION
     return _CNEC_TYPES.get(entity.type)
 
 
@@ -393,6 +407,9 @@ def parse_iob2(text: str, form: TextForm = TextForm.WRITTEN) -> list[list[Senten
     return [document for document in documents if document]
 
 
+_IOB2_TYPES = {"PER": EntityType.PERSON, "ORG": EntityType.ORGANIZATION}
+
+
 def _iob2_sentence(rows: list[tuple[str, str]], written: str | None) -> Sentence:
     tokens = [token for token, _ in rows]
     text, starts = _place_tokens(tokens, written)
@@ -404,10 +421,9 @@ def _iob2_sentence(rows: list[tuple[str, str]], written: str | None) -> Sentence
         if current is None:
             return
         label, first, last = current
-        if label == "PER":
-            spans.append(
-                SourceSpan(EntityType.PERSON, starts[first], starts[last] + len(tokens[last]))
-            )
+        kind = _IOB2_TYPES.get(label)
+        if kind is not None:
+            spans.append(SourceSpan(kind, starts[first], starts[last] + len(tokens[last])))
         else:
             unmapped.append(label)
 
@@ -546,7 +562,7 @@ OPENPII_ADDRESS_GAP = 8
 _OPENPII_PERSON = frozenset({"GIVENNAME", "SURNAME"})
 _OPENPII_ADDRESS = frozenset({"STREET", "BUILDINGNUM", "ZIPCODE", "CITY"})
 _OPENPII_ADDRESS_ANCHORS = frozenset({"STREET", "ZIPCODE"})
-_OPENPII_TYPES = {"EMAIL": EntityType.EMAIL, "TELEPHONENUM": EntityType.PHONE}
+_OPENPII_TYPES = {"EMAIL": EntityType.EMAIL}
 _OPENPII_FILES = {"train": "train.jsonl", "dev": "validation.jsonl", "test": "validation.jsonl"}
 _HORIZONTAL_SPACE = re.compile(r"[^\S\n]*")
 
@@ -679,6 +695,7 @@ DATASETS: dict[str, DatasetSpec] = {
         ),
         splits={"train": Role.TRAIN, "dtest": Role.DEV, "etest": Role.TEST},
         read=read_cnec,
+        unscored=frozenset({EntityType.ORGANIZATION}),
     ),
     "uner-sk-snk": DatasetSpec(
         id="uner-sk-snk",
@@ -686,6 +703,7 @@ DATASETS: dict[str, DatasetSpec] = {
         types=frozenset({EntityType.PERSON}),
         splits={"train": Role.TRAIN, "dev": Role.DEV, "test": Role.TEST},
         read=read_uner,
+        unscored=frozenset({EntityType.ORGANIZATION}),
     ),
     "redact": DatasetSpec(
         id="redact",
@@ -700,9 +718,7 @@ DATASETS: dict[str, DatasetSpec] = {
         f"{OPENPII_ID}-{language}": DatasetSpec(
             id=f"{OPENPII_ID}-{language}",
             language=language,
-            types=frozenset(
-                {EntityType.PERSON, EntityType.ADDRESS, EntityType.EMAIL, EntityType.PHONE}
-            ),
+            types=frozenset({EntityType.PERSON, EntityType.ADDRESS, EntityType.EMAIL}),
             splits={"train": Role.TRAIN, "dev": Role.DEV, "test": Role.TEST},
             read=openpii_reader(language),
             resource=OPENPII_ID,
@@ -713,7 +729,11 @@ DATASETS: dict[str, DatasetSpec] = {
 
 
 def load_corpus(
-    dataset: str, split: str, resource_root: Path, form: TextForm = TextForm.WRITTEN
+    dataset: str,
+    split: str,
+    resource_root: Path,
+    form: TextForm = TextForm.WRITTEN,
+    limit: int | None = None,
 ) -> Corpus:
     """Load one split of a catalogued dataset from the storage root.
 
@@ -722,6 +742,8 @@ def load_corpus(
         split: Split name as the source calls it.
         resource_root: Storage root holding `data/<id>/`.
         form: How sentences become page text.
+        limit: Keep only the first documents, for a quick look; every count
+            of the corpus describes those.
 
     Returns:
         The corpus with its documents and gold spans.
@@ -740,7 +762,7 @@ def load_corpus(
         raise ValueError(msg)
     resource = load_catalog()[spec.catalog_id]
     groups = spec.read(resource.directory(resource_root), split, form)
-    return build_corpus(spec, split, resource.version, groups, form)
+    return build_corpus(spec, split, resource.version, groups[:limit], form)
 
 
 def build_corpus(

@@ -90,7 +90,7 @@ def run(
         "created": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
         "tool_version": anonymizer.core.__version__,
         "git_commit": git_commit(),
-        "models": _model_versions(systems),
+        "models": _model_versions(systems, resource_root),
         "machine": machine(),
         "systems": list(factories),
         "documents": documents,
@@ -173,10 +173,11 @@ def detector_factories(systems: tuple[str, ...], resource_root: Path) -> dict[st
     Raises:
         ValueError: If a system name is unknown.
     """
-    models = {system: system_model(system) for system in systems}
+    catalog = load_catalog(root=resource_root)
+    models = {system: system_model(system, catalog) for system in systems}
     # Load each once; a model takes seconds to read.
     loaded = {
-        model_id: load_name_model(model_id, resource_root)
+        model_id: load_name_model(model_id, resource_root, catalog)
         for model_id in dict.fromkeys(models.values())
         if model_id is not None
     }
@@ -246,12 +247,12 @@ def _kind_totals(documents: list[dict[str, Any]], system: str) -> dict[str, int]
     }
 
 
-def _model_versions(systems: tuple[str, ...]) -> dict[str, str]:
-    catalog = load_catalog()
+def _model_versions(systems: tuple[str, ...], resource_root: Path) -> dict[str, str]:
+    catalog = load_catalog(root=resource_root)
     return {
         resource.id: resource.version
         for system in systems
-        if (model_id := system_model(system)) is not None
+        if (model_id := system_model(system, catalog)) is not None
         for resource in catalog.with_requirements(model_id)
     }
 

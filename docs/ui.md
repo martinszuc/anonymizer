@@ -134,12 +134,15 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
   each feature needs, with a one-line note on what it is for (names and
   addresses: one feature per catalog name model: GLiNER, NameTag 3 Czech
   and NameTag 3 multilingual today, each with its encoder's tokenizer, the
-  NameTag notes naming their non-commercial licence; scanned pages with OnnxTR: its two
+  NameTag notes naming their non-commercial licence, and the models trained
+  under the models folder; scanned pages with OnnxTR: its two
   models; scanned pages with kraken: BLLA and PP-OCRv6) with size, licence,
   languages, source and
   whether the files are stored, and a *Download* per feature. Files come from
   the catalog's official URLs, stream with a progress bar and are kept only
-  if their checksums match (`resources.fetch_with_requirements`); features
+  if their checksums match (`resources.fetch_with_requirements`); a model
+  trained here has no URL, so its *Download* fails when its files are
+  missing; features
   download at once, since they share no model. When one finishes, its
   feature's switch turns on; an OCR engine's download also chooses that
   engine. The sheet shows the folder models are stored in;
@@ -234,7 +237,8 @@ entity_id: string | null, kind: text | under_box | leftover }[] }`; nothing was
 written unless `written`. `AppStatus` carries `settings: { leak_check }` and
 `ocr: { default, engines: ChoiceStatus[] }`, one per `ingest.OCR_ENGINES` entry in
 its order, and `names: { default, models: ChoiceStatus[] }`, one per catalog name
-model (`detect.name_models`) in catalog order. A `ChoiceStatus` is `{ name, title,
+model (`detect.name_models`) in catalog order, the models trained under the models
+folder (`models/trained.json`) last; choosing another folder reads its list again. A `ChoiceStatus` is `{ name, title,
 description, feature, state: ready | not_installed | files_missing, missing,
 install_command }` (`feature` is its key for `download_models`). An engine's title and
 description come from `OCR_CHOICES` in `api.py`, which must name every engine the core

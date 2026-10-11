@@ -138,7 +138,11 @@ Name models are chosen by catalog id: `--ner` runs the default
 and the review window lists every such entry. Besides GLiNER (zero-shot,
 Apache-2.0) the catalog holds NameTag 3 Czech and multilingual (ÚFAL, supervised,
 CC BY-NC-SA 4.0: non-commercial use only), run without Keras on the same `ner`
-dependency group.
+dependency group. A model trained in this repository
+(`python -m experiments train`, see [`experiments/README.md`](experiments/README.md))
+has no download source: training lists it in its storage root's
+`models/trained.json` with the SHA-256 of each file, and it is chosen the same way
+whenever that root is the resource root.
 
 Files land in `models/<id>/` or `data/<id>/` of the repository (both git-ignored;
 `--root` names another place). The CLI, the review window and the benchmark read
@@ -201,8 +205,9 @@ pixels only, upright by their EXIF orientation, and redacted into a PDF. Photos
 are read as they are taken: no perspective correction or dewarping.
 Detection quality is measured on development data only so far
 (`experiments/results/`, the benchmark for each release).
-Next: a Czech/Slovak name model trained in this repository, compared with existing
-models on reserved test data.
+A Czech/Slovak name model is trained in this repository (`python -m experiments
+train`, fine-tuned GLiNER, smoke-tested); next are its full runs and the comparison
+with existing models on reserved test data.
 
 ## License
 

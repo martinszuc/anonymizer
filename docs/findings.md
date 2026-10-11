@@ -1003,6 +1003,65 @@ UNER-SK train, seed 20261010) through GLiNER multilingual v2.1 on the CPU:
   the root's catalog and scored on 5 documents per development split; the model was
   then removed. Its scores say nothing about the loss.
 
+### 2026-10-11 · The first trained models against NameTag 3 (development data)
+
+`experiments/configs/rq6-dev.toml`, commit `69871a7` (clean tree), seed 20261010, 1,000
+document-level resamples, 95 % intervals; `experiments/results/rq6-dev.md`. The trained
+models are `train-cs-sk-ce` and `train-cs-sk-focal` (2,000 steps of 16, one seed each);
+every system runs beside the rules. **NameTag 3 Czech was trained on CNEC train, the
+multilingual model on CNEC and UNER-SK train, the models trained here on CNEC, UNER-SK
+and OpenPII train**: only REDACT favours nobody, and it holds 40 records.
+
+Person, partial match, F2 (P / R), and the residual share of leak coverage:
+
+| corpus | GLiNER zero-shot | trained, ce | trained, focal | NameTag cs | NameTag multi |
+|---|---|---|---|---|---|
+| CNEC dtest (cs) | 0.833 (0.911 / 0.815), 0.152 | 0.930 (0.918 / 0.933), 0.049 | 0.928 (0.867 / 0.945), 0.040 | 0.950 (0.940 / 0.952), 0.037 | 0.905 (0.937 / 0.897), 0.098 |
+| UNER-SK dev (sk) | 0.700 (0.829 / 0.674), 0.278 | 0.891 (0.848 / 0.902), 0.079 | 0.918 (0.810 / 0.949), 0.042 | 0.833 (0.765 / 0.851), 0.118 | 0.881 (0.869 / 0.884), 0.111 |
+| REDACT sample (cs) | 0.848 (0.649 / 0.918), 0.052 | 0.946 (0.801 / 0.991), 0.010 | 0.950 (0.801 / 0.995), 0.008 | 0.925 (0.753 / 0.982), 0.026 | 0.935 (0.810 / 0.973), 0.023 |
+| OpenPII cs dev | 0.931 (0.881 / 0.944), 0.049 | 0.991 (0.995 / 0.989), 0.009 | 0.989 (0.991 / 0.989), 0.008 | 0.868 (0.845 / 0.874), 0.122 | 0.948 (0.980 / 0.941), 0.065 |
+| OpenPII sk dev | 0.933 (0.889 / 0.945), 0.049 | 0.991 (0.996 / 0.990), 0.007 | 0.990 (0.995 / 0.988), 0.008 | 0.772 (0.856 / 0.753), 0.235 | 0.946 (0.976 / 0.938), 0.070 |
+
+- **Fine-tuning beats zero-shot GLiNER on every corpus**, both losses, intervals above 0:
+  person F2 +0.06 (OpenPII) to +0.22 (UNER-SK, focal); strict F2 on OpenPII from 0.55
+  to 0.97–0.98, so the boundaries now match the gold.
+- **Against NameTag 3 multilingual**, focal minus NameTag, F2 [interval]: CNEC +0.023
+  [0.001, 0.048], UNER-SK +0.037 [0.001, 0.074], REDACT +0.014 [−0.008, 0.049], OpenPII
+  +0.041 (cs) and +0.044 (sk). ce: CNEC +0.025, UNER-SK +0.010 [−0.023, 0.041], REDACT
+  +0.011 [−0.014, 0.044]. **On REDACT, the one corpus favouring neither side, neither
+  loss separates from NameTag multilingual by F2.**
+- **Against NameTag 3 Czech on CNEC, its own corpus, both trained models lose by F2**
+  (ce −0.020 [−0.037, −0.003], focal −0.022 [−0.040, −0.005]) but not by residual share
+  (ce +0.012 [−0.005, 0.029], focal +0.003 [−0.012, 0.018]).
+- **By residual share, focal leaks less than NameTag multilingual on every corpus**,
+  intervals below 0: CNEC −0.058, UNER-SK −0.069, REDACT −0.015 [−0.034, −0.003], OpenPII
+  −0.057 and −0.062. ce does on CNEC and OpenPII; on UNER-SK and REDACT its interval
+  touches 0.
+- **ce and focal differ little**: focal higher recall, lower precision; person F2 focal
+  minus ce within ±0.004 except UNER-SK +0.027 [−0.000, 0.061]. One seed each, so seed
+  variance is not yet in these intervals.
+
+### 2026-10-11 · Name forms: where GLiNER zero-shot misses Czech and Slovak names
+
+`experiments/configs/name-forms-dev.toml`, commit `69871a7`, seed 20261011, 1,000
+resamples; `experiments/results/name-forms-dev.md` (not committed: superseded by the
+run with the trained models). Generated texts (`experiments/name_forms.py`), 960 Czech
+and 360 Slovak names in the dev half; the intervals are too narrow, since the 12 texts
+of one template share most of their wording.
+
+- **Inflection itself is not the problem.** Full names are found in every case by
+  every model (Czech 348/348, Slovak 144/144), and so is a surname after pan/paní
+  (GLiNER 168/168 Czech).
+- **A surname alone in a later sentence is.** GLiNER zero-shot finds 10 of 144 in
+  Czech (0.07) and 9 of 60 in Slovak (0.15); NameTag 3 Czech 143/144 and 55/60,
+  NameTag 3 multilingual 144/144 and 60/60. This matches the benchmark's single-word
+  misses (5 of 16 found). GLiNER's per-case dips (genitive, instrumental, locative
+  0.67) come from this form, not from the other forms in those cases.
+- **NameTag 3 already handles Czech forms** on these texts, so name morphology is not
+  a gap the own model must close against it; what the own model must not lose is the
+  lone later surname, measured by adding the trained models to this config.
+- Texts naming nobody: GLiNER flagged 2 of 8 Czech texts (3 predictions), NameTag none.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

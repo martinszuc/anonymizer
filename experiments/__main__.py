@@ -33,7 +33,14 @@ from experiments.funsd import SPLITS, run_funsd, write_results
 from experiments.leaks import breakdown, breakdown_markdown, write_breakdown
 from experiments.report import latex, markdown
 from experiments.run import run
-from experiments.train import load_train_config, train, with_seed, write_training
+from experiments.train import (
+    DEVICES,
+    load_train_config,
+    train,
+    with_device,
+    with_seed,
+    write_training,
+)
 
 RESULTS = Path(__file__).parent / "results"
 
@@ -62,6 +69,12 @@ def main(argv: list[str] | None = None) -> int:
         "--seed",
         type=int,
         help="train a replicate with this seed: model <model>-s<seed>, results <name>-s<seed>",
+    )
+    train_parser.add_argument(
+        "--device",
+        choices=DEVICES,
+        help="train on this device instead of the config's (e.g. cpu on a machine without "
+        "the Apple GPU); the results record it under machine",
     )
     train_parser.add_argument(
         "--out", type=Path, default=RESULTS, help=f"results directory (default: {RESULTS})"
@@ -135,6 +148,8 @@ def _train(args: argparse.Namespace, root: Path) -> int:
     config = load_train_config(args.config, load_catalog(root=root))
     if args.seed is not None:
         config = with_seed(config, args.seed)
+    if args.device is not None:
+        config = with_device(config, args.device)
     cache_dir = args.cache_dir or root / ".cache" / "experiments"
     results = train(config, resource_root=root, cache_dir=cache_dir, progress=print)
     path = write_training(results, args.out)

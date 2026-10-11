@@ -297,6 +297,16 @@ replicates with `seeds = [1, 2]` on the system of the config's own run
 standard deviation per system) and *Seed by seed* (the difference per seed,
 and on how many seeds F2 rose).
 
+### Another device
+
+`--device cpu` trains a config written for the Apple GPU on a machine
+without one, under the same name and model id; `--device mps` does the
+reverse. The results keep the file's text under `config` and record the
+device used under `machine`. On a 4-core laptop CPU (i7-8550U) a step of
+16 took 26 s against 2.3 s on the M4 Pro's GPU, so a run takes about 15
+hours; the two devices do not compute bit for bit alike, so replicates of
+one setting belong on one device.
+
 ### Tuning the weight
 
 `positive_weight` is tuned on development data only, against person F2

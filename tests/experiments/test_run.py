@@ -1,6 +1,7 @@
 """A whole run on synthetic corpora: configs, results, tables and the command line."""
 
 import json
+import shutil
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,7 @@ from anonymizer.core.resources import load_catalog
 
 from experiments.__main__ import main
 from experiments.config import load_config, parse_config
+from experiments.metrics import ANY_TYPE
 from experiments.report import UNDEFINED, format_difference, format_interval, latex, markdown
 from experiments.run import run
 from experiments.train import register
@@ -92,6 +94,46 @@ def test_scores_and_provenance(resource_root: Path, tmp_path: Path):
     assert comparison["differences"]["partial"]["person"]["recall"]["delta"] == pytest.approx(
         2 / 3, abs=1e-4
     )
+
+
+def test_leak_coverage(resource_root: Path, tmp_path: Path):
+    results = _run(resource_root, tmp_path, ScoredStandIn(FOUND))
+    cnec = results["corpora"]["cnec-2.0/dtest"]
+    person = cnec["systems"]["rules+gliner"]["coverage"]["person"]
+    # Jan Novák and Svobodovi are found whole, Karla Dvořáka (12 characters) is not.
+    counts = person["counts"]
+    assert counts["gold_characters"] == 8 + 9 + 12
+    assert counts["residual_characters"] == 12
+    assert (counts["hidden_items"], counts["gold_items"]) == (2, 3)
+    assert counts["over_characters"] == 0  # the stand-in finds the names exactly
+    assert person["residual"]["value"] == pytest.approx(12 / 29, abs=1e-4)
+    assert person["hidden_whole"]["value"] == pytest.approx(2 / 3, abs=1e-4)
+    rules = cnec["systems"]["rules"]["coverage"]
+    assert rules["person"]["residual"]["value"] == 1.0
+    assert rules["person"]["counts"]["text_characters"] == counts["text_characters"] > 0
+    assert set(rules) == set(cnec["systems"]["rules"]["scores"]["partial"])
+    assert ANY_TYPE in rules
+
+    difference = cnec["comparisons"][0]["coverage"]["person"]
+    assert difference["residual"]["delta"] == pytest.approx(12 / 29 - 1, abs=1e-4)
+    assert difference["hidden_whole"]["delta"] == pytest.approx(2 / 3, abs=1e-4)
+
+    text = markdown(results)
+    assert "### Leak coverage" in text
+    assert "| person | rules+gliner | 0.414 [" in text
+    assert "Leak coverage, candidate minus baseline:" in text
+    assert "\\label{tab:synthetic-cnec-2.0-dtest-coverage}" in latex(results)
+
+
+def test_tables_of_a_results_file_without_coverage(tmp_path: Path):
+    # Results written before leak coverage existed render exactly as they did.
+    stored = Path(__file__).resolve().parents[2] / "experiments" / "results"
+    shutil.copy(stored / "rq1-dev.json", tmp_path)
+    assert main(["tables", str(tmp_path / "rq1-dev.json")]) == 0
+    assert (tmp_path / "rq1-dev.md").read_text(encoding="utf-8") == (
+        stored / "rq1-dev.md"
+    ).read_text(encoding="utf-8")
+    assert "Leak coverage" not in (tmp_path / "rq1-dev.tex").read_text(encoding="utf-8")
 
 
 def test_no_corpus_text_in_the_results(resource_root: Path, tmp_path: Path):

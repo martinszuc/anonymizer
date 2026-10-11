@@ -10,6 +10,7 @@ uv sync --all-packages --group ner          # GLiNER, for the systems that use i
 uv run python -m experiments datasets       # documents and gold spans per split
 uv run python -m experiments run --config experiments/configs/rq1-dev.toml
 uv run python -m experiments tables experiments/results/rq1-dev.json   # tables only
+uv run python -m experiments errors --config experiments/configs/rq6-dev.toml  # error analysis
 uv sync --all-packages --group train        # GLiNER and accelerate, for training
 uv run python -m experiments train --config experiments/configs/train-smoke.toml
 ```
@@ -336,6 +337,68 @@ step after the model runs again on every run. A rerun from a warm cache takes
 seconds and does not load the model. Systems combining two models reuse
 each model's cache, so a union or agreement costs no extra inference.
 
+## Error analysis
+
+Scores say how much a system misses; the error analysis says what kind of
+names it misses and what it wrongly flags, per corpus and system:
+
+```sh
+uv run python -m experiments errors --config experiments/configs/rq6-dev.toml \
+    --resource-root /path/to/main/checkout
+uv run python -m experiments errors --config experiments/configs/name-forms-dev.toml \
+    --resource-root /path/to/main/checkout --examples outputs/error-examples
+```
+
+It reads any run config and runs its systems exactly as `run` does (same
+loaders, same `core.pipeline` path, same name model cache), then writes
+`results/<name>-errors.json` and `.md` (`errors.py`). A warm cache answers
+every model input, so after `run` on the same config and commit it takes
+seconds per system and loads no model; `cache.misses` in the file says
+whether it did. Persons and addresses are analysed, on the corpora that
+score them.
+
+**Misses** are gold spans that no prediction of their type overlaps (*not
+found*: exactly what partial-match recall misses) and gold spans overlapped
+but not covered whole (*found only in part*: the rest stays readable).
+Each gold span falls into categories computed from its own text and its
+line, the same for every system:
+
+| category | the gold span |
+|---|---|
+| `words=1`, `words=2`, `words=3+` | has this many words, split at whitespace |
+| `title` | follows a title or honorific (Ing., Mgr., pan, paní, pane, pán, Mr., ...) or starts with one |
+| `sentence_start` | starts its line, or follows `.`, `!`, `?` that does not end a title or an initial |
+| `after_label` | is the value of a form line "Label: value" (one to four words before the line's first colon) |
+| `all_caps` | has at least two letters, all upper case |
+| `hyphen_apostrophe` | holds a hyphen, en dash or apostrophe (double surnames, O'Brien) |
+| `diacritics` | holds a letter outside ASCII |
+| `initial` | holds a one-letter initial ("J. Novák") |
+
+Per category the table gives the misses, their share of the system's
+misses, and the **miss rate**: misses in the category / gold spans in the
+category, with a 95 % bootstrap interval over documents (the run's seed
+and resamples). Compare systems by the rate: the share depends on how much
+else a system misses. Misses that a prediction of another type overlaps are
+counted on their own: they are redacted all the same.
+
+**False alarms** are person or address predictions that overlap no gold
+span of their type (what partial-match precision counts against). Their
+categories: `words=*`, `title`, `sentence_start`, `after_label` and
+`all_caps` as above, and `capitalised_word` (one capitalised word, not all
+capitals), `role_noun` (starts with a role noun of `detect/roles.py`'s
+lists for the corpus's language), `organization` (overlaps a gold
+organisation; CNEC and UNER mark them) and `other_type` (overlaps a gold
+span of another type). The rate is false alarms / predictions in the
+category.
+
+The definitions are exact in the `errors.py` docstring. A category is a
+structural cue, not a cause: `sentence_start` misses say where a model
+fails, not why. The results hold counts and rates only. `--examples DIR`
+also writes up to five example spans per category, with 40 characters of
+context, for the corpora the catalog does not mark as naming real people
+(REDACT, OpenPII, the name-forms sets), never for CNEC or UNER; the folder
+must be ignored by git and outside `results/`, or the command refuses.
+
 ## Leak check breakdown
 
 ```sh
@@ -380,5 +443,6 @@ ANONYMIZER_RESOURCE_ROOT=/path/to/main/checkout uv run pytest -m dataset tests/e
 ## Not yet
 
 Other detectors (a new engine plugs in as another `model` value in
-`systems.py`); a token classifier trained here (RQ6's second candidate); OCR (RQ2 is `python -m benchmark ocr`); error analysis with
-examples, which needs a way to show corpus text without storing it.
+`systems.py`); a token classifier trained here (RQ6's second candidate); OCR (RQ2 is `python -m benchmark ocr`); examples of
+errors in CNEC and UNER, which needs a way to show corpus text without storing it
+(the error analysis keeps examples of the synthetic corpora only).

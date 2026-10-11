@@ -35,8 +35,9 @@ the catalog.
    Results keep the model names the config used.
 3. **Scores** (`metrics.py`) per type and for any type: precision, recall,
    F1 and F2, with strict (exact span) and partial (any overlap) matching,
-   and 95 % bootstrap intervals over documents (seeded). Pairs named in
-   `compare` get a paired bootstrap of the difference.
+   and 95 % bootstrap intervals over documents (seeded). Beside them, leak
+   coverage (below): what would stay readable after redaction. Pairs named
+   in `compare` get a paired bootstrap of the difference.
 4. **Writes** `results/<name>.json` (every score, with commit, machine,
    model and dataset versions, seed) and the same as `<name>.md` and
    `<name>.tex` (booktabs; `\ci` is provided at the top of the file).
@@ -44,6 +45,66 @@ the catalog.
 Results hold counts and scores only. Documents are named by position, never
 by content, so CNEC and UNER, which name real people, cannot leak through a
 results file, and the files can be committed.
+
+## Leak coverage
+
+A partial match counts "Jan" found in "Jan Novák" as a hit, yet after
+redaction "Novák" is still readable: a partial match is a leak, not a near
+miss. Leak coverage measures what redacting every prediction would leave,
+per type and for any type. A results file holds it under `coverage` (per
+system) and `comparisons[].coverage` (paired differences); the tables show
+it in a *Leak coverage* table per corpus. Definitions (`metrics.py`,
+`Coverage`):
+
+- **Characters** are those of page text that are not whitespace, so a line
+  break inside a name, or the space between two predictions "Jan" and
+  "Novák", changes nothing. Offsets are page-local, as everywhere.
+- A gold character is **covered** when any prediction in page text covers
+  it, whatever the prediction's type and whether or not the corpus scores
+  that type: a name tagged as an address is redacted all the same.
+- **Residual share**: gold characters no prediction covers / gold
+  characters (over the union of the type's gold spans). Lower is better.
+- **Hidden whole**: gold spans with every character covered / gold spans
+  (the same distinct spans as `found / gold`). Several predictions together
+  may hide a span, since redaction removes their union. The benchmark's
+  "items found whole" asks for one entity covering the item; for a leak the
+  union is what counts.
+- **Over-redaction**: characters of the type's predictions outside every
+  scored gold span, per 1,000 characters of page text: what the reader
+  loses. Like precision, it counts only predictions of scored types, since
+  a corpus that does not annotate dates cannot say whether a date is
+  personal; a name predicted over an organisation (in the gold, but not
+  scored) does count.
+
+Intervals and paired differences use the same resamples as the match
+scores. In the paired table a negative Δresidual is an improvement, and p
+is that of Δresidual.
+
+The scores are measured on text: redaction boxes every word a span
+overlaps (`Page.bboxes_for_span`), so a prediction ending inside a word
+leaves less readable on a PDF page than the residual share says. Leak coverage does not replace the
+benchmark, which reads the redacted output back.
+
+### Adding it to existing results
+
+Leak coverage needs the predictions, which results files do not keep, so
+existing results get it by running their config again. The name models'
+output comes from the cache (below), so only the rules and the steps after
+the model run:
+
+```sh
+uv run python -m experiments run --config experiments/configs/rq1-dev.toml
+```
+
+The last `rq1-dev` run answered all of GLiNER's 202, 134 and 153 windows
+from the cache (`cache` in the results file: no misses) and spent under
+0.3 s on detection per system and corpus; reading the corpora and the
+1,000 resamples come on top. The model is loaded only on a miss, which a
+changed model input (window text, labels) causes; misses are counted under
+`cache`. The rerun scores with today's detection code, so other scores may
+move where detection changed since the file was written: compare with
+`git diff experiments/results/`. `python -m experiments tables <old>.json`
+renders a file without coverage exactly as before.
 
 ## Datasets
 

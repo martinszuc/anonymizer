@@ -21,14 +21,45 @@ Confidence intervals resample whole documents with replacement (spans of
 one document are not independent: a repeated name is found or missed
 everywhere) and take the 2.5th and 97.5th percentiles. Two systems are
 compared on the same resamples (paired bootstrap).
+
+**Leak coverage** (`Coverage`, `document_coverage`) asks what stays readable
+once every prediction is redacted, which a partial match cannot tell: "Jan"
+found in "Jan Novák" is a partial hit, but "Novák" stays. Characters are
+counted, not spans, and only characters that are not whitespace, so a line
+break inside a name or two adjacent predictions with a space between them
+change nothing. Per type, on each page:
+
+- a gold character is **covered** when any prediction in page text covers
+  it, whatever its type and whether or not the corpus scores that type: a
+  name tagged as an address, or inside a span of a type the corpus does not
+  score, is redacted all the same;
+- **residual share**: uncovered gold characters / gold characters, over the
+  union of the type's gold spans (what stays readable);
+- **hidden whole**: gold spans with every character covered / gold spans
+  (the same distinct spans the match counts use). The union of predictions
+  counts, so "Jan" and "Novák" found apart hide "Jan Novák" whole; the
+  benchmark's "found whole" asks for one entity covering the item instead;
+- **over-redaction**: characters of the type's predictions outside every
+  scored gold span, per 1,000 characters of page text. Like precision, it
+  counts only predictions of scored types: whether a date the corpus does
+  not annotate is personal is unknown.
+
+`ANY_TYPE` takes the gold spans and predictions of every scored type
+together. All counts are additive over documents, so the same bootstrap
+serves both kinds of score.
 """
 
 from __future__ import annotations
 
+import bisect
+import functools
+import itertools
 import math
+import operator
 import random
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, replace
+from typing import Self
 
 from anonymizer.core.types import Entity, EntityType
 
@@ -37,13 +68,44 @@ PARTIAL = "partial"
 MATCHES = (STRICT, PARTIAL)
 ANY_TYPE = "any"
 METRICS = ("precision", "recall", "f1", "f2")
+COVERAGE_METRICS = ("residual", "hidden_whole", "over_redaction")
+OVER_REDACTION_PER = 1000
+"""Over-redaction is given per this many characters of page text."""
 
 Span = tuple[int, int, int]
 """Page index, start, end."""
 
 
 @dataclass(frozen=True, slots=True)
-class Counts:
+class Tally:
+    """Integer counts of one document, additive over documents, and the scores they give."""
+
+    def __add__(self, other: Self) -> Self:
+        """Sum two tallies field by field."""
+        return self.with_columns(
+            [getattr(self, name) + getattr(other, name) for name in self.columns()]
+        )
+
+    @classmethod
+    def columns(cls) -> tuple[str, ...]:
+        """Return the names of the counts, in field order."""
+        return tuple(field.name for field in fields(cls))
+
+    def with_columns(self, values: Sequence[int]) -> Self:
+        """Return a tally of the same kind holding these counts, in field order."""
+        return replace(self, **dict(zip(self.columns(), values, strict=True)))
+
+    def to_dict(self) -> dict[str, int]:
+        """Return the counts as plain data."""
+        return {name: getattr(self, name) for name in self.columns()}
+
+    def metric(self, name: str) -> float | None:
+        """Return a score by name; `None` when it is undefined."""
+        raise NotImplementedError
+
+
+@dataclass(frozen=True, slots=True)
+class Counts(Tally):
     """Match counts, additive over documents.
 
     Attributes:
@@ -57,15 +119,6 @@ class Counts:
     predicted_matched: int = 0
     gold: int = 0
     gold_matched: int = 0
-
-    def __add__(self, other: Counts) -> Counts:
-        """Sum two counts."""
-        return Counts(
-            self.predicted + other.predicted,
-            self.predicted_matched + other.predicted_matched,
-            self.gold + other.gold,
-            self.gold_matched + other.gold_matched,
-        )
 
     @property
     def precision(self) -> float | None:
@@ -179,6 +232,171 @@ def document_counts(
 
 
 @dataclass(frozen=True, slots=True)
+class Coverage(Tally):
+    """Character and item counts of what redaction would leave, additive over documents.
+
+    Characters are those that are not whitespace (see the module docstring).
+
+    Attributes:
+        gold_characters: Characters inside the type's gold spans.
+        residual_characters: Of those, characters no prediction covers.
+        gold_items: Distinct gold spans of the type.
+        hidden_items: Gold spans with every character covered.
+        over_characters: Characters of the type's predictions outside every
+            scored gold span.
+        text_characters: Characters of page text.
+    """
+
+    gold_characters: int = 0
+    residual_characters: int = 0
+    gold_items: int = 0
+    hidden_items: int = 0
+    over_characters: int = 0
+    text_characters: int = 0
+
+    def metric(self, name: str) -> float | None:
+        """Return one of `COVERAGE_METRICS` by name; `None` when it is undefined."""
+        if name == "residual":
+            return _share(self.residual_characters, self.gold_characters)
+        if name == "hidden_whole":
+            return _share(self.hidden_items, self.gold_items)
+        if name == "over_redaction":
+            share = _share(self.over_characters, self.text_characters)
+            return None if share is None else OVER_REDACTION_PER * share
+        msg = f"unknown metric {name!r}"
+        raise ValueError(msg)
+
+
+def _share(part: int, whole: int) -> float | None:
+    return part / whole if whole else None
+
+
+Ranges = list[tuple[int, int]]
+"""Disjoint, sorted half-open character ranges of one page."""
+
+
+def document_coverage(
+    predicted: Sequence[Entity],
+    gold: Sequence[Entity],
+    types: Iterable[EntityType],
+    pages: Sequence[str],
+) -> dict[str, Coverage]:
+    """Count what one document would keep readable, per type, plus `ANY_TYPE` for several types.
+
+    Args:
+        predicted: What a system found; every prediction in page text covers,
+            whatever its type.
+        gold: The expected spans.
+        types: Types the corpus annotates; only their gold spans are counted,
+            and only their predictions count as over-redaction.
+        pages: The text of each page, by page index; offsets are page-local.
+
+    Returns:
+        Coverage keyed by the type's string value.
+    """
+    types = sorted(set(types), key=str)
+    redacted = _spans(entity for entity in predicted if entity.in_page_text)
+    scored_predictions = scoreable(predicted, types)
+    scored_gold = scoreable(gold, types)
+    groups = {
+        str(kind): (
+            _spans(entity for entity in scored_predictions if entity.type is kind),
+            _spans(entity for entity in scored_gold if entity.type is kind),
+        )
+        for kind in types
+    }
+    if len(types) > 1:
+        groups[ANY_TYPE] = (_spans(scored_predictions), _spans(scored_gold))
+    all_gold = _spans(scored_gold)
+    coverage = {kind: Coverage() for kind in groups}
+    for page_index, text in enumerate(pages):
+        visible = _visible_prefix(text)
+        covered = _page_ranges(redacted, page_index, len(text))
+        gold_anywhere = _page_ranges(all_gold, page_index, len(text))
+        for kind, (kind_predicted, kind_gold) in groups.items():
+            coverage[kind] += _page_coverage(
+                visible,
+                covered,
+                gold_anywhere,
+                _page_ranges(kind_predicted, page_index, len(text)),
+                sorted({_clamp(span, len(text)) for span in kind_gold if span[0] == page_index}),
+            )
+    return coverage
+
+
+def _page_coverage(
+    visible: Sequence[int],
+    covered: Ranges,
+    gold_anywhere: Ranges,
+    kind_predicted: Ranges,
+    kind_gold: Sequence[tuple[int, int]],
+) -> Coverage:
+    gold_ranges = _union(kind_gold)
+    gold_characters = _count(visible, gold_ranges)
+    # A span with no visible character hides nothing and leaks nothing: it counts as hidden.
+    hidden = sum(
+        1
+        for item in kind_gold
+        if _count(visible, [item]) == _count(visible, _intersect([item], covered))
+    )
+    return Coverage(
+        gold_characters=gold_characters,
+        residual_characters=gold_characters - _count(visible, _intersect(gold_ranges, covered)),
+        gold_items=len(kind_gold),
+        hidden_items=hidden,
+        over_characters=_count(visible, kind_predicted)
+        - _count(visible, _intersect(kind_predicted, gold_anywhere)),
+        text_characters=visible[-1],
+    )
+
+
+def _visible_prefix(text: str) -> list[int]:
+    """Characters that are not whitespace before each offset (`len(text) + 1` entries)."""
+    return [0, *itertools.accumulate(0 if char.isspace() else 1 for char in text)]
+
+
+def _clamp(span: Span, length: int) -> tuple[int, int]:
+    _, start, end = span
+    return min(start, length), min(end, length)
+
+
+def _page_ranges(spans: Iterable[Span], page_index: int, length: int) -> Ranges:
+    return _union(_clamp(span, length) for span in spans if span[0] == page_index)
+
+
+def _union(ranges: Iterable[tuple[int, int]]) -> Ranges:
+    """Merge overlapping and adjacent ranges."""
+    merged: Ranges = []
+    for start, end in sorted(ranges):
+        if start >= end:
+            continue
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return merged
+
+
+def _intersect(first: Ranges, second: Ranges) -> Ranges:
+    """Intersect two lists of disjoint sorted ranges."""
+    result: Ranges = []
+    starts = [start for start, _ in second]
+    for start, end in first:
+        index = max(0, bisect.bisect_right(starts, start) - 1)
+        for other_start, other_end in second[index:]:
+            if other_start >= end:
+                break
+            low, high = max(start, other_start), min(end, other_end)
+            if low < high:
+                result.append((low, high))
+    return result
+
+
+def _count(visible: Sequence[int], ranges: Iterable[tuple[int, int]]) -> int:
+    return sum(visible[end] - visible[start] for start, end in ranges)
+
+
+@dataclass(frozen=True, slots=True)
 class Interval:
     """A point estimate with its 95 % bootstrap interval."""
 
@@ -227,35 +445,28 @@ def resamples(documents: int, count: int, seed: int) -> list[list[int]]:
     return [generator.choices(population, k=documents) for _ in range(count)]
 
 
-def total(counts: Sequence[Counts]) -> Counts:
-    """Sum counts over documents."""
-    result = Counts()
-    for item in counts:
-        result += item
-    return result
+def total[T: Tally](counts: Sequence[T]) -> T:
+    """Sum per-document tallies (at least one) over documents."""
+    return functools.reduce(operator.add, counts)
 
 
-def resampled_totals(counts: Sequence[Counts], draws: Sequence[Sequence[int]]) -> list[Counts]:
-    """Return the summed counts of each resample of documents."""
-    columns = [
-        [item.predicted for item in counts],
-        [item.predicted_matched for item in counts],
-        [item.gold for item in counts],
-        [item.gold_matched for item in counts],
-    ]
+def resampled_totals[T: Tally](counts: Sequence[T], draws: Sequence[Sequence[int]]) -> list[T]:
+    """Return the summed per-document tallies (at least one) of each resample of documents."""
+    first = counts[0]
+    columns = [[getattr(item, name) for item in counts] for name in first.columns()]
     return [
-        Counts(*(sum(column[index] for index in indices) for column in columns))
+        first.with_columns([sum(column[index] for index in indices) for column in columns])
         for indices in draws
     ]
 
 
-def interval(counts: Sequence[Counts], resampled: Sequence[Counts], metric: str) -> Interval:
+def interval[T: Tally](counts: Sequence[T], resampled: Sequence[T], metric: str) -> Interval:
     """Return a metric over all documents with its bootstrap interval.
 
     Args:
-        counts: Per-document counts.
+        counts: Per-document counts (`Counts` or `Coverage`).
         resampled: The same counts summed per resample (`resampled_totals`).
-        metric: One of `METRICS`.
+        metric: One of `METRICS` for `Counts`, of `COVERAGE_METRICS` for `Coverage`.
 
     Returns:
         The value and its interval; resamples where the metric is undefined
@@ -266,9 +477,9 @@ def interval(counts: Sequence[Counts], resampled: Sequence[Counts], metric: str)
     return Interval(total(counts).metric(metric), low, high)
 
 
-def paired_difference(
-    baseline: tuple[Sequence[Counts], Sequence[Counts]],
-    candidate: tuple[Sequence[Counts], Sequence[Counts]],
+def paired_difference[T: Tally](
+    baseline: tuple[Sequence[T], Sequence[T]],
+    candidate: tuple[Sequence[T], Sequence[T]],
     metric: str,
 ) -> Difference:
     """Compare two systems on the same resamples.
@@ -276,7 +487,7 @@ def paired_difference(
     Args:
         baseline: Per-document counts and their resampled totals.
         candidate: The same for the other system, drawn with the same indices.
-        metric: One of `METRICS`.
+        metric: A metric of the counts' kind, as for `interval`.
 
     Returns:
         Candidate minus baseline, with interval and p-value.

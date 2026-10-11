@@ -986,6 +986,23 @@ non-commercial use only (CC BY-NC-SA 4.0) and the multilingual model finds no
 addresses alone. The union is the better detector where that licence is acceptable;
 offering it in the window is a separate change.
 
+### 2026-10-11 · The recall-weighted loss on the real model (smoke run)
+
+`experiments/loss.py` recomputes the loss from the logits of gliner's unchanged
+forward pass. On one batch of 8 drawn training examples (60 OpenPII-cs, 60 CNEC, 40
+UNER-SK train, seed 20261010) through GLiNER multilingual v2.1 on the CPU:
+
+- **Weight 1 is gliner's cross-entropy.** gliner's own loss (alpha -1, gamma 0, sum)
+  and the weighted loss at `positive_weight = 1` were both 22.6969; at weight 3 the
+  weighted loss was 39.7813.
+- **Positives are rare.** The batch held 7 positive (span, label) pairs among 16,896
+  scored pairs (spans up to 12 tokens times 3 labels), about 1 in 2,400; the sum over
+  pairs is what the weight shifts towards the positives.
+- **Training runs.** 20 steps of 8 with weight 3 and `negative_focus = 1` on MPS (a
+  GPU shared with another training run, 3.4 s per step), stored, reloaded through
+  the root's catalog and scored on 5 documents per development split; the model was
+  then removed. Its scores say nothing about the loss.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

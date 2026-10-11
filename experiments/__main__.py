@@ -2,7 +2,8 @@
 
 `train --config experiments/configs/train-<name>.toml` fine-tunes a name
 model, lists it under the resource root and scores it on development data
-(`experiments.train`; needs `uv sync --group train`).
+(`experiments.train`; needs `uv sync --group train`); `--seed N` trains a
+replicate, stored as `<model>-sN` with results `<name>-sN`.
 
 `leaks scan.pdf --engines onnxtr --system rules+gliner --out leaks/` counts
 why the leak check fails on one document (`experiments.leaks`).
@@ -31,7 +32,7 @@ from experiments.funsd import SPLITS, run_funsd, write_results
 from experiments.leaks import breakdown, breakdown_markdown, write_breakdown
 from experiments.report import latex, markdown
 from experiments.run import run
-from experiments.train import load_train_config, train, write_training
+from experiments.train import load_train_config, train, with_seed, write_training
 
 RESULTS = Path(__file__).parent / "results"
 
@@ -55,6 +56,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     train_parser.add_argument(
         "--config", type=Path, required=True, help="training configuration (TOML)"
+    )
+    train_parser.add_argument(
+        "--seed",
+        type=int,
+        help="train a replicate with this seed: model <model>-s<seed>, results <name>-s<seed>",
     )
     train_parser.add_argument(
         "--out", type=Path, default=RESULTS, help=f"results directory (default: {RESULTS})"
@@ -126,6 +132,8 @@ def main(argv: list[str] | None = None) -> int:
 
 def _train(args: argparse.Namespace, root: Path) -> int:
     config = load_train_config(args.config, load_catalog(root=root))
+    if args.seed is not None:
+        config = with_seed(config, args.seed)
     cache_dir = args.cache_dir or root / ".cache" / "experiments"
     results = train(config, resource_root=root, cache_dir=cache_dir, progress=print)
     path = write_training(results, args.out)

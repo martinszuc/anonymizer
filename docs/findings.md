@@ -865,6 +865,118 @@ say nothing about the model (40 steps, 25 documents per development split).
   the peak after four warm-up steps. transformers calls the ratio deprecated,
   but it is the one gliner applies.
 
+### 2026-10-10 · NameTag 3 run without Keras (synthetic)
+
+NameTag 3 Czech (`czech-cnec2.0-240830`, nested CNEC types, RobeCzech) and multilingual
+(`multilingual-260521`, flat CoNLL / UNER / OntoNotes tagsets, XLM-R large), LINDAT,
+read by `core/detect/nametag_model.py` and `nametag_network.py`.
+
+- **Upstream is not a package.** NameTag 3 is a set of Keras 3 scripts (PyTorch backend,
+  `keras~=3.13`, `transformers~=5.5`, seqeval, peft); its server tokenizes raw text with
+  UDPipe. The released archives hold `options.json`, a pickled label list, a Keras
+  `checkpoint.weights.h5` and `udpipe.tokenizer`, but not the encoder's config or
+  tokenizer: NameTag bundles those only after 3.2.2, and fetches them from the Hub
+  otherwise. They are catalogued separately (RobeCzech at its last revision before the
+  Czech model was trained: v1.1, vocabulary 51,997, which the checkpoint's embeddings
+  match; XLM-R large).
+- **The checkpoint is readable without Keras.** Keras stored the encoder's `state_dict`
+  by parameter name: both encoders (199 tensors in the Czech one) load into
+  `transformers`' `RobertaModel` / `XLMRobertaModel` with `strict=True`. The heads are a
+  dense layer (flat) or an embedding, an LSTM cell and a dense layer (nested), stored as
+  Keras variables whose gate order equals PyTorch's.
+- **The reimplementation labels as upstream does.** `experiments/nametag_reference.py`:
+  the 26 benchmark documents, cut by each model's UDPipe tokenizer, tagged by upstream
+  `nametag3.py` (GitHub `ufal/nametag3` at `25491b8`, 2026-09-11, in its own virtual
+  environment, offline) and by the project's code.
+  Czech: 5,733 of 5,733 tokens with equal labels, 881 entities on both sides, none on one
+  side only. Multilingual: 5,659 of 5,659 tokens, 230 entities, none on one side only.
+  The UDPipe `ranges` option (character offsets) tokenized all 26 documents as the
+  server's default options do.
+- **Fast on the CPU.** On the same text, after loading: Czech about 1,800 tokens/s,
+  multilingual about 1,400 tokens/s (M4 Pro, CPU, batch 8). The Czech model loads in
+  about 5 s.
+- **The Czech model tags address parts without the address around them.** In a
+  synthetic contract it marked street, house number, postcode and town part
+  (`gs`, `ah`, `az`, `gq`) but no `A` container. Reported part by part, the town would
+  stay in the text, so the detector joins parts separated only by punctuation into one
+  address and drops a town alone ("narozenou v Brně").
+- **Upstream's per-token label limit never applies.** `DecoderPrediction` resets a
+  counter of labels per token but never increments it, so only the overall bound (five
+  steps per token of the longest input) stops decoding. The reimplementation keeps
+  that behaviour, since it must label as upstream does.
+
+### 2026-10-11 · NameTag 3 against GLiNER (development data)
+
+`experiments/configs/nametag-dev.toml`, commit `f5f7ddd` (clean tree), seed 20261011,
+1,000 document-level resamples, 95 % intervals; `experiments/results/nametag-dev.md`.
+Every system runs beside the rules and through the name filter. The `rules+gliner` rows
+equal `rq1-dev` and `openpii-dev` (person F2 0.833 CNEC, 0.931 OpenPII cs).
+**NameTag 3 Czech was trained on CNEC 2.0 train, the multilingual model on CNEC 2.0 and
+UNER-SK train: those two corpora favour NameTag.** REDACT (40 Czech records) and
+OpenPII (synthetic, about 4,500 records per language) are the fairer comparisons.
+
+Person, partial match, F2 (P / R), and the paired difference in F2 against
+`rules+gliner`:
+
+| corpus | rules+gliner | NameTag cs | NameTag multi | GLiNER ∪ multi | GLiNER ∩ multi |
+|---|---|---|---|---|---|
+| CNEC dtest (cs) † | 0.833 (0.911 / 0.815) | 0.950 (0.940 / 0.952), +0.117 [0.084, 0.156] | 0.905 (0.937 / 0.897), +0.072 [0.040, 0.102] | 0.920 (0.898 / 0.926), +0.087 [0.063, 0.116] | 0.817 (0.955 / 0.788), −0.016 [−0.030, −0.004] |
+| UNER-SK dev (sk) † | 0.700 (0.829 / 0.674) | 0.833 (0.765 / 0.851), +0.133 [0.061, 0.203] | 0.881 (0.869 / 0.884), +0.181 [0.117, 0.244] | 0.874 (0.824 / 0.888), +0.174 [0.108, 0.238] | 0.705 (0.893 / 0.670), +0.005 [−0.002, 0.013] |
+| REDACT sample (cs) | 0.848 (0.649 / 0.918) | 0.925 (0.753 / 0.982), +0.078 [0.025, 0.126] | 0.935 (0.810 / 0.973), +0.088 [0.034, 0.136] | 0.904 (0.652 / 1.000), +0.056 [0.031, 0.087] | 0.873 (0.825 / 0.886), +0.025 [−0.021, 0.064] |
+| OpenPII cs dev | 0.931 (0.881 / 0.944) | 0.868 (0.845 / 0.874), −0.063 [−0.073, −0.053] | 0.948 (0.980 / 0.941), +0.017 [0.011, 0.024] | 0.954 (0.874 / 0.976), +0.023 [0.019, 0.028] | 0.924 (0.995 / 0.908), −0.006 [−0.011, −0.001] |
+| OpenPII sk dev | 0.933 (0.889 / 0.945) | 0.772 (0.856 / 0.754), −0.161 [−0.174, −0.148] | 0.946 (0.976 / 0.938), +0.013 [0.005, 0.020] | 0.957 (0.881 / 0.978), +0.024 [0.020, 0.029] | 0.921 (0.992 / 0.905), −0.012 [−0.018, −0.007] |
+
+† trained on this corpus's train split. ∪: union (`CombinedDetector`); ∩: agreement only
+(`AgreementDetector`). The union and agreement with NameTag Czech are in the results file.
+
+- **NameTag 3 multilingual beats zero-shot GLiNER on persons on every corpus**, the
+  intervals above 0, including the two it was not trained on: REDACT +0.088 F2,
+  OpenPII +0.017 (cs) and +0.013 (sk). On OpenPII the gain is precision (0.98 against
+  0.88) at equal recall.
+- **Its span boundaries are much closer to the gold.** Strict person F2 on OpenPII:
+  0.831 (cs) and 0.810 (sk) against GLiNER's 0.554 and 0.545; on REDACT 0.706 against
+  0.567. GLiNER's loss on OpenPII is the boundary, NameTag's is not.
+- **NameTag 3 Czech is a CNEC model.** Best on CNEC (+0.117) and good on REDACT
+  (+0.078), it falls behind GLiNER on OpenPII: recall 0.874 in Czech and 0.754 in
+  Slovak. Its training data is news text; OpenPII's forms and letters are not.
+- **The multilingual model has no address type** (CoNLL tagset: PER, ORG, LOC, MISC):
+  beside the rules alone, address recall on OpenPII is 0.26 and any-type F2 drops by
+  0.11 (cs) and 0.12 (sk) against `rules+gliner`. Used alone it would leak addresses.
+  The Czech model's addresses are precise (P 0.96–0.97 on OpenPII) but miss more than
+  GLiNER's (R 0.75 cs, 0.63 sk, against 0.91 and 0.93).
+- **The union of GLiNER and NameTag multilingual is the best system by F2 on every
+  corpus** for persons (+0.023 to +0.174, intervals above 0) and keeps GLiNER's
+  addresses: any-type F2 +0.074 CNEC, +0.033 REDACT, +0.010 and +0.011 OpenPII, at a
+  precision cost of at most 0.013 for persons.
+- **Agreement-only buys precision with recall**: with the multilingual model, person
+  precision 0.83–0.995 and recall below GLiNER's on every corpus. Person F2 never
+  improves with an interval above 0, with either NameTag model, so for a recall-first
+  tool it is not a candidate.
+
+**Benchmark** (`python -m benchmark run`, 26 synthetic documents, 224 items, commit
+`b40cff3`, `outputs/benchmark-nametag`, not committed):
+
+| system | found | missed | persons found | false alarms | per 1,000 words | safe documents | leak check |
+|---|---|---|---|---|---|---|---|
+| rules+gliner | 198/224 | 25 | 109/128 | 44 | 9.4 | 17/26 | 26/26 |
+| rules+nametag Czech | 209/224 | 14 | 121/128 | 22 | 4.7 | 22/26 | 26/26 |
+| rules+nametag multilingual | 208/224 | 13 | 122/128 | 17 | 3.6 | 22/26 | 26/26 |
+
+NameTag halves the false alarms and leaves five fewer documents unsafe. Most of
+GLiNER's false alarms are on the documents without personal data (privacy notice,
+gym rules, notices: 30 of 44); NameTag Czech raises 10 there, the multilingual model 4.
+The multilingual model finds 2 fewer addresses (20/23) and 2 fewer items in the school
+form than GLiNER; which ones was not inspected.
+
+**Recommendation.** For the thesis, NameTag 3 multilingual is the opponent: it is the
+stronger existing model on the corpora it was not trained on, and its boundaries set
+the bar for strict match. The own model has to beat it on reserved test data, and,
+for addresses, GLiNER as well (or the union, which is the strongest existing system).
+For the tool, keep GLiNER as the shipped default: NameTag's models are licensed for
+non-commercial use only (CC BY-NC-SA 4.0) and the multilingual model finds no
+addresses alone. The union is the better detector where that licence is acceptable;
+offering it in the window is a separate change.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

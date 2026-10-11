@@ -204,6 +204,21 @@ def with_seed(config: TrainConfig, seed: int) -> TrainConfig:
     )
 
 
+def with_device(config: TrainConfig, device: str) -> TrainConfig:
+    """Return the config trained on another device, as on a machine without the file's GPU.
+
+    The name, model and data stay those of the file; the results record the
+    device actually used under `machine`, while `config` keeps the file's text.
+
+    Raises:
+        ValueError: If the device is not one of `DEVICES`.
+    """
+    if device not in DEVICES:
+        msg = f"device must be one of {DEVICES}"
+        raise ValueError(msg)
+    return replace(config, device=device)
+
+
 def load_train_config(path: Path, catalog: Catalog | None = None) -> TrainConfig:
     """Read and validate a training configuration file (see `parse_train_config`)."""
     with path.open("rb") as handle:

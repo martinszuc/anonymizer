@@ -39,6 +39,7 @@ from experiments.train import (
     seed_for,
     train,
     training_examples,
+    with_device,
     with_seed,
 )
 from tests.experiments.conftest import CNEC_LINES, UNER_TEXT, ScoredStandIn
@@ -323,6 +324,13 @@ class TestConfig:
         with pytest.raises(ValueError, match="must not be negative"):
             with_seed(parse_train_config(CONFIG), -1)
 
+    def test_a_device_from_the_command_line_replaces_the_files(self):
+        config = with_device(parse_train_config({**CONFIG, "device": "mps"}), "cpu")
+        assert (config.device, config.name, config.model) == ("cpu", "train-test", "gliner-cs-test")
+        assert config.raw["device"] == "mps"
+        with pytest.raises(ValueError, match="device must be one of"):
+            with_device(parse_train_config(CONFIG), "cuda")
+
     def test_the_shipped_configs_are_valid(self):
         configs = sorted(CONFIGS.glob("train-*.toml"))
         assert configs
@@ -488,3 +496,33 @@ def test_the_command_trains_a_replicate_with_another_seed(
     assert results["model"]["id"] == "gliner-cs-test-s3"
     assert results["model"]["source"] == "experiments/results/train-test-s3.json"
     assert load_catalog(root=training_root)["gliner-cs-test-s3"].trained
+
+
+def test_the_command_trains_on_another_device(
+    training_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    from experiments import train as train_module
+
+    recorder = Recorder()
+    devices: list[str] = []
+
+    def loader(device: str):
+        devices.append(device)
+        return recorder.load
+
+    monkeypatch.setattr(train_module, "fit_gliner", recorder.fit)
+    monkeypatch.setattr(train_module, "_loader", loader)
+    config = tmp_path / "train-test.toml"
+    config.write_text(
+        'name = "train-test"\nmodel = "gliner-cs-test"\nseed = 5\ndevice = "mps"\n'
+        "[training]\nsteps = 1\n"
+        '[[corpora]]\nid = "openpii-1m-cs"\nsplit = "train"\n',
+        encoding="utf-8",
+    )
+    out = tmp_path / "results"
+    args = ["train", "--config", str(config), "--out", str(out), "--device", "cpu"]
+    assert main([*args, "--resource-root", str(training_root)]) == 0
+    assert devices == ["cpu"]
+    results = json.loads((out / "train-test.json").read_text(encoding="utf-8"))
+    assert (results["machine"]["device"], results["config"]["device"]) == ("cpu", "mps")
+    assert results["model"]["id"] == "gliner-cs-test"

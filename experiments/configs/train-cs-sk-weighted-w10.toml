@@ -1,0 +1,50 @@
+name = "train-cs-sk-weighted-w10"
+description = """
+RQ6, weight sweep of the recall-weighted loss (experiments/loss.py): identical to
+train-cs-sk-weighted except positive_weight = 10, so a missed positive (span, label) pair
+costs 10 times an equally confident false alarm. With weight 3 (train-cs-sk-weighted) it
+tunes the weight on development data against person F2; the test splits are never read.
+Every CNEC 2.0 and UNER Slovak-SNK train example and 10,000 drawn from each OpenPII 1M
+train split; 2,000 steps of 16 (about 1.4 passes)."""
+model = "gliner-cs-sk-weighted-w10"
+base = "gliner-multi-v2.1"
+seed = 20261010
+device = "mps"
+
+[training]
+steps = 2000
+batch_size = 16
+learning_rate = 1e-5
+head_learning_rate = 5e-5
+weight_decay = 0.01
+warmup_ratio = 0.1
+loss = "weighted"
+positive_weight = 10.0
+logging_steps = 25
+
+[[corpora]]
+id = "cnec-2.0"
+split = "train"
+
+[[corpora]]
+id = "uner-sk-snk"
+split = "train"
+
+[[corpora]]
+id = "openpii-1m-cs"
+split = "train"
+examples = 10000
+
+[[corpora]]
+id = "openpii-1m-sk"
+split = "train"
+examples = 10000
+
+[evaluate]
+datasets = [
+    { id = "cnec-2.0", split = "dtest" },
+    { id = "uner-sk-snk", split = "dev" },
+    { id = "redact", split = "sample" },
+    { id = "openpii-1m-cs", split = "dev" },
+    { id = "openpii-1m-sk", split = "dev" },
+]

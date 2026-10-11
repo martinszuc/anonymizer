@@ -25,6 +25,7 @@ from anonymizer.core.ingest import load_ocr_engine
 from anonymizer.core.pipeline import build_detector
 from anonymizer.core.resources import load_catalog, resolve_resource_root
 
+from experiments import phenomena
 from experiments.config import load_config
 from experiments.datasets import DATASETS, load_corpus
 from experiments.funsd import SPLITS, run_funsd, write_results
@@ -135,8 +136,14 @@ def _train(args: argparse.Namespace, root: Path) -> int:
 
 def _write_tables(results: dict[str, Any], folder: Path) -> None:
     name = str(results["name"])
-    (folder / f"{name}.md").write_text(markdown(results), encoding="utf-8")
-    (folder / f"{name}.tex").write_text(latex(results), encoding="utf-8")
+    # Recall by name form follows the standard tables, for the corpora that tag their spans.
+    forms_md, forms_tex = phenomena.markdown(results), phenomena.latex(results)
+    (folder / f"{name}.md").write_text(
+        markdown(results) + (f"\n{forms_md}" if forms_md else ""), encoding="utf-8"
+    )
+    (folder / f"{name}.tex").write_text(
+        latex(results) + (f"\n{forms_tex}" if forms_tex else ""), encoding="utf-8"
+    )
 
 
 def _leaks(args: argparse.Namespace, root: Path) -> int:

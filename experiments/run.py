@@ -24,7 +24,7 @@ from anonymizer.core.resources import Catalog, load_catalog
 from anonymizer.core.types import EntityType
 
 from experiments.config import RunConfig
-from experiments.datasets import DATASETS, Corpus, load_corpus
+from experiments.datasets import Corpus, dataset_version, load_corpus
 from experiments.metrics import (
     MATCHES,
     METRICS,
@@ -36,6 +36,7 @@ from experiments.metrics import (
     resamples,
     total,
 )
+from experiments.phenomena import PhenomenonTally
 from experiments.systems import (
     CACHE_FLOOR,
     NameModel,
@@ -105,10 +106,7 @@ def run(
         "resamples": config.resamples,
         "cache_floor": CACHE_FLOOR,
         "models": model_versions(config.systems, catalog),
-        "datasets": {
-            reference.id: load_catalog()[DATASETS[reference.id].catalog_id].version
-            for reference in config.datasets
-        },
+        "datasets": {reference.id: dataset_version(reference.id) for reference in config.datasets},
         "systems": {system.name: system.describe() for system in config.systems},
         "config": config.raw,
         **({"limit": limit} if limit is not None else {}),
@@ -162,7 +160,7 @@ def _run_corpus(
         started = time.perf_counter()
         used = {model_id: models[model_id] for model_id in system.model_ids}
         before = {model_id: (model.hits, model.misses) for model_id, model in used.items()}
-        counts, details = _run_system(system, corpus, types, used)
+        counts, details = _run_system(system, corpus, types, used, draws)
         per_system[system.name] = counts
         details["seconds"] = round(time.perf_counter() - started, 2)
         for model in used.values():
@@ -209,8 +207,10 @@ def _run_system(
     corpus: Corpus,
     types: frozenset[EntityType],
     models: dict[str, NameModel],
+    draws: Sequence[Sequence[int]],
 ) -> tuple[dict[tuple[str, str], list[Counts]], dict[str, Any]]:
     counts: dict[tuple[str, str], list[Counts]] = {}
+    tally = PhenomenonTally(corpus) if corpus.tagged else None
     unscored: Counter[str] = Counter()
     languages: Counter[str] = Counter()
     for gold in corpus.documents:
@@ -218,6 +218,8 @@ def _run_system(
         found = gold.document.entities
         for key, value in document_counts(found, gold.gold, types).items():
             counts.setdefault(key, []).append(value)
+        if tally is not None:
+            tally.add(found, gold, types)
         unscored.update(str(entity.type) for entity in found if entity.type not in types)
         languages[gold.document.language or "none"] += 1
         gold.document.entities = []
@@ -225,6 +227,8 @@ def _run_system(
         "languages": dict(languages.most_common()),
         "unscored_predictions": dict(unscored.most_common()),
     }
+    if tally is not None:
+        details["phenomena"] = tally.results(draws)
     return counts, details
 
 

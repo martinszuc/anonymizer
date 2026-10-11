@@ -53,6 +53,7 @@ results file, and the files can be committed.
 | `uner-sk-snk` | `train` (train), `dev` (dev), `test` (test) | sk | person |
 | `redact` | `sample` (dev) | cs | person, email, phone, address, date, birth_number, id_number |
 | `openpii-1m-cs`, `-sk`, `-en` | `train` (train), `dev` (dev), `test` (test) | cs, sk, en | person, address, email |
+| `name-forms-cs`, `-sk` | `dev` (dev), `test` (test) | cs, sk | person, with recall per name form |
 
 Only the types a corpus annotates are scored on it; any other prediction is
 counted under `unscored_predictions`. CNEC and UNER also keep their
@@ -68,10 +69,55 @@ test split, so its validation split is cut in two by a hash of each record's
 uid: `dev` for tuning, `test` reserved. Its identifiers and phone numbers are
 not scored: they are invented without checksums or a numbering plan.
 
+The name-forms sets are generated in code (`name_forms.py`), not
+downloaded: no files, no catalog entry, and their version is the
+generator's. See *Name forms* below.
+
 UNER keeps each sentence as written (`# text`) and groups pages by source
 document. `text = "tokens"` on a dataset entry builds the text instead from
 tokens joined by spaces, cut into pages across document boundaries: how the
 2026-10-02 sweep did it.
+
+## Name forms
+
+`name-forms-cs` and `name-forms-sk` are short generated texts naming invented
+people (common first names and surnames combined arbitrarily) in controlled
+forms, to measure which forms of a name a system misses. The benchmark finds
+names of two words 80 of 81 times but names of one word 5 of 16
+(`docs/findings.md`); this set says which forms those are, at a size that
+runs in minutes.
+
+- **Forms** (each gold span is tagged): a full name in each of the seven
+  cases, a surname after pan/paní/pane in each case, a surname alone in a
+  later sentence, a first name alone, a nickname (Honza, Báro), the
+  possessive of a surname or first name (Novákova, Janin), English names in
+  Czech text; also the declension class of the name (Novák, Beneš, Hájek,
+  Svoboda, Novotný, Nováková, Novotná, Jana, Marie, ...) and the gender.
+  Slovak has no vocative and no English names here. Names are declined by
+  hand-written rules (`declension.py`), tested against forms written by hand.
+- **Texts naming nobody**: 8 Czech and 4 Slovak per split, with capitalised
+  role nouns ("Kupující", "Žadatel"); predictions in them are false alarms.
+- **Size**: each template is filled 12 times. Czech dev: 64 templates, 776
+  texts, 960 names (24 per form and case); Slovak dev: 24 templates, 292
+  texts, 360 names (12 per form and case). Test is the same size.
+- **Splits**: `dev` and `test` share no name and no template. `test` is
+  read only with `stage = "final"`.
+- **Evaluation only.** A generator of training data must not reuse these
+  templates: a model trained on them would be scored on its own training
+  texts (CLAUDE.md, *Testing*).
+
+Besides the standard tables, the run writes recall per form, form and case,
+case, declension class and gender, strict and partial (`phenomena.py`), with
+bootstrap intervals over texts, and the false alarms in texts naming nobody.
+Twelve texts of one template share their wording, so the intervals are
+narrower than resampling templates would give; read them as a guide, not a
+test. Changing a template or a name changes the texts: bump
+`NAME_FORMS_VERSION` and the digests pinned in `tests/experiments/test_name_forms.py`.
+
+```sh
+uv run python -m experiments run --config experiments/configs/name-forms-dev.toml \
+    --resource-root /path/to/main/checkout
+```
 
 ## FUNSD scans
 
@@ -96,6 +142,7 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/gliner-sweep.toml` | the 2026-10-02 measurement behind PR #55, reproduced |
 | `configs/openpii-dev.toml` | rules vs rules+gliner on the OpenPII dev halves, cs and sk: the bar for the own model |
 | `configs/nametag-dev.toml` | GLiNER vs NameTag 3 Czech and multilingual, alone, as a union and agreement-only, on every dev split (RQ1 model comparison) |
+| `configs/name-forms-dev.toml` | rules, GLiNER and NameTag 3 (Czech, multilingual) on the name-forms dev halves; recall per name form |
 | `configs/rq1-test.toml` | the final table on the test splits; run once settings are fixed |
 | `configs/train-smoke.toml` | training smoke run: 400 examples, 40 steps, 25 documents per dev split |
 | `configs/train-cs-sk-ce.toml`, `train-cs-sk-focal.toml` | the first full training runs, differing only in the loss |
@@ -204,7 +251,8 @@ and 881 entities, multilingual 5,659 tokens and 230 entities.
 ## Tests
 
 `tests/experiments/` runs the loaders, metrics, cache and a whole run on
-synthetic text in each corpus's format, with a stand-in model. The
+synthetic text in each corpus's format, with a stand-in model, and checks
+the name-forms declension against forms written by hand. The
 `dataset`-marked tests count spans in the real corpora; they look under the
 repository's `data/`, or under `ANONYMIZER_RESOURCE_ROOT`:
 

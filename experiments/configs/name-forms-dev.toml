@@ -1,0 +1,45 @@
+name = "name-forms-dev"
+description = """
+How often each form of a Czech or Slovak name is missed: generated texts naming invented
+people in every case, after pan/paní, as a surname or first name alone, as a nickname, a
+possessive or an English name, plus texts naming nobody (experiments/name_forms.py). Recall
+per form, case and declension class follows the standard tables. Development half only."""
+stage = "dev"
+seed = 20261011
+resamples = 1000
+compare = [
+  ["rules", "rules+gliner"],
+  ["rules+gliner", "rules+nametag-cs"],
+  ["rules+gliner", "rules+nametag-multi"],
+]
+
+# Czech dev: 64 templates x 12 texts + 8 texts naming nobody = 776 texts, 960 names.
+# Slovak dev: 24 templates x 12 texts + 4 = 292 texts, 360 names. Each text is one or two
+# sentences, so a run takes minutes on the CPU (one model window per text).
+[[datasets]]
+id = "name-forms-cs"
+split = "dev"
+
+[[datasets]]
+id = "name-forms-sk"
+split = "dev"
+
+[systems.rules]
+model = "none"
+
+[systems."rules+gliner"]
+model = "gliner"
+
+[systems."rules+nametag-cs"]
+model = "nametag3-czech-cnec2.0-240830"
+
+[systems."rules+nametag-multi"]
+model = "nametag3-multilingual-260521"
+
+# The models trained here, once `python -m experiments train` has stored them under the
+# resource root (configs/train-cs-sk-ce.toml, train-cs-sk-focal.toml):
+#   [systems."rules+gliner-cs-sk-ce"]
+#   model = "gliner-cs-sk-ce"
+#   [systems."rules+gliner-cs-sk-focal"]
+#   model = "gliner-cs-sk-focal"
+# A system naming a model the catalog does not know is refused when the config is read.

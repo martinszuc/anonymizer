@@ -132,8 +132,9 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
   pixels); overlapping regions are fine.
 - **Models** (*Manage Models…* on the home screen): a sheet listing what
   each feature needs, with a one-line note on what it is for (names and
-  addresses: one feature per catalog name model, GLiNER and its tokenizer
-  today; scanned pages with OnnxTR: its two
+  addresses: one feature per catalog name model: GLiNER, NameTag 3 Czech
+  and NameTag 3 multilingual today, each with its encoder's tokenizer, the
+  NameTag notes naming their non-commercial licence; scanned pages with OnnxTR: its two
   models; scanned pages with kraken: BLLA and PP-OCRv6) with size, licence,
   languages, source and
   whether the files are stored, and a *Download* per feature. Files come from

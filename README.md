@@ -135,7 +135,10 @@ uv run python scripts/download.py verify
 
 Name models are chosen by catalog id: `--ner` runs the default
 (`gliner-multi-v2.1`), `--name-model <id>` another catalog entry used for `ner`,
-and the review window lists every such entry.
+and the review window lists every such entry. Besides GLiNER (zero-shot,
+Apache-2.0) the catalog holds NameTag 3 Czech and multilingual (ÚFAL, supervised,
+CC BY-NC-SA 4.0: non-commercial use only), run without Keras on the same `ner`
+dependency group.
 
 Files land in `models/<id>/` or `data/<id>/` of the repository (both git-ignored;
 `--root` names another place). The CLI, the review window and the benchmark read
@@ -178,7 +181,7 @@ detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL, labelle
 dates of birth, postal addresses) scoped to the document's language, which can
 be recognised from the text (`--lang auto`, the window's default), names with the
 GLiNER model (optional,
-`--ner`, or another catalog name model with `--name-model`) widened over the academic titles beside them, review through
+`--ner`, or another catalog name model, such as NameTag 3, with `--name-model`) widened over the academic titles beside them, review through
 session files or the review window (a home screen with the detection options,
 models downloaded from the window and checked against their checksums, open or
 drop a PDF, toggle each item, add a missed word by selecting it, draw regions, save

@@ -25,10 +25,11 @@ the catalog.
    `core.pipeline.build_detector` and run by `core.pipeline.run_detection`,
    exactly as the command line and the review window run them. A system's
    options only switch what those functions offer: the name model (`none`,
-   or a catalog GLiNER model by id; `gliner` is the default one), its
-   threshold, labels and distractors, the name filter, propagation, and the
-   language (the corpus's, recognised from the text, or none). Results keep
-   the model name the config used.
+   a catalog GLiNER or NameTag 3 model by id, `gliner` being the default
+   one, or a list of two combined by `combine = "union"` or `"agreement"`),
+   GLiNER's threshold, labels and distractors, the name filter, propagation,
+   and the language (the corpus's, recognised from the text, or none).
+   Results keep the model names the config used.
 3. **Scores** (`metrics.py`) per type and for any type: precision, recall,
    F1 and F2, with strict (exact span) and partial (any overlap) matching,
    and 95 % bootstrap intervals over documents (seeded). Pairs named in
@@ -89,6 +90,7 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/rq1-ablations-dev.toml` | one option away from the shipped settings: threshold 0.2–0.6, no distractor, no name filter, no propagation, recognised language |
 | `configs/gliner-sweep.toml` | the 2026-10-02 measurement behind PR #55, reproduced |
 | `configs/openpii-dev.toml` | rules vs rules+gliner on the OpenPII dev halves, cs and sk: the bar for the own model |
+| `configs/nametag-dev.toml` | GLiNER vs NameTag 3 Czech and multilingual, alone, as a union and agreement-only, on every dev split (RQ1 model comparison) |
 | `configs/rq1-test.toml` | the final table on the test splits; run once settings are fixed |
 
 A config names every split explicitly. A test split is refused unless the
@@ -98,15 +100,16 @@ REDACT sample is development data; its test data will be the full file.
 
 ## Cache
 
-Each name model's raw output is cached per window under
+Each name model's raw output is cached under
 `<resource root>/.cache/experiments/<model>@<version>/<dataset>@<version>/<split>.json`,
-keyed by a hash of the model input (window text, labels, decoding mode), so a
-changed text or prompt misses instead of answering wrongly. The files hold
-offsets and scores, no text. The model is asked at threshold 0.1 and each
-system filters upwards, which equals asking at the higher threshold: flat
+keyed by a hash of the model input (GLiNER: window text, labels, decoding
+mode; NameTag 3: a page's tokens), so a changed text or prompt misses instead
+of answering wrongly. The files hold offsets, labels and scores, no text.
+GLiNER is asked at threshold 0.1 and each system filters upwards, which equals asking at the higher threshold: flat
 decoding is greedy, highest score first (checked on 123 CNEC windows). Every
 step after the model runs again on every run. A rerun from a warm cache takes
-seconds and does not load the model.
+seconds and does not load the model. Systems combining two models reuse
+each model's cache, so a union or agreement costs no extra inference.
 
 ## Leak check breakdown
 
@@ -126,6 +129,17 @@ under a box, its share of black fill and untouched ink. It prints no text and
 no file name, so it can run on a real scan; its output stays out of the
 repository, since it describes one person's document.
 
+## NameTag 3 against upstream
+
+`python -m experiments.nametag_reference export|compare --model <id> --out <dir>`
+checks that the project's NameTag 3 code (run without Keras) labels as
+upstream `nametag3.py` does: `export` writes the benchmark's synthetic
+documents, cut by the model's own UDPipe tokenizer, and a model directory
+upstream loads offline; upstream tags them in its own environment (the
+module docstring has the command); `compare` counts tokens and entities on
+which the two differ. On 2026-10-10: no difference, Czech model 5,733 tokens
+and 881 entities, multilingual 5,659 tokens and 230 entities.
+
 ## Tests
 
 `tests/experiments/` runs the loaders, metrics, cache and a whole run on
@@ -139,6 +153,6 @@ ANONYMIZER_RESOURCE_ROOT=/path/to/main/checkout uv run pytest -m dataset tests/e
 
 ## Not yet
 
-NameTag 3 and other detectors (they plug in as another `model` value in
+Other detectors (a new engine plugs in as another `model` value in
 `systems.py`); OCR (RQ2 is `python -m benchmark ocr`); error analysis with
 examples, which needs a way to show corpus text without storing it.

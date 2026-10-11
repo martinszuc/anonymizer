@@ -27,9 +27,11 @@ learning_rate = 1e-5          # the encoder
 head_learning_rate = 5e-5     # GLiNER's span and prompt layers
 weight_decay = 0.01
 warmup_ratio = 0.1
-loss = "focal"                # "ce", or "focal" with focal_alpha and focal_gamma
-focal_alpha = 0.75            # weight of the positive spans; above 0.5 favours recall
-focal_gamma = 2.0
+loss = "focal"                # "ce", "focal" or "weighted" (see below)
+focal_alpha = 0.75            # focal: weight of the positive spans; above 0.5 favours recall
+focal_gamma = 2.0             # focal: fades out the pairs already classified well
+# positive_weight = 3.0       # weighted: a missed span costs 3 false alarms
+# negative_focus = 0.0        # weighted: fades out the easy negative pairs only
 
 [[corpora]]                   # train splits only
 id = "openpii-1m-cs"
@@ -44,9 +46,15 @@ datasets = [{ id = "cnec-2.0", split = "dtest" }]
 GLiNER scores every (span, label) pair on its own with a sigmoid, so its
 `ce` is binary cross-entropy per pair. `focal` is gliner's focal loss: alpha
 weights the positive pairs against the negative ones, gamma lowers the
-weight of pairs already classified well. Weights trained on CNEC or UNER
-hold real public names: they stay under the resource root, never committed
-or published, and their catalog entry says so (`real_personal_data`).
+weight of pairs already classified well. `weighted` is this repository's
+recall-weighted loss (`loss.py`, which also records how gliner computes its
+own): the positive pairs' term is multiplied by `positive_weight`, and
+`negative_focus` optionally fades out the easy negatives, never the
+positives; `positive_weight = 1` without focus is `ce`.
+
+Weights trained on CNEC or UNER hold real public names: they stay under the
+resource root, never committed or published, and their catalog entry says
+so (`real_personal_data`).
 """
 
 from __future__ import annotations
@@ -80,7 +88,7 @@ from experiments.run import Progress, git_state, machine, run
 
 TRAINING_SCHEMA = 1
 DEVICES = ("mps", "cpu")
-LOSSES = ("ce", "focal")
+LOSSES = ("ce", "focal", "weighted")
 WEIGHTS = "model.safetensors"
 CONFIG = "gliner_config.json"
 
@@ -98,6 +106,8 @@ _TRAINING_KEYS = frozenset(
         "loss",
         "focal_alpha",
         "focal_gamma",
+        "positive_weight",
+        "negative_focus",
         "max_tokens",
         "logging_steps",
     }
@@ -117,6 +127,8 @@ class Hyperparameters:
     loss: str = "ce"
     focal_alpha: float = -1.0
     focal_gamma: float = 0.0
+    positive_weight: float = 1.0
+    negative_focus: float = 0.0
     max_tokens: int = MAX_TOKENS
     logging_steps: int = 10
 
@@ -271,8 +283,17 @@ def _hyperparameters(table: dict[str, Any]) -> Hyperparameters:
         msg = f"loss must be one of {LOSSES}"
         raise ValueError(msg)
     focal = {"focal_alpha", "focal_gamma"} & set(table)
-    if loss == "ce" and focal:
+    if loss != "focal" and focal:
         msg = f"{sorted(focal)} apply to the focal loss only"
+        raise ValueError(msg)
+    weighted = {"positive_weight", "negative_focus"} & set(table)
+    if loss != "weighted" and weighted:
+        msg = f"{sorted(weighted)} apply to the weighted loss only"
+        raise ValueError(msg)
+    positive_weight = float(table.get("positive_weight", 1.0))
+    negative_focus = float(table.get("negative_focus", 0.0))
+    if not (positive_weight > 0.0 and negative_focus >= 0.0):
+        msg = "the weighted loss needs positive_weight > 0 and negative_focus >= 0"
         raise ValueError(msg)
     alpha = float(table.get("focal_alpha", -1.0))
     gamma = float(table.get("focal_gamma", 0.0))
@@ -311,6 +332,8 @@ def _hyperparameters(table: dict[str, Any]) -> Hyperparameters:
         loss=loss,
         focal_alpha=alpha,
         focal_gamma=gamma,
+        positive_weight=positive_weight,
+        negative_focus=negative_focus,
         max_tokens=max_tokens,
         logging_steps=_positive(table.get("logging_steps", 10), "logging_steps"),
     )
@@ -476,7 +499,13 @@ def fit_gliner(
         seed=config.seed,
         data_seed=config.seed,
     )
-    trainer = model.train_model(train_dataset=examples, eval_dataset=None, training_args=arguments)
+    if hyper.loss == "weighted":
+        trainer = _weighted_trainer(model, examples, arguments, hyper)
+        trainer.train()
+    else:
+        trainer = model.train_model(
+            train_dataset=examples, eval_dataset=None, training_args=arguments
+        )
     history = trainer.state.log_history
     return {
         "loss": [
@@ -491,6 +520,30 @@ def fit_gliner(
             if key in {"train_runtime", "train_samples_per_second", "train_steps_per_second"}
         },
     }
+
+
+def _weighted_trainer(
+    model: Any, examples: list[dict[str, Any]], arguments: Any, hyper: Hyperparameters
+) -> Any:
+    """Build gliner's Trainer as `train_model` does, with the weighted loss.
+
+    `train_model` (gliner 0.2.29, transformers 5) passes exactly these:
+    the model, its arguments, the data, the model's span collator with
+    labels, and its tokenizer as the processing class.
+    """
+    from experiments.loss import LossWeights, weighted_trainer
+
+    trainer_class = weighted_trainer(LossWeights(hyper.positive_weight, hyper.negative_focus))
+    return trainer_class(
+        model=model,
+        args=arguments,
+        train_dataset=examples,
+        eval_dataset=None,
+        data_collator=model.data_collator_class(
+            model.config, data_processor=model.data_processor, prepare_labels=True
+        ),
+        processing_class=model.data_processor.transformer_tokenizer,
+    )
 
 
 def store_model(

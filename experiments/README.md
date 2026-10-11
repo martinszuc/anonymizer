@@ -98,8 +98,8 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/nametag-dev.toml` | GLiNER vs NameTag 3 Czech and multilingual, alone, as a union and agreement-only, on every dev split (RQ1 model comparison) |
 | `configs/rq1-test.toml` | the final table on the test splits; run once settings are fixed |
 | `configs/train-smoke.toml` | training smoke run: 400 examples, 40 steps, 25 documents per dev split |
-| `configs/train-cs-sk-ce.toml`, `train-cs-sk-focal.toml` | the first full training runs, differing only in the loss |
-| `configs/rq6-dev.toml` | both trained models vs rules+gliner on every dev split; train them first |
+| `configs/train-cs-sk-ce.toml`, `train-cs-sk-focal.toml`, `train-cs-sk-weighted.toml` | the first full training runs, differing only in the loss |
+| `configs/rq6-dev.toml` | the ce and focal models vs rules+gliner on every dev split; train them first |
 
 A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on
@@ -118,9 +118,15 @@ fine-tunes GLiNER (`train.py`) on this machine's Apple GPU (`device =
 how many examples to draw from each (seeded), steps, batch size, learning
 rates (encoder, and GLiNER's span and prompt layers), warm-up, weight decay
 and the loss: `ce` (binary cross-entropy per span and label, since GLiNER
-scores each pair with a sigmoid) or `focal` with `focal_alpha` (the weight of
-the positive pairs; above 0.5 favours recall) and `focal_gamma`. The config
-module docstring lists every key. Only train splits are read for training
+scores each pair with a sigmoid), `focal` with `focal_alpha` (the weight of
+the positive pairs; above 0.5 favours recall) and `focal_gamma`, or
+`weighted`, this repository's recall-weighted loss (`loss.py`): the term of
+the positive pairs is multiplied by `positive_weight`, so a missed name
+costs that many equally confident false alarms, and `negative_focus`
+optionally fades out the negatives the model already rejects, never the
+positives. `positive_weight = 1` without focus is `ce`, value for value.
+`loss.py` also records how gliner computes its loss. The config module
+docstring lists every key. Only train splits are read for training
 and only development splits for scoring; anything else is refused.
 
 1. **Examples** (`examples.py`): each split is loaded as the evaluation

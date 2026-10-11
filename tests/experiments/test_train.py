@@ -7,6 +7,7 @@ are stand-ins, and every name and number is invented.
 import copy
 import hashlib
 import json
+import tomllib
 import unicodedata
 from pathlib import Path
 from typing import Any
@@ -277,6 +278,36 @@ class TestConfig:
             parse_train_config(raw)
         del raw["training"]["focal_alpha"]
         assert parse_train_config(raw).training.focal_alpha == -1.0
+
+    def test_the_weighted_loss_and_its_parameters(self):
+        raw = _changed("training", {"steps": 2, "loss": "weighted", "positive_weight": 3})
+        training = parse_train_config(raw).training
+        assert (training.loss, training.positive_weight, training.negative_focus) == (
+            "weighted",
+            3.0,
+            0.0,
+        )
+        for table, message in (
+            ({"loss": "ce", "positive_weight": 3}, "weighted loss only"),
+            ({"loss": "focal", "negative_focus": 1}, "weighted loss only"),
+            ({"loss": "weighted", "focal_gamma": 2}, "focal loss only"),
+            ({"loss": "weighted", "positive_weight": 0}, "positive_weight > 0"),
+            ({"loss": "weighted", "negative_focus": -1}, "negative_focus >= 0"),
+        ):
+            with pytest.raises(ValueError, match=message):
+                parse_train_config(_changed("training", {"steps": 2, **table}))
+
+    def test_the_weighted_config_differs_from_cross_entropy_only_in_the_loss(self):
+        ce, weighted = (
+            tomllib.loads((CONFIGS / f"train-cs-sk-{loss}.toml").read_text(encoding="utf-8"))
+            for loss in ("ce", "weighted")
+        )
+        for config in (ce, weighted):
+            for key in ("name", "description", "model"):
+                del config[key]
+            for key in ("loss", "positive_weight"):
+                config["training"].pop(key, None)
+        assert ce == weighted
 
     def test_the_shipped_configs_are_valid(self):
         configs = sorted(CONFIGS.glob("train-*.toml"))

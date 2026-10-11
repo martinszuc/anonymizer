@@ -12,6 +12,7 @@ from collections.abc import Iterator
 from typing import Any
 
 from experiments.metrics import ANY_TYPE, MATCHES, PARTIAL, STRICT
+from experiments.seeds import markdown_lines as seed_lines
 
 UNDEFINED = "\N{EN DASH}"
 """Shown for a score that is undefined, e.g. precision without predictions."""
@@ -38,6 +39,7 @@ def markdown(results: dict[str, Any]) -> str:
             lines += [f"### {_MATCH_TITLES[mode]}", ""]
             lines += _table(_HEADINGS, list(_score_rows(corpus, mode)))
             lines.append("")
+        lines += seed_lines(corpus)
         for comparison in corpus["comparisons"]:
             lines += [
                 f"### {comparison['baseline']} → {comparison['candidate']} (paired)",

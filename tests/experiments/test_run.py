@@ -9,7 +9,7 @@ import pytest
 from anonymizer.core.resources import load_catalog
 
 from experiments.__main__ import main
-from experiments.config import load_config, parse_config
+from experiments.config import load_config, parse_config, replicate_id
 from experiments.report import UNDEFINED, format_difference, format_interval, latex, markdown
 from experiments.run import run
 from experiments.train import register
@@ -178,6 +178,10 @@ class TestConfig:
         for path in sorted(folder.glob("train-*.toml")):
             model = tomllib.loads(path.read_text(encoding="utf-8"))["model"]
             register(tmp_path, trained_entry(id=model))
+        for path in configs:
+            for system in tomllib.loads(path.read_text(encoding="utf-8"))["systems"].values():
+                for seed in system.get("seeds", []):
+                    register(tmp_path, trained_entry(id=replicate_id(system["model"], seed)))
         for path in configs:
             assert load_config(path, load_catalog(root=tmp_path)).name == path.stem
 

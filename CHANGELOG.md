@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0 (2026-10-11)
+
+## What's Changed
+* docs: OpenPII baseline, FUNSD scans and the rq1-dev re-run by @martinszuc in https://github.com/martinszuc/anonymizer/pull/86
+* feat(experiments): train a Czech/Slovak name model (fine-tuned GLiNER) by @martinszuc in https://github.com/martinszuc/anonymizer/pull/87
+* fix(detect): drop a full stop after a closing bracket before stripping edges by @martinszuc in https://github.com/martinszuc/anonymizer/pull/89
+* feat: add NameTag 3 as a name model and compare it with GLiNER by @martinszuc in https://github.com/martinszuc/anonymizer/pull/90
+* docs: record NameTag 3 against GLiNER on development data by @martinszuc in https://github.com/martinszuc/anonymizer/pull/91
+
+
+**Full Changelog**: https://github.com/martinszuc/anonymizer/compare/v0.5.0...v0.6.0
+
 ## 0.5.0 (2026-10-10)
 
 ## What's Changed

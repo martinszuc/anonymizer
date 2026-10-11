@@ -18,7 +18,17 @@ model = "none"
 
 [systems."rules+gliner"]
 model = "gliner"            # every other option as shipped
+
+[systems."rules+gliner-cs-sk-ce"]
+model = "gliner-cs-sk-ce"
+seeds = [1, 2]              # also runs gliner-cs-sk-ce-s1 and -s2 (see below)
 ```
+
+`seeds` names the replicates of a trained model, the same config trained
+again with `python -m experiments train --seed N`, stored as `<model>-sN`.
+The system runs once per model, as `<system>` and `<system>-sN`, each with
+its own scores, and the results add the mean and spread across them
+(`seeds.py`); a comparison of two such systems is also made seed by seed.
 
 A test split is refused unless the stage is `final`: thresholds and labels are
 tuned on development data, and the test data is read once, for the final
@@ -28,7 +38,7 @@ table.
 from __future__ import annotations
 
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +49,8 @@ from experiments.datasets import DATASETS, Role, TextForm
 from experiments.systems import SystemConfig, parse_system
 
 STAGES = ("dev", "final")
+BASE_REPLICATE = "base"
+"""Names the replicate trained with the training config's own seed."""
 _KEYS = frozenset(
     {"name", "description", "stage", "seed", "resamples", "types", "compare", "datasets", "systems"}
 )
@@ -68,6 +80,7 @@ class RunConfig:
         types: Types to score, or `None` for every type a corpus annotates.
         compare: Pairs of system names (baseline, candidate).
         raw: The file's contents, for the results.
+        replicates: The systems run once per seed, by system name.
     """
 
     name: str
@@ -80,6 +93,27 @@ class RunConfig:
     types: frozenset[EntityType] | None
     compare: tuple[tuple[str, str], ...]
     raw: dict[str, Any]
+    replicates: dict[str, Replicates] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class Replicates:
+    """A system run with a trained model and with its replicates (`seeds`)."""
+
+    system: str
+    seeds: tuple[int, ...]
+
+    def members(self) -> dict[str, str]:
+        """Return the system of each replicate: `base`, then `s<N>` per seed."""
+        return {
+            BASE_REPLICATE: self.system,
+            **{f"s{seed}": replicate_id(self.system, seed) for seed in self.seeds},
+        }
+
+
+def replicate_id(name: str, seed: int) -> str:
+    """Name a replicate: a model, a training run or a system trained with another seed."""
+    return f"{name}-s{seed}"
 
 
 def load_config(path: Path, catalog: Catalog | None = None) -> RunConfig:
@@ -124,16 +158,33 @@ def parse_config(raw: dict[str, Any], catalog: Catalog | None = None) -> RunConf
     if not datasets:
         msg = "no datasets"
         raise ValueError(msg)
-    systems = tuple(
-        parse_system(name, table, catalog) for name, table in raw.get("systems", {}).items()
-    )
+    replicates: dict[str, Replicates] = {}
+    systems: list[SystemConfig] = []
+    for name, table in raw.get("systems", {}).items():
+        options = {key: value for key, value in table.items() if key != "seeds"}
+        system = parse_system(name, options, catalog)
+        systems.append(system)
+        if "seeds" not in table:
+            continue
+        group = _replicates(name, table["seeds"], system)
+        replicates[name] = group
+        model = system.model_names[0]
+        systems += [
+            parse_system(
+                replicate_id(name, seed), {**options, "model": replicate_id(model, seed)}, catalog
+            )
+            for seed in group.seeds
+        ]
     if not systems:
         msg = "no systems"
         raise ValueError(msg)
-    names = {system.name for system in systems}
+    names = [system.name for system in systems]
+    if len(set(names)) < len(names):
+        msg = "a replicate's system name is also configured as a system of its own"
+        raise ValueError(msg)
     compare = tuple((str(pair[0]), str(pair[1])) for pair in raw.get("compare", []))
     for pair in compare:
-        if not set(pair) <= names:
+        if not set(pair) <= set(names):
             msg = f"comparison {list(pair)} names a system that is not configured"
             raise ValueError(msg)
     types = raw.get("types")
@@ -148,11 +199,28 @@ def parse_config(raw: dict[str, Any], catalog: Catalog | None = None) -> RunConf
         seed=int(raw.get("seed", 0)),
         resamples=resamples,
         datasets=datasets,
-        systems=systems,
+        systems=tuple(systems),
         types=None if types is None else frozenset(EntityType(kind) for kind in types),
         compare=compare,
         raw=raw,
+        replicates=replicates,
     )
+
+
+def _replicates(name: str, seeds: object, system: SystemConfig) -> Replicates:
+    if (
+        not isinstance(seeds, list)
+        or not seeds
+        or not all(isinstance(seed, int) and not isinstance(seed, bool) for seed in seeds)
+        or min(seeds) < 0
+        or len(set(seeds)) < len(seeds)
+    ):
+        msg = f"system {name!r}: seeds must be a list of different whole numbers, none negative"
+        raise ValueError(msg)
+    if len(system.model_names) != 1:
+        msg = f"system {name!r}: seeds need exactly one name model, a trained one"
+        raise ValueError(msg)
+    return Replicates(name, tuple(seeds))
 
 
 def _dataset(entry: dict[str, Any], stage: str) -> DatasetRef:

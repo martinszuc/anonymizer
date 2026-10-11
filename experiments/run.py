@@ -36,6 +36,7 @@ from experiments.metrics import (
     resamples,
     total,
 )
+from experiments.seeds import summarize
 from experiments.systems import (
     CACHE_FLOOR,
     NameModel,
@@ -92,6 +93,10 @@ def run(
         corpora[corpus.key] = _run_corpus(
             config, corpus, cache_dir, load_model, load_splitter, catalog, progress
         )
+        if config.replicates:
+            corpora[corpus.key]["seeds"] = summarize(
+                corpora[corpus.key], config.replicates, config.compare
+            )
     return {
         "schema": RESULTS_SCHEMA,
         "name": config.name,
@@ -110,6 +115,11 @@ def run(
             for reference in config.datasets
         },
         "systems": {system.name: system.describe() for system in config.systems},
+        **(
+            {"replicates": {name: group.members() for name, group in config.replicates.items()}}
+            if config.replicates
+            else {}
+        ),
         "config": config.raw,
         **({"limit": limit} if limit is not None else {}),
         "corpora": corpora,

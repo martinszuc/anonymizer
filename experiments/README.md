@@ -36,7 +36,10 @@ the catalog.
 3. **Scores** (`metrics.py`) per type and for any type: precision, recall,
    F1 and F2, with strict (exact span) and partial (any overlap) matching,
    and 95 % bootstrap intervals over documents (seeded). Pairs named in
-   `compare` get a paired bootstrap of the difference.
+   `compare` get a paired bootstrap of the difference. A system with
+   `seeds = [1, 2]` also runs the replicates of its trained model
+   (`<model>-s1`, `-s2`, see *Training*) and gets the mean and spread across
+   them, and its comparisons are also made seed by seed (`seeds.py`).
 4. **Writes** `results/<name>.json` (every score, with commit, machine,
    model and dataset versions, seed) and the same as `<name>.md` and
    `<name>.tex` (booktabs; `\ci` is provided at the top of the file).
@@ -98,8 +101,9 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/nametag-dev.toml` | GLiNER vs NameTag 3 Czech and multilingual, alone, as a union and agreement-only, on every dev split (RQ1 model comparison) |
 | `configs/rq1-test.toml` | the final table on the test splits; run once settings are fixed |
 | `configs/train-smoke.toml` | training smoke run: 400 examples, 40 steps, 25 documents per dev split |
-| `configs/train-cs-sk-ce.toml`, `train-cs-sk-focal.toml` | the first full training runs, differing only in the loss |
-| `configs/rq6-dev.toml` | both trained models vs rules+gliner on every dev split; train them first |
+| `configs/train-cs-sk-ce.toml`, `train-cs-sk-focal.toml`, `train-cs-sk-weighted.toml` | the first full training runs, differing only in the loss |
+| `configs/rq6-dev.toml` | the ce and focal models vs rules+gliner on every dev split; train them first |
+| `configs/rq6-loss-dev.toml` | ce, weighted and focal with three seeds each, ce also at threshold 0.125, vs rules+gliner; mean and spread across seeds |
 
 A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on
@@ -118,9 +122,15 @@ fine-tunes GLiNER (`train.py`) on this machine's Apple GPU (`device =
 how many examples to draw from each (seeded), steps, batch size, learning
 rates (encoder, and GLiNER's span and prompt layers), warm-up, weight decay
 and the loss: `ce` (binary cross-entropy per span and label, since GLiNER
-scores each pair with a sigmoid) or `focal` with `focal_alpha` (the weight of
-the positive pairs; above 0.5 favours recall) and `focal_gamma`. The config
-module docstring lists every key. Only train splits are read for training
+scores each pair with a sigmoid), `focal` with `focal_alpha` (the weight of
+the positive pairs; above 0.5 favours recall) and `focal_gamma`, or
+`weighted`, this repository's recall-weighted loss (`loss.py`): the term of
+the positive pairs is multiplied by `positive_weight`, so a missed name
+costs that many equally confident false alarms, and `negative_focus`
+optionally fades out the negatives the model already rejects, never the
+positives. `positive_weight = 1` without focus is `ce`, value for value.
+`loss.py` also records how gliner computes its loss. The config module
+docstring lists every key. Only train splits are read for training
 and only development splits for scoring; anything else is refused.
 
 1. **Examples** (`examples.py`): each split is loaded as the evaluation
@@ -156,6 +166,41 @@ resource root, are never committed or published, and their entry says
 batches of 16 train 1.26 times as fast (`docs/findings.md`), so `train-cs-sk-ce`
 (2,000 steps of 16) takes about an hour and a quarter, plus about a quarter of
 an hour of scoring.
+
+### Seeds
+
+One run per setting cannot tell the loss's effect from training noise: the
+bootstrap resamples documents, not training runs. `--seed N` trains the same
+config again with seed `N`, stored as `<model>-sN` with results
+`results/<name>-sN.json` (`seed` and `replicate` record it):
+
+```sh
+for seed in 1 2; do
+  uv run python -m experiments train --config experiments/configs/train-cs-sk-weighted.toml \
+      --seed $seed --resource-root /path/to/main/checkout
+done
+```
+
+The seed draws the OpenPII examples, orders all of them and seeds the
+trainer, so one seed always gives the same examples in the same order, and
+replicate `sN` of two losses saw the same data. A run config lists the
+replicates with `seeds = [1, 2]` on the system of the config's own run
+(`rq6-loss-dev.toml`); `results/<name>.md` then adds *Across seeds* (mean ±
+standard deviation per system) and *Seed by seed* (the difference per seed,
+and on how many seeds F2 rose).
+
+### Tuning the weight
+
+`positive_weight` is tuned on development data only, against person F2
+(partial match) on the development splits, the main metric of the
+evaluation contract; the test splits are read once, with the chosen weight.
+Train a few weights from copies of `train-cs-sk-weighted.toml` (e.g. 2, 3, 5
+and 10, each its own `model` id), score them beside `ce` with an
+`rq6-dev`-style config, take the weight with the best person F2, then train
+its replicates. In a model that fits its data perfectly a weight `w` acts as
+a lower threshold (`t / (w(1 - t) + t)` instead of `t`: 0.125 instead of
+0.3 for `w = 3`), so `ce` is also scored at that threshold: the loss
+contributes only what beats `ce` at the matching threshold.
 
 ## Cache
 

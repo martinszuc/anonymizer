@@ -258,6 +258,12 @@ def test_name_cut_by_a_window_edge_keeps_the_whole_name():
         ("(Jan) a", "Jan", "Jan"),
         ("Ing. Marie Dvořáková podepsala", "Marie Dvořáková", "Marie Dvořáková"),
         ("jméno:Novák", "Novák", "jméno:Novák"),
+        ("Podepsal (J. Novák).", "J. Novák", "J. Novák"),
+        ("Podepsal J. Novák.", "Novák.", "Novák"),
+        ("Dodavatel: Stavby s.r.o.", "Stavby s.r.o", "Stavby s.r.o."),
+        ("Dodavatel (Stavby s.r.o.).", "Stavby s.r.o.", "Stavby s.r.o."),
+        ("Podepsal „Novák“.", "Novák", "Novák"),
+        ("Podepsal (Novák.).", "Novák", "Novák"),
     ],
     ids=[
         "abbreviation-dot",
@@ -267,6 +273,12 @@ def test_name_cut_by_a_window_edge_keeps_the_whole_name():
         "brackets",
         "title",
         "glued-word",
+        "bracket-then-full-stop",
+        "full-stop-ending-text",
+        "abbreviation-ending-text",
+        "abbreviation-in-brackets",
+        "czech-quotes-then-full-stop",
+        "full-stops-around-bracket",
     ],
 )
 def test_widen_to_words(text, needle, expected):

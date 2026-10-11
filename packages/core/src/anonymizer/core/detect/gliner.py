@@ -241,7 +241,9 @@ def widen_to_words(text: str, start: int, end: int) -> tuple[int, int] | None:
     A span ending inside a word would leave the rest of the word in the text
     layer. Quotes, brackets and separators at the edges are dropped again,
     and so is a final full stop, unless the word holds another one: "Novák."
-    ends a sentence, "s.r.o." is an abbreviation.
+    ends a sentence, "s.r.o." is an abbreviation. A full stop after a closing
+    bracket or quote always ends the sentence, so it goes before the edges
+    are stripped once more: "(J. Novák)." gives "J. Novák".
 
     Args:
         text: The text the span refers to.
@@ -256,14 +258,22 @@ def widen_to_words(text: str, start: int, end: int) -> tuple[int, int] | None:
         start -= 1
     while end < len(text) and not text[end].isspace():
         end += 1
-    while start < end and (text[start].isspace() or text[start] in _EDGE_PUNCTUATION):
-        start += 1
-    while end > start and (text[end - 1].isspace() or text[end - 1] in _EDGE_PUNCTUATION):
-        end -= 1
+    start, end = _strip_edges(text, start, end)
+    if end - start > 1 and text[end - 1] == "." and text[end - 2] in _EDGE_PUNCTUATION:
+        start, end = _strip_edges(text, start, end - 1)
     last_word = text[start:end].split()[-1] if end > start else ""
     if last_word.endswith(".") and last_word.count(".") == 1 and len(last_word) > 1:
         end -= 1
     return (start, end) if end > start else None
+
+
+def _strip_edges(text: str, start: int, end: int) -> tuple[int, int]:
+    """Narrow a span past whitespace and edge punctuation on both sides."""
+    while start < end and (text[start].isspace() or text[start] in _EDGE_PUNCTUATION):
+        start += 1
+    while end > start and (text[end - 1].isspace() or text[end - 1] in _EDGE_PUNCTUATION):
+        end -= 1
+    return start, end
 
 
 def _windows(text: str) -> Iterator[_Window]:

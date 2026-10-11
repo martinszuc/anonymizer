@@ -356,10 +356,9 @@ notes = """
 13,427 synthetic records, 51 PII types, 25 languages (about 500 Czech, no Slovak). \
 Code MIT; data under the REDACT Dataset Terms v1.0, which permit research and \
 benchmarking (read 2026-09-29). Cite the EMNLP 2026 Industry paper. The \
-1,000-record sample for now: 40 records per language, so 40 Czech, enough for \
-development but not for results. The full file (213 MB, LFS sha256 \
-f8cb68bf5e54791decd9190792766b37e623bdb346b1641c1d1fd146ddec6d1c) holds every \
-Czech record. Checksums are the Git LFS object ids."""
+1,000-record sample holds 40 records per language, so 40 Czech: development \
+data. The full file holds every Czech record and is the reserved test data \
+(RQ6, decided 2026-10-11). Checksums are the Git LFS object ids."""
 
 [[resource.files]]
 path = "DATASET_TERMS.md"
@@ -378,6 +377,12 @@ path = "pii_benchmark_sample1000.json"
 url = "https://media.githubusercontent.com/media/guneeshvats/REDACT-PII-Benchmark/252232ac29669beeb99cb6474eeb2736761be508/data/pii_benchmark_sample1000.json"
 size = 15931515
 sha256 = "754f562ce9c3c5b7b663f1ba6127c38a31d93f5631d38364341cb727936234c6"
+
+[[resource.files]]
+path = "pii_benchmark_full.json"
+url = "https://media.githubusercontent.com/media/guneeshvats/REDACT-PII-Benchmark/252232ac29669beeb99cb6474eeb2736761be508/data/pii_benchmark_full.json"
+size = 213278031
+sha256 = "f8cb68bf5e54791decd9190792766b37e623bdb346b1641c1d1fd146ddec6d1c"
 
 [[resource]]
 id = "cnec-2.0"

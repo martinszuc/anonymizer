@@ -460,6 +460,70 @@ def resampled_totals[T: Tally](counts: Sequence[T], draws: Sequence[Sequence[int
     ]
 
 
+_DENSE = 8
+"""A column counting in more than one document in this many is summed row by row."""
+
+
+class Resampler:
+    """Sums per-document tallies over each resample, as `resampled_totals` does, faster.
+
+    Each resample is turned once into how often it drew each document, so a
+    column of counts is summed over the documents where it is not zero only:
+    a count of rare events (misses in one category) costs little however
+    many documents a corpus has. A column summed before is not summed again,
+    so gold counts shared by every system are summed once. The totals equal
+    `resampled_totals` on the same draws.
+    """
+
+    def __init__(self, documents: int, draws: Sequence[Sequence[int]]) -> None:
+        """Prepare the draws of a corpus.
+
+        Args:
+            documents: Documents in the corpus.
+            draws: Document indices of each resample (`resamples`).
+        """
+        self.documents = documents
+        self._weights: list[list[int]] = []
+        for indices in draws:
+            weights = [0] * documents
+            for index in indices:
+                weights[index] += 1
+            self._weights.append(weights)
+        self._sums: dict[tuple[int, ...], list[int]] = {}
+
+    def totals[T: Tally](self, counts: Sequence[T]) -> list[T]:
+        """Return the summed per-document tallies (one per document) of each resample.
+
+        Raises:
+            ValueError: If there is not one tally per document.
+        """
+        if len(counts) != self.documents or not counts:
+            msg = f"expected {self.documents} tallies, one per document, got {len(counts)}"
+            raise ValueError(msg)
+        first = counts[0]
+        columns = [
+            self._column(tuple(getattr(item, name) for item in counts)) for name in first.columns()
+        ]
+        return [
+            first.with_columns([column[draw] for column in columns])
+            for draw in range(len(self._weights))
+        ]
+
+    def _column(self, values: tuple[int, ...]) -> list[int]:
+        if values not in self._sums:
+            nonzero = [(index, value) for index, value in enumerate(values) if value]
+            if len(nonzero) * _DENSE > len(values):
+                # Most documents count: multiplying whole rows runs in C and is faster.
+                sums = [sum(map(operator.mul, weights, values)) for weights in self._weights]
+            else:
+                sums = [
+                    sum(weights[index] * value for index, value in nonzero)
+                    for weights in self._weights
+                ]
+            self._sums[values] = sums
+        return self._sums[values]
+
+
 def interval[T: Tally](counts: Sequence[T], resampled: Sequence[T], metric: str) -> Interval:
     """Return a metric over all documents with its bootstrap interval.
 

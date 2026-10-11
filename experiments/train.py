@@ -52,6 +52,12 @@ own): the positive pairs' term is multiplied by `positive_weight`, and
 `negative_focus` optionally fades out the easy negatives, never the
 positives; `positive_weight = 1` without focus is `ce`.
 
+`--seed N` on the command line trains the same config with another seed
+(`with_seed`): the model is stored as `<model>-s<N>` and the results as
+`<name>-s<N>.json`, so replicates of one setting need no copied configs.
+The seed draws the examples, orders them and seeds the trainer, so one seed
+always gives the same examples in the same order.
+
 Weights trained on CNEC or UNER hold real public names: they stay under the
 resource root, never committed or published, and their catalog entry says
 so (`real_personal_data`).
@@ -70,7 +76,7 @@ import tempfile
 import time
 import tomllib
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, cast
 
@@ -80,7 +86,7 @@ from anonymizer.core.detect.gliner import SpanModel, load_gliner_model
 from anonymizer.core.resources import Catalog, load_catalog, trained_catalog_path
 from anonymizer.core.resources.catalog import CATALOG_SCHEMA, is_resource_id, parse_catalog
 
-from experiments.config import DatasetRef, parse_config
+from experiments.config import DatasetRef, parse_config, replicate_id
 from experiments.datasets import DATASETS, Role, load_corpus
 from experiments.examples import MAX_TOKENS, Conversion, Example, corpus_examples, sample
 from experiments.report import markdown
@@ -158,6 +164,8 @@ class TrainConfig:
         evaluate: Development splits to score the trained model on.
         limit: Documents per development split, all when `None`.
         raw: The file's contents, for the results.
+        replicate: The seed given on the command line (`with_seed`), which
+            replaced the file's seed and suffixed its name and model.
     """
 
     name: str
@@ -171,6 +179,29 @@ class TrainConfig:
     evaluate: tuple[DatasetRef, ...]
     limit: int | None
     raw: dict[str, Any]
+    replicate: int | None = None
+
+
+def with_seed(config: TrainConfig, seed: int) -> TrainConfig:
+    """Return the config trained with another seed, as a replicate of the same setting.
+
+    The model is stored as `<model>-s<seed>` and the results are named
+    `<name>-s<seed>`, so replicates neither overwrite each other nor the
+    run with the file's own seed.
+
+    Raises:
+        ValueError: If the seed is negative.
+    """
+    if seed < 0:
+        msg = "a seed must not be negative"
+        raise ValueError(msg)
+    return replace(
+        config,
+        name=replicate_id(config.name, seed),
+        model=replicate_id(config.model, seed),
+        seed=seed,
+        replicate=seed,
+    )
 
 
 def load_train_config(path: Path, catalog: Catalog | None = None) -> TrainConfig:
@@ -436,6 +467,7 @@ def train(
         "git": git_state(),
         "machine": {**machine(), "chip": _chip(), "device": config.device, **_packages()},
         "seed": config.seed,
+        "replicate": config.replicate,
         "config": config.raw,
         "base": {"id": config.base, "version": catalog[config.base].version},
         "datasets": data_versions,

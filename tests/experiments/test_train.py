@@ -38,6 +38,8 @@ from experiments.train import (
     register,
     seed_for,
     train,
+    training_examples,
+    with_seed,
 )
 from tests.experiments.conftest import CNEC_LINES, UNER_TEXT, ScoredStandIn
 from tests.resources.test_catalog import trained_entry
@@ -309,6 +311,18 @@ class TestConfig:
                 config["training"].pop(key, None)
         assert ce == weighted
 
+    def test_a_seed_from_the_command_line_names_a_replicate(self):
+        config = with_seed(parse_train_config(CONFIG), 2)
+        assert (config.name, config.model, config.seed, config.replicate) == (
+            "train-test-s2",
+            "gliner-cs-test-s2",
+            2,
+            2,
+        )
+        assert config.raw == CONFIG
+        with pytest.raises(ValueError, match="must not be negative"):
+            with_seed(parse_train_config(CONFIG), -1)
+
     def test_the_shipped_configs_are_valid(self):
         configs = sorted(CONFIGS.glob("train-*.toml"))
         assert configs
@@ -431,3 +445,46 @@ def test_the_command_writes_the_results(
     assert results["evaluation"] is None
     assert not (out / "train-test.md").exists()
     assert results["training"]["steps"] == 1
+
+
+def test_one_seed_draws_the_same_examples_in_the_same_order(training_root: Path):
+    config = parse_train_config(_changed("corpora.2.examples", 3))
+
+    def drawn(seed: int) -> list[Example]:
+        examples, _ = training_examples(with_seed(config, seed), training_root, Conversion())
+        return examples
+
+    assert drawn(1) == drawn(1)
+    assert drawn(1) != drawn(2)
+
+
+def test_the_command_trains_a_replicate_with_another_seed(
+    training_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    from experiments import train as train_module
+
+    recorder = Recorder()
+    seeds: list[int] = []
+
+    def fit(model: Any, examples: list[dict[str, Any]], config: TrainConfig, work: Path):
+        seeds.append(config.seed)
+        return recorder.fit(model, examples, config, work)
+
+    monkeypatch.setattr(train_module, "fit_gliner", fit)
+    monkeypatch.setattr(train_module, "_loader", lambda device: recorder.load)
+    config = tmp_path / "train-test.toml"
+    config.write_text(
+        'name = "train-test"\nmodel = "gliner-cs-test"\nseed = 5\ndevice = "cpu"\n'
+        "[training]\nsteps = 1\n"
+        '[[corpora]]\nid = "openpii-1m-cs"\nsplit = "train"\n',
+        encoding="utf-8",
+    )
+    out = tmp_path / "results"
+    args = ["train", "--config", str(config), "--out", str(out), "--seed", "3"]
+    assert main([*args, "--resource-root", str(training_root)]) == 0
+    assert seeds == [3]
+    results = json.loads((out / "train-test-s3.json").read_text(encoding="utf-8"))
+    assert (results["seed"], results["replicate"], results["config"]["seed"]) == (3, 3, 5)
+    assert results["model"]["id"] == "gliner-cs-test-s3"
+    assert results["model"]["source"] == "experiments/results/train-test-s3.json"
+    assert load_catalog(root=training_root)["gliner-cs-test-s3"].trained

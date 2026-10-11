@@ -26,10 +26,13 @@ from anonymizer.core.types import EntityType
 from experiments.config import RunConfig
 from experiments.datasets import Corpus, dataset_version, load_corpus
 from experiments.metrics import (
+    COVERAGE_METRICS,
     MATCHES,
     METRICS,
     Counts,
+    Coverage,
     document_counts,
+    document_coverage,
     interval,
     paired_difference,
     resampled_totals,
@@ -37,6 +40,7 @@ from experiments.metrics import (
     total,
 )
 from experiments.phenomena import PhenomenonTally
+from experiments.seeds import summarize
 from experiments.systems import (
     CACHE_FLOOR,
     NameModel,
@@ -93,6 +97,10 @@ def run(
         corpora[corpus.key] = _run_corpus(
             config, corpus, cache_dir, load_model, load_splitter, catalog, progress
         )
+        if config.replicates:
+            corpora[corpus.key]["seeds"] = summarize(
+                corpora[corpus.key], config.replicates, config.compare
+            )
     return {
         "schema": RESULTS_SCHEMA,
         "name": config.name,
@@ -108,6 +116,11 @@ def run(
         "models": model_versions(config.systems, catalog),
         "datasets": {reference.id: dataset_version(reference.id) for reference in config.datasets},
         "systems": {system.name: system.describe() for system in config.systems},
+        **(
+            {"replicates": {name: group.members() for name, group in config.replicates.items()}}
+            if config.replicates
+            else {}
+        ),
         "config": config.raw,
         **({"limit": limit} if limit is not None else {}),
         "corpora": corpora,
@@ -155,13 +168,15 @@ def _run_corpus(
     draws = resamples(len(corpus.documents), config.resamples, config.seed)
 
     per_system: dict[str, dict[tuple[str, str], list[Counts]]] = {}
+    coverage_per_system: dict[str, dict[str, list[Coverage]]] = {}
     systems: dict[str, Any] = {}
     for system in config.systems:
         started = time.perf_counter()
         used = {model_id: models[model_id] for model_id in system.model_ids}
         before = {model_id: (model.hits, model.misses) for model_id, model in used.items()}
-        counts, details = _run_system(system, corpus, types, used, draws)
+        counts, coverage, details = _run_system(system, corpus, types, used, draws)
         per_system[system.name] = counts
+        coverage_per_system[system.name] = coverage
         details["seconds"] = round(time.perf_counter() - started, 2)
         for model in used.values():
             model.cache.save()
@@ -173,6 +188,7 @@ def _run_corpus(
                 ),
             }
         details["scores"] = _scores(counts, draws)
+        details["coverage"] = _coverage_scores(coverage, draws)
         systems[system.name] = details
         progress(f"{corpus.key}: {system.name} done in {details['seconds']} s")
 
@@ -196,7 +212,10 @@ def _run_corpus(
         "skipped": corpus.skipped,
         "systems": systems,
         "comparisons": [
-            _compare(baseline, candidate, per_system, draws)
+            {
+                **_compare(baseline, candidate, per_system, draws),
+                "coverage": _compare_coverage(baseline, candidate, coverage_per_system, draws),
+            }
             for baseline, candidate in config.compare
         ],
     }
@@ -208,8 +227,9 @@ def _run_system(
     types: frozenset[EntityType],
     models: dict[str, NameModel],
     draws: Sequence[Sequence[int]],
-) -> tuple[dict[tuple[str, str], list[Counts]], dict[str, Any]]:
+) -> tuple[dict[tuple[str, str], list[Counts]], dict[str, list[Coverage]], dict[str, Any]]:
     counts: dict[tuple[str, str], list[Counts]] = {}
+    coverage: dict[str, list[Coverage]] = {}
     tally = PhenomenonTally(corpus) if corpus.tagged else None
     unscored: Counter[str] = Counter()
     languages: Counter[str] = Counter()
@@ -218,6 +238,9 @@ def _run_system(
         found = gold.document.entities
         for key, value in document_counts(found, gold.gold, types).items():
             counts.setdefault(key, []).append(value)
+        pages = [page.text for page in gold.document.pages]
+        for kind, value in document_coverage(found, gold.gold, types, pages).items():
+            coverage.setdefault(kind, []).append(value)
         if tally is not None:
             tally.add(found, gold, types)
         unscored.update(str(entity.type) for entity in found if entity.type not in types)
@@ -229,7 +252,7 @@ def _run_system(
     }
     if tally is not None:
         details["phenomena"] = tally.results(draws)
-    return counts, details
+    return counts, coverage, details
 
 
 def _scores(
@@ -249,6 +272,40 @@ def _scores(
             **{metric: interval(per_document, resampled, metric).to_dict() for metric in METRICS},
         }
     return scores
+
+
+def _coverage_scores(
+    coverage: dict[str, list[Coverage]], draws: Sequence[Sequence[int]]
+) -> dict[str, dict[str, Any]]:
+    scores: dict[str, dict[str, Any]] = {}
+    for kind, per_document in coverage.items():
+        resampled = resampled_totals(per_document, draws)
+        scores[kind] = {
+            "counts": total(per_document).to_dict(),
+            **{
+                metric: interval(per_document, resampled, metric).to_dict()
+                for metric in COVERAGE_METRICS
+            },
+        }
+    return scores
+
+
+def _compare_coverage(
+    baseline: str,
+    candidate: str,
+    per_system: dict[str, dict[str, list[Coverage]]],
+    draws: Sequence[Sequence[int]],
+) -> dict[str, Any]:
+    differences: dict[str, Any] = {}
+    for kind, before in per_system[baseline].items():
+        after = per_system[candidate][kind]
+        paired_before = (before, resampled_totals(before, draws))
+        paired_after = (after, resampled_totals(after, draws))
+        differences[kind] = {
+            metric: paired_difference(paired_before, paired_after, metric).to_dict()
+            for metric in COVERAGE_METRICS
+        }
+    return differences
 
 
 def _compare(

@@ -35,8 +35,12 @@ the catalog.
    Results keep the model names the config used.
 3. **Scores** (`metrics.py`) per type and for any type: precision, recall,
    F1 and F2, with strict (exact span) and partial (any overlap) matching,
-   and 95 % bootstrap intervals over documents (seeded). Pairs named in
-   `compare` get a paired bootstrap of the difference.
+   and 95 % bootstrap intervals over documents (seeded). Beside them, leak
+   coverage (below): what would stay readable after redaction. Pairs named
+   in `compare` get a paired bootstrap of the difference. A system with
+   `seeds = [1, 2]` also runs the replicates of its trained model
+   (`<model>-s1`, `-s2`, see *Training*) and gets the mean and spread across
+   them, and its comparisons are also made seed by seed (`seeds.py`).
 4. **Writes** `results/<name>.json` (every score, with commit, machine,
    model and dataset versions, seed) and the same as `<name>.md` and
    `<name>.tex` (booktabs; `\ci` is provided at the top of the file).
@@ -44,6 +48,66 @@ the catalog.
 Results hold counts and scores only. Documents are named by position, never
 by content, so CNEC and UNER, which name real people, cannot leak through a
 results file, and the files can be committed.
+
+## Leak coverage
+
+A partial match counts "Jan" found in "Jan Novák" as a hit, yet after
+redaction "Novák" is still readable: a partial match is a leak, not a near
+miss. Leak coverage measures what redacting every prediction would leave,
+per type and for any type. A results file holds it under `coverage` (per
+system) and `comparisons[].coverage` (paired differences); the tables show
+it in a *Leak coverage* table per corpus. Definitions (`metrics.py`,
+`Coverage`):
+
+- **Characters** are those of page text that are not whitespace, so a line
+  break inside a name, or the space between two predictions "Jan" and
+  "Novák", changes nothing. Offsets are page-local, as everywhere.
+- A gold character is **covered** when any prediction in page text covers
+  it, whatever the prediction's type and whether or not the corpus scores
+  that type: a name tagged as an address is redacted all the same.
+- **Residual share**: gold characters no prediction covers / gold
+  characters (over the union of the type's gold spans). Lower is better.
+- **Hidden whole**: gold spans with every character covered / gold spans
+  (the same distinct spans as `found / gold`). Several predictions together
+  may hide a span, since redaction removes their union. The benchmark's
+  "items found whole" asks for one entity covering the item; for a leak the
+  union is what counts.
+- **Over-redaction**: characters of the type's predictions outside every
+  scored gold span, per 1,000 characters of page text: what the reader
+  loses. Like precision, it counts only predictions of scored types, since
+  a corpus that does not annotate dates cannot say whether a date is
+  personal; a name predicted over an organisation (in the gold, but not
+  scored) does count.
+
+Intervals and paired differences use the same resamples as the match
+scores. In the paired table a negative Δresidual is an improvement, and p
+is that of Δresidual.
+
+The scores are measured on text: redaction boxes every word a span
+overlaps (`Page.bboxes_for_span`), so a prediction ending inside a word
+leaves less readable on a PDF page than the residual share says. Leak coverage does not replace the
+benchmark, which reads the redacted output back.
+
+### Adding it to existing results
+
+Leak coverage needs the predictions, which results files do not keep, so
+existing results get it by running their config again. The name models'
+output comes from the cache (below), so only the rules and the steps after
+the model run:
+
+```sh
+uv run python -m experiments run --config experiments/configs/rq1-dev.toml
+```
+
+The last `rq1-dev` run answered all of GLiNER's 202, 134 and 153 windows
+from the cache (`cache` in the results file: no misses) and spent under
+0.3 s on detection per system and corpus; reading the corpora and the
+1,000 resamples come on top. The model is loaded only on a miss, which a
+changed model input (window text, labels) causes; misses are counted under
+`cache`. The rerun scores with today's detection code, so other scores may
+move where detection changed since the file was written: compare with
+`git diff experiments/results/`. `python -m experiments tables <old>.json`
+renders a file without coverage exactly as before.
 
 ## Datasets
 
@@ -145,8 +209,9 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/name-forms-dev.toml` | rules, GLiNER and NameTag 3 (Czech, multilingual) on the name-forms dev halves; recall per name form |
 | `configs/rq1-test.toml` | the final table on the test splits; run once settings are fixed |
 | `configs/train-smoke.toml` | training smoke run: 400 examples, 40 steps, 25 documents per dev split |
-| `configs/train-cs-sk-ce.toml`, `train-cs-sk-focal.toml` | the first full training runs, differing only in the loss |
-| `configs/rq6-dev.toml` | both trained models vs rules+gliner on every dev split; train them first |
+| `configs/train-cs-sk-ce.toml`, `train-cs-sk-focal.toml`, `train-cs-sk-weighted.toml` | the first full training runs, differing only in the loss |
+| `configs/rq6-dev.toml` | the ce and focal models vs rules+gliner on every dev split; train them first |
+| `configs/rq6-loss-dev.toml` | ce, weighted and focal with three seeds each, ce also at threshold 0.125, vs rules+gliner; mean and spread across seeds |
 
 A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on
@@ -165,9 +230,15 @@ fine-tunes GLiNER (`train.py`) on this machine's Apple GPU (`device =
 how many examples to draw from each (seeded), steps, batch size, learning
 rates (encoder, and GLiNER's span and prompt layers), warm-up, weight decay
 and the loss: `ce` (binary cross-entropy per span and label, since GLiNER
-scores each pair with a sigmoid) or `focal` with `focal_alpha` (the weight of
-the positive pairs; above 0.5 favours recall) and `focal_gamma`. The config
-module docstring lists every key. Only train splits are read for training
+scores each pair with a sigmoid), `focal` with `focal_alpha` (the weight of
+the positive pairs; above 0.5 favours recall) and `focal_gamma`, or
+`weighted`, this repository's recall-weighted loss (`loss.py`): the term of
+the positive pairs is multiplied by `positive_weight`, so a missed name
+costs that many equally confident false alarms, and `negative_focus`
+optionally fades out the negatives the model already rejects, never the
+positives. `positive_weight = 1` without focus is `ce`, value for value.
+`loss.py` also records how gliner computes its loss. The config module
+docstring lists every key. Only train splits are read for training
 and only development splits for scoring; anything else is refused.
 
 1. **Examples** (`examples.py`): each split is loaded as the evaluation
@@ -199,9 +270,45 @@ and only development splits for scoring; anything else is refused.
 
 Weights trained on CNEC or UNER hold real public names: they stay under the
 resource root, are never committed or published, and their entry says
-`real_personal_data`. On the M4 Pro a step of 8 examples takes about 1.4 s
-(`docs/findings.md`), so `train-cs-sk-ce` (4,000 steps) takes about an hour
-and a half, plus about a quarter of an hour of scoring.
+`real_personal_data`. On the M4 Pro a step of 8 examples takes about 1.4 s and
+batches of 16 train 1.26 times as fast (`docs/findings.md`), so `train-cs-sk-ce`
+(2,000 steps of 16) takes about an hour and a quarter, plus about a quarter of
+an hour of scoring.
+
+### Seeds
+
+One run per setting cannot tell the loss's effect from training noise: the
+bootstrap resamples documents, not training runs. `--seed N` trains the same
+config again with seed `N`, stored as `<model>-sN` with results
+`results/<name>-sN.json` (`seed` and `replicate` record it):
+
+```sh
+for seed in 1 2; do
+  uv run python -m experiments train --config experiments/configs/train-cs-sk-weighted.toml \
+      --seed $seed --resource-root /path/to/main/checkout
+done
+```
+
+The seed draws the OpenPII examples, orders all of them and seeds the
+trainer, so one seed always gives the same examples in the same order, and
+replicate `sN` of two losses saw the same data. A run config lists the
+replicates with `seeds = [1, 2]` on the system of the config's own run
+(`rq6-loss-dev.toml`); `results/<name>.md` then adds *Across seeds* (mean ±
+standard deviation per system) and *Seed by seed* (the difference per seed,
+and on how many seeds F2 rose).
+
+### Tuning the weight
+
+`positive_weight` is tuned on development data only, against person F2
+(partial match) on the development splits, the main metric of the
+evaluation contract; the test splits are read once, with the chosen weight.
+Train a few weights from copies of `train-cs-sk-weighted.toml` (e.g. 2, 3, 5
+and 10, each its own `model` id), score them beside `ce` with an
+`rq6-dev`-style config, take the weight with the best person F2, then train
+its replicates. In a model that fits its data perfectly a weight `w` acts as
+a lower threshold (`t / (w(1 - t) + t)` instead of `t`: 0.125 instead of
+0.3 for `w = 3`), so `ce` is also scored at that threshold: the loss
+contributes only what beats `ce` at the matching threshold.
 
 ## Cache
 

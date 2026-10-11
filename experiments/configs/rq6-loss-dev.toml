@@ -1,0 +1,59 @@
+name = "rq6-loss-dev"
+description = """
+RQ6, the loss on development data, three seeds each: GLiNER fine-tuned with binary
+cross-entropy, the recall-weighted loss and focal loss, each trained with the config's
+seed and with --seed 1 and --seed 2, against GLiNER zero-shot. Cross-entropy is also
+scored at threshold 0.125, the threshold at which a calibrated cross-entropy model
+reports what the weighted loss (weight 3) reports at 0.3: if the weighted loss only beats
+cross-entropy at 0.3, it has only moved the threshold. Train the nine models first
+(experiments/README.md, Training)."""
+stage = "dev"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+gliner", "rules+gliner-cs-sk-ce"],
+    ["rules+gliner-cs-sk-ce", "rules+gliner-cs-sk-weighted"],
+    ["rules+gliner-cs-sk-ce@0.125", "rules+gliner-cs-sk-weighted"],
+    ["rules+gliner-cs-sk-ce", "rules+gliner-cs-sk-focal"],
+    ["rules+gliner-cs-sk-focal", "rules+gliner-cs-sk-weighted"],
+]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[[datasets]]
+id = "openpii-1m-cs"
+split = "dev"
+
+[[datasets]]
+id = "openpii-1m-sk"
+split = "dev"
+
+[systems."rules+gliner"]
+model = "gliner"
+
+[systems."rules+gliner-cs-sk-ce"]
+model = "gliner-cs-sk-ce"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-ce@0.125"]
+model = "gliner-cs-sk-ce"
+threshold = 0.125
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-weighted"]
+model = "gliner-cs-sk-weighted"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-focal"]
+model = "gliner-cs-sk-focal"
+seeds = [1, 2]

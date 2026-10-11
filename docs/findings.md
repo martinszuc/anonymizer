@@ -841,6 +841,15 @@ say nothing about the model (40 steps, 25 documents per development split).
   warm-up included. A design probe before (15 steps of 8 OpenPII records of 67
   tokens on average) took a median 1.02 s per step after a first step of 10 s.
   At 1.4 s, 4,000 steps take about 1.5 hours.
+- **Batches of 16, full precision (2026-10-11).** A speed probe trained the base
+  model on the same 400 examples (300 OpenPII cs, 100 CNEC train) under five
+  settings, each in its own process, timed after 4 warm-up steps. Relative to
+  batches of 8 in fp32: bf16 1.04×, batches of 16 in fp32 1.26×, batches of 16
+  in bf16 1.33×, batches of 16 in bf16 with 4 dataloader workers 0.86× (worker
+  processes cost more than they save). bf16 adds little over a larger batch and
+  changes the arithmetic, so the training configs use batches of 16 in fp32:
+  2,000 steps of 16 see the same 32,000 examples as 4,000 of 8, in about 1.2
+  hours instead of 1.5. Other sessions ran on the machine during the probe.
 - **Same seed, nearly the same run.** Three runs with the same seed and training
   code logged losses that agreed to two decimals or better (at step 40: 2.8782,
   2.8782, 2.8768) and gave the same person counts on every development split,

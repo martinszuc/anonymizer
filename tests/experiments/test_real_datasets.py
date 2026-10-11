@@ -39,7 +39,8 @@ def test_cnec_dev_split():
 def test_uner_dev_split_both_ways():
     written = _load("uner-sk-snk", "dev")
     tokens = _load("uner-sk-snk", "dev", TextForm.TOKENS)
-    assert written.gold_counts() == tokens.gold_counts() == {"person": 276}
+    # Organisations are kept for training (never scored), beside the persons.
+    assert written.gold_counts() == tokens.gold_counts() == {"person": 276, "organization": 60}
     assert written.sentences == tokens.sentences == 1060
     assert len(written.documents) == 36
 

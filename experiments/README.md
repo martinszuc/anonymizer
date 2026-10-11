@@ -152,9 +152,10 @@ and only development splits for scoring; anything else is refused.
 
 Weights trained on CNEC or UNER hold real public names: they stay under the
 resource root, are never committed or published, and their entry says
-`real_personal_data`. On the M4 Pro a step of 8 examples takes about 1.4 s
-(`docs/findings.md`), so `train-cs-sk-ce` (4,000 steps) takes about an hour
-and a half, plus about a quarter of an hour of scoring.
+`real_personal_data`. On the M4 Pro a step of 8 examples takes about 1.4 s and
+batches of 16 train 1.26 times as fast (`docs/findings.md`), so `train-cs-sk-ce`
+(2,000 steps of 16) takes about an hour and a quarter, plus about a quarter of
+an hour of scoring.
 
 ## Cache
 

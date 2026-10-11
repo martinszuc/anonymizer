@@ -3,21 +3,22 @@ description = """
 RQ6, first full run: GLiNER multilingual fine-tuned for Czech and Slovak names and
 addresses with binary cross-entropy, the loss the comparison starts from.
 Every CNEC 2.0 and UNER Slovak-SNK train example and 10,000 drawn from each OpenPII 1M
-train split; 4,000 steps of 8 (about 1.4 passes). Its twin config differs only in the loss."""
+train split; 2,000 steps of 16 (about 1.4 passes; batches of 16 train 1.26 times as
+fast as batches of 8 on the M4 Pro). Its twin config differs only in the loss."""
 model = "gliner-cs-sk-ce"
 base = "gliner-multi-v2.1"
 seed = 20261010
 device = "mps"
 
 [training]
-steps = 4000
-batch_size = 8
+steps = 2000
+batch_size = 16
 learning_rate = 1e-5
 head_learning_rate = 5e-5
 weight_decay = 0.01
 warmup_ratio = 0.1
 loss = "ce"
-logging_steps = 50
+logging_steps = 25
 
 [[corpora]]
 id = "cnec-2.0"

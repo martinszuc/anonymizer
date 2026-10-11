@@ -5,6 +5,10 @@ model, lists it under the resource root and scores it on development data
 (`experiments.train`; needs `uv sync --group train`); `--seed N` trains a
 replicate, stored as `<model>-sN` with results `<name>-sN`.
 
+`errors --config experiments/configs/rq6-dev.toml` runs a config's systems
+as `run` does, from the same cache, and counts what kind of names each misses
+and what it wrongly flags (`experiments.errors`), into `results/<name>-errors.*`.
+
 `leaks scan.pdf --engines onnxtr --system rules+gliner --out leaks/` counts
 why the leak check fails on one document (`experiments.leaks`).
 
@@ -29,6 +33,7 @@ from anonymizer.core.resources import load_catalog, resolve_resource_root
 from experiments import phenomena
 from experiments.config import load_config
 from experiments.datasets import DATASETS, load_corpus
+from experiments.errors import analyse, check_examples_folder, write_errors
 from experiments.funsd import SPLITS, run_funsd, write_results
 from experiments.leaks import breakdown, breakdown_markdown, write_breakdown
 from experiments.report import latex, markdown
@@ -84,6 +89,26 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="name model cache (default: <resource root>/.cache/experiments)",
     )
+    errors_parser = commands.add_parser(
+        "errors", help="count what kind of names each system misses and wrongly flags"
+    )
+    errors_parser.add_argument(
+        "--config", type=Path, required=True, help="run configuration (TOML)"
+    )
+    errors_parser.add_argument(
+        "--out", type=Path, default=RESULTS, help=f"results directory (default: {RESULTS})"
+    )
+    errors_parser.add_argument(
+        "--cache-dir",
+        type=Path,
+        help="name model cache (default: <resource root>/.cache/experiments)",
+    )
+    errors_parser.add_argument(
+        "--examples",
+        type=Path,
+        help="also write example spans of the synthetic corpora into this folder, which "
+        "must be ignored by git (e.g. outputs/error-examples); never for CNEC or UNER",
+    )
     tables = commands.add_parser("tables", help="rewrite the tables of a stored results file")
     tables.add_argument("results", type=Path, help="<name>.json")
     datasets = commands.add_parser("datasets", help="count documents and gold spans per split")
@@ -112,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
     funsd.add_argument(
         "--out", type=Path, default=RESULTS, help=f"results directory (default: {RESULTS})"
     )
-    for command in (run_parser, train_parser, datasets, leaks, funsd):
+    for command in (run_parser, train_parser, errors_parser, datasets, leaks, funsd):
         command.add_argument(
             "--resource-root",
             type=Path,
@@ -133,6 +158,8 @@ def main(argv: list[str] | None = None) -> int:
         return _funsd(args, root)
     if args.command == "train":
         return _train(args, root)
+    if args.command == "errors":
+        return _errors(args, root)
     config = load_config(args.config, load_catalog(root=root))
     cache_dir = args.cache_dir or root / ".cache" / "experiments"
     results = run(config, resource_root=root, cache_dir=cache_dir, progress=print)
@@ -154,6 +181,32 @@ def _train(args: argparse.Namespace, root: Path) -> int:
     results = train(config, resource_root=root, cache_dir=cache_dir, progress=print)
     path = write_training(results, args.out)
     print(f"stored {config.model} under {root / 'models'}; wrote {path}")
+    return 0
+
+
+def _errors(args: argparse.Namespace, root: Path) -> int:
+    if args.examples is not None:
+        try:
+            check_examples_folder(args.examples, args.out)
+        except ValueError as error:
+            print(f"errors: {error}", file=sys.stderr)
+            return 2
+    config = load_config(args.config, load_catalog(root=root))
+    cache_dir = args.cache_dir or root / ".cache" / "experiments"
+    results, examples = analyse(
+        config,
+        resource_root=root,
+        cache_dir=cache_dir,
+        progress=print,
+        keep_examples=args.examples is not None,
+    )
+    path = write_errors(results, args.out)
+    print(f"wrote {path} and its .md")
+    if args.examples is not None:
+        args.examples.mkdir(parents=True, exist_ok=True)
+        target = args.examples / f"{results['name']}-examples.json"
+        target.write_text(json.dumps(examples, ensure_ascii=False, indent=2) + "\n", "utf-8")
+        print(f"wrote examples of {len(examples)} synthetic corpora to {target}")
     return 0
 
 

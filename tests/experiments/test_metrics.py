@@ -10,6 +10,7 @@ from experiments.metrics import (
     STRICT,
     Counts,
     Coverage,
+    Resampler,
     document_counts,
     document_coverage,
     interval,
@@ -103,6 +104,20 @@ class TestBootstrap:
         assert result.value == pytest.approx(0.5)
         assert result.low is not None and result.high is not None
         assert result.low < 0.5 < result.high
+
+    def test_the_resampler_sums_as_resampled_totals_does(self):
+        per_document = [Counts(3, 1, 0, 0), Counts(0, 0, 0, 0), Counts(1, 1, 5, 2)] * 3
+        draws = resamples(len(per_document), 50, seed=3)
+        resampler = Resampler(len(per_document), draws)
+        assert resampler.totals(per_document) == resampled_totals(per_document, draws)
+        coverage = [Coverage(gold_characters=index) for index in range(len(per_document))]
+        assert resampler.totals(coverage) == resampled_totals(coverage, draws)
+        # Counts in few documents are summed over those documents only.
+        sparse = [Counts(gold=2)] + [Counts()] * 19
+        draws = resamples(len(sparse), 50, seed=4)
+        assert Resampler(len(sparse), draws).totals(sparse) == resampled_totals(sparse, draws)
+        with pytest.raises(ValueError, match="one per document"):
+            resampler.totals(per_document[:2])
 
     def test_identical_documents_give_no_spread(self):
         per_document = [Counts(2, 1, 2, 1)] * 6

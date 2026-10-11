@@ -88,8 +88,8 @@ def run(
         The results, as the command line stores them in `<name>.json`.
     """
     catalog = load_catalog(root=resource_root)
-    load_model = _once(load_model or model_loader(resource_root, catalog))
-    load_splitter = _once(load_splitter or splitter_loader(resource_root, catalog))
+    load_model = once(load_model or model_loader(resource_root, catalog))
+    load_splitter = once(load_splitter or splitter_loader(resource_root, catalog))
     corpora: dict[str, Any] = {}
     for reference in config.datasets:
         corpus = load_corpus(reference.id, reference.split, resource_root, reference.text, limit)
@@ -127,7 +127,7 @@ def run(
     }
 
 
-def _once[Loaded](load_model: Callable[[str], Loaded]) -> Callable[[str], Loaded]:
+def once[Loaded](load_model: Callable[[str], Loaded]) -> Callable[[str], Loaded]:
     """Load each model on first use only, however many corpora ask for it."""
     loaded: dict[str, Loaded] = {}
 
@@ -139,17 +139,26 @@ def _once[Loaded](load_model: Callable[[str], Loaded]) -> Callable[[str], Loaded
     return load
 
 
-def _run_corpus(
+def scored_types(config: RunConfig, corpus: Corpus) -> frozenset[EntityType]:
+    """Return the types scored on a corpus: those it annotates, narrowed by the config."""
+    return corpus.types if config.types is None else corpus.types & config.types
+
+
+def corpus_models(
     config: RunConfig,
     corpus: Corpus,
     cache_dir: Path,
     load_model: Callable[[str], Any],
     load_splitter: Callable[[str], SentenceSplitter],
     catalog: Catalog,
-    progress: Progress,
-) -> dict[str, Any]:
-    types = corpus.types if config.types is None else corpus.types & config.types
-    models: dict[str, NameModel] = {
+) -> dict[str, NameModel]:
+    """Return every name model the systems use, wrapped in its cache for this corpus.
+
+    The cache file is chosen by model and dataset version and split
+    (`systems.cache_path`), and its entries by the model input, so every
+    command reading the same corpus the same way answers from one cache.
+    """
+    return {
         model_id: cached_model(
             model_id,
             PredictionCache(
@@ -165,6 +174,19 @@ def _run_corpus(
             model_id for system in config.systems for model_id in system.model_ids
         )
     }
+
+
+def _run_corpus(
+    config: RunConfig,
+    corpus: Corpus,
+    cache_dir: Path,
+    load_model: Callable[[str], Any],
+    load_splitter: Callable[[str], SentenceSplitter],
+    catalog: Catalog,
+    progress: Progress,
+) -> dict[str, Any]:
+    types = scored_types(config, corpus)
+    models = corpus_models(config, corpus, cache_dir, load_model, load_splitter, catalog)
     draws = resamples(len(corpus.documents), config.resamples, config.seed)
 
     per_system: dict[str, dict[tuple[str, str], list[Counts]]] = {}

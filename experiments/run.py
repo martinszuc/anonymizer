@@ -26,10 +26,13 @@ from anonymizer.core.types import EntityType
 from experiments.config import RunConfig
 from experiments.datasets import DATASETS, Corpus, load_corpus
 from experiments.metrics import (
+    COVERAGE_METRICS,
     MATCHES,
     METRICS,
     Counts,
+    Coverage,
     document_counts,
+    document_coverage,
     interval,
     paired_difference,
     resampled_totals,
@@ -157,13 +160,15 @@ def _run_corpus(
     draws = resamples(len(corpus.documents), config.resamples, config.seed)
 
     per_system: dict[str, dict[tuple[str, str], list[Counts]]] = {}
+    coverage_per_system: dict[str, dict[str, list[Coverage]]] = {}
     systems: dict[str, Any] = {}
     for system in config.systems:
         started = time.perf_counter()
         used = {model_id: models[model_id] for model_id in system.model_ids}
         before = {model_id: (model.hits, model.misses) for model_id, model in used.items()}
-        counts, details = _run_system(system, corpus, types, used)
+        counts, coverage, details = _run_system(system, corpus, types, used)
         per_system[system.name] = counts
+        coverage_per_system[system.name] = coverage
         details["seconds"] = round(time.perf_counter() - started, 2)
         for model in used.values():
             model.cache.save()
@@ -175,6 +180,7 @@ def _run_corpus(
                 ),
             }
         details["scores"] = _scores(counts, draws)
+        details["coverage"] = _coverage_scores(coverage, draws)
         systems[system.name] = details
         progress(f"{corpus.key}: {system.name} done in {details['seconds']} s")
 
@@ -198,7 +204,10 @@ def _run_corpus(
         "skipped": corpus.skipped,
         "systems": systems,
         "comparisons": [
-            _compare(baseline, candidate, per_system, draws)
+            {
+                **_compare(baseline, candidate, per_system, draws),
+                "coverage": _compare_coverage(baseline, candidate, coverage_per_system, draws),
+            }
             for baseline, candidate in config.compare
         ],
     }
@@ -209,8 +218,9 @@ def _run_system(
     corpus: Corpus,
     types: frozenset[EntityType],
     models: dict[str, NameModel],
-) -> tuple[dict[tuple[str, str], list[Counts]], dict[str, Any]]:
+) -> tuple[dict[tuple[str, str], list[Counts]], dict[str, list[Coverage]], dict[str, Any]]:
     counts: dict[tuple[str, str], list[Counts]] = {}
+    coverage: dict[str, list[Coverage]] = {}
     unscored: Counter[str] = Counter()
     languages: Counter[str] = Counter()
     for gold in corpus.documents:
@@ -218,6 +228,9 @@ def _run_system(
         found = gold.document.entities
         for key, value in document_counts(found, gold.gold, types).items():
             counts.setdefault(key, []).append(value)
+        pages = [page.text for page in gold.document.pages]
+        for kind, value in document_coverage(found, gold.gold, types, pages).items():
+            coverage.setdefault(kind, []).append(value)
         unscored.update(str(entity.type) for entity in found if entity.type not in types)
         languages[gold.document.language or "none"] += 1
         gold.document.entities = []
@@ -225,7 +238,7 @@ def _run_system(
         "languages": dict(languages.most_common()),
         "unscored_predictions": dict(unscored.most_common()),
     }
-    return counts, details
+    return counts, coverage, details
 
 
 def _scores(
@@ -245,6 +258,40 @@ def _scores(
             **{metric: interval(per_document, resampled, metric).to_dict() for metric in METRICS},
         }
     return scores
+
+
+def _coverage_scores(
+    coverage: dict[str, list[Coverage]], draws: Sequence[Sequence[int]]
+) -> dict[str, dict[str, Any]]:
+    scores: dict[str, dict[str, Any]] = {}
+    for kind, per_document in coverage.items():
+        resampled = resampled_totals(per_document, draws)
+        scores[kind] = {
+            "counts": total(per_document).to_dict(),
+            **{
+                metric: interval(per_document, resampled, metric).to_dict()
+                for metric in COVERAGE_METRICS
+            },
+        }
+    return scores
+
+
+def _compare_coverage(
+    baseline: str,
+    candidate: str,
+    per_system: dict[str, dict[str, list[Coverage]]],
+    draws: Sequence[Sequence[int]],
+) -> dict[str, Any]:
+    differences: dict[str, Any] = {}
+    for kind, before in per_system[baseline].items():
+        after = per_system[candidate][kind]
+        paired_before = (before, resampled_totals(before, draws))
+        paired_after = (after, resampled_totals(after, draws))
+        differences[kind] = {
+            metric: paired_difference(paired_before, paired_after, metric).to_dict()
+            for metric in COVERAGE_METRICS
+        }
+    return differences
 
 
 def _compare(

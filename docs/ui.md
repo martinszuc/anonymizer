@@ -393,7 +393,7 @@ exists unless `--log-file` names one. Every page call is logged by `_logged` in
 `app.py` (a refusal is a warning, anything else an error; never the message).
 How to log from a new method: [`docs/logging.md`](logging.md).
 
-An AI session can preview the page in its browser pane with `npm run dev`
+The page can be previewed in a browser with `npm run dev`
 (the demo document appears after Open PDF…). The demo never goes through
 pywebview, so bridge problems (the CSP `eval` issue, argument passing) only
 show in the real window.
@@ -521,14 +521,14 @@ In suggested order. Each item names where it plugs in.
 
 Found by hand in the review window on real documents and on a set of unrelated
 Czech documents (kept outside the repository). Items marked **Done** are fixed and
-stay listed so the numbering holds; the rest are open. Items marked **Explain** need an explanation for the maintainer before any
+stay listed so the numbering holds; the rest are open. Items marked **Investigate** need their cause analysed before any
 change; **Decide** items need a product decision first. Related older items are in
 *Backlog* (undo/redo, models sheet, packaging, OCR quality).
 
 **Evidence.** A local log, `debug-log.log` in the repository root, records a run on
 documents with names and Czech text: the repeated occurrences and the ordinary Czech
 words marked as personal data (items 11 and 12). It is git-ignored (`*.log`) and may
-hold text from real documents. A session that works on those items reads it from disk
+hold text from real documents. Work on those items reads it from disk
 to find which detector produced each hit, and reports counts, detector sources and
 entity types, never the words, names or sentences themselves. It is not copied into
 the repository, a test, a fixture or a commit message.
@@ -589,7 +589,7 @@ the repository, a test, a fixture or a commit message.
     `detect.NamesOnly`: false alarms 33 → 4 with every name still found
     (`docs/findings.md` → *False alarms from the name model*). Still open: a run on the
     unrelated documents to confirm it there.
-12. **Names, titles and degrees.** **Explain:** which model finds Czech names (GLiNER via
+12. **Names, titles and degrees.** **Investigate:** which model finds Czech names (GLiNER via
     `--ner`, see the catalog) and what label set it is asked for. Academic titles and
     degrees (Ing., Mgr., doc., Ph.D., prof.) are often left unredacted; list the options
     (a label for titles, a rule next to a detected name, a prompt change) and what each
@@ -602,7 +602,7 @@ the repository, a test, a fixture or a commit message.
 ### Export
 
 13. **Export refuses a copy because text is still readable, without saying where.**
-    **Explain:** how the leak check decides this, which layers it has, and why a
+    **Investigate:** how the leak check decides this, which layers it has, and why a
     hand-drawn region on a text page can leave readable text behind. Then the window must
     name what was found (page, the text, which layer) and what to do about it, instead of
     a general failure. Today's behaviour on the leak result is in `ReviewApi` and the

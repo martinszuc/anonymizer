@@ -89,8 +89,8 @@ text, surface scan, objects, raw bytes). Names remain: nothing detects them yet.
 rules for the document language alongside.
 
 - **Real CS CV:** 1 page; 12 entities (person 4, address 2, phone 2,
-  email 2, URL 2), 10 hidden items removed, leak check passed. The author
-  checked the output visually: the name is removed everywhere and nothing
+  email 2, URL 2), 10 hidden items removed, leak check passed. Checked
+  visually: the name is removed everywhere and nothing
   personal remains visible. Names were the gap left by the rules alone
   (see *Redaction of the real samples*).
 - **Synthetic EN CV:** the name, the street address and the ZIP code were

@@ -7,5 +7,4 @@ non-text surfaces), detection (rules, optional GLiNER), review sessions and
 redaction with a leak check. No UI or CLI dependencies. Clients call
 `anonymizer.core.pipeline` (`build_detector`, `run_detection`) and export through
 `anonymizer.core.redact.export_redacted`. The data contract is `core/types.py`.
-Architecture, constraints and conventions: the root `CLAUDE.md`; usage: the root
-`README.md`.
+Layout, usage and status: the root `README.md`.

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import anonymizer.core
+from anonymizer.core.detect import name_model
 from anonymizer.core.detect.nametag import SentenceSplitter
 from anonymizer.core.resources import Catalog, load_catalog
 from anonymizer.core.types import EntityType
@@ -43,6 +44,7 @@ from experiments.phenomena import PhenomenonTally
 from experiments.seeds import summarize
 from experiments.systems import (
     CACHE_FLOOR,
+    SPAN_MODEL_ENGINE,
     NameModel,
     PredictionCache,
     SystemConfig,
@@ -52,6 +54,7 @@ from experiments.systems import (
     model_loader,
     model_versions,
     splitter_loader,
+    system_models,
 )
 
 RESULTS_SCHEMA = 1
@@ -151,29 +154,37 @@ def corpus_models(
     load_model: Callable[[str], Any],
     load_splitter: Callable[[str], SentenceSplitter],
     catalog: Catalog,
-) -> dict[str, NameModel]:
+) -> dict[tuple[str, float], NameModel]:
     """Return every name model the systems use, wrapped in its cache for this corpus.
 
-    The cache file is chosen by model and dataset version and split
-    (`systems.cache_path`), and its entries by the model input, so every
-    command reading the same corpus the same way answers from one cache.
+    The cache file is chosen by model and dataset version, split and, for
+    GLiNER, cache floor (`systems.cache_path`), and its entries by the model
+    input, so every command reading the same corpus the same way answers
+    from one cache. Models are keyed by catalog id and the cache floor of the
+    systems using them (`systems.system_models`); NameTag has no floor, so
+    every floor gets its one cached tagger.
     """
-    return {
-        model_id: cached_model(
-            model_id,
-            PredictionCache(
-                cache_path(
-                    cache_dir, model_id, corpus.dataset, corpus.version, corpus.split, catalog
+    models: dict[tuple[str, float], NameModel] = {}
+    opened: dict[tuple[str, float], NameModel] = {}
+    for system in config.systems:
+        for model_id in system.model_ids:
+            gliner = name_model(model_id, catalog).engine == SPAN_MODEL_ENGINE
+            floor = system.cache_floor if gliner else CACHE_FLOOR
+            if (model_id, floor) not in opened:
+                path = cache_path(
+                    cache_dir,
+                    model_id,
+                    corpus.dataset,
+                    corpus.version,
+                    corpus.split,
+                    catalog,
+                    floor,
                 )
-            ),
-            load_model,
-            load_splitter,
-            catalog,
-        )
-        for model_id in dict.fromkeys(
-            model_id for system in config.systems for model_id in system.model_ids
-        )
-    }
+                opened[model_id, floor] = cached_model(
+                    model_id, PredictionCache(path), load_model, load_splitter, catalog, floor
+                )
+            models[model_id, system.cache_floor] = opened[model_id, floor]
+    return models
 
 
 def _run_corpus(
@@ -194,7 +205,7 @@ def _run_corpus(
     systems: dict[str, Any] = {}
     for system in config.systems:
         started = time.perf_counter()
-        used = {model_id: models[model_id] for model_id in system.model_ids}
+        used = system_models(system, models)
         before = {model_id: (model.hits, model.misses) for model_id, model in used.items()}
         counts, coverage, details = _run_system(system, corpus, types, used, draws)
         per_system[system.name] = counts

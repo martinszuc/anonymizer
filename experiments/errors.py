@@ -110,6 +110,7 @@ from experiments.systems import (
     model_loader,
     model_versions,
     splitter_loader,
+    system_models,
 )
 
 ERRORS_SCHEMA = 1
@@ -604,7 +605,7 @@ def analyse(
 def _analyse_corpus(
     config: RunConfig,
     corpus: Corpus,
-    models: dict[str, NameModel],
+    models: dict[tuple[str, float], NameModel],
     progress: Progress,
     examples: dict[str, Any] | None,
 ) -> dict[str, Any]:
@@ -628,7 +629,7 @@ def _analyse_corpus(
     role_words = role_words_for(corpus.language)
     systems: dict[str, Any] = {}
     for system in config.systems:
-        used = {model_id: models[model_id] for model_id in system.model_ids}
+        used = system_models(system, models)
         before = {model_id: (model.hits, model.misses) for model_id, model in used.items()}
         system_examples = None if examples is None else examples.setdefault(system.name, {})
         tally = ErrorTally(analysed, role_words, system_examples)

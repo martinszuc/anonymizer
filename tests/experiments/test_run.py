@@ -14,6 +14,7 @@ from experiments.config import load_config, parse_config, replicate_id
 from experiments.metrics import ANY_TYPE
 from experiments.report import UNDEFINED, format_difference, format_interval, latex, markdown
 from experiments.run import run
+from experiments.systems import CACHE_FLOOR, LOW_CACHE_FLOOR
 from experiments.train import register
 from tests.experiments.conftest import ScoredStandIn, StandInSplitter, StandInTagger
 from tests.resources.test_catalog import store_trained, trained_entry
@@ -340,6 +341,58 @@ def test_nametag_and_a_union_run_and_rerun_from_the_cache(resource_root: Path, t
     }
     assert person == {"rules+gliner": 2, "rules+nametag": 1, "rules+gliner|nametag": 3}
     assert systems["rules+nametag"]["cache"] == {"hits": 0, "misses": 1}
+
+    loads.clear()
+    second = results()
+    assert loads == []
+    for system in second["corpora"]["cnec-2.0/dtest"]["systems"].values():
+        assert system["cache"]["misses"] == 0
+
+
+def test_a_low_threshold_reads_its_own_cache(resource_root: Path, tmp_path: Path):
+    nametag = "nametag3-czech-cnec2.0-240830"
+    config = {
+        **CONFIG,
+        "datasets": [{"id": "cnec-2.0", "split": "dtest"}],
+        "compare": [["rules+gliner", "rules+gliner@0.04"]],
+        "systems": {
+            "rules+gliner": {"model": "gliner"},
+            "rules+gliner@0.04": {"model": "gliner", "threshold": 0.04},
+            "rules+nametag": {"model": nametag},
+            "rules+gliner@0.04|nametag": {"model": ["gliner", nametag], "threshold": 0.04},
+        },
+    }
+    gliner = ScoredStandIn({**FOUND, "Karla Dvořáka": ("person", 0.05)})
+    loads: list[str] = []
+
+    def load(model_id: str) -> Any:
+        loads.append(model_id)
+        return StandInTagger({}) if model_id == nametag else gliner
+
+    def results() -> dict[str, Any]:
+        return run(
+            parse_config(config),
+            resource_root=resource_root,
+            cache_dir=tmp_path / "cache",
+            load_model=load,
+            load_splitter=lambda _: StandInSplitter(),
+        )
+
+    first = results()
+    assert sorted(set(gliner.thresholds)) == [LOW_CACHE_FLOOR, CACHE_FLOOR]
+    assert sorted(loads) == ["gliner-multi-v2.1", nametag]  # one tagger for both floors
+    systems = first["corpora"]["cnec-2.0/dtest"]["systems"]
+    person = {
+        name: system["scores"]["partial"]["person"]["counts"]["gold_matched"]
+        for name, system in systems.items()
+    }
+    # Karla Dvořáka (0.05) lies below 0.1: only the low cache holds it.
+    assert person["rules+gliner"] == 2
+    assert person["rules+gliner@0.04"] == 3
+    assert person["rules+gliner@0.04|nametag"] == 3
+    assert first["systems"]["rules+gliner@0.04"]["cache_floor"] == LOW_CACHE_FLOOR
+    files = sorted(path.name for path in (tmp_path / "cache").rglob("*.json"))
+    assert files == ["dtest.json", "dtest.json", "dtest@floor0.02.json"]
 
     loads.clear()
     second = results()

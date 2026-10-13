@@ -12,7 +12,10 @@ The name models are the slow part, so their raw output is cached per model
 input. GLiNER (`CachedSpanModel`) is asked once at `CACHE_FLOOR` and the
 spans are filtered up to each system's threshold. That is the same as asking
 at the higher threshold: flat decoding is greedy, highest score first, so a
-span under the threshold never displaced one above it. NameTag 3
+span under the threshold never displaced one above it. A system whose
+threshold lies below `CACHE_FLOOR` reads a second cache, asked at
+`LOW_CACHE_FLOOR` and kept in files of its own (`cache_path`), so the usual
+cache stays as it was and other runs can read it meanwhile. NameTag 3
 (`CachedTagger`) has no threshold; its labels are cached per page of
 sentences. Everything after the model (windows, sentences, word widening,
 the name filter, the rules, merging, propagation, titles) runs for real on
@@ -63,6 +66,13 @@ from anonymizer.core.types import Document, EntityType
 
 CACHE_FLOOR = 0.1
 """Threshold GLiNER is asked at for the cache; systems may filter upwards only."""
+
+LOW_CACHE_FLOOR = 0.02
+"""Floor of the second cache, read by systems whose threshold lies below `CACHE_FLOOR`.
+
+Low enough for the threshold matching a recall weight of 10: `t / (w(1 - t) + t)`
+is 0.041 at the default 0.3 (`experiments/README.md`, *Training*).
+"""
 
 SPAN_MODEL_ENGINE = "gliner"
 """The engine whose spans are cached and filtered by score."""
@@ -116,6 +126,11 @@ class SystemConfig:
         return () if self.model == "none" else (self.model,)
 
     @property
+    def cache_floor(self) -> float:
+        """The floor of the GLiNER cache the system reads (`cache_floor`)."""
+        return cache_floor(self.threshold)
+
+    @property
     def model_ids(self) -> tuple[str, ...]:
         """The catalog ids of the system's name models; empty for the rules alone."""
         return tuple(NAME_MODEL_ALIASES.get(model, model) for model in self.model_names)
@@ -135,6 +150,8 @@ class SystemConfig:
                 "labels": {label: str(kind) for label, kind in self.labels.items()},
                 "distractors": list(self.distractors),
             }
+            if self.cache_floor != CACHE_FLOOR:
+                described["cache_floor"] = self.cache_floor
         if self.model_names:
             described["names_only"] = self.names_only
         return described
@@ -193,8 +210,8 @@ def parse_system(
         msg = f"system {name!r}: language must be one of {LANGUAGES}"
         raise ValueError(msg)
     threshold = float(table.get("threshold", DEFAULT_THRESHOLD))
-    if not CACHE_FLOOR <= threshold <= 1.0:
-        msg = f"system {name!r}: threshold must lie in [{CACHE_FLOOR}, 1]"
+    if not LOW_CACHE_FLOOR <= threshold <= 1.0:
+        msg = f"system {name!r}: threshold must lie in [{LOW_CACHE_FLOOR}, 1]"
         raise ValueError(msg)
     labels = {
         str(label): EntityType(kind)
@@ -212,6 +229,18 @@ def parse_system(
         language=language,
         engines=engines,
     )
+
+
+def cache_floor(threshold: float) -> float:
+    """Return the floor of the GLiNER cache a threshold is read from.
+
+    Raises:
+        ValueError: If the threshold lies below the lowest floor.
+    """
+    if threshold < LOW_CACHE_FLOOR:
+        msg = f"threshold {threshold} is below the lowest cache floor {LOW_CACHE_FLOOR}"
+        raise ValueError(msg)
+    return CACHE_FLOOR if threshold >= CACHE_FLOOR else LOW_CACHE_FLOOR
 
 
 def _check_model(system: str, model: str, catalog: Catalog) -> str:
@@ -415,18 +444,23 @@ def cache_path(
     dataset_version: str,
     split: str,
     catalog: Catalog | None = None,
+    floor: float = CACHE_FLOOR,
 ) -> Path:
     """Return the cache file for a name model on one split of a dataset.
 
     The model's version is part of the path: a trained model's is the hash of
     its weights, so a model trained again under the same id starts a new cache.
+    A GLiNER cache asked at another floor than `CACHE_FLOOR` has a file of its
+    own (`<split>@floor<floor>.json`): a run filling it never writes the file
+    other runs read.
     """
     model = (catalog or load_catalog())[model_id]
+    name = split if floor == CACHE_FLOOR else f"{split}@floor{floor:g}"
     return (
         cache_dir
         / f"{model.id}@{_safe(model.version)}"
         / f"{dataset}@{_safe(dataset_version)}"
-        / f"{split}.json"
+        / f"{name}.json"
     )
 
 
@@ -485,10 +519,14 @@ def cached_model(
     load_model: Callable[[str], Any],
     load_splitter: Callable[[str], SentenceSplitter],
     catalog: Catalog | None = None,
+    floor: float = CACHE_FLOOR,
 ) -> NameModel:
-    """Wrap a name model, loaded on first need, in the cache of its engine."""
+    """Wrap a name model, loaded on first need, in the cache of its engine.
+
+    `floor` is the threshold GLiNER is asked at; NameTag has none.
+    """
     if name_model(model_id, catalog).engine == SPAN_MODEL_ENGINE:
-        return CachedSpanModel(functools.partial(load_model, model_id), cache)
+        return CachedSpanModel(functools.partial(load_model, model_id), cache, floor)
     return CachedTagger(
         functools.partial(load_model, model_id), functools.partial(load_splitter, model_id), cache
     )
@@ -505,6 +543,21 @@ def model_versions(
         for model_id in system.model_ids
         for resource in catalog.with_requirements(model_id)
     }
+
+
+def system_models(
+    system: SystemConfig, models: Mapping[tuple[str, float], NameModel]
+) -> dict[str, NameModel]:
+    """Return the cached name models a system uses, by catalog id, at its cache floor.
+
+    Args:
+        system: The system.
+        models: Cached models by catalog id and cache floor (`run.corpus_models`).
+
+    Returns:
+        The models `detect` needs for the system.
+    """
+    return {model_id: models[model_id, system.cache_floor] for model_id in system.model_ids}
 
 
 def build_system_detector(

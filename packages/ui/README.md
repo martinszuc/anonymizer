@@ -5,9 +5,10 @@ Review window for `anonymizer-core`. Runs fully offline.
 The window shows the original PDF page by page with the proposed redactions drawn
 over it. The reviewer keeps or redacts each one and saves the decisions as a session
 file, the same format `anonymize detect` writes and `anonymize redact --session` reads.
+It opens PDFs and images (JPEG, PNG, TIFF) as the CLI does.
 
 ```sh
-anonymize-ui [cv.pdf] [--lang cs] [--ner] [--ocr [onnxtr|kraken]]
+anonymize-ui [cv.pdf] [--lang cs] [--ner | --name-model MODEL] [--ocr [onnxtr|kraken]]
 ```
 
 Scanned pages are read with OCR when the home screen's *Scanned pages* switch is

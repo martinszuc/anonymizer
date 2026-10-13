@@ -31,9 +31,10 @@ To try the commands without a real document, generate the synthetic sample
 sample*). Keep `review.json` with its PDF or image: a session only applies to the
 file it was made from, and `check` rejects a session from a different file.
 
-**Names and addresses.** The rules find identifiers; names need the GLiNER model.
-Install its dependencies (PyTorch; kept optional) and fetch the model once, then
-add `--ner`:
+**Names and addresses.** The rules find identifiers; names and addresses need a
+name model. Install its dependencies (PyTorch; kept optional) and fetch the
+model once, then add `--ner` for the default, GLiNER, or `--name-model <id>`
+for another catalog name model (NameTag 3, or one trained in this repository):
 
 ```sh
 uv sync --group ner

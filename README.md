@@ -16,8 +16,8 @@ inference; models load from a local cache and the test suite fails on any outbou
 | `packages/cli/` | `anonymize` command-line client |
 | `packages/ui/` | `anonymize-ui` review window: Python side and React frontend |
 | `benchmark/` | Synthetic benchmark documents, scorer, pictures and charts |
-| `experiments/` | Evaluation harness (RQ1): corpus loaders, cached runs, scores with bootstrap intervals, results tables; no data committed. See [`experiments/README.md`](experiments/README.md) |
-| `scripts/` | Model and dataset download (`download.py`), mixed-format sample generator (`make_mixed_sample.py`), review window for development (`dev.py`) |
+| `experiments/` | Evaluation harness and name-model training: corpus loaders, cached runs, scores with bootstrap intervals, results tables; no data committed. See [`experiments/README.md`](experiments/README.md) |
+| `scripts/` | Model and dataset download (`download.py`), mixed-format sample generator (`make_mixed_sample.py`), review window for development (`dev.py`), the CI window tour (`ui_tour.py`, `tour-linux.sh`, `answer-macos-prompts.sh`) |
 
 ## Development
 
@@ -97,7 +97,7 @@ copy that looks safe. The handwriting font is a macOS system font; elsewhere pag
 italic serif, which is not handwriting at all. A font only imitates handwriting
 and tests the plumbing, not recognition quality. A real handwritten scan
 belongs in `data/samples/` and is never committed or used as a fixture.
-`tests/test_mixed_sample.py` builds the same sample and runs these steps on every push,
+`tests/test_mixed_sample.py` builds the same sample and runs these steps in CI,
 so the refusal and the clearing of hidden items cannot regress unnoticed.
 
 ## What it produces
@@ -206,9 +206,11 @@ are read as they are taken: no perspective correction or dewarping.
 Detection quality is measured on development data only so far
 (`experiments/results/`, the benchmark for each release).
 A Czech/Slovak name model is trained in this repository (`python -m experiments
-train`, fine-tuned GLiNER, smoke-tested); next are its full runs and the comparison
-with existing models on reserved test data.
+train`, fine-tuned GLiNER): three losses, and three weights of the recall-weighted
+loss, each trained with three seeds and scored on development data
+(`experiments/results/rq6-*`). The comparison with existing models on reserved
+test data has not been run.
 
 ## License
 
-[AGPL-3.0-or-later](LICENSE) — PyMuPDF, the intended PDF backend, is AGPL-licensed.
+[AGPL-3.0-or-later](LICENSE): PyMuPDF, the PDF backend, is AGPL-licensed.

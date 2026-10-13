@@ -16,9 +16,10 @@ uv run python -m experiments train --config experiments/configs/train-smoke.toml
 ```
 
 `--resource-root` names the directory holding `data/` and `models/` (default:
-as for the command line; from a worktree, the main checkout). The corpora and
-the model are fetched once with `scripts/download.py` and verified against
-the catalog.
+as for the command line, `resources.resolve_resource_root`). A git worktree
+has no `models/` of its own, so from one, name the main checkout. The corpora
+and the model are fetched once with `scripts/download.py` and verified
+against the catalog.
 
 ## What a run does
 
@@ -116,7 +117,7 @@ renders a file without coverage exactly as before.
 |---|---|---|---|
 | `cnec-2.0` | `train` (train), `dtest` (dev), `etest` (test) | cs | person, address, phone, email, url |
 | `uner-sk-snk` | `train` (train), `dev` (dev), `test` (test) | sk | person |
-| `redact` | `sample` (dev) | cs | person, email, phone, address, date, birth_number, id_number |
+| `redact` | `sample` (dev), `test` (test) | cs | person, email, phone, address, date, birth_number, id_number |
 | `openpii-1m-cs`, `-sk`, `-en` | `train` (train), `dev` (dev), `test` (test) | cs, sk, en | person, address, email |
 | `name-forms-cs`, `-sk` | `dev` (dev), `test` (test) | cs, sk | person, with recall per name form |
 
@@ -129,6 +130,8 @@ docstring. In short: CNEC persons are the outermost `P` containers plus first
 names and surnames standing alone (not inhabitants, mythological persons or
 titles); UNER persons are `PER`; REDACT is read for its Czech records only
 (it has no Slovak), and a full name nested over its first name counts once.
+Its `sample` split is the 1,000-record sample file; `test` is the full
+release's Czech records that the sample does not repeat.
 OpenPII 1M is one catalog entry read as one dataset per language. It has no
 test split, so its validation split is cut in two by a hash of each record's
 uid: `dev` for tuning, `test` reserved. Its identifiers and phone numbers are
@@ -164,7 +167,8 @@ runs in minutes.
   role nouns ("Kupující", "Žadatel"); predictions in them are false alarms.
 - **Size**: each template is filled 12 times. Czech dev: 64 templates, 776
   texts, 960 names (24 per form and case); Slovak dev: 24 templates, 292
-  texts, 360 names (12 per form and case). Test is the same size.
+  texts, 360 names (12 per form and case). Test has as many texts (948
+  Czech and 348 Slovak names).
 - **Splits**: `dev` and `test` share no name and no template. `test` is
   read only with `stage = "final"`.
 - **Evaluation only.** A generator of training data must not reuse these
@@ -211,13 +215,16 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/rq1-test.toml` | the final table on the test splits; run once settings are fixed |
 | `configs/train-smoke.toml` | training smoke run: 400 examples, 40 steps, 25 documents per dev split |
 | `configs/train-cs-sk-ce.toml`, `train-cs-sk-focal.toml`, `train-cs-sk-weighted.toml` | the first full training runs, differing only in the loss |
-| `configs/rq6-dev.toml` | the ce and focal models vs rules+gliner on every dev split; train them first |
+| `configs/train-cs-sk-weighted-w5.toml`, `train-cs-sk-weighted-w10.toml` | the recall-weighted loss at weights 5 and 10 (`train-cs-sk-weighted` is weight 3) |
+| `configs/rq6-dev.toml` | the ce and focal models vs rules+gliner and NameTag 3 (Czech, multilingual) on every dev split; train them first |
 | `configs/rq6-loss-dev.toml` | ce, weighted and focal with three seeds each, ce also at threshold 0.125, vs rules+gliner; mean and spread across seeds |
+| `configs/rq6-weight-dev.toml` | weights 3, 5 and 10 with three seeds each vs ce and focal; ce also at threshold 0.125 |
 
 A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on
 development data, and test data is read once, for the final table. The
-REDACT sample is development data; its test data will be the full file.
+REDACT sample is development data; its `test` split is the rest of the full
+release.
 
 ## Training
 
@@ -304,8 +311,9 @@ and on how many seeds F2 rose).
 without one, under the same name and model id; `--device mps` does the
 reverse. The results keep the file's text under `config` and record the
 device used under `machine`. On a 4-core laptop CPU (i7-8550U) a step of
-16 took 26 s against 2.3 s on the M4 Pro's GPU, so a run takes about 15
-hours; the two devices do not compute bit for bit alike, so replicates of
+16 took 28 s against about 2 s on the M4 Pro's GPU
+(`results/train-cs-sk-weighted-w5.json` against its replicates), so a run
+takes about 15 hours; the two devices do not compute bit for bit alike, so replicates of
 one setting belong on one device.
 
 ### Tuning the weight
@@ -313,10 +321,9 @@ one setting belong on one device.
 `positive_weight` is tuned on development data only, against person F2
 (partial match) on the development splits, the main metric of the
 evaluation contract; the test splits are read once, with the chosen weight.
-Train a few weights from copies of `train-cs-sk-weighted.toml` (e.g. 2, 3, 5
-and 10, each its own `model` id), score them beside `ce` with an
-`rq6-dev`-style config, take the weight with the best person F2, then train
-its replicates. In a model that fits its data perfectly a weight `w` acts as
+Each weight is a copy of `train-cs-sk-weighted.toml` with its own `model` id
+(`-w5`, `-w10`), trained with three seeds and scored beside `ce` and `focal`
+by `rq6-weight-dev.toml`. In a model that fits its data perfectly a weight `w` acts as
 a lower threshold (`t / (w(1 - t) + t)` instead of `t`: 0.125 instead of
 0.3 for `w = 3`), so `ce` is also scored at that threshold: the loss
 contributes only what beats `ce` at the matching threshold.

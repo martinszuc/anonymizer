@@ -510,7 +510,7 @@ REDACT_TYPES: dict[str, EntityType] = {
 }
 """REDACT type → ours (see the module docstring for what is left out and why)."""
 
-REDACT_FILE = "pii_benchmark_sample1000.json"
+REDACT_FILES = {"sample": "pii_benchmark_sample1000.json", "test": "pii_benchmark_full.json"}
 _REDACT_LANGUAGE = "CS"
 _SKIPPED = "(span not in text)"
 
@@ -564,12 +564,25 @@ def _nfc_offset(text: str, offset: int) -> int:
 
 
 def read_redact(directory: Path, split: str, form: TextForm) -> list[list[Sentence]]:  # noqa: ARG001
-    """Read the Czech records of the REDACT sample."""
-    if split != "sample":
-        msg = f"REDACT has only the 'sample' split here, not {split!r}"
+    """Read the Czech records of a REDACT split.
+
+    `sample` is the published sample (40 Czech records), development data.
+    `test` is every other Czech record of the full release: the full file
+    repeats the sample's records word for word, so they are left out by text.
+    """
+    if split not in REDACT_FILES:
+        msg = f"REDACT has the splits {sorted(REDACT_FILES)}, not {split!r}"
         raise ValueError(msg)
-    records = json.loads((directory / REDACT_FILE).read_text(encoding="utf-8"))
+    records = _redact_records(directory / REDACT_FILES[split])
+    if split == "test":
+        sample = _redact_records(directory / REDACT_FILES["sample"])
+        development = {record["text"] for record in sample}
+        records = [record for record in records if record["text"] not in development]
     return parse_redact(records, _REDACT_LANGUAGE)
+
+
+def _redact_records(path: Path) -> list[dict[str, object]]:
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 # --- OpenPII 1M -------------------------------------------------------------
@@ -754,9 +767,7 @@ DATASETS: dict[str, DatasetSpec] = {
         id="redact",
         language="cs",
         types=frozenset(REDACT_TYPES.values()),
-        # The 1,000-record sample is all there is locally; anything measured
-        # on it is development data, and the full file will hold the test.
-        splits={"sample": Role.DEV},
+        splits={"sample": Role.DEV, "test": Role.TEST},
         read=read_redact,
     ),
     **{

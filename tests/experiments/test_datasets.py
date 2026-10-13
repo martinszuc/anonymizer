@@ -1,5 +1,6 @@
 """Corpus loaders on synthetic text in each corpus's own format."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,7 @@ from anonymizer.core.types import Entity, EntityType
 from experiments.datasets import (
     DATASETS,
     OPENPII_LANGUAGES,
+    REDACT_FILES,
     SENTENCES_PER_PAGE,
     Role,
     TextForm,
@@ -19,6 +21,7 @@ from experiments.datasets import (
     parse_iob2,
     parse_openpii,
     parse_redact,
+    read_redact,
 )
 from tests.experiments.conftest import (
     CNEC_LINES,
@@ -131,6 +134,26 @@ class TestRedact:
         record = parse_redact(records, "CS")[0][0]
         assert record.text == "Pan Novák a Jan"
         assert _spans(record) == [("person", "Jan")]
+
+    def test_the_test_split_is_the_full_release_without_the_sample(self, tmp_path: Path):
+        sample = redact_records()
+        held_out = {"axes": {"language": "CS"}, "text": "Paní Eva Malá", "entities": []}
+        (tmp_path / REDACT_FILES["sample"]).write_text(json.dumps(sample), encoding="utf-8")
+        (tmp_path / REDACT_FILES["test"]).write_text(
+            json.dumps([*sample, held_out]), encoding="utf-8"
+        )
+        texts = {
+            split: [document[0].text for document in read_redact(tmp_path, split, TextForm.TOKENS)]
+            for split in ("sample", "test")
+        }
+        assert texts == {"sample": [sample[0]["text"]], "test": ["Paní Eva Malá"]}
+
+    def test_an_unknown_split_is_refused(self, tmp_path: Path):
+        with pytest.raises(ValueError, match="'dev'"):
+            read_redact(tmp_path, "dev", TextForm.TOKENS)
+
+    def test_its_test_split_is_test_data(self):
+        assert DATASETS["redact"].splits == {"sample": Role.DEV, "test": Role.TEST}
 
 
 def _openpii(text: str, labelled: list[tuple[str, str]]):

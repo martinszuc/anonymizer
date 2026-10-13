@@ -1097,8 +1097,8 @@ Person, partial match, F2 (P / R) and residual share, mean over three seeds:
   carry one seed's misses. Which records they are is for the error analysis.
 - **The CPU-trained seed** of weight 5 lies within the two GPU seeds on CNEC and REDACT
   and above them on UNER-SK (residual 0.059 against 0.051 and 0.040).
-- **Not measured yet**: cross-entropy at 0.08 and 0.04, the thresholds matching weights
-  5 and 10. They lie below the prediction cache's floor (`systems.CACHE_FLOOR`, 0.1).
+- **Not measured here**: cross-entropy at the thresholds matching weights 5 and 10,
+  below the prediction cache's floor then; measured 2026-10-13 (below).
 
 ### 2026-10-12 · Name forms with the trained models
 
@@ -1116,6 +1116,76 @@ seed of each loss (no replicates in this config).
   24 (Czech). Every other form is found whole by every trained model, except three
   possessive surnames in Czech missed by the weighted model.
 - Nicknames: every trained model 72 of 72 (Czech), above both NameTag models (67, 64).
+
+### 2026-10-13 · The weights against cross-entropy at the matching threshold (development data)
+
+`experiments/configs/rq6-threshold-dev.toml`, commit `4d98134`, seed 20261010, 1,000
+resamples; `experiments/results/rq6-threshold-dev.md`. Cross-entropy at 0.079 and 0.041,
+the thresholds at which a calibrated model reports what weights 5 and 10 report at 0.3,
+read from the second cache (`systems.LOW_CACHE_FLOOR`, 0.02). The systems shared with
+`rq6-weight-dev` score identically, from the same cache.
+
+Person, partial match, F2 (P / R) and residual share, mean over three seeds:
+
+| corpus | ce | ce@0.079 | w 5 | ce@0.041 | w 10 | focal |
+|---|---|---|---|---|---|---|
+| CNEC dtest (cs) | 0.931 (0.914 / 0.936), 0.047 | 0.933 (0.886 / 0.945), 0.039 | 0.932 (0.882 / 0.945), 0.038 | 0.932 (0.874 / 0.948), 0.037 | 0.929 (0.878 / 0.943), 0.039 | 0.929 (0.866 / 0.946), 0.037 |
+| UNER-SK dev (sk) | 0.899 (0.848 / 0.913), 0.071 | 0.914 (0.822 / 0.940), 0.050 | 0.914 (0.826 / 0.940), 0.050 | 0.914 (0.805 / 0.946), 0.046 | 0.918 (0.818 / 0.947), 0.045 | 0.917 (0.799 / 0.952), 0.039 |
+| REDACT sample (cs) | 0.946 (0.797 / 0.992), 0.009 | 0.945 (0.786 / 0.995), 0.007 | 0.947 (0.795 / 0.995), 0.007 | 0.941 (0.773 / 0.995), 0.007 | 0.930 (0.792 / 0.973), 0.022 | 0.946 (0.790 / 0.995), 0.007 |
+| OpenPII cs dev | 0.992 (0.995 / 0.991), 0.008 | 0.992 (0.993 / 0.991), 0.007 | 0.992 (0.993 / 0.991), 0.007 | 0.992 (0.993 / 0.991), 0.007 | 0.992 (0.992 / 0.992), 0.007 | 0.991 (0.992 / 0.991), 0.007 |
+| OpenPII sk dev | 0.992 (0.996 / 0.991), 0.006 | 0.992 (0.995 / 0.991), 0.006 | 0.992 (0.995 / 0.991), 0.006 | 0.992 (0.995 / 0.991), 0.006 | 0.991 (0.995 / 0.991), 0.006 | 0.991 (0.994 / 0.990), 0.006 |
+
+- **The weights only move the threshold.** On UNER-SK, the one corpus where weight 10
+  beat ce (+0.019 F2), cross-entropy at the matching threshold gains +0.014 ± 0.006 by
+  itself (3/3 seeds), and weight 10 minus ce@0.041 is +0.004 ± 0.007 (2/3 seeds; config
+  seed −0.003 [−0.013, +0.005]). Weight 5 minus ce@0.079 is +0.001 ± 0.004. On CNEC
+  both weights lie within 0.003 F2 of the matching ce, weight 10 below it on all three
+  seeds (config seed −0.005 [−0.012, −0.000]).
+- **Focal at ce@0.041**: UNER-SK +0.003 ± 0.002 F2 and residual −0.006 (both 3/3
+  seeds; config seed residual −0.009 [−0.023, +0.000]); CNEC −0.003 ± 0.002 (0/3);
+  OpenPII cs and sk −0.002, significant on the config's seed. No loss is measurably
+  better than cross-entropy at a matched threshold on the two corpora that separate
+  the losses at all.
+- **Lowering the threshold of ce helps residual everywhere, F2 hardly anywhere.** From
+  0.3 to 0.041 the residual falls on every corpus on all three seeds (CNEC −0.010,
+  UNER-SK −0.025), F2 changes by +0.000 to +0.014 and on REDACT by −0.005; 0.079 and
+  0.041 differ little except in precision.
+- REDACT, weight 10: the mean still carries the config's seed, which misses one record
+  (below).
+
+### 2026-10-13 · Error analysis of focal and cross-entropy (development data)
+
+`python -m experiments errors --config experiments/configs/rq6-errors-dev.toml`, commit
+`4d98134`, seed 20261010, 1,000 resamples; `experiments/results/rq6-errors-dev-errors.md`.
+Counts are means over three seeds unless a seed is named. Examples were read only for
+the synthetic corpora (REDACT, OpenPII).
+
+- **The REDACT residual of weights 3 and 10 (config seed, 0.050) is one record.** Of
+  their 112 residual person characters, 91 are in record #35, a support chat log in
+  which the agent's name appears 13 times, each time inside a token like
+  `Agent_<surname>`. ce and focal find it at least once and propagation marks the rest;
+  those two models never find it, so all 13 stay readable. Every other model leaves 0
+  characters of #35. One missed decision, multiplied by repetition: on short corpora
+  the residual share is lumpy.
+- **Person misses are mostly single words.** CNEC: ce misses 33.7 of 524 names, 23.0 of
+  them one word (rate 0.108 against 0.031 for two words); UNER-SK: all 24.0 of 276
+  misses are one word. Focal misses fewer one-word names on UNER-SK (13.3 against 24.0
+  of 184) and slightly fewer on CNEC (20.0 against 23.0 of 213).
+- **Focal's cost is single capitalised words flagged as names.** Person false alarms
+  CNEC 46.3 → 77.0, UNER-SK 45.0 → 65.7, OpenPII cs 20.7 → 33.0, sk 17.0 → 26.3; about
+  90 % (CNEC, REDACT) and 73–79 % (UNER-SK, OpenPII) are one capitalised word. Role nouns:
+  0 for every model on every corpus, so the name filter catches those.
+- **"Found only in part" is a three-word problem the loss does not touch.** CNEC: 15–17
+  of 49 names of three or more words are found only in part by every model and seed;
+  one- and two-word names almost never.
+- **OpenPII addresses**: misses are long addresses (three words or more: ce 82.3 of 96
+  not found, cs), ce and focal alike.
+- **REDACT person false alarms include names the gold does not mark.** Four of focal's
+  kept examples (a surname after a job title, one after a rank, an initial with a
+  surname, a rank with a full name) overlap no gold span of any type; one sits beside
+  "pprap. Novák", whose surname the gold does mark. REDACT's person precision (about
+  0.79) is therefore understated by an amount not measured. Relevant for the final
+  test, whose 456 records carry no verification status.
 
 ### Toolchain findings: redaction
 

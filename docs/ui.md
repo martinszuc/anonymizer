@@ -324,7 +324,7 @@ page's own drag listeners only draw the highlight.
   overlay is an SVG whose view box is the page size in points, so nothing in
   the frontend converts coordinates. Rotated pages already come rotated from
   ingest and from PyMuPDF's renderer.
-- **Review semantics** (decided in `PLAN.md`): undecided (`pending`) items are
+- **Review semantics:** undecided (`pending`) items are
   redacted at export; hidden data is always removed, so it has no decision;
   toggling a pending item means *keep* (`rejected`), toggling back is an
   explicit *redact* (`confirmed`). In code: `review.isRemoved(entity)` says
@@ -401,8 +401,8 @@ show in the real window.
 ### Verifying the real window
 
 A native window from a bare Python process cannot be screenshotted by screen
-tools, but it can be driven from Python. A throwaway script (keep it in the
-scratchpad, not the repository):
+tools, but it can be driven from Python with a short script kept outside the
+repository:
 
 ```python
 import sys, time, webview
@@ -508,11 +508,11 @@ In suggested order. Each item names where it plugs in.
 8. **OCR quality in review:** show OCR's confidence per word and flag
     low-confidence words (an `@` read as `(m` hides an email from the rules),
     and offer a second engine once RapidOCR or EasyOCR is in the catalog.
-9. **Label mode preview** once labels exist (M5): preview draws `[NAME]`
+9. **Label mode preview** once labels exist: preview draws `[NAME]`
     instead of black boxes.
 10. **Accessibility pass:** boxes are not keyboard-reachable (the list is the
     keyboard path); run a WCAG review of both themes.
-11. **Packaging (M9):** PyInstaller bundle per OS; test Windows (WebView2)
+11. **Packaging:** PyInstaller bundle per OS; test Windows (WebView2)
     and Linux (GTK or Qt backend) by hand.
 12. **Large documents:** virtualize the page list and the sidebar beyond a
     few hundred pages or entities.
@@ -525,13 +525,10 @@ stay listed so the numbering holds; the rest are open. Items marked **Investigat
 change; **Decide** items need a product decision first. Related older items are in
 *Backlog* (undo/redo, models sheet, packaging, OCR quality).
 
-**Evidence.** A local log, `debug-log.log` in the repository root, records a run on
-documents with names and Czech text: the repeated occurrences and the ordinary Czech
-words marked as personal data (items 11 and 12). It is git-ignored (`*.log`) and may
-hold text from real documents. Work on those items reads it from disk
-to find which detector produced each hit, and reports counts, detector sources and
-entity types, never the words, names or sentences themselves. It is not copied into
-the repository, a test, a fixture or a commit message.
+**Evidence.** Items 11 and 12 come from a local debug log of a run on documents
+with names and Czech text. The log may hold text from real documents, so it stays
+outside git (`*.log` is ignored), and what is reported from it here is counts,
+detector sources and entity types, never words, names or sentences.
 
 ### Loading a document
 

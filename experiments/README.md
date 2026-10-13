@@ -119,6 +119,7 @@ renders a file without coverage exactly as before.
 | `redact` | `sample` (dev) | cs | person, email, phone, address, date, birth_number, id_number |
 | `openpii-1m-cs`, `-sk`, `-en` | `train` (train), `dev` (dev), `test` (test) | cs, sk, en | person, address, email |
 | `name-forms-cs`, `-sk` | `dev` (dev), `test` (test) | cs, sk | person, with recall per name form |
+| `heldout-cs`, `-sk` | `dev` (dev), `test` (test) | cs, sk | person, address, email, phone, birth_number, date, bank_account, iban; recall per name form |
 
 Only the types a corpus annotates are scored on it; any other prediction is
 counted under `unscored_predictions`. CNEC and UNER also keep their
@@ -134,9 +135,10 @@ test split, so its validation split is cut in two by a hash of each record's
 uid: `dev` for tuning, `test` reserved. Its identifiers and phone numbers are
 not scored: they are invented without checksums or a numbering plan.
 
-The name-forms sets are generated in code (`name_forms.py`), not
-downloaded: no files, no catalog entry, and their version is the
-generator's. See *Name forms* below.
+The name-forms sets and the held-out set are generated in code
+(`name_forms.py`, `heldout.py`), not downloaded: no files, no catalog
+entry, and their version is the generator's. See *Name forms* and
+*Held-out synthetic set* below.
 
 UNER keeps each sentence as written (`# text`) and groups pages by source
 document. `text = "tokens"` on a dataset entry builds the text instead from
@@ -183,6 +185,68 @@ test. Changing a template or a name changes the texts: bump
 uv run python -m experiments run --config experiments/configs/name-forms-dev.toml \
     --resource-root /path/to/main/checkout
 ```
+
+## Held-out synthetic set
+
+`heldout-cs` and `heldout-sk` are the held-out synthetic set of RQ6's final
+test: short documents generated from templates written for this set alone
+(`heldout.py`). The same author writes the training generators and this set,
+so it flatters a model trained here; it is reported apart from the public
+test sets ("home advantage").
+
+- **Documents**: letters, contracts, forms, e-mails and minutes, 5 to 14
+  lines each (about 90 words in Czech, 70 in Slovak), naming invented
+  people (first names and surnames combined arbitrarily, relatives sharing
+  a surname) with their addresses, birth numbers, dates of birth, phones,
+  e-mail addresses and bank accounts (Czech account numbers, Slovak IBANs).
+  Birth numbers, account numbers and IBANs get their check digits from
+  `heldout.py`'s own arithmetic; the tests cross-check them with the core
+  validators. Organisations, towns, dates of
+  contracts and amounts are text, not gold.
+- **Forms** (each person span is tagged, as in the name-forms set): `form`
+  (full, title-surname, later-surname, lone-surname, first-name, nickname,
+  surname-possessive, first-name-possessive, initial, surname-first), `case`,
+  `form-case`, `class`, `gender`, plus `context` (role-noun: a role or kinship
+  noun right before the name or after its comma, "svědkyně Nováková",
+  "Jan Novák, jednatel"; degree: "MUDr."; label: "Pacient: "; else plain) and
+  `kind` (the document kind). A surname alone is *later* when the document
+  named the person before, *lone* when it did not. Templates lean on the
+  forms models miss on dev: a surname alone in a later sentence, mostly in
+  the nominative, possessives, nicknames, names next to role nouns.
+- **Size**: `test` has 24 Czech and 16 Slovak templates, each filled 8 times
+  with other people, plus 4 Czech and 3 Slovak documents naming nobody
+  (capitalised role nouns only): 196 Czech documents with 1,312 person spans
+  (224 of them a later surname in the nominative) and 131 Slovak documents
+  with 776 (128). `dev` has 4 Czech and 3 Slovak templates of its own,
+  filled 4 times, plus one document naming nobody each (17 and 13
+  documents): enough to look at the generator's output and to check that
+  the pipeline reads it, never to tune on. Minimum counts per form and
+  context are asserted in `tests/experiments/test_heldout.py`.
+- **Splits**: `dev` and `test` share no template and no name; neither shares
+  a name with the name-forms set or a person of the benchmark. `test` is
+  read only with `stage = "final"`, and the set has no train split, so
+  `experiments train` refuses it too.
+- **Disjoint templates.** A test compares the word 5-grams of every template
+  line (slots and benchmark marks read as one placeholder word, gender
+  alternatives as their masculine text) with every string constant in the
+  Python modules of `experiments/`, `benchmark/` and `scripts/` and with the
+  benchmark's documents, and with the other half of the set. Any shared
+  5-gram fails it. Shorter shared phrases ("S pozdravem", "Od: … <…>") are
+  allowed: they are conventions, not templates.
+- **Rule for training data**: no generator of training data may reuse these
+  templates or their sentences. A generator written as Python in those
+  directories is checked by the test above without further work; one kept
+  elsewhere adds its directory to the test.
+
+A run writes the standard tables and, as for the name-forms set, recall per
+form, case, declension class and gender, here also per context and
+document kind (`phenomena.py`). No config reads `test` yet: the final
+config adds it with `stage = "final"`.
+
+Changing a template, a name or a value list changes the documents: bump
+`HELDOUT_VERSION` and the digests pinned in `tests/experiments/test_heldout.py`,
+and record why in the journal. After the final test has read `test`, it is
+never changed again.
 
 ## FUNSD scans
 

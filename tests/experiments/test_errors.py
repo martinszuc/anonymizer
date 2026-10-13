@@ -275,14 +275,35 @@ class TestTally:
         examples: dict[str, Any] = {}
         tally = ErrorTally([PERSON], role_words_for("cs"), examples)
         tally.add([_entity(PERSON, "Kupující")], gold, gold_spans(gold, [PERSON]))
-        assert examples["misses"]["person"]["sentence_start"] == [
-            {
-                "text": "Svobodovi",
-                "context": TEXT[TEXT.index("Svobodovi") - 40 : TEXT.index("Svobodovi") + 49],
-                "outcome": "not_found",
-            }
-        ]
+        tally.add([], gold, gold_spans(gold, [PERSON]))
+        first, second = examples["misses"]["person"]["sentence_start"]
+        assert first == {
+            "document": 0,
+            "text": "Svobodovi",
+            "context": TEXT[TEXT.index("Svobodovi") - 40 : TEXT.index("Svobodovi") + 49],
+            "outcome": "not_found",
+        }
+        assert second["document"] == 1
         assert examples["false_alarms"]["person"]["role_noun"][0]["text"] == "Kupující"
+
+    def test_residual_by_document(self):
+        gold = _document()
+        expected = gold_spans(gold, [PERSON, ADDRESS])
+        tally = ErrorTally([PERSON, ADDRESS], role_words_for("cs"))
+        tally.add([_entity(PERSON, "Jan Novák"), _entity(PERSON, "Karel")], gold, expected)
+        tally.add([], gold, expected)
+        tally.add(list(gold.gold), gold, expected)  # everything found
+        residual = tally.results(Resampler(3, resamples(3, 10, seed=1)))["residual_by_document"]
+        # Person gold, without spaces: JanNovák 8, KarelDvořák 11, Svobodovi 9, PetraMalého 11.
+        assert residual["person"] == {
+            "residual_characters": 26 + 39,
+            "gold_characters": 3 * 39,
+            "documents": [
+                {"document": 1, "residual_characters": 39, "gold_characters": 39},
+                {"document": 0, "residual_characters": 26, "gold_characters": 39},
+            ],
+        }
+        assert [item["document"] for item in residual["address"]["documents"]] == [0, 1]
 
 
 # --- Whole runs on the synthetic corpora --------------------------------------------
@@ -335,6 +356,14 @@ def test_totals_agree_with_the_run(resource_root: Path, tmp_path: Path):
                 alarms = system["false_alarms"][kind][ALL]["counts"]
                 assert alarms["predicted"] == counts["predicted"]
                 assert alarms["alarms"] == counts["predicted"] - counts["predicted_matched"]
+                coverage = scores["corpora"][key]["systems"][name]["coverage"][kind]["counts"]
+                residual = system["residual_by_document"][kind]
+                assert residual["residual_characters"] == coverage["residual_characters"]
+                assert residual["gold_characters"] == coverage["gold_characters"]
+                assert (
+                    sum(item["residual_characters"] for item in residual["documents"])
+                    <= (coverage["residual_characters"])
+                )
     cnec = errors["corpora"]["cnec-2.0/dtest"]
     # Karla Dvořáka is missed; Jan Novák and Svobodovi are found.
     assert cnec["systems"]["rules+gliner"]["misses"]["person"][ALL]["counts"]["not_found"] == 1
@@ -368,6 +397,8 @@ def test_tables(resource_root: Path, tmp_path: Path):
     assert "### person · not found" in text
     assert "### person · found only in part" in text
     assert "### address · false alarms" in text
+    assert "### person · residual by document" in text
+    assert "| rules+gliner | " in text
     assert "| category | gold | rules | rules+gliner |" in text
     assert "| all | 3 | 3 · 100 % · 1.000 [1.00, 1.00] | 1 · 100 % · 0.333 [" in text
 

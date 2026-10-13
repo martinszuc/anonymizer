@@ -72,8 +72,14 @@ category. Shared with the misses: `words=*`, `title`, `sentence_start`,
 - `other_type`: overlaps a gold span of another type, other than an
   organisation (a person predicted over an address).
 
+**Residual by document.** Per type, the documents whose gold characters
+stay most readable once every prediction is redacted (the residual share of
+`metrics.py`, counted per document): position in the split, residual and
+gold characters. A mean over seeds that one seed pulls up is traced to the
+documents that seed misses.
+
 Nothing read from a corpus is printed or written into the results: no text,
-only counts, rates and the category names above. CNEC and UNER name real
+only counts, rates, document positions and the category names above. CNEC and UNER name real
 people. `--examples DIR` writes a few example spans per category, with
 some context, into a git-ignored folder outside `results/`, and only for
 corpora the catalog does not mark as holding real personal data (REDACT,
@@ -100,7 +106,15 @@ from anonymizer.core.types import Entity, EntityType
 
 from experiments.config import RunConfig
 from experiments.datasets import DATASETS, Corpus, GoldDocument, dataset_version, load_corpus
-from experiments.metrics import Resampler, Tally, interval, resamples, total
+from experiments.metrics import (
+    Coverage,
+    Resampler,
+    Tally,
+    document_coverage,
+    interval,
+    resamples,
+    total,
+)
 from experiments.report import UNDEFINED, format_interval
 from experiments.run import corpus_models, git_state, machine, once, scored_types
 from experiments.systems import (
@@ -182,6 +196,9 @@ _LETTERS = re.compile(r"[^\W\d_]+")
 _LABEL_WORDS = 4
 _CONTEXT = 40
 EXAMPLES_PER_CATEGORY = 5
+
+RESIDUAL_DOCUMENTS = 5
+"""Documents listed per type and system, those leaving the most characters readable."""
 
 Progress = Callable[[str], None]
 
@@ -420,6 +437,8 @@ class ErrorTally:
         self.alarms: dict[tuple[str, str], list[AlarmCounts]] = {
             (str(kind), category): [] for kind in self.types for category in ALARM_CATEGORIES
         }
+        self.coverage: dict[str, list[Coverage]] = {str(kind): [] for kind in self.types}
+        self.documents = 0
 
     def add(
         self, found: Sequence[Entity], gold: GoldDocument, expected: Sequence[GoldSpan]
@@ -472,6 +491,10 @@ class ErrorTally:
             per_document.append(misses.get(key, MissCounts()))
         for key, per_document in self.alarms.items():
             per_document.append(alarms.get(key, AlarmCounts()))
+        coverage = document_coverage(found, gold.gold, self.types, pages)
+        for kind, per_document in self.coverage.items():
+            per_document.append(coverage[kind])
+        self.documents += 1
 
     def _example(
         self,
@@ -485,6 +508,7 @@ class ErrorTally:
             return
         text = pages[span.page]
         example = {
+            "document": self.documents,
             "text": text[span.start : span.end],
             "context": text[max(0, span.start - _CONTEXT) : span.end + _CONTEXT],
             **({"outcome": outcome} if outcome else {}),
@@ -519,7 +543,43 @@ class ErrorTally:
                     per_document, resampler.totals(per_document), "alarm_rate"
                 ).to_dict(),
             }
-        return {"misses": misses, "false_alarms": alarms}
+        return {
+            "misses": misses,
+            "false_alarms": alarms,
+            "residual_by_document": {
+                kind: largest_residuals(per_document)
+                for kind, per_document in self.coverage.items()
+            },
+        }
+
+
+def largest_residuals(per_document: Sequence[Coverage]) -> dict[str, Any]:
+    """Return a type's residual characters in total and in the documents leaving the most.
+
+    Args:
+        per_document: The type's coverage per document, in corpus order.
+
+    Returns:
+        The totals and up to `RESIDUAL_DOCUMENTS` documents by position, most
+        residual characters first; documents leaving nothing are not listed.
+    """
+    ranked = sorted(
+        (index for index, coverage in enumerate(per_document) if coverage.residual_characters),
+        key=lambda index: (-per_document[index].residual_characters, index),
+    )
+    summed = total(per_document)
+    return {
+        "residual_characters": summed.residual_characters,
+        "gold_characters": summed.gold_characters,
+        "documents": [
+            {
+                "document": index,
+                "residual_characters": per_document[index].residual_characters,
+                "gold_characters": per_document[index].gold_characters,
+            }
+            for index in ranked[:RESIDUAL_DOCUMENTS]
+        ],
+    }
 
 
 def _share(part: int, whole: int) -> float | None:
@@ -766,8 +826,28 @@ def markdown(results: dict[str, Any]) -> str:
                     [category, *(_cell(cell, "alarms", "share", "alarm_rate") for cell in cells)]
                 )
             lines += _table(["category", *systems], rows) if rows else ["No false alarms."]
+            lines += ["", f"### {kind} · residual by document", ""]
+            lines += _table(
+                ["system", "residual / gold characters", "documents leaving the most"],
+                [
+                    _residual_row(name, corpus["systems"][name]["residual_by_document"][kind])
+                    for name in systems
+                ],
+            )
             lines.append("")
     return "\n".join(lines)
+
+
+def _residual_row(name: str, residual: dict[str, Any]) -> list[str]:
+    documents = ", ".join(
+        f"#{item['document']} {item['residual_characters']}/{item['gold_characters']}"
+        for item in residual["documents"]
+    )
+    return [
+        name,
+        f"{residual['residual_characters']} / {residual['gold_characters']}",
+        documents or "none",
+    ]
 
 
 def _cell(entry: dict[str, Any], count: str, share: str, rate: str) -> str:

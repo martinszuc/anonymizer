@@ -215,6 +215,7 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/rq6-loss-dev.toml` | ce, weighted and focal with three seeds each, ce also at threshold 0.125, vs rules+gliner; mean and spread across seeds |
 | `configs/rq6-weight-dev.toml` | weights 3, 5 and 10 of the recall-weighted loss, three seeds each, vs ce, ce@0.125 and focal |
 | `configs/rq6-threshold-dev.toml` | ce at 0.079 and 0.041, the thresholds matching weights 5 and 10, vs those weights and focal; reads the low-floor cache |
+| `configs/rq6-errors-dev.toml` | for `errors`: focal vs ce over three seeds, and the config's seed of weights 3 and 10 |
 
 A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on

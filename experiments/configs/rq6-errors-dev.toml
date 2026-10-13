@@ -1,0 +1,47 @@
+name = "rq6-errors-dev"
+description = """
+RQ6, error analysis on development data (python -m experiments errors): focal loss, the
+best loss so far, against cross-entropy, three seeds each, plus the config's seed of
+weights 3 and 10, whose REDACT residual share (0.050) is about six times that of every
+other model (rq6-weight-dev). Every model is read from the prediction cache that
+rq6-weight-dev filled."""
+stage = "dev"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+gliner-cs-sk-ce", "rules+gliner-cs-sk-focal"],
+]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[[datasets]]
+id = "openpii-1m-cs"
+split = "dev"
+
+[[datasets]]
+id = "openpii-1m-sk"
+split = "dev"
+
+[systems."rules+gliner-cs-sk-ce"]
+model = "gliner-cs-sk-ce"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-focal"]
+model = "gliner-cs-sk-focal"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-weighted"]
+model = "gliner-cs-sk-weighted"
+
+[systems."rules+gliner-cs-sk-weighted-w10"]
+model = "gliner-cs-sk-weighted-w10"

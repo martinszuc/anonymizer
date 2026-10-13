@@ -1,0 +1,66 @@
+name = "rq6-threshold-dev"
+description = """
+RQ6, the threshold control for weights 5 and 10 on development data: cross-entropy
+scored at 0.079 and 0.041, the thresholds at which a calibrated cross-entropy model
+reports what weights 5 and 10 report at 0.3 (t / (w(1 - t) + t), experiments/README.md,
+Training), three seeds each. Weight 3 had its control (ce@0.125) in rq6-weight-dev;
+weights 5 and 10 waited for a cache floor below 0.1 (systems.LOW_CACHE_FLOOR). Focal
+loss is compared with ce@0.041 as well, as it sits beside weight 10. If a weight only
+beats cross-entropy at 0.3, it has only moved the threshold. Weight 5's first seed was
+trained on a CPU (karol), every other model on the Mac GPU."""
+stage = "dev"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+gliner-cs-sk-ce@0.079", "rules+gliner-cs-sk-weighted-w5"],
+    ["rules+gliner-cs-sk-ce@0.041", "rules+gliner-cs-sk-weighted-w10"],
+    ["rules+gliner-cs-sk-ce@0.041", "rules+gliner-cs-sk-focal"],
+    ["rules+gliner-cs-sk-ce", "rules+gliner-cs-sk-ce@0.079"],
+    ["rules+gliner-cs-sk-ce", "rules+gliner-cs-sk-ce@0.041"],
+]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[[datasets]]
+id = "openpii-1m-cs"
+split = "dev"
+
+[[datasets]]
+id = "openpii-1m-sk"
+split = "dev"
+
+[systems."rules+gliner-cs-sk-ce"]
+model = "gliner-cs-sk-ce"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-ce@0.079"]
+model = "gliner-cs-sk-ce"
+threshold = 0.079
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-ce@0.041"]
+model = "gliner-cs-sk-ce"
+threshold = 0.041
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-weighted-w5"]
+model = "gliner-cs-sk-weighted-w5"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-weighted-w10"]
+model = "gliner-cs-sk-weighted-w10"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-focal"]
+model = "gliner-cs-sk-focal"
+seeds = [1, 2]

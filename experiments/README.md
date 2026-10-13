@@ -282,7 +282,9 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/train-cs-sk-weighted-w5.toml`, `train-cs-sk-weighted-w10.toml` | the recall-weighted loss at weights 5 and 10 (`train-cs-sk-weighted` is weight 3) |
 | `configs/rq6-dev.toml` | the ce and focal models vs rules+gliner and NameTag 3 (Czech, multilingual) on every dev split; train them first |
 | `configs/rq6-loss-dev.toml` | ce, weighted and focal with three seeds each, ce also at threshold 0.125, vs rules+gliner; mean and spread across seeds |
-| `configs/rq6-weight-dev.toml` | weights 3, 5 and 10 with three seeds each vs ce and focal; ce also at threshold 0.125 |
+| `configs/rq6-weight-dev.toml` | weights 3, 5 and 10 of the recall-weighted loss, three seeds each, vs ce, ce@0.125 and focal |
+| `configs/rq6-threshold-dev.toml` | ce at 0.079 and 0.041, the thresholds matching weights 5 and 10, vs those weights and focal; reads the low-floor cache |
+| `configs/rq6-errors-dev.toml` | for `errors`: focal vs ce over three seeds, and the config's seed of weights 3 and 10 |
 
 A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on
@@ -403,7 +405,10 @@ trained model's version is the SHA-256 of its weights, so a model trained
 again under the same id starts a new cache; the scores `train` writes come
 from the GPU, a later `run` on the CPU reads them from the cache. GLiNER is
 asked at threshold 0.1 and each system filters upwards, which equals asking at the higher threshold: flat
-decoding is greedy, highest score first (checked on 123 CNEC windows). Every
+decoding is greedy, highest score first (checked on 123 CNEC windows). A
+system with a threshold below 0.1 (cross-entropy at the thresholds matching
+weights 5 and 10) reads a second cache asked at 0.02, in `<split>@floor0.02.json`
+beside the first, so filling it never rewrites the file other runs read. Every
 step after the model runs again on every run. A rerun from a warm cache takes
 seconds and does not load the model. Systems combining two models reuse
 each model's cache, so a union or agreement costs no extra inference.

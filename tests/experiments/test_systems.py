@@ -19,12 +19,14 @@ from anonymizer.core.types import Document, EntityType
 from experiments.datasets import make_page
 from experiments.systems import (
     CACHE_FLOOR,
+    LOW_CACHE_FLOOR,
     CachedSpanModel,
     CachedTagger,
     NameModel,
     PredictionCache,
     SystemConfig,
     build_system_detector,
+    cache_floor,
     cache_path,
     detect,
     gliner_loader,
@@ -92,7 +94,7 @@ class TestParseSystem:
             ({"modle": "gliner"}, "unknown options"),
             ({"model": "spacy"}, "unknown name model 'spacy'"),
             ({"language": "cs"}, "language must be"),
-            ({"threshold": 0.05}, "threshold must"),
+            ({"threshold": 0.01}, "threshold must"),
         ],
     )
     def test_invalid(self, table: dict, message: str):
@@ -112,6 +114,12 @@ class TestParseSystem:
             "distractors": ["organization"],
             "names_only": True,
         }
+
+    def test_a_threshold_below_the_floor_reads_the_low_cache(self):
+        low = parse_system("low", {"model": "gliner", "threshold": 0.04})
+        assert low.cache_floor == LOW_CACHE_FLOOR
+        assert low.describe()["cache_floor"] == LOW_CACHE_FLOOR
+        assert "cache_floor" not in parse_system("usual", {"model": "gliner"}).describe()
 
     def test_nametag_alone_describes_no_gliner_options(self):
         assert parse_system("nametag", {"model": NAMETAG}).describe() == {
@@ -319,6 +327,24 @@ class TestCache:
         assert path.parent.name == "cnec-2.0@hdl_11858_00-097C"
         assert path.parent.parent.name.startswith("gliner-multi-v2.1@")
         assert path.name == "dtest.json"
+
+    def test_a_low_floor_has_a_file_of_its_own(self, tmp_path: Path):
+        version = "hdl:11858/00-097C"
+        usual = cache_path(tmp_path, GLINER, "cnec-2.0", version, "dtest")
+        low = cache_path(tmp_path, GLINER, "cnec-2.0", version, "dtest", floor=LOW_CACHE_FLOOR)
+        assert low.parent == usual.parent
+        assert low.name == "dtest@floor0.02.json"
+
+    @pytest.mark.parametrize(
+        ("threshold", "floor"),
+        [(0.3, CACHE_FLOOR), (CACHE_FLOOR, CACHE_FLOOR), (0.04, LOW_CACHE_FLOOR), (0.02, 0.02)],
+    )
+    def test_floor_by_threshold(self, threshold: float, floor: float):
+        assert cache_floor(threshold) == floor
+
+    def test_no_floor_below_the_lowest(self):
+        with pytest.raises(ValueError, match="lowest cache floor"):
+            cache_floor(0.01)
 
 
 def test_loader_reports_missing_model(tmp_path: Path):

@@ -193,8 +193,7 @@ scans weighted heaviest, and the stages are redacting, hidden data, writing,
 checking and re-reading (the last two only when the check runs).
 
 **Drop overlay.** Over an open document while a file is dragged: dashed
-`--accent` border on `--accent-fill` below the toolbar, a pill "Drop to open
-another PDF".
+`--accent` border on `--accent-fill` below the toolbar, a pill "Drop to open".
 
 **Switch tones.** `redact` (findings): on is `--ink`, not a Tab stop (the list
 drives it). `setting` (home options): on is `--accent`, a Tab stop, can be
@@ -222,7 +221,7 @@ to the page.
 **Settings** (wide sheet, *Done*). Sections titled like the home screen's
 *Detection*: *Export* (an option card with the leak-check switch, its note saying
 what on and off do) and *Models* (the models folder with *Change…*, then *Manage
-models…*). Opened from the home screen, the toolbar's gear, or Cmd/Ctrl+,.
+Models…*). Opened from the home screen, the toolbar's gear, or Cmd/Ctrl+,.
 
 **Toast.** Bottom centre, `--elevated` with blur, icon + one line + a small
 dismiss ×; 4 s, 8 s with an action, 7 s for an error, and the time stops while

@@ -19,12 +19,10 @@ command line, with OnnxTR unless an engine is named. The packages come from
 macOS and Linux x86-64 only); the models are downloaded from the window
 (*Manage Models…*, each file checked against the catalog's checksum) or with
 `uv run python scripts/download.py fetch <id>`. Models go to `models/` under
-`--resource-root`, by default the folder chosen in the review window (*Manage Models… → Change…*), else
-`./models` if the working directory has one (a checkout of this repository),
-else a per-user folder (`~/Library/Application Support/anonymizer` on macOS,
-`%LOCALAPPDATA%/anonymizer` on Windows, `~/.local/share/anonymizer` on Linux). The Models sheet shows the folder and
-changes it; the choice is kept for later runs, and files already downloaded are
-not moved.
+`--resource-root` (default: see the root README,
+[*Models and datasets*](../../README.md#models-and-datasets)). The Models sheet
+shows the folder and changes it; the choice is kept for later runs, and files
+already downloaded are not moved.
 
 Working on the window: start with [`docs/ui.md`](../../docs/ui.md) (status, contract,
 rules, how to add a feature, backlog).

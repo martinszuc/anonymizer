@@ -27,9 +27,10 @@ and falls back to every rule when the text is in another language or too short t
 judge; the session records what was used.
 
 To try the commands without a real document, generate the synthetic sample
-(`uv run python scripts/make_mixed_sample.py`, see the root README, *Try it on a
-sample*). Keep `review.json` with its PDF or image: a session only applies to the
-file it was made from, and `check` rejects a session from a different file.
+(`uv run python scripts/make_mixed_sample.py`, see the root README,
+[*Quick start*](../../README.md#quick-start)). Keep `review.json` with its PDF or
+image: a session only applies to the file it was made from, and `check` rejects a
+session from a different file.
 
 **Names and addresses.** The rules find identifiers; names and addresses need a
 name model. Install its dependencies (PyTorch; kept optional) and fetch the
@@ -42,10 +43,9 @@ uv run python scripts/download.py fetch gliner-multi-v2.1
 anonymize redact cv.pdf -o cv-redacted.pdf --lang cs --ner
 ```
 
-The model is read from `models/` under `--resource-root` (default: the folder chosen in the review window (*Manage models… → Change…*), else
-`./models` if the working directory has one (a checkout of this repository),
-else a per-user folder (`~/Library/Application Support/anonymizer` on macOS,
-`%LOCALAPPDATA%/anonymizer` on Windows, `~/.local/share/anonymizer` on Linux)) and never contacts the network.
+The model is read from `models/` under `--resource-root` (default: see the root
+README, [*Models and datasets*](../../README.md#models-and-datasets)) and never
+contacts the network.
 
 **Seeing what was found.** `inspect` writes one HTML file: every page as an image
 with the detected boxes drawn over it, coloured by type (hover for details, rejected

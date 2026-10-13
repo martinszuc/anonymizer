@@ -718,7 +718,7 @@ def render(template: str, people: dict[str, Person], language: str) -> FormText:
             continue
         lead, name, tags = _slot(person, found["slot"], found["form"], language)
         if found["preposition"]:
-            lead = _preposition(found["preposition"], lead + name, language) + " " + lead
+            lead = preposition(found["preposition"], lead + name, language) + " " + lead
         names.append(GoldName(length + len(lead), length + len(lead) + len(name), tags))
         parts += [lead, name]
         length += len(lead) + len(name)
@@ -730,7 +730,8 @@ def render(template: str, people: dict[str, Person], language: str) -> FormText:
     return FormText(text, tuple(names))
 
 
-def _preposition(written: str, following: str, language: str) -> str:
+def preposition(written: str, following: str, language: str) -> str:
+    """Return a preposition (s, k, v) vocalised as the following word needs ("se Svobodou")."""
     vocalised, before = _VOCALISED[language][written.lower()]
     word = vocalised if following[:1].lower() in before else written.lower()
     return word.capitalize() if written.isupper() else word

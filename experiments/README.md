@@ -16,9 +16,10 @@ uv run python -m experiments train --config experiments/configs/train-smoke.toml
 ```
 
 `--resource-root` names the directory holding `data/` and `models/` (default:
-as for the command line; from a worktree, the main checkout). The corpora and
-the model are fetched once with `scripts/download.py` and verified against
-the catalog.
+as for the command line, `resources.resolve_resource_root`). A git worktree
+has no `models/` of its own, so from one, name the main checkout. The corpora
+and the model are fetched once with `scripts/download.py` and verified
+against the catalog.
 
 ## What a run does
 
@@ -116,9 +117,10 @@ renders a file without coverage exactly as before.
 |---|---|---|---|
 | `cnec-2.0` | `train` (train), `dtest` (dev), `etest` (test) | cs | person, address, phone, email, url |
 | `uner-sk-snk` | `train` (train), `dev` (dev), `test` (test) | sk | person |
-| `redact` | `sample` (dev) | cs | person, email, phone, address, date, birth_number, id_number |
+| `redact` | `sample` (dev), `test` (test) | cs | person, email, phone, address, date, birth_number, id_number |
 | `openpii-1m-cs`, `-sk`, `-en` | `train` (train), `dev` (dev), `test` (test) | cs, sk, en | person, address, email |
 | `name-forms-cs`, `-sk` | `dev` (dev), `test` (test) | cs, sk | person, with recall per name form |
+| `heldout-cs`, `-sk` | `dev` (dev), `test` (test) | cs, sk | person, address, email, phone, birth_number, date, bank_account, iban; recall per name form |
 
 Only the types a corpus annotates are scored on it; any other prediction is
 counted under `unscored_predictions`. CNEC and UNER also keep their
@@ -129,14 +131,17 @@ docstring. In short: CNEC persons are the outermost `P` containers plus first
 names and surnames standing alone (not inhabitants, mythological persons or
 titles); UNER persons are `PER`; REDACT is read for its Czech records only
 (it has no Slovak), and a full name nested over its first name counts once.
+Its `sample` split is the 1,000-record sample file; `test` is the full
+release's Czech records that the sample does not repeat.
 OpenPII 1M is one catalog entry read as one dataset per language. It has no
 test split, so its validation split is cut in two by a hash of each record's
 uid: `dev` for tuning, `test` reserved. Its identifiers and phone numbers are
 not scored: they are invented without checksums or a numbering plan.
 
-The name-forms sets are generated in code (`name_forms.py`), not
-downloaded: no files, no catalog entry, and their version is the
-generator's. See *Name forms* below.
+The name-forms sets and the held-out set are generated in code
+(`name_forms.py`, `heldout.py`), not downloaded: no files, no catalog
+entry, and their version is the generator's. See *Name forms* and
+*Held-out synthetic set* below.
 
 UNER keeps each sentence as written (`# text`) and groups pages by source
 document. `text = "tokens"` on a dataset entry builds the text instead from
@@ -164,7 +169,8 @@ runs in minutes.
   role nouns ("Kupující", "Žadatel"); predictions in them are false alarms.
 - **Size**: each template is filled 12 times. Czech dev: 64 templates, 776
   texts, 960 names (24 per form and case); Slovak dev: 24 templates, 292
-  texts, 360 names (12 per form and case). Test is the same size.
+  texts, 360 names (12 per form and case). Test has as many texts (948
+  Czech and 348 Slovak names).
 - **Splits**: `dev` and `test` share no name and no template. `test` is
   read only with `stage = "final"`.
 - **Evaluation only.** A generator of training data must not reuse these
@@ -183,6 +189,68 @@ test. Changing a template or a name changes the texts: bump
 uv run python -m experiments run --config experiments/configs/name-forms-dev.toml \
     --resource-root /path/to/main/checkout
 ```
+
+## Held-out synthetic set
+
+`heldout-cs` and `heldout-sk` are the held-out synthetic set of RQ6's final
+test: short documents generated from templates written for this set alone
+(`heldout.py`). The same author writes the training generators and this set,
+so it flatters a model trained here; it is reported apart from the public
+test sets ("home advantage").
+
+- **Documents**: letters, contracts, forms, e-mails and minutes, 5 to 14
+  lines each (about 90 words in Czech, 70 in Slovak), naming invented
+  people (first names and surnames combined arbitrarily, relatives sharing
+  a surname) with their addresses, birth numbers, dates of birth, phones,
+  e-mail addresses and bank accounts (Czech account numbers, Slovak IBANs).
+  Birth numbers, account numbers and IBANs get their check digits from
+  `heldout.py`'s own arithmetic; the tests cross-check them with the core
+  validators. Organisations, towns, dates of
+  contracts and amounts are text, not gold.
+- **Forms** (each person span is tagged, as in the name-forms set): `form`
+  (full, title-surname, later-surname, lone-surname, first-name, nickname,
+  surname-possessive, first-name-possessive, initial, surname-first), `case`,
+  `form-case`, `class`, `gender`, plus `context` (role-noun: a role or kinship
+  noun right before the name or after its comma, "svědkyně Nováková",
+  "Jan Novák, jednatel"; degree: "MUDr."; label: "Pacient: "; else plain) and
+  `kind` (the document kind). A surname alone is *later* when the document
+  named the person before, *lone* when it did not. Templates lean on the
+  forms models miss on dev: a surname alone in a later sentence, mostly in
+  the nominative, possessives, nicknames, names next to role nouns.
+- **Size**: `test` has 24 Czech and 16 Slovak templates, each filled 8 times
+  with other people, plus 4 Czech and 3 Slovak documents naming nobody
+  (capitalised role nouns only): 196 Czech documents with 1,312 person spans
+  (224 of them a later surname in the nominative) and 131 Slovak documents
+  with 776 (128). `dev` has 4 Czech and 3 Slovak templates of its own,
+  filled 4 times, plus one document naming nobody each (17 and 13
+  documents): enough to look at the generator's output and to check that
+  the pipeline reads it, never to tune on. Minimum counts per form and
+  context are asserted in `tests/experiments/test_heldout.py`.
+- **Splits**: `dev` and `test` share no template and no name; neither shares
+  a name with the name-forms set or a person of the benchmark. `test` is
+  read only with `stage = "final"`, and the set has no train split, so
+  `experiments train` refuses it too.
+- **Disjoint templates.** A test compares the word 5-grams of every template
+  line (slots and benchmark marks read as one placeholder word, gender
+  alternatives as their masculine text) with every string constant in the
+  Python modules of `experiments/`, `benchmark/` and `scripts/` and with the
+  benchmark's documents, and with the other half of the set. Any shared
+  5-gram fails it. Shorter shared phrases ("S pozdravem", "Od: … <…>") are
+  allowed: they are conventions, not templates.
+- **Rule for training data**: no generator of training data may reuse these
+  templates or their sentences. A generator written as Python in those
+  directories is checked by the test above without further work; one kept
+  elsewhere adds its directory to the test.
+
+A run writes the standard tables and, as for the name-forms set, recall per
+form, case, declension class and gender, here also per context and
+document kind (`phenomena.py`). No config reads `test` yet: the final
+config adds it with `stage = "final"`.
+
+Changing a template, a name or a value list changes the documents: bump
+`HELDOUT_VERSION` and the digests pinned in `tests/experiments/test_heldout.py`,
+and record why in the journal. After the final test has read `test`, it is
+never changed again.
 
 ## FUNSD scans
 
@@ -211,7 +279,8 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/rq1-test.toml` | the final table on the test splits; run once settings are fixed |
 | `configs/train-smoke.toml` | training smoke run: 400 examples, 40 steps, 25 documents per dev split |
 | `configs/train-cs-sk-ce.toml`, `train-cs-sk-focal.toml`, `train-cs-sk-weighted.toml` | the first full training runs, differing only in the loss |
-| `configs/rq6-dev.toml` | the ce and focal models vs rules+gliner on every dev split; train them first |
+| `configs/train-cs-sk-weighted-w5.toml`, `train-cs-sk-weighted-w10.toml` | the recall-weighted loss at weights 5 and 10 (`train-cs-sk-weighted` is weight 3) |
+| `configs/rq6-dev.toml` | the ce and focal models vs rules+gliner and NameTag 3 (Czech, multilingual) on every dev split; train them first |
 | `configs/rq6-loss-dev.toml` | ce, weighted and focal with three seeds each, ce also at threshold 0.125, vs rules+gliner; mean and spread across seeds |
 | `configs/rq6-weight-dev.toml` | weights 3, 5 and 10 of the recall-weighted loss, three seeds each, vs ce, ce@0.125 and focal |
 | `configs/rq6-threshold-dev.toml` | ce at 0.079 and 0.041, the thresholds matching weights 5 and 10, vs those weights and focal; reads the low-floor cache |
@@ -220,7 +289,8 @@ addresses on the test forms. These are derived, not annotated.
 A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on
 development data, and test data is read once, for the final table. The
-REDACT sample is development data; its test data will be the full file.
+REDACT sample is development data; its `test` split is the rest of the full
+release.
 
 ## Training
 
@@ -307,8 +377,9 @@ and on how many seeds F2 rose).
 without one, under the same name and model id; `--device mps` does the
 reverse. The results keep the file's text under `config` and record the
 device used under `machine`. On a 4-core laptop CPU (i7-8550U) a step of
-16 took 26 s against 2.3 s on the M4 Pro's GPU, so a run takes about 15
-hours; the two devices do not compute bit for bit alike, so replicates of
+16 took 28 s against about 2 s on the M4 Pro's GPU
+(`results/train-cs-sk-weighted-w5.json` against its replicates), so a run
+takes about 15 hours; the two devices do not compute bit for bit alike, so replicates of
 one setting belong on one device.
 
 ### Tuning the weight
@@ -316,10 +387,9 @@ one setting belong on one device.
 `positive_weight` is tuned on development data only, against person F2
 (partial match) on the development splits, the main metric of the
 evaluation contract; the test splits are read once, with the chosen weight.
-Train a few weights from copies of `train-cs-sk-weighted.toml` (e.g. 2, 3, 5
-and 10, each its own `model` id), score them beside `ce` with an
-`rq6-dev`-style config, take the weight with the best person F2, then train
-its replicates. In a model that fits its data perfectly a weight `w` acts as
+Each weight is a copy of `train-cs-sk-weighted.toml` with its own `model` id
+(`-w5`, `-w10`), trained with three seeds and scored beside `ce` and `focal`
+by `rq6-weight-dev.toml`. In a model that fits its data perfectly a weight `w` acts as
 a lower threshold (`t / (w(1 - t) + t)` instead of `t`: 0.125 instead of
 0.3 for `w = 3`), so `ce` is also scored at that threshold: the loss
 contributes only what beats `ce` at the matching threshold.

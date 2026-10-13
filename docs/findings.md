@@ -2,7 +2,7 @@
 
 Empirical notes from running the pipeline against real files. Each entry is
 evidence for the thesis rather than only a work item: the analysis chapter can
-cite these instead of asserting them. Corresponding work items live in `PLAN.md`.
+cite these instead of asserting them.
 
 Sample documents are never committed. They sit in `data/samples/` (git-ignored);
 files named `*-real-*` contain genuine personal data and are used for manual runs

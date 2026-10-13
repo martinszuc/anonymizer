@@ -35,7 +35,7 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
   redacted copy is a PDF (`<name>-redacted.pdf`). HEIC is not read: photos
   must be JPEG, PNG or TIFF. An **Opening screen** shows what is running now above a progress
   bar, page by page for OCR and detection ("3 of 12 pages"), and a sweeping
-  bar while a model loads (the names model's first load takes about ten
+  bar while a model loads (the name model's first load takes about ten
   seconds; models stay loaded for the session), with the steps below.
 - **Close the document** (the back chevron in the toolbar) returns home,
   asking first if decisions are unsaved. Closing the window asks too while
@@ -173,9 +173,9 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
   light and dark mode, reduced motion respected.
 
 Verified: macOS (real window driven from Python, see *Verifying the real
-window*). Linux and Windows: the *Window tour* workflow opens the window and
-photographs it on every run (see *Window tour*); its first runs are the first
-time the window opens there.
+window*). Linux (Ubuntu, Debian, Fedora) and Windows: only the *Window tour*
+workflow, which opens the window, performs the basic tasks and photographs
+each step whenever the window or the core changes (see *Window tour*).
 
 Not yet: resizing a box, changing options on an open
 document, mixing OCR engines within one document.
@@ -194,7 +194,7 @@ anonymizer/ui/app.py     WindowApi: the only object the page sees; wraps a
       │  pywebview js_api bridge: window.pywebview.api.<method>(...) → Promise
 frontend/src/bridge.ts   ReviewBridge interface, connect(), errorMessage()
 frontend/src/App.tsx     state, shortcuts, optimistic updates
-frontend/src/components  Toolbar, Sidebar, PageView, EmptyState, Toasts, controls
+frontend/src/components  Home, Opening, Toolbar, Sidebar, PageView, sheets, Toasts, controls
 ```
 
 | File | Owns |
@@ -210,7 +210,7 @@ frontend/src/components  Toolbar, Sidebar, PageView, EmptyState, Toasts, control
 | `frontend/src/pageWords.ts` | Page word cache per document, for selecting missed text. |
 | `frontend/src/demo.ts` | Synthetic stand-in for Python, development only (excluded from builds). |
 | `frontend/src/styles/tokens.css`, `app.css` | Tokens and component styles; see `DESIGN.md`. |
-| `tests/ui/test_api.py`, `tests/ui/test_app.py` | Python side, with pywebview stood in. |
+| `tests/ui/` | Python side, with pywebview stood in: `test_api.py`, `test_api_ocr.py`, `test_models.py`, `test_app.py`. |
 | `frontend/src/review.test.ts` | vitest for `review.ts`. |
 
 ### The payload contract
@@ -234,7 +234,7 @@ SurfaceInfo  { id, kind, value, page_index, box | null }
 kept, not_reviewed, hidden_removed, pages_without_text: number[] (1-based scans OCR did not read),
 leak_check: passed | failed | off, leaks: { layer, where, page: number | null (1-based), text,
 entity_id: string | null, kind: text | under_box | leftover }[] }`; nothing was
-written unless `written`. `AppStatus` carries `settings: { leak_check }` and
+written unless `written`. `AppStatus` carries `settings: { leak_check, open_options }` and
 `ocr: { default, engines: ChoiceStatus[] }`, one per `ingest.OCR_ENGINES` entry in
 its order, and `names: { default, models: ChoiceStatus[] }`, one per catalog name
 model (`detect.name_models`) in catalog order, the models trained under the models
@@ -258,7 +258,7 @@ Methods the page calls (all return promises in JS):
 | `download_models(feature)` | `FeatureModels[]` | `names-<catalog id>`, `ocr-onnxtr` or `ocr-kraken`; the page names a feature, never a URL or catalog id; progress as `anonymizer:download`; rejects while one of its models is already downloading or when a checksum fails |
 | `current_document()` | `DocumentInfo \| null` | on start: a PDF given on the command line |
 | `choose_pdf(options)` | `DocumentInfo \| null` | options `{language, propagate, use_model, name_model, use_ocr, ocr_engine}`, checked in Python (`language`: a code, `"auto"` or null; `name_model`: a catalog name model, the default when absent, used only with `use_model`; `ocr_engine`: a key of `OCR_ENGINES`, OnnxTR when absent, used only with `use_ocr`); null = cancelled |
-| `open_dropped(options)` | `DocumentInfo \| null` | opens the PDF Python kept from the last drop; null if none |
+| `open_dropped(options)` | `DocumentInfo \| null` | opens the PDF or image Python kept from the last drop; null if none |
 | `close_document()` | `None` | forgets the document, window title back to "Anonymizer" |
 | `add_region(page_index, x0, y0, x1, y1)` | `EntityInfo` | points, corners in any order; clipped to the page; `manual`, `confirmed` |
 | `remove_entity(entity_id)` | `string[]` | only `manual` items; a detected item is rejected instead. Returns the ids removed: the item's, then its repeats (`propagated`, not confirmed) when no other finding marks the same text (`pipeline.remove_finding`) |
@@ -284,8 +284,8 @@ Python tells the page about what it did not ask for with DOM events on
 | `anonymizer:progress` | `{step, done, total}`: step `loading_ocr` / `reading` / `ocr` / `loading_model` / `detecting`; pages done and in all, both 0 for a step without pages | a step of opening a PDF (or a saved review) starts, and after each page OCR reads or detection scans |
 | `anonymizer:export` | `{step, done, total}`: step `redacting` / `clearing` / `saving`, then each leak layer (`page_text`, `region`, `off_page_text`, `surface`, `thumbnail`, `object`, `file_bytes`, `ocr`); pages for `redacting` and `ocr`, else both 0 | a step of an export starts, and after each page redacted or re-read |
 | `anonymizer:download` | `{feature, received, total}` (bytes) | a download progresses, at most once per whole percent |
-| `anonymizer:dropped` | the file's name | a PDF was dropped; the page calls `open_dropped` |
-| `anonymizer:drop-refused` | the file's name | something other than a PDF was dropped |
+| `anonymizer:dropped` | the file's name | a PDF or an image was dropped; the page calls `open_dropped` |
+| `anonymizer:drop-refused` | the file's name | nothing dropped was a PDF or an image |
 
 **Drag and drop keeps the no-path rule.** Only pywebview's own drop handler
 (bound in `WindowApi._watch_drops` whenever the page loads) sees a dropped
@@ -324,7 +324,7 @@ page's own drag listeners only draw the highlight.
   overlay is an SVG whose view box is the page size in points, so nothing in
   the frontend converts coordinates. Rotated pages already come rotated from
   ingest and from PyMuPDF's renderer.
-- **Review semantics** (decided in `PLAN.md`): undecided (`pending`) items are
+- **Review semantics:** undecided (`pending`) items are
   redacted at export; hidden data is always removed, so it has no decision;
   toggling a pending item means *keep* (`rejected`), toggling back is an
   explicit *redact* (`confirmed`). In code: `review.isRemoved(entity)` says
@@ -394,15 +394,15 @@ exists unless `--log-file` names one. Every page call is logged by `_logged` in
 How to log from a new method: [`docs/logging.md`](logging.md).
 
 The page can be previewed in a browser with `npm run dev`
-(the demo document appears after Open PDF…). The demo never goes through
+(the demo document appears after *Open Document…*). The demo never goes through
 pywebview, so bridge problems (the CSP `eval` issue, argument passing) only
 show in the real window.
 
 ### Verifying the real window
 
 A native window from a bare Python process cannot be screenshotted by screen
-tools, but it can be driven from Python. A throwaway script (keep it in the
-scratchpad, not the repository):
+tools, but it can be driven from Python with a short script kept outside the
+repository:
 
 ```python
 import sys, time, webview
@@ -508,11 +508,11 @@ In suggested order. Each item names where it plugs in.
 8. **OCR quality in review:** show OCR's confidence per word and flag
     low-confidence words (an `@` read as `(m` hides an email from the rules),
     and offer a second engine once RapidOCR or EasyOCR is in the catalog.
-9. **Label mode preview** once labels exist (M5): preview draws `[NAME]`
+9. **Label mode preview** once labels exist: preview draws `[NAME]`
     instead of black boxes.
 10. **Accessibility pass:** boxes are not keyboard-reachable (the list is the
     keyboard path); run a WCAG review of both themes.
-11. **Packaging (M9):** PyInstaller bundle per OS; test Windows (WebView2)
+11. **Packaging:** PyInstaller bundle per OS; test Windows (WebView2)
     and Linux (GTK or Qt backend) by hand.
 12. **Large documents:** virtualize the page list and the sidebar beyond a
     few hundred pages or entities.
@@ -525,13 +525,10 @@ stay listed so the numbering holds; the rest are open. Items marked **Investigat
 change; **Decide** items need a product decision first. Related older items are in
 *Backlog* (undo/redo, models sheet, packaging, OCR quality).
 
-**Evidence.** A local log, `debug-log.log` in the repository root, records a run on
-documents with names and Czech text: the repeated occurrences and the ordinary Czech
-words marked as personal data (items 11 and 12). It is git-ignored (`*.log`) and may
-hold text from real documents. Work on those items reads it from disk
-to find which detector produced each hit, and reports counts, detector sources and
-entity types, never the words, names or sentences themselves. It is not copied into
-the repository, a test, a fixture or a commit message.
+**Evidence.** Items 11 and 12 come from a local debug log of a run on documents
+with names and Czech text. The log may hold text from real documents, so it stays
+outside git (`*.log` is ignored), and what is reported from it here is counts,
+detector sources and entity types, never words, names or sentences.
 
 ### Loading a document
 
@@ -578,10 +575,10 @@ the repository, a test, a fixture or a commit message.
     times, rejecting it 30 times is not acceptable. Needed: identical occurrences grouped
     in the left panel (one row with a count, decided together, expandable), or a switch
     between grouped and individual view. Find out first which detector produces the
-    false positives (rules, names model, or OCR text) and in which documents.
+    false positives (rules, name model, or OCR text) and in which documents.
     **Done** for the list: grouped by default, decided together, expandable. What the
     local log shows (one 2-page document, `language` All): 31 findings, about 21 from the
-    names model scoring mostly 0.34–0.54 against a 0.3 threshold, 8 from rules, 2
+    name model scoring mostly 0.34–0.54 against a 0.3 threshold, 8 from rules, 2
     repeats. **Measured and reduced (2026-10-02):** the benchmark now has documents
     without personal data; nearly all false alarms there were capitalised role nouns
     ("Kupující", "Žadatel"), which no threshold removes without losing names. The name

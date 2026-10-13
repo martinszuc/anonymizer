@@ -1,0 +1,66 @@
+name = "rq6-weight-dev"
+description = """
+RQ6, the weight of the recall-weighted loss on development data: weights 3, 5 and 10,
+three seeds each, against cross-entropy and focal loss (the best loss so far,
+rq6-loss-dev). Weight 3 is also compared with cross-entropy at 0.125, its matching
+threshold. The matching thresholds of weights 5 and 10 (0.08, 0.04) lie below the
+prediction cache's floor (systems.CACHE_FLOOR = 0.1), so that control waits until a
+weight beats cross-entropy at all. Weight 5's first seed was trained on a
+CPU (karol), every other model on the Mac GPU."""
+stage = "dev"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+gliner-cs-sk-ce", "rules+gliner-cs-sk-weighted-w5"],
+    ["rules+gliner-cs-sk-ce", "rules+gliner-cs-sk-weighted-w10"],
+    ["rules+gliner-cs-sk-ce@0.125", "rules+gliner-cs-sk-weighted"],
+    ["rules+gliner-cs-sk-weighted", "rules+gliner-cs-sk-weighted-w5"],
+    ["rules+gliner-cs-sk-weighted-w5", "rules+gliner-cs-sk-weighted-w10"],
+    ["rules+gliner-cs-sk-focal", "rules+gliner-cs-sk-weighted-w5"],
+    ["rules+gliner-cs-sk-focal", "rules+gliner-cs-sk-weighted-w10"],
+]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[[datasets]]
+id = "openpii-1m-cs"
+split = "dev"
+
+[[datasets]]
+id = "openpii-1m-sk"
+split = "dev"
+
+[systems."rules+gliner-cs-sk-ce"]
+model = "gliner-cs-sk-ce"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-ce@0.125"]
+model = "gliner-cs-sk-ce"
+threshold = 0.125
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-weighted"]
+model = "gliner-cs-sk-weighted"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-weighted-w5"]
+model = "gliner-cs-sk-weighted-w5"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-weighted-w10"]
+model = "gliner-cs-sk-weighted-w10"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-focal"]
+model = "gliner-cs-sk-focal"
+seeds = [1, 2]

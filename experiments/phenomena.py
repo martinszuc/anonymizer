@@ -1,7 +1,8 @@
-"""Recall per kind of gold span, for corpora whose spans carry tags (the name-forms set).
+"""Recall per kind of gold span, for corpora whose spans carry tags (name forms, held-out set).
 
 Each tagged gold span counts under every tag it has (`name_forms.Tag`: form,
-case, form and case, declension class, gender), matched as `metrics.match`
+case, form and case, declension class, gender; the held-out set adds context
+and document kind), matched as `metrics.match`
 matches any span: strict or partial, against predictions of its type. Only
 recall is defined per tag: a prediction has no tag, so precision stays in the
 standard tables. Intervals resample whole texts, on the same draws as every
@@ -23,6 +24,8 @@ from anonymizer.core.types import Entity, EntityType
 
 from experiments.datasets import Corpus, GoldDocument
 from experiments.declension import Case
+from experiments.heldout import CONTEXTS, KINDS
+from experiments.heldout import FORMS as HELDOUT_FORMS
 from experiments.metrics import (
     MATCHES,
     PARTIAL,
@@ -35,10 +38,14 @@ from experiments.metrics import (
     scoreable,
     total,
 )
-from experiments.name_forms import FORMS, Tag
+from experiments.name_forms import FORMS as NAME_FORMS
+from experiments.name_forms import Tag
 
-FACETS = ("form", "form-case", "case", "class", "gender")
+FACETS = ("form", "form-case", "case", "class", "gender", "context", "kind")
 """Facets in table order."""
+
+FORMS = tuple(dict.fromkeys((*HELDOUT_FORMS, *NAME_FORMS)))
+"""Forms of both tagged sets in table order."""
 
 _FACET_TITLES = {
     "form": "form",
@@ -46,6 +53,8 @@ _FACET_TITLES = {
     "case": "case",
     "class": "declension class",
     "gender": "gender",
+    "context": "next to the name",
+    "kind": "document kind",
 }
 _MATCH_TITLES = {PARTIAL: "partial match", STRICT: "strict match"}
 _CASES = tuple(str(case) for case in Case)
@@ -208,10 +217,13 @@ def _rows(
 
 
 def _order(facet: str, value: str) -> tuple[int, int, str]:
-    """Forms in `FORMS` order, cases in grammar order, anything else by name."""
+    """Forms in `FORMS` order, cases by grammar, contexts and kinds as listed, else by name."""
     form, _, case = value.partition("/")
     if facet == "case":
         return (0, _CASES.index(value) if value in _CASES else len(_CASES), value)
+    listed = {"context": CONTEXTS, "kind": KINDS}.get(facet)
+    if listed is not None:
+        return (0, listed.index(value) if value in listed else len(listed), value)
     if facet in {"form", "form-case"}:
         form_rank = FORMS.index(form) if form in FORMS else len(FORMS)
         return (form_rank, _CASES.index(case) if case in _CASES else -1, value)

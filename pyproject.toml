@@ -84,6 +84,8 @@ convention = "google"
 "benchmark/**" = ["T20"]
 "experiments/**" = ["T20"]
 "scripts/**" = ["T20"]
+# Czech and Slovak documents write the en dash ("Bod 1 – Prodej").
+"experiments/heldout.py" = ["RUF001"]
 
 [tool.pyright]
 include = ["packages", "scripts", "tests", "benchmark", "experiments"]

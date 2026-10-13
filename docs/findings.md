@@ -89,8 +89,8 @@ text, surface scan, objects, raw bytes). Names remain: nothing detects them yet.
 rules for the document language alongside.
 
 - **Real CS CV:** 1 page; 12 entities (person 4, address 2, phone 2,
-  email 2, URL 2), 10 hidden items removed, leak check passed. The author
-  checked the output visually: the name is removed everywhere and nothing
+  email 2, URL 2), 10 hidden items removed, leak check passed. Checked
+  visually: the name is removed everywhere and nothing
   personal remains visible. Names were the gap left by the rules alone
   (see *Redaction of the real samples*).
 - **Synthetic EN CV:** the name, the street address and the ZIP code were
@@ -1061,6 +1061,61 @@ of one template share most of their wording.
   a gap the own model must close against it; what the own model must not lose is the
   lone later surname, measured by adding the trained models to this config.
 - Texts naming nobody: GLiNER flagged 2 of 8 Czech texts (3 predictions), NameTag none.
+
+### 2026-10-12 · The loss and its weight, three seeds each (development data)
+
+`experiments/configs/rq6-loss-dev.toml` (commit `e44e907`) and `rq6-weight-dev.toml`
+(commit `9efa3b6`, the config added with its results), seed 20261010, 1,000 resamples;
+`experiments/results/rq6-loss-dev.md` and `rq6-weight-dev.md`. Every model trained three
+times (the config's seed and `--seed 1`, `2`) on the Mac GPU, except weight 5's first
+seed, trained on a CPU. ce@0.125 is cross-entropy scored at the threshold at which a
+calibrated model reports what weight 3 reports at 0.3.
+
+Person, partial match, F2 (P / R) and residual share, mean over three seeds:
+
+| corpus | ce | ce@0.125 | weighted w 3 | w 5 | w 10 | focal |
+|---|---|---|---|---|---|---|
+| CNEC dtest (cs) | 0.931 (0.914 / 0.936), 0.047 | 0.934 (0.895 / 0.944), 0.040 | 0.931 (0.895 / 0.940), 0.041 | 0.932 (0.882 / 0.945), 0.038 | 0.929 (0.878 / 0.943), 0.038 | 0.929 (0.866 / 0.946), 0.037 |
+| UNER-SK dev (sk) | 0.899 (0.848 / 0.913), 0.071 | 0.910 (0.835 / 0.931), 0.056 | 0.909 (0.837 / 0.929), 0.059 | 0.914 (0.826 / 0.940), 0.050 | 0.918 (0.818 / 0.947), 0.045 | 0.917 (0.799 / 0.952), 0.039 |
+| REDACT sample (cs) | 0.946 (0.797 / 0.992), 0.009 | 0.945 (0.789 / 0.994), 0.008 | 0.932 (0.794 / 0.974), 0.022 | 0.947 (0.795 / 0.995), 0.008 | 0.930 (0.792 / 0.973), 0.022 | 0.946 (0.790 / 0.995), 0.008 |
+| OpenPII cs dev | 0.991 (0.995 / 0.991), 0.008 | 0.992 (0.994 / 0.991), 0.007 | 0.992 (0.995 / 0.992), 0.007 | 0.992 (0.993 / 0.991), 0.007 | 0.992 (0.992 / 0.992), 0.007 | 0.991 (0.992 / 0.991), 0.007 |
+| OpenPII sk dev | 0.992 (0.996 / 0.991), 0.006 | 0.992 (0.995 / 0.991), 0.006 | 0.992 (0.995 / 0.991), 0.006 | 0.992 (0.995 / 0.991), 0.006 | 0.991 (0.995 / 0.990), 0.006 | 0.991 (0.994 / 0.990), 0.007 |
+
+- **Weight 3 is cross-entropy at a lower threshold.** Seed by seed, weight 3 minus
+  ce@0.125 averages −0.003 to +0.000 person F2 everywhere but REDACT (−0.013 ± 0.027,
+  one seed).
+- **The weight moves along the precision/recall trade-off.** From ce through weights 3,
+  5 and 10 to focal, precision falls step by step on CNEC and UNER-SK, recall rises
+  (on CNEC weight 10 sits just below weight 5), and the residual share falls with it.
+  No setting improves both.
+- **Only UNER-SK separates the losses**: weight 10 minus ce +0.019 ± 0.003 person F2 and
+  weight 5 +0.015 ± 0.006, higher on all three seeds; focal minus ce +0.017 ± 0.008.
+  Weight 10 and focal are level (+0.001 ± 0.010). On CNEC every setting lies within
+  0.005 F2, on OpenPII within 0.001.
+- **REDACT, 40 records**: the config's seed of weight 3 and of weight 10 both leave a
+  residual share of 0.050 where every other model leaves 0.007–0.010, so their means
+  carry one seed's misses. Which records they are is for the error analysis.
+- **The CPU-trained seed** of weight 5 lies within the two GPU seeds on CNEC and REDACT
+  and above them on UNER-SK (residual 0.059 against 0.051 and 0.040).
+- **Not measured yet**: cross-entropy at 0.08 and 0.04, the thresholds matching weights
+  5 and 10. They lie below the prediction cache's floor (`systems.CACHE_FLOOR`, 0.1).
+
+### 2026-10-12 · Name forms with the trained models
+
+`experiments/configs/name-forms-dev.toml`, commit `e44e907`, seed 20261011, 1,000
+resamples; `experiments/results/name-forms-dev.md`. The trained models are the config's
+seed of each loss (no replicates in this config).
+
+- **Fine-tuning closes most of the lone-surname gap.** A surname alone in a later
+  sentence, Czech (144) and Slovak (60): GLiNER zero-shot 10 and 9, ce 132 and 53, focal
+  138 and 57, weighted (w 3) 127 and 49; NameTag 3 Czech 143 and 55, multilingual 144
+  and 60.
+- **Most of what is left is the nominative.** A later surname in the nominative: Czech
+  (24) ce 18, focal 20, weighted 14; Slovak (12) ce 5, focal 9, weighted 1; NameTag 3
+  multilingual finds all of them. The other cases of the later surname lose 0 to 2 of
+  24 (Czech). Every other form is found whole by every trained model, except three
+  possessive surnames in Czech missed by the weighted model.
+- Nicknames: every trained model 72 of 72 (Czech), above both NameTag models (67, 64).
 
 ### Toolchain findings: redaction
 

@@ -44,6 +44,7 @@ from experiments.train import (
     training_examples,
     with_device,
     with_seed,
+    with_tag,
 )
 from tests.experiments.conftest import CNEC_LINES, UNER_TEXT, ScoredStandIn
 from tests.resources.test_catalog import trained_entry
@@ -374,6 +375,27 @@ class TestConfig:
         with pytest.raises(ValueError, match="must not be negative"):
             with_seed(parse_train_config(CONFIG), -1)
 
+    def test_a_tag_names_a_run_of_the_same_setting_apart_from_the_first(self):
+        config = with_tag(parse_train_config(CONFIG), "gpu")
+        assert (config.name, config.model, config.tag) == (
+            "train-test-gpu",
+            "gliner-cs-test-gpu",
+            "gpu",
+        )
+        assert (config.seed, config.replicate, config.raw) == (5, None, CONFIG)
+        replicate = with_seed(config, 1)
+        assert (replicate.name, replicate.model) == ("train-test-gpu-s1", "gliner-cs-test-gpu-s1")
+        assert replicate.tag == "gpu"
+
+    @pytest.mark.parametrize("tag", ["", "GPU", "gpu-a40", "1gpu", "s1", "s20261010", "gpu/a"])
+    def test_a_tag_that_would_break_an_id_or_read_as_a_seed_is_refused(self, tag: str):
+        with pytest.raises(ValueError, match="must be lowercase"):
+            with_tag(parse_train_config(CONFIG), tag)
+
+    def test_a_tag_comes_before_the_seed(self):
+        with pytest.raises(ValueError, match="before giving it a seed"):
+            with_tag(with_seed(parse_train_config(CONFIG), 1), "gpu")
+
     def test_a_device_from_the_command_line_replaces_the_files(self):
         config = with_device(parse_train_config({**CONFIG, "device": "mps"}), "cpu")
         assert (config.device, config.name, config.model) == ("cpu", "train-test", "gliner-cs-test")
@@ -547,6 +569,40 @@ def test_the_command_trains_a_replicate_with_another_seed(
     assert results["model"]["id"] == "gliner-cs-test-s3"
     assert results["model"]["source"] == "experiments/results/train-test-s3.json"
     assert load_catalog(root=training_root)["gliner-cs-test-s3"].trained
+
+
+def test_the_command_trains_a_tagged_replicate_beside_the_first_run(
+    training_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    from experiments import train as train_module
+
+    recorder = Recorder()
+    monkeypatch.setattr(train_module, "fit_gliner", recorder.fit)
+    monkeypatch.setattr(train_module, "_loader", lambda device: recorder.load)
+    config = tmp_path / "train-test.toml"
+    config.write_text(
+        'name = "train-test"\nmodel = "gliner-cs-test"\nseed = 5\ndevice = "cpu"\n'
+        "[training]\nsteps = 1\n"
+        '[[corpora]]\nid = "openpii-1m-cs"\nsplit = "train"\n',
+        encoding="utf-8",
+    )
+    out = tmp_path / "results"
+    first = ["train", "--config", str(config), "--out", str(out)]
+    assert main([*first, "--resource-root", str(training_root)]) == 0
+    before = (out / "train-test.json").read_bytes()
+    again = [*first, "--tag", "gpu", "--seed", "1", "--resource-root", str(training_root)]
+    assert main(again) == 0
+    assert (out / "train-test.json").read_bytes() == before
+    results = json.loads((out / "train-test-gpu-s1.json").read_text(encoding="utf-8"))
+    assert (results["tag"], results["replicate"], results["config"]["name"]) == (
+        "gpu",
+        1,
+        "train-test",
+    )
+    assert results["model"]["id"] == "gliner-cs-test-gpu-s1"
+    catalog = load_catalog(root=training_root)
+    assert catalog["gliner-cs-test"].trained
+    assert catalog["gliner-cs-test-gpu-s1"].trained
 
 
 def test_the_command_trains_on_another_device(

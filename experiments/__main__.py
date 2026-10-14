@@ -44,6 +44,7 @@ from experiments.train import (
     train,
     with_device,
     with_seed,
+    with_tag,
     write_training,
 )
 
@@ -74,6 +75,11 @@ def main(argv: list[str] | None = None) -> int:
         "--seed",
         type=int,
         help="train a replicate with this seed: model <model>-s<seed>, results <name>-s<seed>",
+    )
+    train_parser.add_argument(
+        "--tag",
+        help="train under <name>-<tag> and <model>-<tag> (e.g. gpu for a config trained "
+        "again on another machine), so the earlier run's results and model stay",
     )
     train_parser.add_argument(
         "--device",
@@ -178,6 +184,8 @@ def main(argv: list[str] | None = None) -> int:
 
 def _train(args: argparse.Namespace, root: Path) -> int:
     config = load_train_config(args.config, load_catalog(root=root))
+    if args.tag is not None:
+        config = with_tag(config, args.tag)
     if args.seed is not None:
         config = with_seed(config, args.seed)
     if args.device is not None:

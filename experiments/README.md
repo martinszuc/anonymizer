@@ -391,7 +391,10 @@ name and, on CUDA, the card (`gpu`) and the CUDA version torch was built for. On
 (`results/train-cs-sk-weighted-w5.json` against its replicates), so a run
 takes about 15 hours; the two devices do not compute bit for bit alike, so replicates of
 one setting belong on one device, and models compared in one table on one kind of
-machine.
+machine. `--tag gpu` stores such a run as `<name>-gpu` and `<model>-gpu`
+(`<model>-gpu-s1` with `--seed 1`), so retraining a config on another machine
+keeps the results and the model of the run made before; the results record it
+under `tag`.
 
 ### Tuning the weight
 

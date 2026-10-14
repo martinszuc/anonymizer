@@ -1,6 +1,6 @@
 """Command line: `uv run python -m benchmark run --out results/` (or another command).
 
-The commands: `run`, `ocr`, `ocr-margin`, `ocr-probe`, `history`.
+The commands: `run`, `ocr`, `ocr-margin`, `ocr-probe`, `history`, `diff`, `backfill`.
 """
 
 from __future__ import annotations
@@ -9,11 +9,14 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from anonymizer.core.detect import system_model
 from anonymizer.core.resources import load_catalog, resolve_resource_root
 
+from benchmark.backfill import backfill
 from benchmark.degrade import LEVELS, level_named
+from benchmark.diff import diff_markdown
 from benchmark.ocr_margin import MARGINS, margins_markdown, run_margins
 from benchmark.ocr_probe import probe, probe_markdown, write_probe
 from benchmark.ocr_run import ENGINES, ocr_markdown, run_ocr
@@ -76,8 +79,22 @@ def main(argv: list[str] | None = None) -> int:
     history_parser = commands.add_parser("history", help="draw charts from several runs")
     history_parser.add_argument("results", type=Path, nargs="+", help="results.json files")
     history_parser.add_argument("--out", type=Path, required=True, help="directory for charts")
+    diff_parser = commands.add_parser(
+        "diff", help="compare a run with a baseline per item type, as Markdown"
+    )
+    diff_parser.add_argument("baseline", type=Path, help="results.json to compare against")
+    diff_parser.add_argument("current", type=Path, help="results.json of this run")
+    backfill_parser = commands.add_parser(
+        "backfill", help="run earlier tags' code on the current documents"
+    )
+    backfill_parser.add_argument("tags", nargs="+", help="git tags, e.g. v0.4.0 v0.5.0")
+    backfill_parser.add_argument("--out", type=Path, required=True, help="writes <out>/<tag>/")
+    backfill_parser.add_argument(
+        "--systems", default="rules", help="comma-separated systems (default: rules)"
+    )
+    _add_resource_root(backfill_parser)
     args = parser.parse_args(argv)
-    if args.command != "history":
+    if args.command not in ("history", "diff"):
         args.resource_root = resolve_resource_root(args.resource_root)
         _check_system(parser, args)
 
@@ -86,6 +103,18 @@ def main(argv: list[str] | None = None) -> int:
 
         for chart in draw(args.results, args.out):
             print(f"wrote {chart}")
+        return 0
+    if args.command == "diff":
+        print(diff_markdown(_read_json(args.baseline), _read_json(args.current)), end="")
+        return 0
+    if args.command == "backfill":
+        for path in backfill(
+            tuple(args.tags),
+            args.out,
+            systems=_names(args.systems),
+            resource_root=args.resource_root,
+        ):
+            print(f"wrote {path}")
         return 0
     if args.command == "ocr":
         ocr_results = run_ocr(
@@ -151,6 +180,10 @@ def _add_resource_root(parser: argparse.ArgumentParser) -> None:
         type=Path,
         help="directory holding models/ (default: as for the CLI's --resource-root)",
     )
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _names(listed: str) -> tuple[str, ...]:

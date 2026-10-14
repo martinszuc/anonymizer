@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.6.0 (2026-10-14)
+
+## What's Changed
+* docs: OpenPII baseline, FUNSD scans and the rq1-dev re-run by @martinszuc in https://github.com/martinszuc/anonymizer/pull/86
+* feat(experiments): train a Czech/Slovak name model (fine-tuned GLiNER) by @martinszuc in https://github.com/martinszuc/anonymizer/pull/87
+* fix(detect): drop a full stop after a closing bracket before stripping edges by @martinszuc in https://github.com/martinszuc/anonymizer/pull/89
+* feat: add NameTag 3 as a name model and compare it with GLiNER by @martinszuc in https://github.com/martinszuc/anonymizer/pull/90
+* docs: record NameTag 3 against GLiNER on development data by @martinszuc in https://github.com/martinszuc/anonymizer/pull/91
+* chore(experiments): train the first full runs in batches of 16 by @martinszuc in https://github.com/martinszuc/anonymizer/pull/92
+* feat(experiments): score leak coverage beside the match scores by @martinszuc in https://github.com/martinszuc/anonymizer/pull/93
+* feat(experiments): recall-weighted training loss and seed replicates by @martinszuc in https://github.com/martinszuc/anonymizer/pull/94
+* feat(experiments): recall-weighted training loss and seed replicates by @martinszuc in https://github.com/martinszuc/anonymizer/pull/96
+* feat(experiments): Czech and Slovak name-forms challenge set with recall per form by @martinszuc in https://github.com/martinszuc/anonymizer/pull/95
+* docs(experiments): first trained models against NameTag 3, name forms by @martinszuc in https://github.com/martinszuc/anonymizer/pull/97
+* feat(experiments): weight sweep configs, and --device for training without the Apple GPU by @martinszuc in https://github.com/martinszuc/anonymizer/pull/98
+* feat(experiments): error analysis of misses and false alarms by category by @martinszuc in https://github.com/martinszuc/anonymizer/pull/99
+* feat(experiments): full REDACT Czech records as the test split by @martinszuc in https://github.com/martinszuc/anonymizer/pull/100
+* docs(experiments): losses over three seeds, the weight sweep, name forms of the trained models by @martinszuc in https://github.com/martinszuc/anonymizer/pull/101
+* docs: make the documentation match the code by @martinszuc in https://github.com/martinszuc/anonymizer/pull/102
+* feat(experiments): held-out synthetic test set for the final RQ6 test by @martinszuc in https://github.com/martinszuc/anonymizer/pull/103
+* feat(experiments): threshold control for weights 5 and 10, error analysis by document by @martinszuc in https://github.com/martinszuc/anonymizer/pull/104
+* feat(experiments): guards for test data and brute-force checks of the metrics by @martinszuc in https://github.com/martinszuc/anonymizer/pull/105
+
+
+**Full Changelog**: https://github.com/martinszuc/anonymizer/compare/v0.5.0...v0.6.0
+
 ## 0.5.0 (2026-10-10)
 
 ## What's Changed

@@ -52,7 +52,8 @@ packages/ui/     review window: api.py (ReviewApi, plain data), app.py
 benchmark/       synthetic documents as data, generator, scorer, pictures, charts
 experiments/     evaluation harness: corpus loaders, systems via pipeline.py, cached
                  model output, scores with bootstrap CIs, results tables
-scripts/         model and dataset download, synthetic mixed-format sample generator
+scripts/         model and dataset download, synthetic mixed-format sample generator,
+                 MetaCentrum training jobs (docs/metacentrum.md)
 data/            local corpora, git-ignored, never committed
 ```
 

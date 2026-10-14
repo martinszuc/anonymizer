@@ -1,0 +1,77 @@
+"""Keeping a model a MetaCentrum job trained in its scratch (`keep_trained.py`)."""
+
+import importlib.util
+import json
+from pathlib import Path
+from types import ModuleType
+
+import pytest
+from anonymizer.core.resources import trained_catalog_path
+
+from tests.resources.test_catalog import store_trained, trained_entry
+
+SCRIPT = Path(__file__).parents[1] / "scripts" / "metacentrum" / "keep_trained.py"
+
+
+@pytest.fixture(scope="module")
+def keeper() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("keep_trained", SCRIPT)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _model(root: Path, model_id: str, weights: bytes) -> None:
+    folder = root / "models" / model_id
+    folder.mkdir(parents=True)
+    (folder / "model.safetensors").write_bytes(weights)
+
+
+def _listed(root: Path) -> list[str]:
+    listed = json.loads(trained_catalog_path(root).read_text(encoding="utf-8"))
+    return [entry["id"] for entry in listed["resource"]]
+
+
+def test_the_model_replaces_an_earlier_one_and_joins_the_list(keeper: ModuleType, tmp_path: Path):
+    scratch, store = tmp_path / "scratch", tmp_path / "store"
+    store_trained(scratch, trained_entry())
+    _model(scratch, "gliner-cs-tuned", b"hello\n")
+    store_trained(store, trained_entry(id="gliner-sk-tuned"), trained_entry(name="earlier run"))
+    _model(store, "gliner-cs-tuned", b"earlier weights")
+
+    assert keeper.keep_trained(scratch, store) == ["gliner-cs-tuned"]
+
+    kept = store / "models" / "gliner-cs-tuned"
+    assert (kept / "model.safetensors").read_bytes() == b"hello\n"
+    assert sorted(_listed(store)) == ["gliner-cs-tuned", "gliner-sk-tuned"]
+    listed = json.loads(trained_catalog_path(store).read_text(encoding="utf-8"))
+    names = {entry["id"]: entry["name"] for entry in listed["resource"]}
+    assert names["gliner-cs-tuned"] == trained_entry()["name"]
+    assert sorted(path.name for path in (store / "models").iterdir()) == [
+        "gliner-cs-tuned",
+        "trained.json",
+    ]
+
+
+def test_a_store_without_models_gets_its_list(keeper: ModuleType, tmp_path: Path):
+    scratch, store = tmp_path / "scratch", tmp_path / "store"
+    store_trained(scratch, trained_entry())
+    _model(scratch, "gliner-cs-tuned", b"hello\n")
+
+    keeper.keep_trained(scratch, store)
+
+    assert _listed(store) == ["gliner-cs-tuned"]
+
+
+def test_a_held_lock_is_waited_for_and_then_reported(keeper: ModuleType, tmp_path: Path):
+    lock = tmp_path / keeper.LOCK
+    lock.touch()
+    with pytest.raises(TimeoutError, match="still held"), keeper._locked(lock, timeout=0):
+        pass
+    assert lock.exists()
+
+
+def test_the_command_line_needs_both_roots(keeper: ModuleType):
+    assert keeper.main(["only-one"]) == 2

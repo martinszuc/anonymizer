@@ -20,7 +20,7 @@ Everything lives on one storage, mounted on every frontend and node:
                 models/trained.json)
   results/      results/<name>.json and .md of every job
   logs/         each job's output, <job id>.pbs-m1.metacentrum.cz.OU
-  cache/        the prediction cache of `experiments run`
+  cache/        the prediction cache of `experiments run`, per device
   tools/        uv, its cache and its Python
 ```
 
@@ -96,13 +96,23 @@ amount of resource: queue_list` (`qstat -f <job id> | grep comment`). fobos
 `<model>-gpu`, so a config already run on the Mac keeps its results and model.
 A config never run elsewhere is submitted with `TAG=` and keeps its name.
 
-Run configs naming the trained models are scored on a CPU node (GLiNER
-predicts on the CPU). Each config is its own job, started only after the one
-before it ended, since they share the prediction cache:
+Run configs naming the trained models are scored on a GPU node: `run.pbs`
+runs `experiments run --device cuda`, so GLiNER predicts on the card
+(NameTag 3 and the rest on the CPU). Each config is its own job, started only
+after the one before it ended, since they share the prediction cache:
 
 ```sh
 scripts/metacentrum/evaluate.sh experiments/configs/rq6-gpu-dev.toml experiments/configs/rq7-dev.toml
 ```
+
+Each job asks for 1 GPU with at least 16 GB, 8 CPUs, 48 GB of memory and 24
+hours (`evaluate.sh`, `run.pbs`), on fobos unless `CLUSTER=` names another
+cluster (`CLUSTER=any` lets PBS pick, for a smoke test). Scores compared in
+one table come from one kind of card, as the models in it were trained on one.
+The predictions go to `cache/` in files of the device's own
+(`<split>@cuda.json`), never mixed with what a CPU predicted
+(`experiments/README.md`, *Cache*); the results record the card under
+`machine`.
 
 Never score a model while it is being retrained: the run would cache the new
 weights' predictions under the old version. Submitted together with training,

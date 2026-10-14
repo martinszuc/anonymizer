@@ -7,6 +7,12 @@ name: Benchmark
 # - Called by the release workflow with the new tag: results are attached to
 #   the release, and the charts include every earlier release's results.
 #
+# The results record a fingerprint of benchmark/documents, and the charts join
+# only releases measured on the same documents: v0.2.0-v0.3.0 had 6, v0.4.0 on
+# 26, and that jump is not a code change. `python -m benchmark backfill`
+# measures earlier tags on the current documents, locally. Pull requests get a
+# rules-only comparison with the latest release from the Checks workflow.
+#
 # Besides installing packages, the only network access is the model download:
 # started by this run, from the model's official source, and refused unless it
 # matches the checksum in the resource catalog.

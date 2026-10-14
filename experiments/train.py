@@ -57,7 +57,10 @@ positives; `positive_weight = 1` without focus is `ce`.
 (`with_seed`): the model is stored as `<model>-s<N>` and the results as
 `<name>-s<N>.json`, so replicates of one setting need no copied configs.
 The seed draws the examples, orders them and seeds the trainer, so one seed
-always gives the same examples in the same order.
+always gives the same examples in the same order. `--tag T` (`with_tag`)
+stores the run as `<model>-<T>` and `<name>-<T>.json`, applied before the
+seed (`<model>-<T>-s<N>`): a config retrained on another machine keeps the
+first run's results and model.
 
 Weights trained on CNEC or UNER hold real public names: they stay under the
 resource root, never committed or published, and their catalog entry says
@@ -71,6 +74,7 @@ import hashlib
 import importlib.metadata
 import json
 import platform
+import re
 import shutil
 import subprocess
 import tempfile
@@ -168,6 +172,8 @@ class TrainConfig:
         raw: The file's contents, for the results.
         replicate: The seed given on the command line (`with_seed`), which
             replaced the file's seed and suffixed its name and model.
+        tag: The tag given on the command line (`with_tag`), which suffixed
+            the name and model.
     """
 
     name: str
@@ -182,6 +188,7 @@ class TrainConfig:
     limit: int | None
     raw: dict[str, Any]
     replicate: int | None = None
+    tag: str | None = None
 
 
 def with_seed(config: TrainConfig, seed: int) -> TrainConfig:
@@ -204,6 +211,29 @@ def with_seed(config: TrainConfig, seed: int) -> TrainConfig:
         seed=seed,
         replicate=seed,
     )
+
+
+def with_tag(config: TrainConfig, tag: str) -> TrainConfig:
+    """Return the config trained under a tag, as the same setting trained again elsewhere.
+
+    The model is stored as `<model>-<tag>` and the results are named
+    `<name>-<tag>`, so a config retrained on another machine overwrites
+    neither the results nor the model of the run made before. Apply it before
+    `with_seed`, so a tagged replicate is `<model>-<tag>-s<seed>`, the id a run
+    config's `seeds` gives a tagged system.
+
+    Raises:
+        ValueError: If the tag is not lowercase letters and digits starting with
+            a letter, if it reads as a seed (`s1`), or if the config has a
+            replicate seed already.
+    """
+    if not re.fullmatch(r"[a-z][a-z0-9]*", tag) or re.fullmatch(r"s\d+", tag):
+        msg = f"tag {tag!r} must be lowercase letters and digits, starting with a letter, not s<N>"
+        raise ValueError(msg)
+    if config.replicate is not None:
+        msg = "tag a config before giving it a seed"
+        raise ValueError(msg)
+    return replace(config, name=f"{config.name}-{tag}", model=f"{config.model}-{tag}", tag=tag)
 
 
 def with_device(config: TrainConfig, device: str) -> TrainConfig:
@@ -494,6 +524,7 @@ def train(
         },
         "seed": config.seed,
         "replicate": config.replicate,
+        "tag": config.tag,
         "config": config.raw,
         "base": {"id": config.base, "version": catalog[config.base].version},
         "datasets": data_versions,

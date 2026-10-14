@@ -290,7 +290,9 @@ A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on
 development data, and test data is read once, for the final table. The
 REDACT sample is development data; its `test` split is the rest of the full
-release.
+release (456 Czech records of 496). Loading it is refused if a Czech sample
+record is not in the full release word for word, since it could then stay in
+the test split under a slightly different text.
 
 ## Training
 

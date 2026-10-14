@@ -540,8 +540,7 @@ def parse_redact(records: list[dict[str, object]], language: str) -> list[list[S
     """
     documents: list[list[Sentence]] = []
     for record in records:
-        axes = record.get("axes")
-        if not isinstance(axes, dict) or axes.get("language") != language:
+        if _redact_language(record) != language:
             continue
         raw = str(record["text"])
         spans: list[SourceSpan] = []
@@ -577,7 +576,13 @@ def read_redact(directory: Path, split: str, form: TextForm) -> list[list[Senten
 
     `sample` is the published sample (40 Czech records), development data.
     `test` is every other Czech record of the full release: the full file
-    repeats the sample's records word for word, so they are left out by text.
+    repeats the sample's records word for word, so they are left out by text
+    (pinned release: 496 Czech records, 456 left for test).
+
+    Raises:
+        ValueError: For an unknown split, or if a Czech sample record is not
+            in the full release word for word: it could stay in the test split
+            under a slightly different text.
     """
     if split not in REDACT_FILES:
         msg = f"REDACT has the splits {sorted(REDACT_FILES)}, not {split!r}"
@@ -586,8 +591,28 @@ def read_redact(directory: Path, split: str, form: TextForm) -> list[list[Senten
     if split == "test":
         sample = _redact_records(directory / REDACT_FILES["sample"])
         development = {record["text"] for record in sample}
+        _check_sample_in_release(sample, records)
         records = [record for record in records if record["text"] not in development]
     return parse_redact(records, _REDACT_LANGUAGE)
+
+
+def _check_sample_in_release(
+    sample: list[dict[str, object]], release: list[dict[str, object]]
+) -> None:
+    """Refuse a full release that lacks a Czech sample record word for word (counts only)."""
+    czech = {record["text"] for record in sample if _redact_language(record) == _REDACT_LANGUAGE}
+    missing = czech - {record["text"] for record in release}
+    if missing:
+        msg = (
+            f"{len(missing)} of {len(czech)} Czech sample records are not in the full REDACT "
+            "release word for word; the test split would keep development data"
+        )
+        raise ValueError(msg)
+
+
+def _redact_language(record: dict[str, object]) -> object:
+    axes = record.get("axes")
+    return axes.get("language") if isinstance(axes, dict) else None
 
 
 def _redact_records(path: Path) -> list[dict[str, object]]:

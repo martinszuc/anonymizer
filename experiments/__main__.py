@@ -78,8 +78,8 @@ def main(argv: list[str] | None = None) -> int:
     train_parser.add_argument(
         "--device",
         choices=DEVICES,
-        help="train on this device instead of the config's (e.g. cpu on a machine without "
-        "the Apple GPU); the results record it under machine",
+        help="train on this device instead of the config's (cuda on an NVIDIA GPU, cpu on a "
+        "machine without a GPU); the results record it under machine",
     )
     train_parser.add_argument(
         "--out", type=Path, default=RESULTS, help=f"results directory (default: {RESULTS})"

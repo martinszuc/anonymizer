@@ -8,7 +8,9 @@ import copy
 import hashlib
 import json
 import random
+import sys
 import tomllib
+import types
 import unicodedata
 from pathlib import Path
 from typing import Any
@@ -292,7 +294,7 @@ class TestConfig:
             ("model", "gliner-multi-v2.1", "shipped catalog entry"),
             ("model", "Gliner Tuned", "no valid catalog id"),
             ("base", "onnxtr-fast-base", "unknown name model"),
-            ("device", "cuda", "device must be"),
+            ("device", "rocm", "device must be"),
             ("training.loss", "dice", "loss must be"),
             ("training.focal_alpha", 1.5, "0 < focal_alpha < 1"),
             ("training.steps", 0, "steps must be"),
@@ -358,8 +360,9 @@ class TestConfig:
         config = with_device(parse_train_config({**CONFIG, "device": "mps"}), "cpu")
         assert (config.device, config.name, config.model) == ("cpu", "train-test", "gliner-cs-test")
         assert config.raw["device"] == "mps"
+        assert with_device(parse_train_config(CONFIG), "cuda").device == "cuda"
         with pytest.raises(ValueError, match="device must be one of"):
-            with_device(parse_train_config(CONFIG), "cuda")
+            with_device(parse_train_config(CONFIG), "rocm")
 
     def test_the_shipped_configs_are_valid(self):
         configs = sorted(CONFIGS.glob("train-*.toml"))
@@ -556,3 +559,79 @@ def test_the_command_trains_on_another_device(
     results = json.loads((out / "train-test.json").read_text(encoding="utf-8"))
     assert (results["machine"]["device"], results["config"]["device"]) == ("cpu", "mps")
     assert results["model"]["id"] == "gliner-cs-test"
+
+
+def test_training_on_cuda_records_the_card(
+    training_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    from experiments import train as train_module
+
+    recorder = Recorder()
+    devices: list[str] = []
+
+    def loader(device: str):
+        devices.append(device)
+        return recorder.load
+
+    # A stand-in for torch on a node with an NVIDIA card; CI has neither.
+    torch = types.SimpleNamespace(
+        cuda=types.SimpleNamespace(get_device_name=lambda index: f"NVIDIA A40 #{index}"),
+        version=types.SimpleNamespace(cuda="13.0"),
+    )
+    monkeypatch.setitem(sys.modules, "torch", torch)
+    monkeypatch.setattr(train_module, "_device_available", lambda device: device == "cuda")
+    monkeypatch.setattr(train_module, "fit_gliner", recorder.fit)
+    monkeypatch.setattr(train_module, "_loader", loader)
+    config = tmp_path / "train-test.toml"
+    config.write_text(
+        'name = "train-test"\nmodel = "gliner-cs-test"\nseed = 5\ndevice = "mps"\n'
+        "[training]\nsteps = 1\n"
+        '[[corpora]]\nid = "openpii-1m-cs"\nsplit = "train"\n',
+        encoding="utf-8",
+    )
+    out = tmp_path / "results"
+    args = ["train", "--config", str(config), "--out", str(out), "--device", "cuda"]
+    assert main([*args, "--resource-root", str(training_root)]) == 0
+    assert devices == ["cuda"]
+    results = json.loads((out / "train-test.json").read_text(encoding="utf-8"))
+    recorded = results["machine"]
+    card = (recorded["device"], recorded["gpu"], recorded["cuda"])
+    assert card == ("cuda", "NVIDIA A40 #0", "13.0")
+
+
+def test_a_device_torch_cannot_reach_is_refused_before_any_data_is_read(
+    training_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    from experiments import train as train_module
+
+    def no_data(*_: object) -> None:
+        raise AssertionError("data read for a device that is not there")
+
+    monkeypatch.setattr(train_module, "_device_available", lambda device: False)
+    monkeypatch.setattr(train_module, "training_examples", no_data)
+    config = with_device(parse_train_config(CONFIG), "cuda")
+    with pytest.raises(RuntimeError, match="'cuda' is not available"):
+        train_module.train(config, resource_root=training_root, cache_dir=tmp_path)
+
+
+def test_the_cpu_needs_no_check_and_records_no_card():
+    from experiments import train as train_module
+
+    assert train_module._device_available("cpu")
+    assert train_module._gpu("cpu") == {}
+    assert train_module._gpu("mps") == {}
+
+
+def test_on_linux_the_cpu_model_is_recorded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    from experiments import train as train_module
+
+    cpuinfo = tmp_path / "cpuinfo"
+    cpuinfo.write_text(
+        "processor\t: 0\nvendor_id\t: AuthenticAMD\nmodel name\t: AMD EPYC 7543 32-Core\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(train_module.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(train_module, "CPUINFO", cpuinfo)
+    assert train_module._chip() == "AMD EPYC 7543 32-Core"
+    monkeypatch.setattr(train_module, "CPUINFO", tmp_path / "absent")
+    assert train_module._chip() == train_module.platform.processor()

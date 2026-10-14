@@ -7,7 +7,7 @@ test data.
 
 ```sh
 uv sync --all-packages --group ner          # GLiNER, for the systems that use it
-uv run python -m experiments datasets       # documents and gold spans per split
+uv run python -m experiments datasets       # documents and gold spans per split (test: --final)
 uv run python -m experiments run --config experiments/configs/rq1-dev.toml
 uv run python -m experiments tables experiments/results/rq1-dev.json   # tables only
 uv run python -m experiments errors --config experiments/configs/rq6-dev.toml  # error analysis
@@ -288,7 +288,11 @@ addresses on the test forms. These are derived, not annotated.
 
 A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on
-development data, and test data is read once, for the final table. The
+development data, and test data is read once, for the final table.
+`python -m experiments datasets` likewise counts the test splits only with
+`--final`. The `dataset`-marked tests do read them, to check the loaders
+(counts, and that every gold span cuts its own text); they run no model and
+print nothing. The
 REDACT sample is development data; its `test` split is the rest of the full
 release (456 Czech records of 496). Loading it is refused if a Czech sample
 record is not in the full release word for word, since it could then stay in

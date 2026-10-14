@@ -2,10 +2,11 @@
 
 `python -m experiments train --config experiments/configs/train-<name>.toml`
 reads the train splits of the configured corpora (`examples.py` turns them
-into GLiNER examples), trains the base model on this machine's GPU (`mps`)
-or CPU, stores the weights under `<resource root>/models/<model>/` and lists
-them in that root's `models/trained.json` (`resources.catalog`), so the
-model runs as `rules+<model>` everywhere a name model can. It then scores
+into GLiNER examples), trains the base model on this machine's GPU (`mps` on
+a Mac, `cuda` on an NVIDIA card) or CPU, stores the weights under
+`<resource root>/models/<model>/` and lists them in that root's
+`models/trained.json` (`resources.catalog`), so the model runs as
+`rules+<model>` everywhere a name model can. It then scores
 `rules+<model>` on the configured development splits through
 `experiments.run`, which caches the model's output for later runs, and
 writes `results/<name>.json` and `.md`: commit, machine, versions of the
@@ -18,7 +19,7 @@ description = "..."
 model = "gliner-cs-sk-smoke"  # catalog id of the trained model
 base = "gliner-multi-v2.1"    # a GLiNER name model of the catalog
 seed = 20261010
-device = "mps"                # "mps" (the Apple GPU) or "cpu"
+device = "mps"                # "mps" (the Apple GPU), "cuda" (NVIDIA) or "cpu"
 
 [training]
 steps = 40
@@ -93,7 +94,8 @@ from experiments.report import markdown
 from experiments.run import Progress, git_state, machine, run
 
 TRAINING_SCHEMA = 1
-DEVICES = ("mps", "cpu")
+DEVICES = ("mps", "cuda", "cpu")
+CPUINFO = Path("/proc/cpuinfo")
 LOSSES = ("ce", "focal", "weighted")
 WEIGHTS = "model.safetensors"
 CONFIG = "gliner_config.json"
@@ -158,7 +160,7 @@ class TrainConfig:
         model: Catalog id the trained model is stored under.
         base: Catalog id of the GLiNER model trained from.
         seed: Seeds the draw of examples, their order and the training.
-        device: `mps` or `cpu`.
+        device: `mps`, `cuda` or `cpu`.
         training: Hyperparameters.
         corpora: Train splits.
         evaluate: Development splits to score the trained model on.
@@ -447,6 +449,9 @@ def train(
     Returns:
         The results, as the command line stores them in `<name>.json`.
     """
+    if not _device_available(config.device):
+        msg = f"device {config.device!r} is not available on this machine"
+        raise RuntimeError(msg)
     load = load or _loader(config.device)
     conversion = Conversion()
     examples, data_versions = training_examples(config, resource_root, conversion)
@@ -480,7 +485,13 @@ def train(
         "created": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
         "tool_version": anonymizer.core.__version__,
         "git": git_state(),
-        "machine": {**machine(), "chip": _chip(), "device": config.device, **_packages()},
+        "machine": {
+            **machine(),
+            "chip": _chip(),
+            "device": config.device,
+            **_gpu(config.device),
+            **_packages(),
+        },
         "seed": config.seed,
         "replicate": config.replicate,
         "config": config.raw,
@@ -541,7 +552,7 @@ def fit_gliner(
         # Workers would be separate processes, each with its own copy of the tokenizer.
         dataloader_num_workers=0,
         # Pinned memory is a CUDA feature; on MPS it only warns.
-        dataloader_pin_memory=False,
+        dataloader_pin_memory=config.device == "cuda",
         save_strategy="no",
         seed=config.seed,
         data_seed=config.seed,
@@ -720,8 +731,45 @@ def _evaluate(
     )
 
 
+def _device_available(device: str) -> bool:
+    """Whether torch can train on the device; checked before minutes of loading data.
+
+    Without the check, transformers' Trainer would quietly pick whichever
+    accelerator it finds, and the results would record the wrong device.
+    """
+    if device == "cpu":
+        return True
+    import torch  # pyright: ignore[reportMissingImports]
+
+    if device == "cuda":
+        return torch.cuda.is_available()
+    return torch.backends.mps.is_available()
+
+
+def _gpu(device: str) -> dict[str, str]:
+    """The NVIDIA card trained on and the CUDA version torch was built for; empty off CUDA.
+
+    Replicates belong on one kind of card, so the results name it.
+    """
+    if device != "cuda":
+        return {}
+    import torch  # pyright: ignore[reportMissingImports]
+
+    return {"gpu": torch.cuda.get_device_name(0), "cuda": str(torch.version.cuda)}
+
+
 def _chip() -> str:
-    """The processor's name; on a Mac, the chip (`platform` reports only `arm`)."""
+    """The processor's name: on a Mac the chip, on Linux the CPU model.
+
+    `platform` reports only `arm` on a Mac and often only `x86_64` on Linux.
+    """
+    if platform.system() == "Linux":
+        try:
+            for line in CPUINFO.read_text(encoding="utf-8").splitlines():
+                if line.startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+        except OSError:
+            pass
     if platform.system() == "Darwin":
         try:
             return subprocess.run(

@@ -306,7 +306,7 @@ uv run python -m experiments train --config experiments/configs/train-cs-sk-ce.t
 ```
 
 fine-tunes GLiNER (`train.py`) on this machine's Apple GPU (`device =
-"mps"`) or CPU, from a config naming the base model, the train splits and
+"mps"`), an NVIDIA GPU (`"cuda"`) or CPU, from a config naming the base model, the train splits and
 how many examples to draw from each (seeded), steps, batch size, learning
 rates (encoder, and GLiNER's span and prompt layers), warm-up, weight decay
 and the loss: `ce` (binary cross-entropy per span and label, since GLiNER
@@ -380,13 +380,17 @@ and on how many seeds F2 rose).
 ### Another device
 
 `--device cpu` trains a config written for the Apple GPU on a machine
-without one, under the same name and model id; `--device mps` does the
-reverse. The results keep the file's text under `config` and record the
-device used under `machine`. On a 4-core laptop CPU (i7-8550U) a step of
+without one, under the same name and model id; `--device cuda` trains it on
+an NVIDIA GPU, `--device mps` on a Mac. A device torch cannot reach is
+refused before any data is read, since transformers' Trainer would otherwise
+pick whichever accelerator it finds. The results keep the file's text under
+`config` and record the device used under `machine`, with the processor's
+name and, on CUDA, the card (`gpu`) and the CUDA version torch was built for. On a 4-core laptop CPU (i7-8550U) a step of
 16 took 28 s against about 2 s on the M4 Pro's GPU
 (`results/train-cs-sk-weighted-w5.json` against its replicates), so a run
 takes about 15 hours; the two devices do not compute bit for bit alike, so replicates of
-one setting belong on one device.
+one setting belong on one device, and models compared in one table on one kind of
+machine.
 
 ### Tuning the weight
 

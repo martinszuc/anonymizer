@@ -19,7 +19,8 @@ Everything lives on one storage, mounted on every frontend and node:
   root/         resource root: data/ and models/ (base models, trained models,
                 models/trained.json)
   results/      results/<name>.json and .md of every job
-  logs/         each job's output, <job name>.o<number>
+  logs/         each job's output, <job id>.pbs-m1.metacentrum.cz.OU
+  cache/        the prediction cache of `experiments run`
   tools/        uv, its cache and its Python
 ```
 
@@ -64,24 +65,44 @@ On the frontend:
 source /storage/budejovice1/home/xszum00/anonymizer/scripts/metacentrum/env.sh
 cd $REPO
 CLUSTER=any scripts/metacentrum/submit.sh experiments/configs/train-smoke.toml
-qstat -u $USER            # Q queued, R running; empty once finished
-cat $LOGS/train-smoke.o*  # the GPU it ran on, the loss, the scores
+qstat -x -u $USER                    # Q queued, R running, F finished
+qstat -xf <job id> | grep Exit_status  # 0: it worked
+tail -30 $LOGS/<job id>*.OU           # the GPU it ran on, the loss, the scores
 ```
 
 The smoke run trains 40 steps; when it passes, submit the real runs pinned to
-one cluster (the GPU it reported, under `machine.gpu` in its results):
+one cluster:
 
 ```sh
-CLUSTER=galdor scripts/metacentrum/submit.sh experiments/configs/train-cs-sk-ce.toml base 1 2
+CLUSTER=fobos scripts/metacentrum/submit.sh experiments/configs/train-cs-sk-ce.toml base 1 2
 ```
 
 `base` is the config's own seed, `1 2` its replicates (`<model>-s1`,
 `<model>-s2`); each seed is its own job, and they run side by side. `qdel
 <job id>` cancels one. Each job asks for 1 GPU with at least 16 GB, 4 CPUs,
-32 GB of memory, 40 GB of scratch and 6 hours (`submit.sh`, `train.pbs`); the
-`gpu` queue allows 48 hours.
+32 GB of memory, 40 GB of scratch and 2 hours (`submit.sh`, `train.pbs`); a
+2,000-step run took about 8 minutes of training on an L40S.
 
-On the Mac, copy the results into `experiments/results/metacentrum/`:
+A pinned cluster must serve the `gpu` queue: `pbsnodes <node> | grep
+queue_list` shows the queues of one of its nodes. galdor is not in `gpu`
+(its nodes ran `gpu_long` jobs), and jobs pinned to it wait forever with `Not Running: Insufficient
+amount of resource: queue_list` (`qstat -f <job id> | grep comment`). fobos
+(NVIDIA L40S) serves `gpu`.
+
+`--tag gpu` (`TAG`, the default) names the runs `<name>-gpu` and
+`<model>-gpu`, so a config already run on the Mac keeps its results and model.
+A config never run elsewhere is submitted with `TAG=` and keeps its name.
+
+Run configs naming the trained models are scored on a CPU node (GLiNER
+predicts on the CPU), one config after another since they share the
+prediction cache:
+
+```sh
+scripts/metacentrum/evaluate.sh experiments/configs/rq6-gpu-dev.toml
+```
+
+On the Mac, copy the results of both kinds into `experiments/results/`; a
+file already there is never replaced:
 
 ```sh
 scripts/metacentrum/pull-results.sh
@@ -90,8 +111,7 @@ scripts/metacentrum/pull-results.sh
 ## Rules
 
 - **One kind of machine per table.** Models compared in one table are trained
-  on one cluster (`CLUSTER=`), and runs from the M4 Pro are not mixed in. The
-  results keep their names, so they go to their own folder.
+  on one cluster (`CLUSTER=`), and runs from the M4 Pro are not mixed in.
 - **The checkout is the code that ran.** Results record its commit; pull and
   rerun `setup.sh` before submitting, not while jobs are queued.
 - **Offline.** Jobs run with `HF_HUB_OFFLINE=1`; models load from `root/`

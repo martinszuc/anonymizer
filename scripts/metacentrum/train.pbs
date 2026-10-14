@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -l walltime=6:00:00
+#PBS -l walltime=2:00:00
 #PBS -j oe
 # One training run on a GPU node. Submitted by submit.sh, which passes STORE,
 # CONFIG, TAG and SEED, the last two possibly empty (qsub -v), and the resources

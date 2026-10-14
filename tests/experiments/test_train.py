@@ -505,6 +505,24 @@ def test_training_stores_registers_and_scores_the_model(training_root: Path, tmp
     assert "Novák" not in json.dumps(results, ensure_ascii=False)
 
 
+def test_the_scores_after_training_come_from_the_training_device(
+    training_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(run_module, "device_available", lambda device: True)
+    recorder = Recorder()
+    results = train(
+        with_device(parse_train_config(CONFIG), "mps"),
+        resource_root=training_root,
+        cache_dir=tmp_path / "cache",
+        fit=recorder.fit,
+        load=recorder.load,
+    )
+    assert results["evaluation"]["machine"]["device"] == "mps"
+    cached = {path.name for path in (tmp_path / "cache").rglob("*.json")}
+    assert cached
+    assert all(name.endswith("@mps.json") for name in cached)
+
+
 def test_the_command_writes_the_results(
     training_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

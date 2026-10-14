@@ -116,7 +116,7 @@ from experiments.metrics import (
     total,
 )
 from experiments.report import UNDEFINED, format_interval
-from experiments.run import corpus_models, git_state, machine, once, scored_types
+from experiments.run import check_device, corpus_models, git_state, machine_on, once, scored_types
 from experiments.systems import (
     CACHE_FLOOR,
     NameModel,
@@ -607,6 +607,7 @@ def analyse(
     progress: Progress = lambda _: None,
     limit: int | None = None,
     keep_examples: bool = False,
+    device: str = "cpu",
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run the configured systems on the configured splits and sort their errors.
 
@@ -619,20 +620,28 @@ def analyse(
         progress: Told what is running (no corpus text).
         limit: Analyse only the first documents of each split.
         keep_examples: Also collect example spans of the synthetic corpora.
+        device: Where GLiNER predicts, as for `experiments run`.
 
     Returns:
         The results, as stored in `<name>-errors.json`, and the examples by
         corpus and system (empty unless asked for; never part of the results).
+
+    Raises:
+        ValueError: If the device is unknown.
+        RuntimeError: If torch cannot reach it; before any data is read.
     """
+    check_device(device)
     catalog = load_catalog(root=resource_root)
-    load_model = once(load_model or model_loader(resource_root, catalog))
+    load_model = once(load_model or model_loader(resource_root, catalog, device))
     load_splitter = once(load_splitter or splitter_loader(resource_root, catalog))
     corpora: dict[str, Any] = {}
     examples: dict[str, Any] = {}
     for reference in config.datasets:
         corpus = load_corpus(reference.id, reference.split, resource_root, reference.text, limit)
         progress(f"{corpus.key}: {len(corpus.documents)} documents")
-        models = corpus_models(config, corpus, cache_dir, load_model, load_splitter, catalog)
+        models = corpus_models(
+            config, corpus, cache_dir, load_model, load_splitter, catalog, device
+        )
         kept: dict[str, Any] | None = (
             {} if keep_examples and is_synthetic(corpus.dataset, catalog) else None
         )
@@ -648,7 +657,7 @@ def analyse(
         "created": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
         "tool_version": anonymizer.core.__version__,
         "git": git_state(),
-        "machine": machine(),
+        "machine": machine_on(device),
         "seed": config.seed,
         "resamples": config.resamples,
         "cache_floor": CACHE_FLOOR,

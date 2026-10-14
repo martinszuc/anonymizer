@@ -17,6 +17,7 @@ from anonymizer.core.detect import models as models_module
 from anonymizer.core.resources import Catalog
 from anonymizer.core.types import Document, EntityType
 
+from experiments import systems as systems_module
 from experiments.datasets import make_page
 from experiments.systems import (
     CACHE_FLOOR,
@@ -31,6 +32,7 @@ from experiments.systems import (
     cache_path,
     detect,
     gliner_loader,
+    model_loader,
     model_versions,
     parse_system,
 )
@@ -407,6 +409,18 @@ class TestCache:
         assert low.parent == usual.parent
         assert low.name == "dtest@floor0.02.json"
 
+    def test_a_gpu_has_a_file_of_its_own_and_the_cpu_keeps_the_plain_name(self, tmp_path: Path):
+        version = "hdl:11858/00-097C"
+        usual = cache_path(tmp_path, GLINER, "cnec-2.0", version, "dtest")
+        cpu = cache_path(tmp_path, GLINER, "cnec-2.0", version, "dtest", device="cpu")
+        cuda = cache_path(tmp_path, GLINER, "cnec-2.0", version, "dtest", device="cuda")
+        low_mps = cache_path(
+            tmp_path, GLINER, "cnec-2.0", version, "dtest", floor=LOW_CACHE_FLOOR, device="mps"
+        )
+        assert cpu == usual
+        assert cuda.parent == usual.parent
+        assert (cuda.name, low_mps.name) == ("dtest@cuda.json", "dtest@floor0.02@mps.json")
+
     @pytest.mark.parametrize(
         ("threshold", "floor"),
         [(0.3, CACHE_FLOOR), (CACHE_FLOOR, CACHE_FLOOR), (0.04, LOW_CACHE_FLOOR), (0.02, 0.02)],
@@ -422,6 +436,28 @@ class TestCache:
 def test_loader_reports_missing_model(tmp_path: Path):
     with pytest.raises(FileNotFoundError, match="model files missing"):
         gliner_loader(tmp_path)("gliner-multi-v2.1")
+
+
+class _Movable(ScoredStandIn):
+    """A stand-in that records where it is moved, as a torch module would be."""
+
+    def __init__(self) -> None:
+        super().__init__({})
+        self.devices: list[str] = []
+
+    def to(self, device: str) -> "_Movable":
+        self.devices.append(device)
+        return self
+
+
+@pytest.mark.parametrize("device", ["cpu", "cuda", "mps"])
+def test_the_loader_moves_a_gliner_model_to_the_device(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, device: str
+):
+    movable = _Movable()
+    monkeypatch.setattr(systems_module, "load_gliner_model", lambda root, model_id: movable)
+    assert model_loader(tmp_path, device=device)(GLINER) is movable
+    assert movable.devices == [device]
 
 
 def test_model_versions():

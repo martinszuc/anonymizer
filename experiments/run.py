@@ -74,6 +74,7 @@ def run(
     load_splitter: Callable[[str], SentenceSplitter] | None = None,
     progress: Progress = lambda _: None,
     limit: int | None = None,
+    device: str = "cpu",
 ) -> dict[str, Any]:
     """Run the configured systems on the configured splits and score them.
 
@@ -89,20 +90,28 @@ def run(
         progress: Told what is running (no corpus text).
         limit: Score only the first documents of each split, for a quick
             look; recorded in the results.
+        device: Where GLiNER predicts (`DEVICES`); its output is cached per
+            device (`systems.cache_path`) and the results record it.
 
     Returns:
         The results, as the command line stores them in `<name>.json`.
+
+    Raises:
+        ValueError: If the device is unknown.
+        RuntimeError: If torch cannot reach it; before any data is read.
     """
+    check_device(device)
     catalog = load_catalog(root=resource_root)
-    load_model = once(load_model or model_loader(resource_root, catalog))
+    load_model = once(load_model or model_loader(resource_root, catalog, device))
     load_splitter = once(load_splitter or splitter_loader(resource_root, catalog))
     corpora: dict[str, Any] = {}
     for reference in config.datasets:
         corpus = load_corpus(reference.id, reference.split, resource_root, reference.text, limit)
         progress(f"{corpus.key}: {len(corpus.documents)} documents")
-        corpora[corpus.key] = _run_corpus(
-            config, corpus, cache_dir, load_model, load_splitter, catalog, progress
+        models = corpus_models(
+            config, corpus, cache_dir, load_model, load_splitter, catalog, device
         )
+        corpora[corpus.key] = _run_corpus(config, corpus, models, progress)
         if config.replicates:
             corpora[corpus.key]["seeds"] = summarize(
                 corpora[corpus.key], config.replicates, config.compare
@@ -115,7 +124,7 @@ def run(
         "created": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
         "tool_version": anonymizer.core.__version__,
         "git": git_state(),
-        "machine": machine(),
+        "machine": machine_on(device),
         "seed": config.seed,
         "resamples": config.resamples,
         "cache_floor": CACHE_FLOOR,
@@ -157,11 +166,13 @@ def corpus_models(
     load_model: Callable[[str], Any],
     load_splitter: Callable[[str], SentenceSplitter],
     catalog: Catalog,
+    device: str = "cpu",
 ) -> dict[tuple[str, float], NameModel]:
     """Return every name model the systems use, wrapped in its cache for this corpus.
 
     The cache file is chosen by model and dataset version, split and, for
-    GLiNER, cache floor (`systems.cache_path`), and its entries by the model
+    GLiNER, cache floor and the device it runs on (`systems.cache_path`;
+    `load_model` must load it there), and its entries by the model
     input, so every command reading the same corpus the same way answers
     from one cache. Models are keyed by catalog id and the cache floor each
     system reads them at (`SystemConfig.cache_floor_of`, from the threshold
@@ -184,6 +195,7 @@ def corpus_models(
                     corpus.split,
                     catalog,
                     floor,
+                    device if gliner else "cpu",
                 )
                 opened[model_id, floor] = cached_model(
                     model_id, PredictionCache(path), load_model, load_splitter, catalog, floor
@@ -195,14 +207,10 @@ def corpus_models(
 def _run_corpus(
     config: RunConfig,
     corpus: Corpus,
-    cache_dir: Path,
-    load_model: Callable[[str], Any],
-    load_splitter: Callable[[str], SentenceSplitter],
-    catalog: Catalog,
+    models: dict[tuple[str, float], NameModel],
     progress: Progress,
 ) -> dict[str, Any]:
     types = scored_types(config, corpus)
-    models = corpus_models(config, corpus, cache_dir, load_model, load_splitter, catalog)
     draws = resamples(len(corpus.documents), config.resamples, config.seed)
 
     per_system: dict[str, dict[tuple[str, str], list[Counts]]] = {}
@@ -374,6 +382,11 @@ def machine() -> dict[str, str]:
         "processor": platform.processor(),
         "python": platform.python_version(),
     }
+
+
+def machine_on(device: str) -> dict[str, str]:
+    """Describe the machine and the device GLiNER ran on; on CUDA also the card."""
+    return {**machine(), "device": device, **gpu(device)}
 
 
 def check_device(device: str) -> None:

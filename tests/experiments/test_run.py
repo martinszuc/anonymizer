@@ -2,13 +2,16 @@
 
 import json
 import shutil
+import sys
 import tomllib
+import types
 from pathlib import Path
 from typing import Any
 
 import pytest
 from anonymizer.core.resources import load_catalog
 
+from experiments import run as run_module
 from experiments.__main__ import main
 from experiments.config import load_config, parse_config, replicate_id
 from experiments.datasets import DATASETS, Corpus, Role, load_corpus
@@ -456,3 +459,92 @@ def test_a_low_threshold_reads_its_own_cache(resource_root: Path, tmp_path: Path
     assert loads == []
     for system in second["corpora"]["cnec-2.0/dtest"]["systems"].values():
         assert system["cache"]["misses"] == 0
+
+
+@pytest.fixture
+def cuda(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A node with an NVIDIA card, as torch would report it; CI has neither."""
+    torch = types.SimpleNamespace(
+        cuda=types.SimpleNamespace(get_device_name=lambda index: f"NVIDIA L40S #{index}"),
+        version=types.SimpleNamespace(cuda="13.0"),
+    )
+    monkeypatch.setitem(sys.modules, "torch", torch)
+    monkeypatch.setattr(run_module, "device_available", lambda device: device != "mps")
+
+
+@pytest.mark.usefixtures("cuda")
+def test_a_gpu_run_has_a_cache_of_its_own_and_records_the_card(resource_root: Path, tmp_path: Path):
+    nametag = "nametag3-czech-cnec2.0-240830"
+    config = {
+        **CONFIG,
+        "datasets": [{"id": "cnec-2.0", "split": "dtest"}],
+        "compare": [],
+        "systems": {"rules+gliner": {"model": "gliner"}, "rules+nametag": {"model": nametag}},
+    }
+    gliner = ScoredStandIn(FOUND)
+
+    def results(device: str) -> dict[str, Any]:
+        return run(
+            parse_config(config),
+            resource_root=resource_root,
+            cache_dir=tmp_path / "cache",
+            load_model=lambda model_id: StandInTagger({}) if model_id == nametag else gliner,
+            load_splitter=lambda _: StandInSplitter(),
+            device=device,
+        )
+
+    on_cuda = results("cuda")
+    machine = on_cuda["machine"]
+    assert (machine["device"], machine["gpu"], machine["cuda"]) == (
+        "cuda",
+        "NVIDIA L40S #0",
+        "13.0",
+    )
+    files = sorted(path.name for path in (tmp_path / "cache").rglob("*.json"))
+    assert files == ["dtest.json", "dtest@cuda.json"]  # NameTag runs on the CPU
+
+    # The CPU never answers from what the GPU predicted, nor the GPU from the CPU's.
+    on_cpu = results("cpu")
+    assert gliner.calls == 2
+    assert on_cpu["machine"]["device"] == "cpu"
+    assert "gpu" not in on_cpu["machine"]
+    systems = on_cpu["corpora"]["cnec-2.0/dtest"]["systems"]
+    assert systems["rules+gliner"]["cache"]["hits"] == 0
+    assert systems["rules+nametag"]["cache"]["misses"] == 0
+    again = results("cuda")["corpora"]["cnec-2.0/dtest"]["systems"]["rules+gliner"]
+    assert again["cache"]["misses"] == 0
+    assert gliner.calls == 2
+
+
+def test_a_device_torch_cannot_reach_is_refused_before_any_data_is_read(
+    resource_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    def no_data(*_: object) -> None:
+        raise AssertionError("data read for a device that is not there")
+
+    monkeypatch.setattr(run_module, "device_available", lambda device: False)
+    monkeypatch.setattr(run_module, "load_corpus", no_data)
+    with pytest.raises(RuntimeError, match="'cuda' is not available"):
+        run(parse_config(CONFIG), resource_root=resource_root, cache_dir=tmp_path, device="cuda")
+    with pytest.raises(ValueError, match="device must be one of"):
+        run(parse_config(CONFIG), resource_root=resource_root, cache_dir=tmp_path, device="rocm")
+
+
+@pytest.mark.usefixtures("cuda")
+def test_the_command_runs_on_the_device_it_is_given(resource_root: Path, tmp_path: Path):
+    config = tmp_path / "rules.toml"
+    config.write_text(
+        'name = "rules-only"\nseed = 3\nresamples = 20\n'
+        '[[datasets]]\nid = "cnec-2.0"\nsplit = "dtest"\n[systems.rules]\n',
+        encoding="utf-8",
+    )
+    out = tmp_path / "results"
+    arguments = ["--config", str(config), "--out", str(out), "--resource-root", str(resource_root)]
+    assert main(["run", *arguments]) == 0
+    assert json.loads((out / "rules-only.json").read_text("utf-8"))["machine"]["device"] == "cpu"
+    assert main(["run", *arguments, "--device", "cuda"]) == 0
+    stored = json.loads((out / "rules-only.json").read_text("utf-8"))["machine"]
+    assert (stored["device"], stored["gpu"]) == ("cuda", "NVIDIA L40S #0")
+    assert main(["errors", *arguments, "--device", "cuda"]) == 0
+    errors = json.loads((out / "rules-only-errors.json").read_text("utf-8"))["machine"]
+    assert errors["device"] == "cuda"

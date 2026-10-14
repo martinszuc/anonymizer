@@ -8,8 +8,9 @@ a Mac, `cuda` on an NVIDIA card) or CPU, stores the weights under
 `models/trained.json` (`resources.catalog`), so the model runs as
 `rules+<model>` everywhere a name model can. It then scores
 `rules+<model>` on the configured development splits through
-`experiments.run`, which caches the model's output for later runs, and
-writes `results/<name>.json` and `.md`: commit, machine, versions of the
+`experiments.run` on the training device, which caches the model's output
+for later runs on that device, and writes `results/<name>.json` and `.md`:
+commit, machine, versions of the
 base model and the data, the config, the counts of the examples, the loss
 during training, the time it took and the scores.
 
@@ -758,6 +759,7 @@ def _evaluate(
         load_model=lambda _: cast("SpanModel", model),
         progress=progress,
         limit=config.limit,
+        device=config.device,
     )
 
 

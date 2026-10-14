@@ -21,6 +21,13 @@ has no `models/` of its own, so from one, name the main checkout. The corpora
 and the model are fetched once with `scripts/download.py` and verified
 against the catalog.
 
+`run` and `errors` predict with GLiNER on the CPU, as the command line and
+the review window do. `--device cuda` (an NVIDIA GPU) or `--device mps` (the
+Apple GPU) moves every GLiNER model of the config there; NameTag 3 stays on
+the CPU. A device torch cannot reach is refused before any data is read. The
+results record the device under `machine` (on CUDA with the card and the CUDA
+version), and each device has its own cache (*Cache*).
+
 ## What a run does
 
 1. **Loads** each configured split (`datasets.py`) into documents of the
@@ -353,8 +360,9 @@ and only development splits for scoring; anything else is refused.
    since new weights need their threshold chosen again.
 4. **Scoring**: the stored model is loaded back through the root's catalog
    and `rules+<model>` is scored on the `[evaluate]` splits, as `experiments
-   run` would (its predictions land in the cache, so a later run of
-   `rq6-dev` reuses them).
+   run --device <training device>` would (its predictions land in that
+   device's cache, so a later run of `rq6-dev` on the same device reuses
+   them).
 5. **Writes** `results/<name>.json` (commit, machine and chip, package
    versions, seed, config, base model and data versions, example counts,
    the loss log, seconds per step, the model's catalog entry, the scores)
@@ -430,8 +438,15 @@ keyed by a hash of the model input (GLiNER: window text, labels, decoding
 mode; NameTag 3: a page's tokens), so a changed text or prompt misses instead
 of answering wrongly. The files hold offsets, labels and scores, no text. A
 trained model's version is the SHA-256 of its weights, so a model trained
-again under the same id starts a new cache; the scores `train` writes come
-from the GPU, a later `run` on the CPU reads them from the cache. GLiNER is
+again under the same id starts a new cache. GLiNER run on a GPU writes
+`<split>@cuda.json` or `<split>@mps.json` beside the CPU's `<split>.json`: a
+GPU sums in another order, so its scores differ from the CPU's in the last
+digits, and a span scored next to a threshold can fall on either side. A run
+therefore reads only what its own device predicted, and `machine.device`
+says where every score came from. The scores `train` writes come from the
+training device and fill its cache, so a later `run` reads them with the same
+`--device`; on the CPU it predicts again. Caches of models trained before
+devices were chosen sit under the plain name although the GPU filled them. GLiNER is
 asked at threshold 0.1 and each system filters upwards, which equals asking at the higher threshold: flat
 decoding is greedy, highest score first (checked on 123 CNEC windows). A
 system with a threshold below 0.1 (cross-entropy at the thresholds matching
@@ -457,7 +472,7 @@ uv run python -m experiments errors --config experiments/configs/name-forms-dev.
 It reads any run config and runs its systems exactly as `run` does (same
 loaders, same `core.pipeline` path, same name model cache), then writes
 `results/<name>-errors.json` and `.md` (`errors.py`). A warm cache answers
-every model input, so after `run` on the same config and commit it takes
+every model input, so after `run` on the same config, commit and `--device` it takes
 seconds per system and loads no model; `cache.misses` in the file says
 whether it did. Persons and addresses are analysed, on the corpora that
 score them.

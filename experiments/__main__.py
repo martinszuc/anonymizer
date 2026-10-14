@@ -32,7 +32,7 @@ from anonymizer.core.resources import load_catalog, resolve_resource_root
 
 from experiments import phenomena
 from experiments.config import load_config
-from experiments.datasets import DATASETS, load_corpus
+from experiments.datasets import DATASETS, Role, load_corpus
 from experiments.errors import analyse, check_examples_folder, write_errors
 from experiments.funsd import SPLITS, run_funsd, write_results
 from experiments.leaks import breakdown, breakdown_markdown, write_breakdown
@@ -112,6 +112,11 @@ def main(argv: list[str] | None = None) -> int:
     tables = commands.add_parser("tables", help="rewrite the tables of a stored results file")
     tables.add_argument("results", type=Path, help="<name>.json")
     datasets = commands.add_parser("datasets", help="count documents and gold spans per split")
+    datasets.add_argument(
+        "--final",
+        action="store_true",
+        help="also count the test splits, which are otherwise not read (as stage = final)",
+    )
     leaks = commands.add_parser("leaks", help="count why the leak check fails on one PDF")
     leaks.add_argument("pdf", type=Path, help="document to load, detect, redact and check")
     leaks.add_argument("--out", type=Path, required=True, help="directory for leaks.json and .md")
@@ -151,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     root = resolve_resource_root(args.resource_root)
     if args.command == "datasets":
-        return _count(root)
+        return _count(root, final=args.final)
     if args.command == "leaks":
         return _leaks(args, root)
     if args.command == "funsd":
@@ -247,10 +252,17 @@ def _funsd(args: argparse.Namespace, root: Path) -> int:
     return 0
 
 
-def _count(root: Path) -> int:
-    """Print documents and gold spans per split; counts only, never text."""
+def _count(root: Path, *, final: bool) -> int:
+    """Print documents and gold spans per split; counts only, never text.
+
+    A test split is read only with `final`, as a run config reads one only
+    with `stage = "final"`.
+    """
     for dataset, spec in DATASETS.items():
         for split, role in spec.splits.items():
+            if role is Role.TEST and not final:
+                print(f"{dataset}/{split}: test data, counted only with --final")
+                continue
             try:
                 corpus = load_corpus(dataset, split, root)
             except FileNotFoundError:

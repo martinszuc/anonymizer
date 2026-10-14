@@ -148,6 +148,24 @@ class TestRedact:
         }
         assert texts == {"sample": [sample[0]["text"]], "test": ["Paní Eva Malá"]}
 
+    def test_a_sample_record_missing_from_the_full_release_is_refused(self, tmp_path: Path):
+        sample = redact_records()
+        # The same record with one extra space would stay in the test split unnoticed.
+        changed = {**sample[0], "text": sample[0]["text"] + " "}
+        (tmp_path / REDACT_FILES["sample"]).write_text(json.dumps(sample), encoding="utf-8")
+        (tmp_path / REDACT_FILES["test"]).write_text(json.dumps([changed]), encoding="utf-8")
+        with pytest.raises(ValueError, match="1 of 1 Czech sample records"):
+            read_redact(tmp_path, "test", TextForm.TOKENS)
+
+    def test_only_czech_sample_records_must_be_in_the_full_release(self, tmp_path: Path):
+        sample = redact_records()
+        english = {"axes": {"language": "EN"}, "text": "Not in the full file", "entities": []}
+        (tmp_path / REDACT_FILES["sample"]).write_text(
+            json.dumps([*sample, english]), encoding="utf-8"
+        )
+        (tmp_path / REDACT_FILES["test"]).write_text(json.dumps(sample), encoding="utf-8")
+        assert read_redact(tmp_path, "test", TextForm.TOKENS) == []
+
     def test_an_unknown_split_is_refused(self, tmp_path: Path):
         with pytest.raises(ValueError, match="'dev'"):
             read_redact(tmp_path, "dev", TextForm.TOKENS)

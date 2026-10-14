@@ -7,6 +7,7 @@ are stand-ins, and every name and number is invented.
 import copy
 import hashlib
 import json
+import random
 import tomllib
 import unicodedata
 from pathlib import Path
@@ -163,6 +164,35 @@ class TestCut:
     def test_a_line_break_in_the_second_half_is_preferred(self):
         text = "a b c d e f g\nh i j k l"
         assert next(cut(text, self._tokens(text), [], 10)) == (0, 7)
+
+    def test_random_pages_are_cut_only_where_no_span_could_be_kept(self):
+        # Overlapping spans can chain into a block longer than the limit; only
+        # then may a cut fall inside a span.
+        draw = random.Random("cut")
+        for _ in range(2000):
+            text = "".join(
+                draw.choice(["a", "bb", "c"]) + draw.choice([" ", " ", "\n"])
+                for _ in range(draw.randint(1, 60))
+            )
+            tokens = self._tokens(text)
+            spans = []
+            for _ in range(draw.randint(0, 8)):
+                first = draw.randrange(len(tokens))
+                spans.append((first, min(len(tokens) - 1, first + draw.randint(0, 5)), "person"))
+            limit = draw.randint(3, 20)
+            ranges = list(cut(text, tokens, spans, limit))
+            assert [first for first, _ in ranges] == [0, *(end for _, end in ranges[:-1])]
+            assert ranges[-1][1] == len(tokens)
+            blocked = {
+                boundary for start, last, _ in spans for boundary in range(start + 1, last + 1)
+            }
+            for first, end in ranges:
+                assert 0 < end - first <= limit
+                avoidable = any(
+                    boundary not in blocked
+                    for boundary in range(first + 1, min(first + limit, len(tokens)) + 1)
+                )
+                assert end == len(tokens) or end not in blocked or not avoidable
 
     def test_long_pages_give_several_examples_with_their_spans(self):
         text = "\n".join(f"Věta {number} zmiňuje Jana Nováka." for number in range(40))

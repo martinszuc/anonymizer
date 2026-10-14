@@ -11,6 +11,7 @@ from anonymizer.core.resources import load_catalog
 
 from experiments.__main__ import main
 from experiments.config import load_config, parse_config, replicate_id
+from experiments.datasets import DATASETS, Corpus, Role, load_corpus
 from experiments.metrics import ANY_TYPE
 from experiments.report import UNDEFINED, format_difference, format_interval, latex, markdown
 from experiments.run import run
@@ -251,6 +252,30 @@ def test_command_line(resource_root: Path, tmp_path: Path, capsys: pytest.Captur
     assert "cnec-2.0/dtest (dev, cs): 1 documents" in printed
     assert "cnec-2.0/train: not stored" in printed
     assert "Novák" not in printed
+
+
+def test_counting_reads_test_splits_only_when_asked_for(
+    resource_root: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    loaded: list[tuple[str, str]] = []
+
+    def load(dataset: str, split: str, *args: Any, **kwargs: Any) -> Corpus:
+        loaded.append((dataset, split))
+        return load_corpus(dataset, split, *args, **kwargs)
+
+    monkeypatch.setattr("experiments.__main__.load_corpus", load)
+    root = ["--resource-root", str(resource_root)]
+
+    assert main(["datasets", *root]) == 0
+    printed = capsys.readouterr().out
+    assert not [ref for ref in loaded if DATASETS[ref[0]].splits[ref[1]] is Role.TEST]
+    assert "cnec-2.0/etest: test data, counted only with --final" in printed
+    assert "cnec-2.0/dtest (dev, cs): 1 documents" in printed
+
+    loaded.clear()
+    assert main(["datasets", "--final", *root]) == 0
+    assert ("cnec-2.0", "etest") in loaded
+    assert "cnec-2.0/etest (test, cs): 1 documents" in capsys.readouterr().out
 
 
 def test_the_earlier_name_and_the_catalog_id_run_one_model(resource_root: Path, tmp_path: Path):

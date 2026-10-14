@@ -92,3 +92,49 @@ jobs:
         run: |
           echo "### Coverage (${{ matrix.os }}, py${{ matrix.python-version }})" >> "$GITHUB_STEP_SUMMARY"
           uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+
+  # A regression check against the latest release: the rules alone on the
+  # benchmark documents (no model to download), compared per item type with
+  # the results attached to that release. It reports in the job summary and
+  # never fails: a lower score may be a fair trade, and the reviewer decides.
+  benchmark-diff:
+    name: Benchmark · rules against the latest release
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --locked --all-packages
+
+      - name: Run the rules on the benchmark documents
+        continue-on-error: true
+        run: uv run python -m benchmark run --systems rules --out benchmark-results > /dev/null
+
+      - name: Download the latest release's results
+        continue-on-error: true
+        run: |
+          gh release download --repo "$GITHUB_REPOSITORY" \
+            --pattern benchmark-results.json --dir baseline
+
+      - name: Compare
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          if [ ! -f benchmark-results/results.json ]; then
+            echo "The benchmark run failed; see the job log." >> "$GITHUB_STEP_SUMMARY"
+          elif [ ! -f baseline/benchmark-results.json ]; then
+            echo "The latest release has no benchmark results to compare with." >> "$GITHUB_STEP_SUMMARY"
+          else
+            uv run python -m benchmark diff baseline/benchmark-results.json \
+              benchmark-results/results.json >> "$GITHUB_STEP_SUMMARY"
+          fi

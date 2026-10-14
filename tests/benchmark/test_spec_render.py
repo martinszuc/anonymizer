@@ -9,7 +9,7 @@ from anonymizer.core.types import EntityType
 
 from benchmark.render import FIXED_DATE, render
 from benchmark.score import compact
-from benchmark.spec import load_document_spec, load_documents, spec_summary
+from benchmark.spec import document_set, load_document_spec, load_documents, spec_summary
 
 
 def _spec(tmp_path: Path, body: str):
@@ -144,3 +144,24 @@ def test_every_planted_item_survives_generation(tmp_path, spec):
             assert compact(item.text) in page_text, item
         else:
             assert any(compact(item.text) in value for value in surfaces[item.carrier]), item
+
+
+def test_document_set_fingerprint_follows_the_files(tmp_path: Path):
+    (tmp_path / "a.toml").write_text('lines = ["Jan Novák"]\n', encoding="utf-8")
+    (tmp_path / "b.toml").write_text('lines = ["Eva"]\n', encoding="utf-8")
+    (tmp_path / "notes.txt").write_text("not a document", encoding="utf-8")
+    first = document_set(tmp_path)
+    assert first["documents"] == 2
+    assert len(first["fingerprint"]) == 64
+
+    # A Windows checkout's line endings read as the same set.
+    (tmp_path / "b.toml").write_bytes(b'lines = ["Eva"]\r\n')
+    assert document_set(tmp_path) == first
+
+    (tmp_path / "b.toml").write_text('lines = ["Eva Malá"]\n', encoding="utf-8")
+    edited = document_set(tmp_path)
+    assert edited["fingerprint"] != first["fingerprint"]
+
+    # The same contents under another name are another set.
+    (tmp_path / "b.toml").rename(tmp_path / "c.toml")
+    assert document_set(tmp_path)["fingerprint"] != edited["fingerprint"]

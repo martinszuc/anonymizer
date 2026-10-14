@@ -13,7 +13,7 @@ from benchmark.score import (
     residue,
     score_detection,
 )
-from benchmark.spec import DocumentSpec, GoldItem
+from benchmark.spec import DocumentSpec, GoldItem, document_set
 
 TEXT = "Smlouvu podepsal Jan Novák, bytem Lidická 12, 602 00 Brno. Kupující souhlasí."
 SPEC = DocumentSpec(
@@ -171,3 +171,19 @@ def test_rules_only_run_writes_results_and_pictures(tmp_path):
     assert "| page | 2/3 / 2 |" in report
     assert "| letter | 1 | 2/3 / 0/1 / 0 |" in report
     assert "| rules | contact | person | page | Jan Novák | missed | yes |" in report
+
+
+def test_a_run_records_its_document_set(tmp_path):
+    documents = tmp_path / "documents"
+    documents.mkdir()
+    (documents / "cs-mail.toml").write_text(
+        'language = "cs"\nkind = "letter"\nlines = ["Piště na [[email:jan.novak@example.com]]."]\n',
+        encoding="utf-8",
+    )
+    results = run(tmp_path / "out", systems=("rules",), documents=documents)
+    assert results["document_set"] == document_set(documents)
+    assert results["totals"]["rules"]["counts"]["found"] == 1
+
+    # Documents given as data come from no files: no fingerprint.
+    given = run(tmp_path / "given", systems=("rules",), specs=[SPEC])
+    assert given["document_set"] == {"fingerprint": None, "documents": 1}

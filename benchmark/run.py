@@ -42,9 +42,10 @@ from benchmark.score import (
     residue,
     score_detection,
 )
-from benchmark.spec import DocumentSpec, load_documents, spec_summary
+from benchmark.spec import DOCUMENTS, DocumentSpec, document_set, load_documents, spec_summary
 
-RESULTS_SCHEMA = 1
+RESULTS_SCHEMA = 2
+"""2 added `document_set`; files of schema 1 have none, and readers accept both."""
 SYSTEMS = ("rules", "rules+gliner")
 """The systems run by default: the rules alone, then with the default name model.
 Any `rules+<model>` naming a catalog name model runs too (see
@@ -58,6 +59,7 @@ def run(
     *,
     systems: tuple[str, ...] = SYSTEMS,
     resource_root: Path = Path(),
+    documents: Path = DOCUMENTS,
     specs: list[DocumentSpec] | None = None,
 ) -> dict[str, Any]:
     """Run every system over every document and write the results.
@@ -66,19 +68,25 @@ def run(
         output: Directory for results, PDFs and images.
         systems: Detector systems to run (`rules`, `rules+<model>`).
         resource_root: Storage root holding `models/`, for the name models.
-        specs: Documents to run; every file in `benchmark/documents` by default.
+        documents: Directory of document files, run when `specs` is not given.
+        specs: Documents to run instead of the files; the results then carry
+            no fingerprint of the set.
 
     Returns:
         The results, as written to `results.json`.
     """
-    specs = specs if specs is not None else load_documents()
+    if specs is None:
+        specs = load_documents(documents)
+        identity = document_set(documents)
+    else:
+        identity = {"fingerprint": None, "documents": len(specs)}
     factories = detector_factories(systems, resource_root)
     (output / "pdf").mkdir(parents=True, exist_ok=True)
     (output / "images").mkdir(parents=True, exist_ok=True)
 
-    documents: dict[str, Any] = {}
+    scores: dict[str, Any] = {}
     for spec in specs:
-        documents[spec.name] = {
+        scores[spec.name] = {
             "summary": spec_summary(spec),
             "systems": {
                 system: _run_one(spec, system, factory, output).to_dict()
@@ -92,9 +100,10 @@ def run(
         "git_commit": git_commit(),
         "models": _model_versions(systems, resource_root),
         "machine": machine(),
+        "document_set": identity,
         "systems": list(factories),
-        "documents": documents,
-        "totals": _totals(documents, list(factories)),
+        "documents": scores,
+        "totals": _totals(scores, list(factories)),
     }
     (output / "results.json").write_text(
         json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8"

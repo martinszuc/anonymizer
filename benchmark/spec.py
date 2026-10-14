@@ -10,6 +10,7 @@ documents that must be long (the model reads at most 384 tokens at once).
 
 from __future__ import annotations
 
+import hashlib
 import re
 import tomllib
 from dataclasses import dataclass, field
@@ -86,6 +87,26 @@ class DocumentSpec:
 def load_documents(directory: Path = DOCUMENTS) -> list[DocumentSpec]:
     """Load every document file in a directory, sorted by name."""
     return [load_document_spec(path) for path in sorted(directory.glob("*.toml"))]
+
+
+def document_set(directory: Path = DOCUMENTS) -> dict[str, Any]:
+    """Identify the set of document files in a directory.
+
+    Runs are comparable only on the same set, and a set can change without
+    changing its size. The fingerprint is a SHA-256 over every file's name and
+    contents, in name order; line endings are normalised, so a Windows checkout
+    gives the same value.
+
+    Returns:
+        `fingerprint` (hex digest) and `documents` (the number of files).
+    """
+    paths = sorted(directory.glob("*.toml"))
+    digest = hashlib.sha256()
+    for path in paths:
+        content = path.read_bytes().replace(b"\r\n", b"\n")
+        digest.update(f"{path.name}\0{len(content)}\0".encode())
+        digest.update(content)
+    return {"fingerprint": digest.hexdigest(), "documents": len(paths)}
 
 
 def load_document_spec(path: Path) -> DocumentSpec:

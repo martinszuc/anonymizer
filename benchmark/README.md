@@ -9,6 +9,8 @@ uv run python -m benchmark run --out benchmark-results
 uv run python -m benchmark run --out benchmark-results --systems rules   # no model
 uv run python -m benchmark run --out benchmark-results --systems rules,rules+<catalog id>
 uv run python -m benchmark history run-a/results.json run-b/results.json --out charts
+uv run python -m benchmark diff baseline/results.json run/results.json   # per type, Markdown
+uv run python -m benchmark backfill v0.4.0 v0.5.0 --out backfill        # earlier code, current documents
 ```
 
 A system is `rules` or `rules+<model>`, the model a catalog name model
@@ -83,6 +85,18 @@ sample), it adds the character error rate.
 | `images/<doc>.<system>.collage.png` | the three side by side |
 | `charts/*.png` | (`history`) found and safe documents per version, found per type |
 
+`results.json` records the document set it was measured on (`document_set`:
+a SHA-256 over the names and contents of `documents/*.toml`, and their
+number). Files from before it was recorded (schema 1) have none.
+
+## Over versions
+
+The documents were written with the rules in view, so the benchmark is a
+development and regression set, not held-out evidence (that is
+`experiments/`). Across versions, a score moves when the code changes or when
+the documents do: releases v0.2.0 and v0.3.0 were measured on 6 documents,
+v0.4.0 and later on 26.
+
 Each release attaches `benchmark-results.json`, the charts and a zip of all
 pictures; `history` over the downloaded `benchmark-results.json` files of
 several releases draws the change across versions:
@@ -93,6 +107,37 @@ for tag in $(gh release list --json tagName --jq '.[].tagName'); do
 done
 uv run python -m benchmark history history/*/benchmark-results.json --out charts
 ```
+
+A line joins only runs on one document set: the same files, read as the same
+number of planted items. Without a fingerprint, the document names stand in
+for the files. The newest run's set is drawn solid, earlier sets dashed and
+labelled with their size, so the jump from 6 to 26 documents is a new line
+and not a step in one.
+
+`backfill` gives one line over the versions: for each tag it checks out that
+tag's code in a temporary git worktree, replaces its `benchmark/documents`
+with the current ones, runs its own `benchmark run` (rules only unless
+`--systems` says otherwise) and records the current set's fingerprint in
+`<out>/<tag>/results.json`. Each tag syncs its own environment from its
+`uv.lock`. Draw the backfilled runs with the release assets or alone:
+
+```sh
+uv run python -m benchmark backfill $(git tag -l 'v*' | grep -v v0.1.0) --out backfill
+uv run python -m benchmark history history/*/benchmark-results.json backfill/*/results.json --out charts
+```
+
+A release and its backfill share a place on the version axis. A tag's own
+harness reads only the carriers it knew (v0.2.0 and v0.3.0 skip form fields,
+annotations, attachments and XMP), so its run scores fewer planted items and
+starts a line of its own. v0.1.0 has no benchmark. The release assets are not
+changed.
+
+Pull requests get the same comparison as a regression check: the Checks
+workflow runs `benchmark run --systems rules`, downloads the latest release's
+`benchmark-results.json` and writes `benchmark diff` to the job summary: per
+item type, found, readable after redaction, and left in the carrier, with a
+change shown `before → after`, plus safe documents and false alarms. It notes
+when the two runs are on different document sets, and never fails the job.
 
 ## Scores
 

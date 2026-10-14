@@ -8,6 +8,11 @@ root's `models/trained.json`, so a client that knows the root reads its
 catalog with `load_catalog(root=...)`; the functions taking a root do so
 when given no catalog. A new kind of model (a token classifier, say) adds one
 loader to `NAME_MODEL_ENGINES` and the package that runs it.
+
+A model's decision threshold is settled here too (`name_model_threshold`):
+the caller's if it gives one, else the catalog entry's, else the engine's
+default. Every client loads through `load_name_model`, so a fine-tuned model
+whose entry names a threshold runs at it everywhere.
 """
 
 from __future__ import annotations
@@ -18,7 +23,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from anonymizer.core.detect.base import Detector
-from anonymizer.core.detect.gliner import GLINER_RESOURCE, load_gliner_detector
+from anonymizer.core.detect.gliner import (
+    DEFAULT_THRESHOLD,
+    GLINER_RESOURCE,
+    load_gliner_detector,
+)
 from anonymizer.core.detect.nametag import NAMETAG_ENGINE, load_nametag_detector
 from anonymizer.core.resources import Catalog, Resource, load_catalog, missing_resources
 
@@ -35,24 +44,37 @@ class NameModelEngine:
     """How models of one engine are loaded.
 
     Attributes:
-        load: Builds the detector from a storage root, a catalog id and the catalog.
+        load: Builds the detector from a storage root, a catalog id, the
+            catalog and the threshold (`None` for an engine without one).
         package: The importable package the engine needs, checked without importing it.
         group: The optional dependency group that installs it (`uv sync --group <group>`).
+        default_threshold: The minimum span score a model runs at when
+            neither its catalog entry nor the caller sets one; `None` for an
+            engine that keeps every span it finds.
     """
 
-    load: Callable[[Path, str, Catalog], Detector]
+    load: Callable[[Path, str, Catalog, float | None], Detector]
     package: str
     group: str
+    default_threshold: float | None = None
 
 
 NAME_MODEL_ENGINES: dict[str, NameModelEngine] = {
     "gliner": NameModelEngine(
-        lambda root, model_id, catalog: load_gliner_detector(root, model_id, catalog=catalog),
+        lambda root, model_id, catalog, threshold: load_gliner_detector(
+            root,
+            model_id,
+            catalog=catalog,
+            threshold=DEFAULT_THRESHOLD if threshold is None else threshold,
+        ),
         package="gliner",
         group="ner",
+        default_threshold=DEFAULT_THRESHOLD,
     ),
     NAMETAG_ENGINE: NameModelEngine(
-        lambda root, model_id, catalog: load_nametag_detector(root, model_id, catalog=catalog),
+        lambda root, model_id, catalog, _threshold: load_nametag_detector(
+            root, model_id, catalog=catalog
+        ),
         package="ufal.udpipe",
         group="ner",
     ),
@@ -108,6 +130,33 @@ def name_model_engine(model_id: str, catalog: Catalog | None = None) -> NameMode
     return NAME_MODEL_ENGINES[name_model(model_id, catalog).engine or ""]
 
 
+def name_model_threshold(
+    model_id: str, catalog: Catalog | None = None, threshold: float | None = None
+) -> float | None:
+    """Return the minimum span score a name model runs at.
+
+    Args:
+        model_id: A name model's catalog id, or an earlier name (`gliner`).
+        catalog: The resource catalog; the one shipped with the core when omitted.
+        threshold: The caller's choice, which wins when given.
+
+    Returns:
+        The caller's threshold, else the catalog entry's, else the engine's
+        default; `None` for an engine without a threshold.
+
+    Raises:
+        ValueError: If no name model has that id, or a threshold is given
+            (by the caller or the entry) for an engine without one.
+    """
+    resource = name_model(model_id, catalog)
+    engine = name_model_engine(resource.id, catalog)
+    chosen = threshold if threshold is not None else resource.threshold
+    if chosen is not None and engine.default_threshold is None:
+        msg = f"name model {resource.id!r} runs on {resource.engine}, which has no threshold"
+        raise ValueError(msg)
+    return chosen if chosen is not None else engine.default_threshold
+
+
 def name_model_installed(model_id: str, catalog: Catalog | None = None) -> bool:
     """Whether a name model's optional dependencies are installed, checked without importing them.
 
@@ -152,27 +201,37 @@ def missing_name_model_files(
     return missing_resources(catalog, name_model(model_id, catalog).id, root)
 
 
-def load_name_model(model_id: str, root: Path, catalog: Catalog | None = None) -> Detector:
-    """Load a name model by catalog id.
+def load_name_model(
+    model_id: str,
+    root: Path,
+    catalog: Catalog | None = None,
+    *,
+    threshold: float | None = None,
+) -> Detector:
+    """Load a name model by catalog id, at its threshold (`name_model_threshold`).
 
     Args:
         model_id: A name model's catalog id, or an earlier name (`gliner`).
         root: Storage root holding `models/` (see `scripts/download.py`).
         catalog: The resource catalog; the shipped one and the root's
             trained models when omitted.
+        threshold: Minimum span score, instead of the catalog entry's or
+            the engine's default.
 
     Returns:
         The ready detector, named after the model; give it to
         `pipeline.build_detector`.
 
     Raises:
-        ValueError: If no name model has that id.
+        ValueError: If no name model has that id, or a threshold is given
+            for an engine without one.
         FileNotFoundError: If its files are not stored.
         ImportError: If its optional dependencies are not installed.
     """
     catalog = catalog or load_catalog(root=root)
     resource = name_model(model_id, catalog)
-    return name_model_engine(resource.id, catalog).load(root, resource.id, catalog)
+    chosen = name_model_threshold(resource.id, catalog, threshold)
+    return name_model_engine(resource.id, catalog).load(root, resource.id, catalog, chosen)
 
 
 def system_model(system: str, catalog: Catalog | None = None) -> str | None:

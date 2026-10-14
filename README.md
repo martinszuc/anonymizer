@@ -147,7 +147,9 @@ dependency group. A model trained in this repository
 (`python -m experiments train`, see [`experiments/README.md`](experiments/README.md))
 has no download source: training lists it in its storage root's
 `models/trained.json` with the SHA-256 of each file, and it is chosen the same way
-whenever that root is the resource root.
+whenever that root is the resource root. A name model's entry may set `threshold`,
+its minimum span score chosen on development data; every client then runs the
+model at it instead of GLiNER's default 0.3.
 
 Files land in `models/<id>/` or `data/<id>/` of the repository (both git-ignored;
 `--root` names another place). The CLI, the review window and the benchmark read

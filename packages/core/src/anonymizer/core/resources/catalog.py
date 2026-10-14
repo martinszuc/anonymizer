@@ -12,6 +12,12 @@ except that `trained` is set, `source` names the training record instead of
 a URL, and its files carry no URL, only a size and a SHA-256. Such an entry
 can be loaded and verified, never fetched; `load_catalog(root=...)` adds it
 to the shipped entries, which it may not replace.
+
+A name model may carry its own decision `threshold`, chosen on development
+data: every client runs the model at it unless the caller gives another
+(`detect.name_model_threshold`). Training never writes one; it is added to
+the entry by hand once chosen, and training the same id again replaces the
+entry without it, since new weights need their threshold chosen again.
 """
 
 from __future__ import annotations
@@ -92,6 +98,8 @@ class Resource:
         notes: Free-text remarks.
         trained: Trained on this machine: listed in a storage root's
             `trained.json`, never downloaded.
+        threshold: A name model's minimum score for a span, used unless the
+            caller gives one; `None` keeps its engine's default.
     """
 
     id: str
@@ -108,6 +116,7 @@ class Resource:
     real_personal_data: bool = False
     notes: str = ""
     trained: bool = False
+    threshold: float | None = None
 
     @property
     def size(self) -> int:
@@ -270,6 +279,7 @@ def _parse_resource(entry: dict[str, Any], *, trained: bool) -> Resource:
     paths = [item.path for item in files]
     if len(set(paths)) != len(paths):
         raise fail("duplicate file path")
+    threshold = _parse_threshold(entry.get("threshold"), uses, fail)
 
     return Resource(
         id=resource_id,
@@ -286,7 +296,21 @@ def _parse_resource(entry: dict[str, Any], *, trained: bool) -> Resource:
         real_personal_data=bool(entry.get("real_personal_data", False)),
         notes=entry.get("notes", "").strip(),
         trained=trained,
+        threshold=threshold,
     )
+
+
+def _parse_threshold(
+    value: object, uses: tuple[str, ...], fail: Callable[[str], ValueError]
+) -> float | None:
+    if value is None:
+        return None
+    if "ner" not in uses:
+        raise fail("only a name model (uses ner) has a threshold")
+    # bool is an int subclass; `threshold = true` is a mistake, not 1.0.
+    if isinstance(value, bool) or not isinstance(value, int | float) or not 0 < value < 1:
+        raise fail(f"threshold must be a number between 0 and 1, exclusive, not {value!r}")
+    return float(value)
 
 
 def _parse_file(

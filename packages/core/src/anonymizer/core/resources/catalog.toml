@@ -16,6 +16,9 @@
 #   requires    ids that must be present for this one to work
 #   real_personal_data  true when the content names real people: local
 #               evaluation only, never a test fixture
+#   threshold   a name model's minimum span score, chosen on development
+#               data; clients run the model at it unless told otherwise.
+#               Omitted: the engine's default (GLiNER 0.3)
 #
 # File fields:
 #   path        location inside the resource directory

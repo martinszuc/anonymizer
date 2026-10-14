@@ -81,6 +81,11 @@ def test_valid_entry_parses():
     assert resource.files[0].sha256 == SHA256_HELLO
 
 
+def test_a_name_model_may_carry_its_threshold():
+    assert parse_catalog(VALID)["tiny-model"].threshold is None
+    assert parse_catalog(_with({"threshold": 0.041}))["tiny-model"].threshold == 0.041
+
+
 def test_source_digest_alone_is_accepted():
     raw = _with({}, {"sha256": None, "source_digest": "md5:b1946ac92492d2347c6235b4d2611184"})
     del raw["resource"][0]["files"][0]["sha256"]
@@ -116,6 +121,13 @@ def test_unknown_id_raises_key_error():
         ({}, {"source_digest": "md5:" + "0" * 31}, "source_digest"),
         ({}, {"unpack": "rar"}, "unpack must be"),
         ({"requires": ["absent"]}, None, "requires unknown resource"),
+        ({"threshold": 0}, None, "threshold must be a number between 0 and 1"),
+        ({"threshold": 1}, None, "threshold must be a number between 0 and 1"),
+        ({"threshold": -0.1}, None, "threshold must be a number between 0 and 1"),
+        ({"threshold": 1.5}, None, "threshold must be a number between 0 and 1"),
+        ({"threshold": True}, None, "threshold must be a number between 0 and 1"),
+        ({"threshold": "0.3"}, None, "threshold must be a number between 0 and 1"),
+        ({"uses": ["tokenizer"], "threshold": 0.3}, None, "only a name model"),
     ],
 )
 def test_invalid_entries_are_refused(change, file_change, message):
@@ -198,6 +210,10 @@ class TestTrainedModels:
         ]
         assert "gliner-cs-tuned" not in load_catalog().resources
 
+    def test_a_trained_entry_may_carry_its_threshold(self, tmp_path: Path):
+        store_trained(tmp_path, trained_entry(threshold=0.041))
+        assert load_catalog(root=tmp_path)["gliner-cs-tuned"].threshold == 0.041
+
     def test_a_root_without_trained_models_reads_the_shipped_catalog(self, tmp_path: Path):
         assert load_catalog(root=tmp_path) == load_catalog()
 
@@ -228,6 +244,7 @@ class TestTrainedModels:
                 },
                 "needs its sha256",
             ),
+            ({"threshold": 0.0}, "threshold must be"),
         ],
     )
     def test_invalid_trained_entries_are_refused(

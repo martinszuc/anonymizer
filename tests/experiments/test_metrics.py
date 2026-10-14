@@ -1,4 +1,8 @@
-"""Matching, scores and bootstrap intervals, checked against hand counts."""
+"""Matching, scores and bootstrap intervals, checked against hand counts and brute force."""
+
+import operator
+import random
+from collections.abc import Iterable, Sequence
 
 import pytest
 from anonymizer.core.types import BBox, Entity, EntityType
@@ -11,6 +15,7 @@ from experiments.metrics import (
     Counts,
     Coverage,
     Resampler,
+    Span,
     document_counts,
     document_coverage,
     interval,
@@ -299,3 +304,100 @@ class TestCoverage:
         )
         assert difference.delta == pytest.approx(-0.5)
         assert difference.p_value == 0.0
+
+
+class TestAgainstBruteForce:
+    """Match counts and leak coverage on random documents, against a count of every character.
+
+    The definitions are read the slow way: a set of offsets per span, every
+    pair of spans compared. Spans lie inside their page, may overlap, nest or
+    repeat, and are of scored and unscored types.
+    """
+
+    TYPES = (PERSON, ADDRESS, EntityType.EMAIL)
+    DOCUMENTS = 500
+
+    @staticmethod
+    def document(draw: random.Random) -> tuple[list[str], list[Entity], list[Entity]]:
+        pages = [
+            "".join(draw.choice("ab \n") for _ in range(draw.randint(1, 25)))
+            for _ in range(draw.randint(1, 3))
+        ]
+
+        def spans() -> list[Entity]:
+            found = []
+            for _ in range(draw.randint(0, 6)):
+                page = draw.randrange(len(pages))
+                start = draw.randrange(len(pages[page]))
+                end = draw.randint(start + 1, len(pages[page]))
+                found.append(entity(draw.choice(TestAgainstBruteForce.TYPES), start, end, page))
+            return found
+
+        return pages, spans(), spans()
+
+    @staticmethod
+    def kinds(scored: Sequence[EntityType]) -> dict[str, set[EntityType]]:
+        """Each scored type alone, and every scored type together as `ANY_TYPE`."""
+        groups = {str(kind): {kind} for kind in scored}
+        return groups | ({ANY_TYPE: set(scored)} if len(scored) > 1 else {})
+
+    @staticmethod
+    def offsets(entities: Iterable[Entity], page: int) -> set[int]:
+        return {
+            offset for item in entities if item.page_index == page for offset in range(*item.span)
+        }
+
+    @staticmethod
+    def overlap(one: Span, other: Span) -> bool:
+        """Whether two (page, start, end) spans share a character."""
+        return one[0] == other[0] and one[1] < other[2] and other[1] < one[2]
+
+    @pytest.mark.parametrize("scored", [(PERSON,), (PERSON, ADDRESS)])
+    def test_match_counts(self, scored: tuple[EntityType, ...]):
+        draw = random.Random(f"match/{len(scored)}")
+        for _ in range(self.DOCUMENTS):
+            _, predicted, gold = self.document(draw)
+            counts = document_counts(predicted, gold, scored)
+            for kind, wanted in self.kinds(scored).items():
+                guesses = {(e.page_index or 0, *e.span) for e in predicted if e.type in wanted}
+                truths = {(e.page_index or 0, *e.span) for e in gold if e.type in wanted}
+                for mode, same in ((STRICT, operator.eq), (PARTIAL, self.overlap)):
+                    assert counts[mode, kind] == Counts(
+                        predicted=len(guesses),
+                        predicted_matched=sum(any(same(g, t) for t in truths) for g in guesses),
+                        gold=len(truths),
+                        gold_matched=sum(any(same(t, g) for g in guesses) for t in truths),
+                    )
+
+    @pytest.mark.parametrize("scored", [(PERSON,), (PERSON, ADDRESS)])
+    def test_leak_coverage(self, scored: tuple[EntityType, ...]):
+        draw = random.Random(f"coverage/{len(scored)}")
+        for _ in range(self.DOCUMENTS):
+            pages, predicted, gold = self.document(draw)
+            coverage = document_coverage(predicted, gold, scored, pages)
+            scored_gold = [item for item in gold if item.type in scored]
+            for kind, wanted in self.kinds(scored).items():
+                expected = Coverage()
+                for page, text in enumerate(pages):
+                    visible = {offset for offset, char in enumerate(text) if not char.isspace()}
+                    # Every prediction covers, whatever its type.
+                    covered = self.offsets(predicted, page)
+                    of_kind = [item for item in gold if item.type in wanted]
+                    gold_chars = self.offsets(of_kind, page) & visible
+                    items = {e.span for e in of_kind if e.page_index == page}
+                    predicted_chars = self.offsets(
+                        (item for item in predicted if item.type in wanted), page
+                    )
+                    expected += Coverage(
+                        gold_characters=len(gold_chars),
+                        residual_characters=len(gold_chars - covered),
+                        gold_items=len(items),
+                        hidden_items=sum(
+                            (set(range(start, end)) & visible) <= covered for start, end in items
+                        ),
+                        over_characters=len(
+                            (predicted_chars & visible) - self.offsets(scored_gold, page)
+                        ),
+                        text_characters=len(visible),
+                    )
+                assert coverage[kind] == expected

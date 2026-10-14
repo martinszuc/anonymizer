@@ -344,6 +344,24 @@ class TestConfig:
                 config["training"].pop(key, None)
         assert ce == weighted
 
+    def test_the_language_configs_differ_from_cross_entropy_only_in_the_data(self):
+        def without_data(path: Path) -> dict[str, Any]:
+            config = tomllib.loads(path.read_text(encoding="utf-8"))
+            for key in ("name", "description", "model", "corpora"):
+                del config[key]
+            return config
+
+        both = without_data(CONFIGS / "train-cs-sk-ce.toml")
+        sizes = {}
+        for language, corpus in (("cs", "cnec-2.0"), ("sk", "uner-sk-snk")):
+            path = CONFIGS / f"train-{language}-ce.toml"
+            assert without_data(path) == both
+            corpora = tomllib.loads(path.read_text(encoding="utf-8"))["corpora"]
+            assert [entry["id"] for entry in corpora] == [corpus, f"openpii-1m-{language}"]
+            sizes[language] = corpora[1]["examples"]
+        # One language's OpenPII draw makes up for the other's, so the amount of data stays.
+        assert sizes == {"cs": 20000, "sk": 20000}
+
     def test_a_seed_from_the_command_line_names_a_replicate(self):
         config = with_seed(parse_train_config(CONFIG), 2)
         assert (config.name, config.model, config.seed, config.replicate) == (

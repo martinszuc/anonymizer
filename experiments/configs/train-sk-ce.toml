@@ -1,0 +1,40 @@
+name = "train-sk-ce"
+description = """
+RQ7, training language: the cross-entropy model of RQ6 (`train-cs-sk-ce`) trained on
+Slovak data only, to measure how training on one language transfers to the other.
+Every UNER Slovak-SNK train example and 20,000 drawn from the OpenPII 1M Slovak train
+split (about 20,900, against 22,308 for cs+sk), so the language changes and the amount
+of data, the steps and every hyperparameter do not. Scored on the Czech and the Slovak
+development splits. Its Czech twin is `train-cs-ce`."""
+model = "gliner-sk-ce"
+base = "gliner-multi-v2.1"
+seed = 20261010
+device = "mps"
+
+[training]
+steps = 2000
+batch_size = 16
+learning_rate = 1e-5
+head_learning_rate = 5e-5
+weight_decay = 0.01
+warmup_ratio = 0.1
+loss = "ce"
+logging_steps = 25
+
+[[corpora]]
+id = "uner-sk-snk"
+split = "train"
+
+[[corpora]]
+id = "openpii-1m-sk"
+split = "train"
+examples = 20000
+
+[evaluate]
+datasets = [
+    { id = "cnec-2.0", split = "dtest" },
+    { id = "uner-sk-snk", split = "dev" },
+    { id = "redact", split = "sample" },
+    { id = "openpii-1m-cs", split = "dev" },
+    { id = "openpii-1m-sk", split = "dev" },
+]

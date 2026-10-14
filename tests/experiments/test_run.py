@@ -224,6 +224,9 @@ class TestConfig:
             register(tmp_path, trained_entry(id=model))
         for path in configs:
             for system in tomllib.loads(path.read_text(encoding="utf-8"))["systems"].values():
+                # A model trained with --tag is named by no training config.
+                if system.get("seeds"):
+                    register(tmp_path, trained_entry(id=system["model"]))
                 for seed in system.get("seeds", []):
                     register(tmp_path, trained_entry(id=replicate_id(system["model"], seed)))
         for path in configs:

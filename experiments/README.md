@@ -396,6 +396,9 @@ machine. `--tag gpu` stores such a run as `<name>-gpu` and `<model>-gpu`
 keeps the results and the model of the run made before; the results record it
 under `tag`.
 
+Training on MetaCentrum's NVIDIA GPUs, from setup to results:
+`docs/metacentrum.md`.
+
 ### Tuning the weight
 
 `positive_weight` is tuned on development data only, against person F2

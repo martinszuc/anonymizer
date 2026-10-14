@@ -1,0 +1,40 @@
+#!/bin/bash
+#PBS -l walltime=2:00:00
+#PBS -j oe
+# One training run on a GPU node. Submitted by submit.sh, which passes STORE,
+# CONFIG, TAG and SEED, the last two possibly empty (qsub -v), and the resources
+# (qsub -l select=...).
+#
+# The job copies the corpora and base models into its scratch, trains with the
+# scratch as the resource root, then keeps the model in the storage's resource
+# root and the results in the storage's results folder.
+set -euo pipefail
+source "$STORE/anonymizer/scripts/metacentrum/env.sh"
+trap 'clean_scratch' EXIT
+
+BASE_MODELS=(gliner-multi-v2.1 mdeberta-v3-base-tokenizer)
+
+echo "job $PBS_JOBID on $(hostname -f): $CONFIG tag ${TAG:-none} seed ${SEED:-from the config}"
+nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv
+
+scratch_root=$SCRATCHDIR/root
+mkdir -p "$scratch_root/models"
+cp -r "$ROOT/data" "$scratch_root/"
+for model in "${BASE_MODELS[@]}"; do
+    cp -r "$ROOT/models/$model" "$scratch_root/models/"
+done
+
+cd "$REPO"
+set --
+if [ -n "${TAG:-}" ]; then
+    set -- "$@" --tag "$TAG"
+fi
+if [ -n "${SEED:-}" ]; then
+    set -- "$@" --seed "$SEED"
+fi
+uv run --no-sync python -m experiments train --config "$CONFIG" "$@" \
+    --device cuda --resource-root "$scratch_root" --out "$SCRATCHDIR/results"
+
+uv run --no-sync python scripts/metacentrum/keep_trained.py "$scratch_root" "$ROOT"
+cp "$SCRATCHDIR"/results/* "$RESULTS/"
+echo "wrote $(cd "$SCRATCHDIR/results" && echo *) to $RESULTS"

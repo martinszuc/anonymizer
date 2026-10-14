@@ -43,22 +43,36 @@ def keep_trained(scratch: Path, store: Path) -> list[str]:
     models = store / "models"
     models.mkdir(parents=True, exist_ok=True)
     kept: list[str] = []
+    holder = _holder()
     for entry in listed["resource"]:
         target = models / entry["id"]
-        staging = target.with_name(target.name + ".part")
+        # Named after the job, so a resubmitted job storing the same model id
+        # cannot copy into this one's staging folder.
+        staging = target.with_name(f"{target.name}.{holder}.part")
+        earlier = target.with_name(f"{target.name}.{holder}.old")
         shutil.rmtree(staging, ignore_errors=True)
         shutil.copytree(scratch / "models" / entry["id"], staging)
-        with _locked(models / LOCK):
-            shutil.rmtree(target, ignore_errors=True)
+        with _locked(models / LOCK, holder):
+            # Moved aside rather than deleted in place: on NFS a file another
+            # process still reads survives its deletion as .nfs*, and the folder
+            # holding it could not be replaced.
+            if target.exists():
+                target.rename(earlier)
             staging.rename(target)
             register(store, entry)
+        shutil.rmtree(earlier, ignore_errors=True)
         kept.append(entry["id"])
     return kept
 
 
+def _holder() -> str:
+    """Name this process: its PBS job when it runs as one, else its process id."""
+    return os.environ.get("PBS_JOBID") or f"pid{os.getpid()}"
+
+
 @contextmanager
-def _locked(path: Path, timeout: float = LOCK_TIMEOUT) -> Iterator[None]:
-    """Hold a lock file; wait while another job holds it."""
+def _locked(path: Path, holder: str, timeout: float = LOCK_TIMEOUT) -> Iterator[None]:
+    """Hold a lock file naming its holder; wait while another job holds it."""
     deadline = time.monotonic() + timeout
     while True:
         try:
@@ -66,10 +80,15 @@ def _locked(path: Path, timeout: float = LOCK_TIMEOUT) -> Iterator[None]:
             break
         except FileExistsError:
             if time.monotonic() > deadline:
-                msg = f"{path} is still held; delete it if no job is storing a model"
+                held_by = path.read_text(encoding="utf-8").strip() or "an unknown job"
+                msg = (
+                    f"{path} is still held by {held_by}; delete it if that job "
+                    "is no longer running (qstat)"
+                )
                 raise TimeoutError(msg) from None
             time.sleep(1)
     try:
+        os.write(descriptor, holder.encode())
         yield
     finally:
         os.close(descriptor)

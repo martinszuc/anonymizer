@@ -67,10 +67,36 @@ def test_a_store_without_models_gets_its_list(keeper: ModuleType, tmp_path: Path
 
 def test_a_held_lock_is_waited_for_and_then_reported(keeper: ModuleType, tmp_path: Path):
     lock = tmp_path / keeper.LOCK
-    lock.touch()
-    with pytest.raises(TimeoutError, match="still held"), keeper._locked(lock, timeout=0):
+    lock.write_text("1234.pbs-m1", encoding="utf-8")
+    with (
+        pytest.raises(TimeoutError, match=r"held by 1234\.pbs-m1"),
+        keeper._locked(lock, "5678.pbs-m1", timeout=0),
+    ):
         pass
     assert lock.exists()
+
+
+def test_the_lock_names_its_holder_and_is_gone_afterwards(keeper: ModuleType, tmp_path: Path):
+    lock = tmp_path / keeper.LOCK
+    with keeper._locked(lock, "5678.pbs-m1"):
+        assert lock.read_text(encoding="utf-8") == "5678.pbs-m1"
+    assert not lock.exists()
+
+
+def test_staging_folders_are_named_after_the_job(
+    keeper: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PBS_JOBID", "5678.pbs-m1")
+    scratch, store = tmp_path / "scratch", tmp_path / "store"
+    store_trained(scratch, trained_entry())
+    _model(scratch, "gliner-cs-tuned", b"hello\n")
+    # A copy another job left half done must not be touched.
+    _model(store, "gliner-cs-tuned.1234.pbs-m1.part", b"half")
+
+    keeper.keep_trained(scratch, store)
+
+    left = sorted(path.name for path in (store / "models").iterdir())
+    assert left == ["gliner-cs-tuned", "gliner-cs-tuned.1234.pbs-m1.part", "trained.json"]
 
 
 def test_the_command_line_needs_both_roots(keeper: ModuleType):

@@ -35,6 +35,7 @@ fi
 uv run --no-sync python -m experiments train --config "$CONFIG" "$@" \
     --device cuda --resource-root "$scratch_root" --out "$SCRATCHDIR/results"
 
-uv run --no-sync python scripts/metacentrum/keep_trained.py "$scratch_root" "$ROOT"
+# Results first: if keeping the model fails, the scores still survive the scratch.
 cp "$SCRATCHDIR"/results/* "$RESULTS/"
 echo "wrote $(cd "$SCRATCHDIR/results" && echo *) to $RESULTS"
+uv run --no-sync python scripts/metacentrum/keep_trained.py "$scratch_root" "$ROOT"

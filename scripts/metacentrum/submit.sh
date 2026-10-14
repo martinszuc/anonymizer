@@ -16,6 +16,7 @@ if [ $# -lt 1 ] || [ -z "${CLUSTER:-}" ]; then
     exit 2
 fi
 config=$1
+require_config "$config"
 shift
 seeds=("${@:-base}")
 tag=${TAG-gpu}

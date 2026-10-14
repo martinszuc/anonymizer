@@ -280,6 +280,7 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/train-smoke.toml` | training smoke run: 400 examples, 40 steps, 25 documents per dev split |
 | `configs/train-cs-sk-ce.toml`, `train-cs-sk-focal.toml`, `train-cs-sk-weighted.toml` | the first full training runs, differing only in the loss |
 | `configs/train-cs-sk-weighted-w5.toml`, `train-cs-sk-weighted-w10.toml` | the recall-weighted loss at weights 5 and 10 (`train-cs-sk-weighted` is weight 3) |
+| `configs/train-cs-ce.toml`, `train-sk-ce.toml` | RQ7: `train-cs-sk-ce` on one training language, with that language's OpenPII draw doubled so the amount of data stays |
 | `configs/rq6-dev.toml` | the ce and focal models vs rules+gliner and NameTag 3 (Czech, multilingual) on every dev split; train them first |
 | `configs/rq6-loss-dev.toml` | ce, weighted and focal with three seeds each, ce also at threshold 0.125, vs rules+gliner; mean and spread across seeds |
 | `configs/rq6-weight-dev.toml` | weights 3, 5 and 10 of the recall-weighted loss, three seeds each, vs ce, ce@0.125 and focal |

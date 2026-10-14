@@ -20,6 +20,7 @@ from anonymizer.core.detect.gliner import gliner_tokens
 from anonymizer.core.resources import load_catalog, trained_catalog_path
 from anonymizer.core.types import Entity, EntityType
 
+from experiments import run as run_module
 from experiments.__main__ import main
 from experiments.datasets import DATASETS, load_corpus, make_page
 from experiments.examples import (
@@ -653,7 +654,7 @@ def test_training_on_cuda_records_the_card(
         version=types.SimpleNamespace(cuda="13.0"),
     )
     monkeypatch.setitem(sys.modules, "torch", torch)
-    monkeypatch.setattr(train_module, "_device_available", lambda device: device == "cuda")
+    monkeypatch.setattr(run_module, "device_available", lambda device: device == "cuda")
     monkeypatch.setattr(train_module, "fit_gliner", recorder.fit)
     monkeypatch.setattr(train_module, "_loader", loader)
     config = tmp_path / "train-test.toml"
@@ -681,7 +682,7 @@ def test_a_device_torch_cannot_reach_is_refused_before_any_data_is_read(
     def no_data(*_: object) -> None:
         raise AssertionError("data read for a device that is not there")
 
-    monkeypatch.setattr(train_module, "_device_available", lambda device: False)
+    monkeypatch.setattr(run_module, "device_available", lambda device: False)
     monkeypatch.setattr(train_module, "training_examples", no_data)
     config = with_device(parse_train_config(CONFIG), "cuda")
     with pytest.raises(RuntimeError, match="'cuda' is not available"):
@@ -689,11 +690,9 @@ def test_a_device_torch_cannot_reach_is_refused_before_any_data_is_read(
 
 
 def test_the_cpu_needs_no_check_and_records_no_card():
-    from experiments import train as train_module
-
-    assert train_module._device_available("cpu")
-    assert train_module._gpu("cpu") == {}
-    assert train_module._gpu("mps") == {}
+    assert run_module.device_available("cpu")
+    assert run_module.gpu("cpu") == {}
+    assert run_module.gpu("mps") == {}
 
 
 def test_on_linux_the_cpu_model_is_recorded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

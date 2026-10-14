@@ -59,6 +59,9 @@ from experiments.systems import (
 
 RESULTS_SCHEMA = 1
 
+DEVICES = ("mps", "cuda", "cpu")
+"""Where torch runs a model: the Apple GPU, an NVIDIA GPU or the CPU."""
+
 Progress = Callable[[str], None]
 
 
@@ -371,6 +374,44 @@ def machine() -> dict[str, str]:
         "processor": platform.processor(),
         "python": platform.python_version(),
     }
+
+
+def check_device(device: str) -> None:
+    """Refuse a device torch cannot reach; called before minutes of loading data.
+
+    Raises:
+        ValueError: If the device is not one of `DEVICES`.
+        RuntimeError: If torch cannot reach it on this machine.
+    """
+    if device not in DEVICES:
+        msg = f"device must be one of {DEVICES}"
+        raise ValueError(msg)
+    if not device_available(device):
+        msg = f"device {device!r} is not available on this machine"
+        raise RuntimeError(msg)
+
+
+def device_available(device: str) -> bool:
+    """Whether torch can reach the device; the CPU needs no torch to say so."""
+    if device == "cpu":
+        return True
+    import torch  # pyright: ignore[reportMissingImports]
+
+    if device == "cuda":
+        return torch.cuda.is_available()
+    return torch.backends.mps.is_available()
+
+
+def gpu(device: str) -> dict[str, str]:
+    """The NVIDIA card used and the CUDA version torch was built for; empty off CUDA.
+
+    Runs compared in one table belong on one kind of card, so the results name it.
+    """
+    if device != "cuda":
+        return {}
+    import torch  # pyright: ignore[reportMissingImports]
+
+    return {"gpu": torch.cuda.get_device_name(0), "cuda": str(torch.version.cuda)}
 
 
 def git_state() -> dict[str, Any]:

@@ -95,10 +95,9 @@ from experiments.config import DatasetRef, parse_config, replicate_id
 from experiments.datasets import DATASETS, Role, load_corpus
 from experiments.examples import MAX_TOKENS, Conversion, Example, corpus_examples, sample
 from experiments.report import markdown
-from experiments.run import Progress, git_state, machine, run
+from experiments.run import DEVICES, Progress, check_device, git_state, gpu, machine, run
 
 TRAINING_SCHEMA = 1
-DEVICES = ("mps", "cuda", "cpu")
 CPUINFO = Path("/proc/cpuinfo")
 LOSSES = ("ce", "focal", "weighted")
 WEIGHTS = "model.safetensors"
@@ -479,9 +478,9 @@ def train(
     Returns:
         The results, as the command line stores them in `<name>.json`.
     """
-    if not _device_available(config.device):
-        msg = f"device {config.device!r} is not available on this machine"
-        raise RuntimeError(msg)
+    # transformers' Trainer would otherwise quietly pick whichever accelerator
+    # it finds, and the results would record the wrong device.
+    check_device(config.device)
     load = load or _loader(config.device)
     conversion = Conversion()
     examples, data_versions = training_examples(config, resource_root, conversion)
@@ -519,7 +518,7 @@ def train(
             **machine(),
             "chip": _chip(),
             "device": config.device,
-            **_gpu(config.device),
+            **gpu(config.device),
             **_packages(),
         },
         "seed": config.seed,
@@ -760,33 +759,6 @@ def _evaluate(
         progress=progress,
         limit=config.limit,
     )
-
-
-def _device_available(device: str) -> bool:
-    """Whether torch can train on the device; checked before minutes of loading data.
-
-    Without the check, transformers' Trainer would quietly pick whichever
-    accelerator it finds, and the results would record the wrong device.
-    """
-    if device == "cpu":
-        return True
-    import torch  # pyright: ignore[reportMissingImports]
-
-    if device == "cuda":
-        return torch.cuda.is_available()
-    return torch.backends.mps.is_available()
-
-
-def _gpu(device: str) -> dict[str, str]:
-    """The NVIDIA card trained on and the CUDA version torch was built for; empty off CUDA.
-
-    Replicates belong on one kind of card, so the results name it.
-    """
-    if device != "cuda":
-        return {}
-    import torch  # pyright: ignore[reportMissingImports]
-
-    return {"gpu": torch.cuda.get_device_name(0), "cuda": str(torch.version.cuda)}
 
 
 def _chip() -> str:

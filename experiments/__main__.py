@@ -37,9 +37,8 @@ from experiments.errors import analyse, check_examples_folder, write_errors
 from experiments.funsd import SPLITS, run_funsd, write_results
 from experiments.leaks import breakdown, breakdown_markdown, write_breakdown
 from experiments.report import latex, markdown
-from experiments.run import run
+from experiments.run import DEVICES, run
 from experiments.train import (
-    DEVICES,
     load_train_config,
     train,
     with_device,

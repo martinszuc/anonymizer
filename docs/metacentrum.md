@@ -94,11 +94,11 @@ amount of resource: queue_list` (`qstat -f <job id> | grep comment`). fobos
 A config never run elsewhere is submitted with `TAG=` and keeps its name.
 
 Run configs naming the trained models are scored on a CPU node (GLiNER
-predicts on the CPU), one config after another since they share the
-prediction cache:
+predicts on the CPU). Each config is its own job, started only after the one
+before it ended, since they share the prediction cache:
 
 ```sh
-scripts/metacentrum/evaluate.sh experiments/configs/rq6-gpu-dev.toml
+scripts/metacentrum/evaluate.sh experiments/configs/rq6-gpu-dev.toml experiments/configs/rq7-dev.toml
 ```
 
 On the Mac, copy the results of both kinds into `experiments/results/`; a

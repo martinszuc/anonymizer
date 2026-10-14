@@ -42,6 +42,15 @@ def test_model_versions_cover_every_system_model(tmp_path: Path):
     assert versions["gliner-cs-tuned"] == trained_entry()["version"]
 
 
+def test_model_thresholds_record_each_models_own(tmp_path: Path):
+    store_trained(tmp_path, trained_entry(threshold=0.041))
+    systems = ("rules", "rules+gliner", "rules+gliner-cs-tuned")
+    assert run_module._model_thresholds(systems, tmp_path) == {
+        "gliner-multi-v2.1": 0.3,
+        "gliner-cs-tuned": 0.041,
+    }
+
+
 @pytest.mark.parametrize("system", ["gliner", "rules+spacy"])
 def test_an_unknown_system_is_refused(system: str, capsys: pytest.CaptureFixture, tmp_path: Path):
     with pytest.raises(ValueError, match="unknown"):

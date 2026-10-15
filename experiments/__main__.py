@@ -1,5 +1,8 @@
 """Command line: `uv run python -m experiments run --config experiments/configs/rq1-dev.toml`.
 
+`run` and `errors` predict with GLiNER on the CPU; `--device cuda` (or `mps`)
+predicts on a GPU, from a cache of that device's own (`systems.cache_path`).
+
 `train --config experiments/configs/train-<name>.toml` fine-tunes a name
 model, lists it under the resource root and scores it on development data
 (`experiments.train`; needs `uv sync --group train`); `--seed N` trains a
@@ -37,9 +40,8 @@ from experiments.errors import analyse, check_examples_folder, write_errors
 from experiments.funsd import SPLITS, run_funsd, write_results
 from experiments.leaks import breakdown, breakdown_markdown, write_breakdown
 from experiments.report import latex, markdown
-from experiments.run import run
+from experiments.run import DEVICES, run
 from experiments.train import (
-    DEVICES,
     load_train_config,
     train,
     with_device,
@@ -148,6 +150,14 @@ def main(argv: list[str] | None = None) -> int:
     funsd.add_argument(
         "--out", type=Path, default=RESULTS, help=f"results directory (default: {RESULTS})"
     )
+    for command in (run_parser, errors_parser):
+        command.add_argument(
+            "--device",
+            choices=DEVICES,
+            default="cpu",
+            help="where GLiNER predicts (default: cpu; cuda on an NVIDIA GPU, mps on a Mac); "
+            "its output is cached per device and the results record it under machine",
+        )
     for command in (run_parser, train_parser, errors_parser, datasets, leaks, funsd):
         command.add_argument(
             "--resource-root",
@@ -173,7 +183,9 @@ def main(argv: list[str] | None = None) -> int:
         return _errors(args, root)
     config = load_config(args.config, load_catalog(root=root))
     cache_dir = args.cache_dir or root / ".cache" / "experiments"
-    results = run(config, resource_root=root, cache_dir=cache_dir, progress=print)
+    results = run(
+        config, resource_root=root, cache_dir=cache_dir, progress=print, device=args.device
+    )
     args.out.mkdir(parents=True, exist_ok=True)
     path = args.out / f"{config.name}.json"
     path.write_text(json.dumps(results, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -212,6 +224,7 @@ def _errors(args: argparse.Namespace, root: Path) -> int:
         cache_dir=cache_dir,
         progress=print,
         keep_examples=args.examples is not None,
+        device=args.device,
     )
     path = write_errors(results, args.out)
     print(f"wrote {path} and its .md")

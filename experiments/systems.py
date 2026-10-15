@@ -18,7 +18,9 @@ threshold lies below `CACHE_FLOOR` reads a second cache, asked at
 cache stays as it was and other runs can read it meanwhile. A system that
 sets no threshold runs each model at its own (`name_model_threshold`: the
 catalog entry's, else GLiNER's default), so the floor is chosen per model
-from that effective threshold. NameTag 3
+from that effective threshold. GLiNER may run on a GPU (`model_loader`); its
+output there is cached apart from the CPU's, for the reason `cache_path`
+gives. NameTag 3
 (`CachedTagger`) has no threshold; its labels are cached per page of
 sentences. Everything after the model (windows, sentences, word widening,
 the name filter, the rules, merging, propagation, titles) runs for real on
@@ -505,6 +507,7 @@ def cache_path(
     split: str,
     catalog: Catalog | None = None,
     floor: float = CACHE_FLOOR,
+    device: str = "cpu",
 ) -> Path:
     """Return the cache file for a name model on one split of a dataset.
 
@@ -513,9 +516,21 @@ def cache_path(
     A GLiNER cache asked at another floor than `CACHE_FLOOR` has a file of its
     own (`<split>@floor<floor>.json`): a run filling it never writes the file
     other runs read.
+
+    So does a GLiNER model run on a GPU (`<split>@cuda.json`, `@mps`). A GPU
+    adds up in another order than the CPU, so scores differ in the last
+    digits, and a span scored next to a threshold or the floor can fall on
+    either side of it; greedy decoding can then keep another of two
+    overlapping spans. Sharing one file would make a run's scores depend on
+    which device filled it first, and `machine.device` in the results would
+    not say where the predictions came from. The CPU keeps the plain name, so
+    caches written before devices were chosen stay valid. NameTag 3 always
+    runs on the CPU and has no device in its path.
     """
     model = (catalog or load_catalog())[model_id]
     name = split if floor == CACHE_FLOOR else f"{split}@floor{floor:g}"
+    if device != "cpu":
+        name += f"@{device}"
     return (
         cache_dir
         / f"{model.id}@{_safe(model.version)}"
@@ -529,24 +544,36 @@ def _safe(version: str) -> str:
     return re.sub(r"[^A-Za-z0-9.-]+", "_", version)[:64]
 
 
-def gliner_loader(resource_root: Path) -> Callable[[str], SpanModel]:
+def gliner_loader(resource_root: Path, device: str = "cpu") -> Callable[[str], SpanModel]:
     """Return a function loading a catalog GLiNER model, by id, from the storage root.
+
+    Args:
+        resource_root: Storage root holding `models/`.
+        device: Where the model runs (`run.DEVICES`). gliner loads it onto the
+            CPU; its `inference` moves each batch to the model's device.
 
     Raises:
         FileNotFoundError: When called, if the model is not stored under the root.
     """
-    return lambda model_id: load_gliner_model(resource_root, model_id)
+
+    def load(model_id: str) -> SpanModel:
+        model: Any = load_gliner_model(resource_root, model_id)
+        return model.to(device)
+
+    return load
 
 
 def model_loader(
-    resource_root: Path, catalog: Catalog | None = None
+    resource_root: Path, catalog: Catalog | None = None, device: str = "cpu"
 ) -> Callable[[str], SpanModel | Tagger]:
     """Return a function loading a catalog name model of either engine, by id.
+
+    `device` is where a GLiNER model runs; NameTag 3 runs on the CPU.
 
     Raises:
         FileNotFoundError: When called, if the model is not stored under the root.
     """
-    load_gliner = gliner_loader(resource_root)
+    load_gliner = gliner_loader(resource_root, device)
     catalog = catalog or load_catalog()
 
     def load(model_id: str) -> SpanModel | Tagger:

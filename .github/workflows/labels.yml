@@ -1,0 +1,32 @@
+name: Labels
+
+# Labels a pull request "experiments" when its title's Conventional Commit
+# scope is research rather than shipped software (experiments/, docs/findings.md,
+# the MetaCentrum jobs in scripts/), so the release notes list it under its own
+# section (.github/release.yml). Editing the title updates the label.
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+
+permissions: {}
+
+jobs:
+  label:
+    name: Experiments label
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Set the label from the title
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          TITLE: ${{ github.event.pull_request.title }}
+          LABELLED: ${{ contains(github.event.pull_request.labels.*.name, 'experiments') }}
+        run: |
+          if [[ "$TITLE" =~ ^[a-z]+\((experiments|findings|scripts)\)!?: ]]; then
+            gh pr edit "$NUMBER" --add-label experiments
+          elif [[ "$LABELLED" == true ]]; then
+            gh pr edit "$NUMBER" --remove-label experiments
+          fi

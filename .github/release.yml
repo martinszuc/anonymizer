@@ -1,0 +1,15 @@
+# Sections of the release notes. release-please uses changelog-type "github",
+# so GitHub writes the notes from merged pull requests and groups them here.
+# The label is set from the pull request title by .github/workflows/labels.yml.
+changelog:
+  exclude:
+    labels:
+      - "autorelease: pending"
+      - "autorelease: tagged"
+  categories:
+    - title: Software
+      labels: ["*"]
+      exclude:
+        labels: [experiments]
+    - title: Experiments
+      labels: [experiments]

@@ -210,7 +210,8 @@ Each of these cost a bug or a wrong claim once.
 - Releases are automated by release-please (`.github/workflows/release.yml`): it
   derives the next version from the Conventional Commits on `main`, writes the
   changelog from the merged pull requests (one line per PR title, so PR titles
-  must be Conventional too), and keeps a `chore: release X.Y.Z` PR open. Merging it tags the release and attaches the built packages. Never edit
+  must be Conventional too; the scopes `experiments`, `findings` and `scripts`
+  put a PR under *Experiments* instead of *Software*), and keeps a `chore: release X.Y.Z` PR open. Merging it tags the release and attaches the built packages. Never edit
   versions by hand; `version.txt` and the three `__version__` lines (marked
   `x-release-please-version`) are bumped together. Pre-1.0, `feat` bumps the
   minor version and `fix` the patch.

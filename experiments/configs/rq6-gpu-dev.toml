@@ -1,0 +1,54 @@
+name = "rq6-gpu-dev"
+description = """
+RQ6 on one GPU type, development data, three seeds each: the two final candidates,
+cross-entropy and focal loss, retrained on MetaCentrum (fobos, NVIDIA L40S, --tag gpu),
+against GLiNER zero-shot. Cross-entropy is also scored at 0.041, the threshold at which
+a calibrated cross-entropy model reports what weight 10 reports at 0.3 and the control
+focal loss was compared with on the Mac (rq6-threshold-dev). Every trained model here
+comes from one kind of machine; none from the Mac is mixed in. Train the six models
+first (docs/metacentrum.md)."""
+stage = "dev"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+gliner", "rules+gliner-cs-sk-ce-gpu"],
+    ["rules+gliner-cs-sk-ce-gpu", "rules+gliner-cs-sk-focal-gpu"],
+    ["rules+gliner-cs-sk-ce-gpu@0.041", "rules+gliner-cs-sk-focal-gpu"],
+    ["rules+gliner-cs-sk-ce-gpu", "rules+gliner-cs-sk-ce-gpu@0.041"],
+]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[[datasets]]
+id = "openpii-1m-cs"
+split = "dev"
+
+[[datasets]]
+id = "openpii-1m-sk"
+split = "dev"
+
+[systems."rules+gliner"]
+model = "gliner"
+
+[systems."rules+gliner-cs-sk-ce-gpu"]
+model = "gliner-cs-sk-ce-gpu"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-ce-gpu@0.041"]
+model = "gliner-cs-sk-ce-gpu"
+threshold = 0.041
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-focal-gpu"]
+model = "gliner-cs-sk-focal-gpu"
+seeds = [1, 2]

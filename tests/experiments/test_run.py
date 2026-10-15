@@ -222,6 +222,8 @@ class TestConfig:
         for path in sorted(folder.glob("train-*.toml")):
             model = tomllib.loads(path.read_text(encoding="utf-8"))["model"]
             register(tmp_path, trained_entry(id=model))
+            # The same config retrained on MetaCentrum (docs/metacentrum.md, --tag gpu).
+            register(tmp_path, trained_entry(id=f"{model}-gpu"))
         for path in configs:
             for system in tomllib.loads(path.read_text(encoding="utf-8"))["systems"].values():
                 for seed in system.get("seeds", []):

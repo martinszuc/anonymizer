@@ -1,0 +1,55 @@
+name = "rq7-dev"
+description = """
+RQ7, the training language, development data, three seeds each: cross-entropy trained
+on Czech only (train-cs-ce) and on Slovak only (train-sk-ce), with about the same amount
+of data (4 and 6 % fewer examples) and the same steps and hyperparameters as on both
+(train-cs-sk-ce), against GLiNER zero-shot.
+The per-dataset tables show how training on one language transfers to the other: CNEC
+and OpenPII cs are Czech, UNER SNK and OpenPII sk Slovak. All three were trained on
+MetaCentrum (fobos, NVIDIA L40S); the cs+sk model is its --tag gpu run, not the Mac's.
+Train the nine models first (docs/metacentrum.md)."""
+stage = "dev"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+gliner-cs-sk-ce-gpu", "rules+gliner-cs-ce"],
+    ["rules+gliner-cs-sk-ce-gpu", "rules+gliner-sk-ce"],
+    ["rules+gliner-cs-ce", "rules+gliner-sk-ce"],
+    ["rules+gliner", "rules+gliner-cs-ce"],
+    ["rules+gliner", "rules+gliner-sk-ce"],
+]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[[datasets]]
+id = "openpii-1m-cs"
+split = "dev"
+
+[[datasets]]
+id = "openpii-1m-sk"
+split = "dev"
+
+[systems."rules+gliner"]
+model = "gliner"
+
+[systems."rules+gliner-cs-sk-ce-gpu"]
+model = "gliner-cs-sk-ce-gpu"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-ce"]
+model = "gliner-cs-ce"
+seeds = [1, 2]
+
+[systems."rules+gliner-sk-ce"]
+model = "gliner-sk-ce"
+seeds = [1, 2]

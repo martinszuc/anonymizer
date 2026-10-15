@@ -235,7 +235,8 @@ Because PyMuPDF is AGPL, any distributed bundle is AGPL-3.0-or-later.
 Releases are automated with [release-please](https://github.com/googleapis/release-please).
 Every merge to `main` updates an open `chore: release X.Y.Z` pull request with
 the next version (from the Conventional Commit messages) and the changelog (one
-line per merged pull request). Merging that pull request tags the release and publishes it on
+line per merged pull request, with research work, scoped `experiments`,
+`findings` or `scripts`, in a section of its own). Merging that pull request tags the release and publishes it on
 GitHub with the wheels and source archives. See [`CHANGELOG.md`](CHANGELOG.md).
 
 ## License

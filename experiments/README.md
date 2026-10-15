@@ -298,6 +298,8 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/rq6-errors-dev.toml` | for `errors`: focal vs ce over three seeds, and the config's seed of weights 3 and 10 |
 | `configs/rq6-gpu-dev.toml` | ce, ce@0.041 and focal retrained on MetaCentrum (`--tag gpu`, one GPU type), three seeds each, vs rules+gliner |
 | `configs/rq7-dev.toml` | RQ7: ce trained on Czech only, Slovak only and both, all on MetaCentrum, three seeds each, vs rules+gliner |
+| `configs/recipe/train-recipe-r*-s*k.toml` | RQ6 recipe sweep, stage A: `train-cs-sk-ce` with the real corpora repeated 1, 3, 5 or 10 times (`repeat`) and 2,000, 5,000 or 10,000 steps |
+| `configs/rq6-recipe-dev.toml` | the eleven recipes against `train-cs-sk-ce --tag gpu`, config seed, threshold 0.3 |
 
 A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on
@@ -320,7 +322,9 @@ uv run python -m experiments train --config experiments/configs/train-cs-sk-ce.t
 
 fine-tunes GLiNER (`train.py`) on this machine's Apple GPU (`device =
 "mps"`), an NVIDIA GPU (`"cuda"`) or CPU, from a config naming the base model, the train splits and
-how many examples to draw from each (seeded), steps, batch size, learning
+how many examples to draw from each (seeded) and how often each repeats
+(`repeat`, to oversample a small corpus; the results record it under
+`examples.repeated`), steps, batch size, learning
 rates (encoder, and GLiNER's span and prompt layers), warm-up, weight decay
 and the loss: `ce` (binary cross-entropy per span and label, since GLiNER
 scores each pair with a sigmoid), `focal` with `focal_alpha` (the weight of

@@ -39,6 +39,7 @@ focal_gamma = 2.0             # focal: fades out the pairs already classified we
 id = "openpii-1m-cs"
 split = "train"
 examples = 200                # drawn at random (seeded); every example when omitted
+# repeat = 3                  # each drawn example 3 times (default 1): oversamples a small corpus
 
 [evaluate]                    # development splits only
 limit = 40                    # optional: the first documents of each split
@@ -147,11 +148,12 @@ class Hyperparameters:
 
 @dataclass(frozen=True)
 class CorpusRef:
-    """A train split and how many of its examples to draw (`None`: all)."""
+    """A train split, how many of its examples to draw (`None`: all) and how often each repeats."""
 
     id: str
     split: str
     examples: int | None = None
+    repeat: int = 1
 
 
 @dataclass(frozen=True)
@@ -339,7 +341,7 @@ def _positive(value: object, name: str) -> int:
 
 
 def _corpus(entry: dict[str, Any]) -> CorpusRef:
-    _known(entry, frozenset({"id", "split", "examples"}), "a corpus entry")
+    _known(entry, frozenset({"id", "split", "examples", "repeat"}), "a corpus entry")
     corpus_id, split = str(entry["id"]), str(entry["split"])
     spec = DATASETS.get(corpus_id)
     if spec is None:
@@ -350,7 +352,10 @@ def _corpus(entry: dict[str, Any]) -> CorpusRef:
         raise ValueError(msg)
     examples = entry.get("examples")
     return CorpusRef(
-        corpus_id, split, None if examples is None else _positive(examples, "examples")
+        corpus_id,
+        split,
+        None if examples is None else _positive(examples, "examples"),
+        _positive(entry.get("repeat", 1), "repeat"),
     )
 
 
@@ -433,8 +438,9 @@ def training_examples(
         corpus = load_corpus(reference.id, reference.split, resource_root)
         converted = corpus_examples(corpus, spec, conversion, max_tokens=config.training.max_tokens)
         drawn = sample(converted, reference.examples, seed_for(config.seed, corpus.key))
-        conversion.add_drawn(corpus.key, drawn)
-        examples += drawn
+        conversion.add_drawn(corpus.key, drawn, reference.repeat)
+        # Repeats sit next to each other here; the trainer's seeded shuffle spreads them.
+        examples += drawn * reference.repeat
         versions[spec.catalog_id] = catalog[spec.catalog_id].version
     return examples, versions
 

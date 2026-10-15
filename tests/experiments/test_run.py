@@ -222,7 +222,7 @@ class TestConfig:
         # models they train, found under a resource root once trained.
         configs = sorted(set(folder.glob("*.toml")) - set(folder.glob("train-*.toml")))
         assert configs
-        for path in sorted(folder.glob("train-*.toml")):
+        for path in sorted(folder.rglob("train-*.toml")):
             model = tomllib.loads(path.read_text(encoding="utf-8"))["model"]
             register(tmp_path, trained_entry(id=model))
             # The same config retrained on MetaCentrum (docs/metacentrum.md, --tag gpu).

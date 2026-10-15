@@ -1,0 +1,50 @@
+name = "train-recipe-r3-s10k"
+description = """
+RQ6 recipe sweep, stage A: train-cs-sk-ce with every CNEC 2.0 and UNER Slovak-SNK
+train example repeated 3× (6,924 of 26,924 examples, the rest 10,000 from each
+OpenPII 1M split) and 10,000 steps of 16 (about 5.9 passes). Everything else is
+train-cs-sk-ce; its own cell (1×, 2,000 steps) is train-cs-sk-ce --tag gpu. Trained on
+MetaCentrum (docs/metacentrum.md); chosen on development data only."""
+model = "gliner-recipe-r3-s10k"
+base = "gliner-multi-v2.1"
+seed = 20261010
+device = "cuda"
+
+[training]
+steps = 10000
+batch_size = 16
+learning_rate = 1e-5
+head_learning_rate = 5e-5
+weight_decay = 0.01
+warmup_ratio = 0.1
+loss = "ce"
+logging_steps = 25
+
+[[corpora]]
+id = "cnec-2.0"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "uner-sk-snk"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "openpii-1m-cs"
+split = "train"
+examples = 10000
+
+[[corpora]]
+id = "openpii-1m-sk"
+split = "train"
+examples = 10000
+
+[evaluate]
+datasets = [
+    { id = "cnec-2.0", split = "dtest" },
+    { id = "uner-sk-snk", split = "dev" },
+    { id = "redact", split = "sample" },
+    { id = "openpii-1m-cs", split = "dev" },
+    { id = "openpii-1m-sk", split = "dev" },
+]

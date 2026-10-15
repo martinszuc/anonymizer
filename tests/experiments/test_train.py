@@ -300,6 +300,8 @@ class TestConfig:
             ("training.loss", "dice", "loss must be"),
             ("training.focal_alpha", 1.5, "0 < focal_alpha < 1"),
             ("training.steps", 0, "steps must be"),
+            ("corpora.1.repeat", 0, "repeat must be"),
+            ("corpora.1.repeat", 1.5, "repeat must be"),
             ("training.max_tokens", 400, "longer texts than detection reads"),
             ("training.momentum", 0.9, "unknown keys"),
             ("epochs", 3, "unknown keys"),
@@ -406,10 +408,24 @@ class TestConfig:
             with_device(parse_train_config(CONFIG), "rocm")
 
     def test_the_shipped_configs_are_valid(self):
-        configs = sorted(CONFIGS.glob("train-*.toml"))
+        configs = sorted(CONFIGS.rglob("train-*.toml"))
         assert configs
         for path in configs:
             assert load_train_config(path).name == path.stem
+        # A sweep's configs differ from their twin only where the sweep says.
+        recipe = sorted((CONFIGS / "recipe").glob("train-recipe-*.toml"))
+        assert len(recipe) == 11
+        twin = tomllib.loads((CONFIGS / "train-cs-sk-ce.toml").read_text(encoding="utf-8"))
+        for path in recipe:
+            raw = tomllib.loads(path.read_text(encoding="utf-8"))
+            assert {k: v for k, v in raw["training"].items() if k != "steps"} == {
+                k: v for k, v in twin["training"].items() if k != "steps"
+            }
+            assert [{k: v for k, v in c.items() if k != "repeat"} for c in raw["corpora"]] == (
+                twin["corpora"]
+            )
+            assert raw["evaluate"] == twin["evaluate"]
+            assert (raw["base"], raw["seed"]) == (twin["base"], twin["seed"])
 
 
 def test_registering_adds_or_replaces_one_entry(tmp_path: Path):
@@ -545,6 +561,26 @@ def test_the_command_writes_the_results(
     assert results["evaluation"] is None
     assert not (out / "train-test.md").exists()
     assert results["training"]["steps"] == 1
+
+
+def test_a_repeated_corpus_trains_each_example_that_often(training_root: Path):
+    once = parse_train_config(CONFIG)
+    thrice = parse_train_config(_changed("corpora.1.repeat", 3))
+    assert thrice.corpora[1].repeat == 3
+    assert once.corpora[1].repeat == 1
+
+    plain_conversion, repeated_conversion = Conversion(), Conversion()
+    plain, _ = training_examples(once, training_root, plain_conversion)
+    repeated, _ = training_examples(thrice, training_root, repeated_conversion)
+
+    # CNEC's examples come first, then the one UNER example, then two of OpenPII.
+    uner_example = plain[-3]
+    assert len(repeated) == len(plain) + 2
+    assert repeated.count(uner_example) == 3
+    # Counted once as drawn; the results say how often it repeats.
+    assert repeated_conversion.drawn == plain_conversion.drawn
+    assert repeated_conversion.to_dict()["repeated"] == {"uner-sk-snk/train": 3}
+    assert plain_conversion.to_dict()["repeated"] == {}
 
 
 def test_one_seed_draws_the_same_examples_in_the_same_order(training_root: Path):

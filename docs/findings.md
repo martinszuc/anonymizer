@@ -1187,6 +1187,84 @@ the synthetic corpora (REDACT, OpenPII).
   0.79) is therefore understated by an amount not measured. Relevant for the final
   test, whose 456 records carry no verification status.
 
+### 2026-10-15 · The same training on an L40S, and training on one language (development data)
+
+`python -m experiments train` on MetaCentrum (fobos, NVIDIA L40S, torch 2.14.0 built
+for CUDA 13.0, transformers 5.12.1, gliner 0.2.29), commit `0211b37`, clean tree:
+`train-cs-sk-ce` and `train-cs-sk-focal` with `--device cuda --tag gpu`, and
+`train-cs-ce`, `train-sk-ce` (RQ7), each with the config's seed and `--seed 1`, `2`;
+`experiments/results/train-cs-sk-{ce,focal}-gpu*.json`, `train-cs-ce*.json`,
+`train-sk-ce*.json`. The Mac runs are those of 2026-10-11 and 2026-10-12 (Apple M4 Pro,
+MPS). **The scores are the development scores each training run writes** (`evaluation`
+in its results file): each run has its own bootstrap intervals, but nothing here is a
+paired comparison, between machines or between training sets; mean ± sd are over three
+seeds (sample sd, as `seeds.py`). The metric is person F2, partial match, the main metric
+of the evaluation contract. Documents and gold person counts of every corpus are the
+same in all 18 files.
+
+- **Time.** 0.243–0.249 s per step of 16 on the L40S (486–498 s for 2,000 steps); the
+  Mac's replicates took 1.99–2.07 s, 8.0–8.5× as long, its config-seed runs 2.34 (ce)
+  and 3.32 s (focal). The 40-step smoke run on an A40: 0.437 s per step of 8, against
+  1.44 s on the Mac.
+- **Same seed, same batches, a different run.** A seed draws the same examples in the
+  same order on both machines (example and token counts match per seed), yet the
+  logged loss (mean over 25 steps) differed by 0.5–1.3 % at step 25. Three Mac runs of
+  the smoke config agreed to two decimals at step 40 (2026-10-10, 2.8768 to 2.8782);
+  the A40 run logged 2.8013 (commits `aa9a994` and `0211b37`). Last logged loss, mean
+  ± sd: ce Mac 5.99 ± 1.69, L40S 6.85 ± 0.84; focal 0.81 ± 0.25, 0.87 ± 0.20. Over the
+  last 200 steps: ce 7.51 ± 0.23 and 7.70 ± 0.49, focal 1.016 ± 0.049 and 0.989 ±
+  0.016; the last log entry alone varies between seeds by more than the machines
+  differ.
+
+Person, partial match, F2, mean ± sd over three seeds:
+
+| corpus | ce, Mac | ce, L40S | focal, Mac | focal, L40S |
+|---|---|---|---|---|
+| CNEC dtest (cs) | 0.931 ± 0.001 | 0.934 ± 0.002 | 0.929 ± 0.002 | 0.930 ± 0.006 |
+| UNER-SK dev (sk) | 0.899 ± 0.007 | 0.902 ± 0.007 | 0.917 ± 0.002 | 0.920 ± 0.005 |
+| REDACT sample (cs) | 0.946 ± 0.008 | 0.935 ± 0.031 | 0.946 ± 0.008 | 0.943 ± 0.005 |
+| OpenPII cs dev | 0.992 ± 0.001 | 0.991 ± 0.001 | 0.991 ± 0.002 | 0.992 ± 0.000 |
+| OpenPII sk dev | 0.992 ± 0.001 | 0.992 ± 0.000 | 0.991 ± 0.001 | 0.992 ± 0.000 |
+
+- **The machine difference is within the seed spread.** L40S minus Mac, mean person F2,
+  lies within ±0.004 on every corpus for both losses except REDACT ce (−0.011); for
+  every corpus and loss the three L40S seeds' range overlaps the Mac's. The same seed on the
+  two machines differs by up to 0.047 F2 (REDACT ce), 0.011 (UNER-SK ce), 0.009 (CNEC
+  focal), about as much as two seeds on one machine (up to 0.054, 0.013, 0.010).
+- **Focal minus ce holds on both machines**: UNER-SK +0.017 (Mac) and +0.018 (L40S),
+  higher on all three seeds on each; elsewhere within ±0.008.
+- **REDACT ce, L40S config seed**: 0.899 (204 of 219 names found, residual share 0.051,
+  113 characters) against 0.954 and 0.953 for its replicates. The size matches the
+  one-record miss of weights 3 and 10 (2026-10-13: 0.050, 112 characters); not yet
+  checked by an error analysis.
+
+RQ7: cross-entropy trained on one language, L40S. Each seed draws CNEC train (1,406) and
+20,000 OpenPII cs records for `cs` (21,406 examples; 1.30 M GLiNER tokens on the config's
+seed), UNER-SK train (902) and 20,000 OpenPII sk for `sk` (20,902; 1.25 M), all four for
+`cs+sk` (22,308; 1.40 M); 2,000 steps of 16 each, so every model sees 32,000 examples.
+Person, partial match, F2 mean ± sd over three seeds, and mean residual share:
+
+| corpus | cs only | sk only | cs+sk |
+|---|---|---|---|
+| CNEC dtest (cs) | 0.933 ± 0.003, 0.050 | 0.906 ± 0.003, 0.058 | 0.934 ± 0.002, 0.045 |
+| UNER-SK dev (sk) | 0.875 ± 0.003, 0.099 | 0.850 ± 0.012, 0.128 | 0.902 ± 0.007, 0.070 |
+| REDACT sample (cs) | 0.938 ± 0.027, 0.023 | 0.896 ± 0.004, 0.054 | 0.935 ± 0.031, 0.023 |
+| OpenPII cs dev | 0.992 ± 0.002, 0.007 | 0.995 ± 0.001, 0.003 | 0.991 ± 0.001, 0.008 |
+| OpenPII sk dev | 0.992 ± 0.001, 0.006 | 0.995 ± 0.000, 0.003 | 0.992 ± 0.000, 0.006 |
+
+- **CNEC and REDACT (Czech)**: cs only and cs+sk are level (cs+sk minus cs +0.001 and
+  −0.003); sk only is 0.028 and 0.040 below cs+sk, below both others on all three seeds.
+- **UNER-SK (Slovak)**: cs+sk 0.902, cs only 0.875, sk only 0.850; the three seeds'
+  ranges do not overlap, so the Slovak-only model is lowest on the Slovak corpus of real
+  text.
+- **OpenPII (synthetic)**: sk only is highest on the Czech and the Slovak split (0.995
+  against 0.991–0.992), on all three seeds.
+- REDACT, cs only: seed 2 scores 0.907 (residual share 0.048, 108 characters), the other
+  two 0.957 and 0.950, the same pattern as the L40S ce config seed above.
+- **Pending**: `experiments/configs/rq7-dev.toml` (zero-shot GLiNER beside the three,
+  paired bootstrap of each pair, seed by seed) is the measurement for RQ7, and
+  `rq6-gpu-dev.toml` the one for the L40S models of RQ6; neither has been run.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

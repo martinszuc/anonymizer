@@ -96,6 +96,8 @@ class Conversion:
         too_wide: Spans wider than `MAX_SPAN_TOKENS`, per label; the examples
             holding them are left out.
         drawn: Examples drawn for training, per corpus key.
+        repeated: How often each drawn example of a corpus is trained on, per
+            corpus key, when more than once.
         spans: Spans in the drawn examples, per label.
         tokens: Tokens in the drawn examples.
         empty: Drawn examples holding no span.
@@ -104,13 +106,16 @@ class Conversion:
     examples: Counter[str] = field(default_factory=Counter)
     too_wide: Counter[str] = field(default_factory=Counter)
     drawn: Counter[str] = field(default_factory=Counter)
+    repeated: dict[str, int] = field(default_factory=dict)
     spans: Counter[str] = field(default_factory=Counter)
     tokens: int = 0
     empty: int = 0
 
-    def add_drawn(self, key: str, examples: Sequence[Example]) -> None:
-        """Count the examples drawn from one corpus."""
+    def add_drawn(self, key: str, examples: Sequence[Example], repeat: int = 1) -> None:
+        """Count the examples drawn from one corpus, each counted once however often it repeats."""
         self.drawn[key] += len(examples)
+        if repeat > 1:
+            self.repeated[key] = repeat
         for example in examples:
             self.spans.update(label for *_, label in example.spans)
             self.tokens += len(example.tokens)
@@ -122,6 +127,7 @@ class Conversion:
             "converted": dict(sorted(self.examples.items())),
             "too_wide": dict(sorted(self.too_wide.items())),
             "drawn": dict(sorted(self.drawn.items())),
+            "repeated": dict(sorted(self.repeated.items())),
             "spans": dict(sorted(self.spans.items())),
             "tokens": self.tokens,
             "empty": self.empty,

@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -l walltime=24:00:00
+#PBS -l walltime=4:00:00
 #PBS -j oe
 # One `experiments run` on a GPU node: scores the systems of a run config with the
 # models in the storage's resource root. Submitted by evaluate.sh, which passes

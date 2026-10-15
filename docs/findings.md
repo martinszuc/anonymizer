@@ -1261,9 +1261,37 @@ Person, partial match, F2 mean ± sd over three seeds, and mean residual share:
   against 0.991–0.992), on all three seeds.
 - REDACT, cs only: seed 2 scores 0.907 (residual share 0.048, 108 characters), the other
   two 0.957 and 0.950, the same pattern as the L40S ce config seed above.
-- **Pending**: `experiments/configs/rq7-dev.toml` (zero-shot GLiNER beside the three,
-  paired bootstrap of each pair, seed by seed) is the measurement for RQ7, and
-  `rq6-gpu-dev.toml` the one for the L40S models of RQ6; neither has been run.
+
+Paired comparisons: `experiments run` of `rq6-gpu-dev` and `rq7-dev` on an L40S
+(`--device cuda`, commit `c2b5bb6`, clean tree; `experiments/results/rq6-gpu-dev.json`,
+`rq7-dev.json`). The per-system means equal the training-time scores above to three
+decimals. Δ is person F2 (partial match) of the config seeds' pair with its 95 %
+bootstrap interval; *seeds* counts on how many of the three seed pairs the candidate
+scored higher.
+
+| comparison | CNEC | UNER-SK | REDACT | OpenPII cs | OpenPII sk |
+|---|---|---|---|---|---|
+| zero-shot → ce | +0.104 [+0.072, +0.144] | +0.202 [+0.130, +0.270] | +0.052 [−0.042, +0.140] | +0.059 [+0.053, +0.066] | +0.059 [+0.053, +0.065] |
+| ce → focal | −0.010 [−0.019, −0.002], 1/3 | +0.021 [+0.003, +0.040], 3/3 | +0.043 [−0.011, +0.136], 1/3 | +0.001 [−0.001, +0.003] | −0.000 [−0.002, +0.001] |
+| ce@0.041 → focal | −0.008 [−0.016, −0.001], 2/3 | +0.012 [−0.000, +0.028], 3/3 | −0.007 [−0.014, −0.001], 0/3 | −0.000 [−0.001, +0.001] | −0.001 [−0.002, +0.001] |
+| ce → ce@0.041 | −0.002 [−0.008, +0.005], 0/3 | +0.009 [−0.005, +0.024], 3/3 | +0.049 [−0.002, +0.145], 1/3 | +0.001 [+0.000, +0.002] | +0.000 [−0.000, +0.001] |
+| cs+sk → cs only | −0.007 [−0.019, +0.003], 2/3 | −0.023 [−0.047, −0.005], 0/3 | +0.058 [+0.003, +0.152], 1/3 | +0.002 [+0.000, +0.003] | −0.001 [−0.002, +0.001] |
+| cs+sk → sk only | −0.031 [−0.050, −0.014], 0/3 | −0.065 [−0.116, −0.020], 0/3 | −0.008 [−0.024, +0.006], 0/3 | +0.004 [+0.003, +0.006], 3/3 | +0.003 [+0.001, +0.005], 3/3 |
+| cs only → sk only | −0.024 [−0.043, −0.005], 0/3 | −0.041 [−0.099, +0.013], 0/3 | −0.066 [−0.158, −0.009], 0/3 | +0.003 [+0.001, +0.005], 3/3 | +0.004 [+0.002, +0.005], 3/3 |
+
+- **Fine-tuning beats zero-shot** on every corpus and every seed (UNER-SK +0.202); only
+  REDACT's interval includes zero for the config seed, whose ce run is the 0.899 outlier.
+- **Focal against ce at 0.3** gains on UNER-SK on all three seeds, interval above zero,
+  and loses 0.010 on CNEC. **Against ce at 0.041** the UNER-SK gain shrinks to +0.012
+  (interval touching zero, still 3/3 seeds); on REDACT focal is lower on all three seeds,
+  on CNEC lower in the config-seed pair (−0.008) but higher on two of three seeds. Most
+  of focal's edge over ce at 0.3 is the lower threshold. The REDACT intervals of the
+  pairs involving the outlier run are wide; its seed-by-seed counts are the steadier
+  reading.
+- **RQ7**: on the Slovak corpus of real text, training on both languages beats either one
+  alone on every seed (cs only −0.023, sk only −0.065); on CNEC Czech-only is level with
+  both and Slovak-only lower (−0.031). Slovak-only is highest only on OpenPII, both
+  splits (+0.003 to +0.004, 3/3).
 
 ### Toolchain findings: redaction
 

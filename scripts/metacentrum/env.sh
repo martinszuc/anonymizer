@@ -20,3 +20,12 @@ export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
 # Homes are created readable by every MetaCentrum user; what we write is not.
 umask 077
+
+# Jobs start in $REPO, possibly hours later: a path that does not hold there
+# would fail only then. qsub -v splits its list at commas.
+require_config() {
+    if [ ! -f "$REPO/$1" ] || [[ $1 == *,* ]]; then
+        echo "$1: give a config path relative to $REPO, without commas" >&2
+        exit 2
+    fi
+}

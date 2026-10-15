@@ -24,7 +24,8 @@ Everything lives on one storage, mounted on every frontend and node:
   tools/        uv, its cache and its Python
 ```
 
-A job (`train.pbs`) copies `root/data` and the base model into its scratch,
+A job (`train.pbs`) copies `root/data`, the base model and its tokenizer into
+its scratch,
 trains there with the scratch as the resource root, then moves the trained
 model into `root/models/` and lists it in `root/models/trained.json`
 (`keep_trained.py`, under a lock, since jobs finish side by side) and copies
@@ -50,7 +51,8 @@ hold real public names: they stay in `root/models/` and never leave it.
    /storage/budejovice1/home/xszum00/anonymizer/scripts/metacentrum/setup.sh
    ```
 
-2. On the Mac, copy the corpora and the base model (about 6 GB) and verify
+2. On the Mac, copy the corpora, the base model and its tokenizer (about 6 GB),
+   readable by you only, and verify
    them there against the catalog; the password is asked once:
 
    ```sh
@@ -77,9 +79,10 @@ one cluster:
 CLUSTER=fobos scripts/metacentrum/submit.sh experiments/configs/train-cs-sk-ce.toml base 1 2
 ```
 
-`base` is the config's own seed, `1 2` its replicates (`<model>-s1`,
-`<model>-s2`); each seed is its own job, and they run side by side. `qdel
-<job id>` cancels one. Each job asks for 1 GPU with at least 16 GB, 4 CPUs,
+`base` is the config's own seed, `1 2` its replicates (`<model>-gpu-s1`,
+`<model>-gpu-s2` with the default tag); each seed is its own job, and they run
+side by side. `qdel <job id>` cancels one. A config path is given relative to
+the checkout; the scripts refuse any other before queueing. Each job asks for 1 GPU with at least 16 GB, 4 CPUs,
 32 GB of memory, 40 GB of scratch and 2 hours (`submit.sh`, `train.pbs`); a
 2,000-step run took about 8 minutes of training on an L40S.
 
@@ -100,6 +103,11 @@ before it ended, since they share the prediction cache:
 ```sh
 scripts/metacentrum/evaluate.sh experiments/configs/rq6-gpu-dev.toml experiments/configs/rq7-dev.toml
 ```
+
+Never score a model while it is being retrained: the run would cache the new
+weights' predictions under the old version. Submitted together with training,
+`AFTER=<job id>:<job id> scripts/metacentrum/evaluate.sh ...` starts only once
+those training jobs succeeded.
 
 On the Mac, copy the results of both kinds into `experiments/results/`; a
 file already there is never replaced:

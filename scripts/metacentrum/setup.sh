@@ -4,14 +4,21 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
-# The uv this repository is developed with; the installer comes from its official source.
+# The uv this repository is developed with, from its official release, checked
+# against the release's published SHA-256 before it is unpacked.
 UV_VERSION=0.12.17
+UV_ARCHIVE=uv-x86_64-unknown-linux-gnu.tar.gz
+UV_SHA256=fa82fd8dde8e8eefdecada6aa0889666556cfceb690d06e0c3bca49eb3070a63
 
 mkdir -p "$ROOT/data" "$ROOT/models" "$RESULTS" "$LOGS" "$STORE/tools/bin"
 chmod 700 "$STORE"
 if [ "$(uv --version 2>/dev/null | cut -d' ' -f2)" != "$UV_VERSION" ]; then
-    curl -LsSf "https://astral.sh/uv/$UV_VERSION/install.sh" |
-        env UV_INSTALL_DIR="$STORE/tools/bin" UV_NO_MODIFY_PATH=1 sh
+    archive=$STORE/tools/$UV_ARCHIVE
+    curl -LsSf -o "$archive" \
+        "https://github.com/astral-sh/uv/releases/download/$UV_VERSION/$UV_ARCHIVE"
+    echo "$UV_SHA256  $archive" | sha256sum --check --quiet
+    tar -xzf "$archive" -C "$STORE/tools/bin" --strip-components=1
+    rm "$archive"
 fi
 
 cd "$REPO"

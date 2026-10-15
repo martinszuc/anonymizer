@@ -2,7 +2,8 @@
 
 A run writes, under its output directory:
 
-    results.json            every score, with tool/model versions and machine
+    results.json            every score, with tool/model versions, model thresholds
+                            and machine
     results.md              the same as tables
     pdf/<doc>.pdf           the generated originals
     pdf/<doc>.<system>.pdf  the redacted outputs
@@ -23,7 +24,12 @@ from pathlib import Path
 from typing import Any
 
 import anonymizer.core
-from anonymizer.core.detect import Detector, load_name_model, system_model
+from anonymizer.core.detect import (
+    Detector,
+    load_name_model,
+    name_model_threshold,
+    system_model,
+)
 from anonymizer.core.ingest import load_document
 from anonymizer.core.pipeline import build_detector, run_detection
 from anonymizer.core.redact import find_leaks, redact_pdf
@@ -99,6 +105,7 @@ def run(
         "tool_version": anonymizer.core.__version__,
         "git_commit": git_commit(),
         "models": _model_versions(systems, resource_root),
+        "thresholds": _model_thresholds(systems, resource_root),
         "machine": machine(),
         "document_set": identity,
         "systems": list(factories),
@@ -263,6 +270,17 @@ def _model_versions(systems: tuple[str, ...], resource_root: Path) -> dict[str, 
         for system in systems
         if (model_id := system_model(system, catalog)) is not None
         for resource in catalog.with_requirements(model_id)
+    }
+
+
+def _model_thresholds(systems: tuple[str, ...], resource_root: Path) -> dict[str, float]:
+    """Each name model's threshold, which a catalog entry may change without a new version."""
+    catalog = load_catalog(root=resource_root)
+    return {
+        model_id: threshold
+        for system in systems
+        if (model_id := system_model(system, catalog)) is not None
+        if (threshold := name_model_threshold(model_id, catalog)) is not None
     }
 
 

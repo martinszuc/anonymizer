@@ -160,16 +160,18 @@ def corpus_models(
     The cache file is chosen by model and dataset version, split and, for
     GLiNER, cache floor (`systems.cache_path`), and its entries by the model
     input, so every command reading the same corpus the same way answers
-    from one cache. Models are keyed by catalog id and the cache floor of the
-    systems using them (`systems.system_models`); NameTag has no floor, so
-    every floor gets its one cached tagger.
+    from one cache. Models are keyed by catalog id and the cache floor each
+    system reads them at (`SystemConfig.cache_floor_of`, from the threshold
+    the model runs at in that system, its catalog entry's when the system
+    sets none); NameTag has no floor, so every floor gets its one cached
+    tagger.
     """
     models: dict[tuple[str, float], NameModel] = {}
     opened: dict[tuple[str, float], NameModel] = {}
     for system in config.systems:
         for model_id in system.model_ids:
             gliner = name_model(model_id, catalog).engine == SPAN_MODEL_ENGINE
-            floor = system.cache_floor if gliner else CACHE_FLOOR
+            floor = system.cache_floor_of(model_id) if gliner else CACHE_FLOOR
             if (model_id, floor) not in opened:
                 path = cache_path(
                     cache_dir,
@@ -183,7 +185,7 @@ def corpus_models(
                 opened[model_id, floor] = cached_model(
                     model_id, PredictionCache(path), load_model, load_splitter, catalog, floor
                 )
-            models[model_id, system.cache_floor] = opened[model_id, floor]
+            models[model_id, system.cache_floor_of(model_id)] = opened[model_id, floor]
     return models
 
 

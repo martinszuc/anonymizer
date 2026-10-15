@@ -327,6 +327,36 @@ def test_a_model_trained_under_the_root_runs_as_a_system(resource_root: Path, tm
     assert list(tmp_path.glob(f"gliner-cs-tuned@{trained_entry()['version']}/*/*.json"))
 
 
+def test_a_trained_models_low_threshold_reads_the_low_cache(resource_root: Path, tmp_path: Path):
+    store_trained(resource_root, trained_entry(threshold=0.04))
+    stand_in = ScoredStandIn({**FOUND, "Karla Dvořáka": ("person", 0.05)})
+    config = {
+        **CONFIG,
+        "datasets": [{"id": "cnec-2.0", "split": "dtest"}],
+        "compare": [],
+        "systems": {
+            "tuned": {"model": "gliner-cs-tuned"},
+            "tuned@0.3": {"model": "gliner-cs-tuned", "threshold": 0.3},
+        },
+    }
+    results = run(
+        parse_config(config, load_catalog(root=resource_root)),
+        resource_root=resource_root,
+        cache_dir=tmp_path / "cache",
+        load_model=lambda _: stand_in,
+    )
+    assert sorted(set(stand_in.thresholds)) == [LOW_CACHE_FLOOR, CACHE_FLOOR]
+    assert results["systems"]["tuned"]["threshold"] == 0.04
+    assert results["systems"]["tuned"]["cache_floor"] == LOW_CACHE_FLOOR
+    assert results["systems"]["tuned@0.3"]["threshold"] == 0.3
+    systems = results["corpora"]["cnec-2.0/dtest"]["systems"]
+    # Karla Dvořáka (0.05) passes the entry's 0.04, not the system's explicit 0.3.
+    assert systems["tuned"]["scores"]["partial"]["person"]["counts"]["gold_matched"] == 3
+    assert systems["tuned@0.3"]["scores"]["partial"]["person"]["counts"]["gold_matched"] == 2
+    files = sorted(path.name for path in (tmp_path / "cache").rglob("*.json"))
+    assert files == ["dtest.json", "dtest@floor0.02.json"]
+
+
 def test_nametag_and_a_union_run_and_rerun_from_the_cache(resource_root: Path, tmp_path: Path):
     nametag = "nametag3-czech-cnec2.0-240830"
     config = {

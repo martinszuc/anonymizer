@@ -41,6 +41,7 @@ from anonymizer.core.detect.models import (
     missing_name_model_files,
     name_model,
     name_model_installed,
+    name_model_threshold,
     name_models,
     system_model,
 )
@@ -184,6 +185,7 @@ __all__ = [
     "missing_name_model_files",
     "name_model",
     "name_model_installed",
+    "name_model_threshold",
     "name_models",
     "normalize_iban",
     "passes_luhn",

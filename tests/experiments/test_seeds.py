@@ -74,6 +74,31 @@ def test_seeds_add_a_system_per_replicate_with_the_same_options(seeded_root: Pat
     }
 
 
+def test_seeds_run_at_their_entries_threshold_which_must_agree(resource_root: Path):
+    config = {**CONFIG, "compare": [], "systems": {"ce": {"model": "gliner-ce", "seeds": [1]}}}
+    store_trained(
+        resource_root,
+        trained_entry(id="gliner-ce", threshold=0.041),
+        trained_entry(id="gliner-ce-s1"),
+    )
+    with pytest.raises(ValueError, match=r"different thresholds \[0\.041, 0\.3\]"):
+        parse_config(config, load_catalog(root=resource_root))
+    # A threshold in the config settles it for every seed.
+    pinned = {**config, "systems": {"ce": {"model": "gliner-ce", "threshold": 0.3, "seeds": [1]}}}
+    assert len(parse_config(pinned, load_catalog(root=resource_root)).systems) == 2
+
+
+def test_seeds_with_one_threshold_in_their_entries_run_at_it(resource_root: Path):
+    config = {**CONFIG, "compare": [], "systems": {"ce": {"model": "gliner-ce", "seeds": [1]}}}
+    store_trained(
+        resource_root,
+        trained_entry(id="gliner-ce", threshold=0.041),
+        trained_entry(id="gliner-ce-s1", threshold=0.041),
+    )
+    systems = parse_config(config, load_catalog(root=resource_root)).systems
+    assert [system.threshold_of(system.model_ids[0]) for system in systems] == [0.041, 0.041]
+
+
 @pytest.mark.parametrize(
     ("system", "message"),
     [

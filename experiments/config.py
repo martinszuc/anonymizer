@@ -29,6 +29,8 @@ again with `python -m experiments train --seed N`, stored as `<model>-sN`.
 The system runs once per model, as `<system>` and `<system>-sN`, each with
 its own scores, and the results add the mean and spread across them
 (`seeds.py`); a comparison of two such systems is also made seed by seed.
+Without a `threshold` each seed runs at its own catalog entry's, so entries
+setting different ones are refused: give the system a threshold instead.
 
 A test split is refused unless the stage is `final`: thresholds and labels are
 tuned on development data, and the test data is read once, for the final
@@ -169,12 +171,14 @@ def parse_config(raw: dict[str, Any], catalog: Catalog | None = None) -> RunConf
         group = _replicates(name, table["seeds"], system)
         replicates[name] = group
         model = system.model_names[0]
-        systems += [
+        seeded = [
             parse_system(
                 replicate_id(name, seed), {**options, "model": replicate_id(model, seed)}, catalog
             )
             for seed in group.seeds
         ]
+        _check_one_threshold(name, [system, *seeded])
+        systems += seeded
     if not systems:
         msg = "no systems"
         raise ValueError(msg)
@@ -221,6 +225,19 @@ def _replicates(name: str, seeds: object, system: SystemConfig) -> Replicates:
         msg = f"system {name!r}: seeds need exactly one name model, a trained one"
         raise ValueError(msg)
     return Replicates(name, tuple(seeds))
+
+
+def _check_one_threshold(name: str, replicates: list[SystemConfig]) -> None:
+    """Refuse seeds of one setting whose catalog entries set different thresholds."""
+    thresholds = {
+        system.threshold_of(model_id) for system in replicates for model_id in system.span_model_ids
+    }
+    if len(thresholds) > 1:
+        msg = (
+            f"system {name!r}: its seeds' models run at different thresholds "
+            f"{sorted(thresholds)}; give the system a threshold"
+        )
+        raise ValueError(msg)
 
 
 def _dataset(entry: dict[str, Any], stage: str) -> DatasetRef:

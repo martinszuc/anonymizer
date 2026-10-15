@@ -1,5 +1,6 @@
 """Systems built through the pipeline, and the name models' caches."""
 
+import dataclasses
 import json
 from pathlib import Path
 
@@ -53,7 +54,8 @@ def _tagger(tmp_path: Path, stand_in: StandInTagger) -> CachedTagger:
 class TestParseSystem:
     def test_defaults_are_the_shipped_settings(self):
         system = parse_system("shipped", {"model": "gliner"})
-        assert system.threshold == 0.3
+        assert system.threshold is None
+        assert system.threshold_of(GLINER) == 0.3
         assert system.distractors == ("organization",)
         assert system.names_only and system.propagate
         assert system.labels == {"person": EntityType.PERSON, "street address": EntityType.ADDRESS}
@@ -117,9 +119,15 @@ class TestParseSystem:
 
     def test_a_threshold_below_the_floor_reads_the_low_cache(self):
         low = parse_system("low", {"model": "gliner", "threshold": 0.04})
-        assert low.cache_floor == LOW_CACHE_FLOOR
+        assert low.cache_floor_of(GLINER) == LOW_CACHE_FLOOR
         assert low.describe()["cache_floor"] == LOW_CACHE_FLOOR
         assert "cache_floor" not in parse_system("usual", {"model": "gliner"}).describe()
+
+    def test_nametag_reads_the_usual_cache_beside_a_low_threshold(self):
+        system = parse_system("both", {"model": ["gliner", NAMETAG], "threshold": 0.04})
+        assert system.cache_floor_of(GLINER) == LOW_CACHE_FLOOR
+        assert system.cache_floor_of(NAMETAG) == CACHE_FLOOR
+        assert system.describe()["cache_floor"] == LOW_CACHE_FLOOR
 
     def test_nametag_alone_describes_no_gliner_options(self):
         assert parse_system("nametag", {"model": NAMETAG}).describe() == {
@@ -140,6 +148,70 @@ class TestParseSystem:
     def test_invalid_combinations(self, table: dict, message: str):
         with pytest.raises(ValueError, match=message):
             parse_system("bad", table)
+
+
+def _tuned_at(catalog: Catalog, threshold: float) -> Catalog:
+    """The catalog with the fine-tuned model's entry setting a threshold."""
+    tuned = dataclasses.replace(catalog["gliner-cs-tuned"], threshold=threshold)
+    return Catalog({**catalog.resources, tuned.id: tuned})
+
+
+class TestModelThreshold:
+    def test_a_system_without_a_threshold_runs_the_model_at_its_entrys(
+        self, tuned_catalog: Catalog
+    ):
+        catalog = _tuned_at(tuned_catalog, 0.041)
+        system = parse_system("tuned", {"model": "gliner-cs-tuned"}, catalog)
+        assert system.threshold_of("gliner-cs-tuned") == 0.041
+        # Below CACHE_FLOOR: the effective threshold, not the default, picks the cache.
+        assert system.cache_floor_of("gliner-cs-tuned") == LOW_CACHE_FLOOR
+        described = system.describe()
+        assert described["threshold"] == 0.041
+        assert described["cache_floor"] == LOW_CACHE_FLOOR
+
+    def test_the_systems_threshold_wins(self, tuned_catalog: Catalog):
+        catalog = _tuned_at(tuned_catalog, 0.041)
+        system = parse_system("tuned", {"model": "gliner-cs-tuned", "threshold": 0.3}, catalog)
+        assert system.threshold_of("gliner-cs-tuned") == 0.3
+        assert system.cache_floor_of("gliner-cs-tuned") == CACHE_FLOOR
+        assert "cache_floor" not in system.describe()
+
+    def test_a_threshold_below_every_cache_is_refused_unless_the_system_sets_one(
+        self, tuned_catalog: Catalog
+    ):
+        catalog = _tuned_at(tuned_catalog, 0.01)
+        with pytest.raises(ValueError, match=r"below the lowest cache floor.*give the system"):
+            parse_system("tuned", {"model": "gliner-cs-tuned"}, catalog)
+        system = parse_system("tuned", {"model": "gliner-cs-tuned", "threshold": 0.3}, catalog)
+        assert system.threshold_of("gliner-cs-tuned") == 0.3
+
+    def test_two_models_each_run_at_their_own(self, tuned_catalog: Catalog):
+        catalog = _tuned_at(tuned_catalog, 0.041)
+        system = parse_system("both", {"model": ["gliner", "gliner-cs-tuned"]}, catalog)
+        assert system.cache_floor_of(GLINER) == CACHE_FLOOR
+        assert system.cache_floor_of("gliner-cs-tuned") == LOW_CACHE_FLOOR
+        described = system.describe()
+        assert described["thresholds"] == {GLINER: 0.3, "gliner-cs-tuned": 0.041}
+        assert described["cache_floors"] == {
+            GLINER: CACHE_FLOOR,
+            "gliner-cs-tuned": LOW_CACHE_FLOOR,
+        }
+        assert "threshold" not in described
+
+    def test_the_detector_runs_at_the_effective_threshold(
+        self, tuned_catalog: Catalog, tmp_path: Path
+    ):
+        catalog = _tuned_at(tuned_catalog, 0.041)
+        system = parse_system("tuned", {"model": "gliner-cs-tuned"}, catalog)
+        cached = CachedSpanModel(
+            lambda: ScoredStandIn({}), PredictionCache(tmp_path / "c.json"), LOW_CACHE_FLOOR
+        )
+        detector = build_system_detector(system, "cs", {"gliner-cs-tuned": cached})
+        assert isinstance(detector, CombinedDetector)
+        names_only = detector.detectors[1]
+        assert isinstance(names_only, NamesOnly)
+        assert isinstance(names_only.detector, GlinerDetector)
+        assert names_only.detector.threshold == 0.041
 
 
 class TestBuild:

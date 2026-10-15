@@ -1,5 +1,6 @@
 """The name-model registry: models chosen by catalog id, loaded by their engine."""
 
+import dataclasses
 import importlib.util
 import sys
 from pathlib import Path
@@ -12,6 +13,7 @@ from anonymizer.core.detect import (
     missing_name_model_files,
     name_model,
     name_model_installed,
+    name_model_threshold,
     name_models,
     system_model,
 )
@@ -177,6 +179,31 @@ class TestLoading:
         with pytest.raises(FileNotFoundError, match=r"download\.py fetch gliner-cs-tuned"):
             load_name_model("gliner-cs-tuned", tmp_path, CATALOG)
 
+    def test_a_model_runs_at_its_entrys_threshold_unless_the_caller_gives_one(
+        self, loaded_from: list[tuple[Path, Path]]
+    ):
+        root = Path("/models-root")
+        tuned = dataclasses.replace(CATALOG["gliner-cs-tuned"], threshold=0.041)
+        catalog = Catalog({**CATALOG.resources, tuned.id: tuned})
+        detector = load_name_model("gliner-cs-tuned", root, catalog)
+        assert isinstance(detector, GlinerDetector)
+        assert detector.threshold == 0.041
+        chosen = load_name_model("gliner-cs-tuned", root, catalog, threshold=0.5)
+        assert isinstance(chosen, GlinerDetector)
+        assert chosen.threshold == 0.5
+        # Another model of the same catalog keeps the engine's default.
+        default = load_name_model("gliner", root, catalog)
+        assert isinstance(default, GlinerDetector)
+        assert default.threshold == DEFAULT_THRESHOLD
+
+    def test_a_trained_entrys_threshold_reaches_the_loaded_model(
+        self, tmp_path: Path, loaded_from: list[tuple[Path, Path]]
+    ):
+        store_trained(tmp_path, trained_entry(threshold=0.041))
+        detector = load_name_model("gliner-cs-tuned", tmp_path)
+        assert isinstance(detector, GlinerDetector)
+        assert detector.threshold == 0.041
+
     def test_the_encoder_is_the_one_tokenizer_a_model_requires(self):
         assert encoder_resource(load_catalog(), DEFAULT_NAME_MODEL) == "mdeberta-v3-base-tokenizer"
         no_tokenizer = Catalog(
@@ -210,3 +237,28 @@ class TestSystems:
     def test_other_names_are_refused(self, system: str):
         with pytest.raises(ValueError, match=r"choose|unknown"):
             system_model(system)
+
+
+class TestThreshold:
+    NAMETAG = "nametag3-czech-cnec2.0-240830"
+
+    def test_the_caller_wins_then_the_entry_then_the_engine(self):
+        tuned = dataclasses.replace(CATALOG["gliner-cs-tuned"], threshold=0.041)
+        catalog = Catalog({**CATALOG.resources, tuned.id: tuned})
+        assert name_model_threshold("gliner-cs-tuned", catalog, 0.2) == 0.2
+        assert name_model_threshold("gliner-cs-tuned", catalog) == 0.041
+        assert name_model_threshold("gliner", catalog) == DEFAULT_THRESHOLD
+
+    def test_an_engine_without_a_threshold_has_none(self):
+        assert name_model_threshold(self.NAMETAG) is None
+
+    def test_a_threshold_for_an_engine_without_one_is_refused(self):
+        with pytest.raises(ValueError, match="which has no threshold"):
+            name_model_threshold(self.NAMETAG, threshold=0.3)
+        shipped = load_catalog()
+        nametag = dataclasses.replace(shipped[self.NAMETAG], threshold=0.3)
+        catalog = Catalog({**shipped.resources, nametag.id: nametag})
+        with pytest.raises(ValueError, match="which has no threshold"):
+            name_model_threshold(self.NAMETAG, catalog)
+        with pytest.raises(ValueError, match="which has no threshold"):
+            load_name_model(self.NAMETAG, Path("/models-root"), catalog)

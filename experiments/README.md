@@ -34,7 +34,10 @@ against the catalog.
    one, or a list of two combined by `combine = "union"` or `"agreement"`),
    GLiNER's threshold, labels and distractors, the name filter, propagation,
    and the language (the corpus's, recognised from the text, or none).
-   Results keep the model names the config used.
+   Without a `threshold` each GLiNER model runs at its catalog entry's, as
+   the tools run it, else at 0.3; results record the threshold each model
+   ran at. Seeds of one setting must agree on it. Results keep the model
+   names the config used.
 3. **Scores** (`metrics.py`) per type and for any type: precision, recall,
    F1 and F2, with strict (exact span) and partial (any overlap) matching,
    and 95 % bootstrap intervals over documents (seeded). Beside them, leak
@@ -339,7 +342,13 @@ and only development splits for scoring; anything else is refused.
    base, data and licences. From then on `rules+<model>` runs in `experiments
    run`, the benchmark, the CLI (`--name-model <model>`) and the window,
    whenever that root is the resource root. It is never downloaded:
-   `scripts/download.py verify` checks it, `fetch` refuses it.
+   `scripts/download.py verify` checks it, `fetch` refuses it. Training
+   writes no threshold: once one is chosen on development data, add
+   `"threshold": 0.041` to the model's entry in `trained.json` by hand, and
+   the CLI, the window, the benchmark and every run config that sets no
+   `threshold` run the model at it (the entry is validated on every load,
+   0 < t < 1). Training the same id again replaces the entry and drops it,
+   since new weights need their threshold chosen again.
 4. **Scoring**: the stored model is loaded back through the root's catalog
    and `rules+<model>` is scored on the `[evaluate]` splits, as `experiments
    run` would (its predictions land in the cache, so a later run of
@@ -424,7 +433,8 @@ from the GPU, a later `run` on the CPU reads them from the cache. GLiNER is
 asked at threshold 0.1 and each system filters upwards, which equals asking at the higher threshold: flat
 decoding is greedy, highest score first (checked on 123 CNEC windows). A
 system with a threshold below 0.1 (cross-entropy at the thresholds matching
-weights 5 and 10) reads a second cache asked at 0.02, in `<split>@floor0.02.json`
+weights 5 and 10), its own or, when it sets none, its model's catalog
+threshold, reads a second cache asked at 0.02, in `<split>@floor0.02.json`
 beside the first, so filling it never rewrites the file other runs read. Every
 step after the model runs again on every run. A rerun from a warm cache takes
 seconds and does not load the model. Systems combining two models reuse

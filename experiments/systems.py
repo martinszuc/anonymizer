@@ -15,7 +15,10 @@ at the higher threshold: flat decoding is greedy, highest score first, so a
 span under the threshold never displaced one above it. A system whose
 threshold lies below `CACHE_FLOOR` reads a second cache, asked at
 `LOW_CACHE_FLOOR` and kept in files of its own (`cache_path`), so the usual
-cache stays as it was and other runs can read it meanwhile. NameTag 3
+cache stays as it was and other runs can read it meanwhile. A system that
+sets no threshold runs each model at its own (`name_model_threshold`: the
+catalog entry's, else GLiNER's default), so the floor is chosen per model
+from that effective threshold. NameTag 3
 (`CachedTagger`) has no threshold; its labels are cached per page of
 sentences. Everything after the model (windows, sentences, word widening,
 the name filter, the rules, merging, propagation, titles) runs for real on
@@ -39,6 +42,7 @@ from anonymizer.core.detect import (
     GlinerDetector,
     NametagDetector,
     name_model,
+    name_model_threshold,
 )
 from anonymizer.core.detect.base import Detector
 from anonymizer.core.detect.gliner import (
@@ -95,7 +99,8 @@ class SystemConfig:
             ids.
         combine: How several models are combined: `union` (everything
             either found) or `agreement` (what all of them found).
-        threshold: GLiNER's minimum score.
+        threshold: GLiNER's minimum score for every GLiNER model of the
+            system; `None` runs each at its own (`model_thresholds`).
         labels: GLiNER's prompt label → entity type.
         distractors: GLiNER labels asked for whose spans are dropped.
         names_only: Cut the models' person and address spans back to the value.
@@ -105,18 +110,23 @@ class SystemConfig:
         engines: The engine of each model, as the catalog names them when
             the system was parsed; empty when built directly, which reports
             GLiNER's options.
+        model_thresholds: Each GLiNER model's own threshold by catalog id
+            (`name_model_threshold`), filled when the system is parsed
+            without a threshold; a model missing here runs at
+            `DEFAULT_THRESHOLD`.
     """
 
     name: str
     model: str | tuple[str, ...] = "none"
     combine: str = "union"
-    threshold: float = DEFAULT_THRESHOLD
+    threshold: float | None = None
     labels: Mapping[str, EntityType] = field(default_factory=lambda: dict(DEFAULT_LABELS))
     distractors: tuple[str, ...] = DEFAULT_DISTRACTORS
     names_only: bool = True
     propagate: bool = True
     language: str = "dataset"
     engines: tuple[str, ...] = ()
+    model_thresholds: Mapping[str, float] = field(default_factory=dict)
 
     @property
     def model_names(self) -> tuple[str, ...]:
@@ -126,14 +136,32 @@ class SystemConfig:
         return () if self.model == "none" else (self.model,)
 
     @property
-    def cache_floor(self) -> float:
-        """The floor of the GLiNER cache the system reads (`cache_floor`)."""
-        return cache_floor(self.threshold)
-
-    @property
     def model_ids(self) -> tuple[str, ...]:
         """The catalog ids of the system's name models; empty for the rules alone."""
         return tuple(NAME_MODEL_ALIASES.get(model, model) for model in self.model_names)
+
+    @property
+    def span_model_ids(self) -> tuple[str, ...]:
+        """The catalog ids of the system's GLiNER models; every model when built directly."""
+        if not self.engines:
+            return self.model_ids
+        return tuple(
+            model_id
+            for model_id, engine in zip(self.model_ids, self.engines, strict=True)
+            if engine == SPAN_MODEL_ENGINE
+        )
+
+    def threshold_of(self, model_id: str) -> float:
+        """Return the threshold a GLiNER model of the system runs at."""
+        if self.threshold is not None:
+            return self.threshold
+        return self.model_thresholds.get(model_id, DEFAULT_THRESHOLD)
+
+    def cache_floor_of(self, model_id: str) -> float:
+        """Return the floor of the cache a model of the system reads (`cache_floor`)."""
+        if model_id not in self.span_model_ids:
+            return CACHE_FLOOR
+        return cache_floor(self.threshold_of(model_id))
 
     def describe(self) -> dict[str, Any]:
         """Return the options as plain data, for the results file."""
@@ -144,17 +172,25 @@ class SystemConfig:
         }
         if len(self.model_names) > 1:
             described["combine"] = self.combine
-        if self.model_names and (not self.engines or SPAN_MODEL_ENGINE in self.engines):
-            described |= {
-                "threshold": self.threshold,
+        if self.span_model_ids:
+            thresholds = {model_id: self.threshold_of(model_id) for model_id in self.span_model_ids}
+            described |= _per_model("threshold", thresholds) | {
                 "labels": {label: str(kind) for label, kind in self.labels.items()},
                 "distractors": list(self.distractors),
             }
-            if self.cache_floor != CACHE_FLOOR:
-                described["cache_floor"] = self.cache_floor
+            floors = {model_id: self.cache_floor_of(model_id) for model_id in thresholds}
+            if set(floors.values()) != {CACHE_FLOOR}:
+                described |= _per_model("cache_floor", floors)
         if self.model_names:
             described["names_only"] = self.names_only
         return described
+
+
+def _per_model(key: str, values: Mapping[str, float]) -> dict[str, Any]:
+    """Describe one value per model as `key` when they agree, else by model as `<key>s`."""
+    if len(set(values.values())) == 1:
+        return {key: next(iter(values.values()))}
+    return {f"{key}s": dict(values)}
 
 
 _SYSTEM_KEYS = frozenset(
@@ -209,10 +245,13 @@ def parse_system(
     if language not in LANGUAGES:
         msg = f"system {name!r}: language must be one of {LANGUAGES}"
         raise ValueError(msg)
-    threshold = float(table.get("threshold", DEFAULT_THRESHOLD))
-    if not LOW_CACHE_FLOOR <= threshold <= 1.0:
+    threshold = None if "threshold" not in table else float(table["threshold"])
+    if threshold is not None and not LOW_CACHE_FLOOR <= threshold <= 1.0:
         msg = f"system {name!r}: threshold must lie in [{LOW_CACHE_FLOOR}, 1]"
         raise ValueError(msg)
+    model_thresholds = (
+        _model_thresholds(name, models, engines, catalog) if threshold is None else {}
+    )
     labels = {
         str(label): EntityType(kind)
         for label, kind in dict(table.get("labels", DEFAULT_LABELS)).items()
@@ -228,7 +267,28 @@ def parse_system(
         propagate=bool(table.get("propagate", True)),
         language=language,
         engines=engines,
+        model_thresholds=model_thresholds,
     )
+
+
+def _model_thresholds(
+    system: str, models: Sequence[str], engines: Sequence[str], catalog: Catalog
+) -> dict[str, float]:
+    """Return each GLiNER model's own threshold; refuse one no cache reaches."""
+    thresholds: dict[str, float] = {}
+    for model, engine in zip(models, engines, strict=True):
+        if engine != SPAN_MODEL_ENGINE:
+            continue
+        model_id = name_model(model, catalog).id
+        threshold = name_model_threshold(model_id, catalog) or DEFAULT_THRESHOLD
+        if threshold < LOW_CACHE_FLOOR:
+            msg = (
+                f"system {system!r}: model {model!r} runs at threshold {threshold}, below the "
+                f"lowest cache floor {LOW_CACHE_FLOOR}; give the system a threshold"
+            )
+            raise ValueError(msg)
+        thresholds[model_id] = threshold
+    return thresholds
 
 
 def cache_floor(threshold: float) -> float:
@@ -548,7 +608,7 @@ def model_versions(
 def system_models(
     system: SystemConfig, models: Mapping[tuple[str, float], NameModel]
 ) -> dict[str, NameModel]:
-    """Return the cached name models a system uses, by catalog id, at its cache floor.
+    """Return the cached name models a system uses, by catalog id, each at its cache floor.
 
     Args:
         system: The system.
@@ -557,7 +617,9 @@ def system_models(
     Returns:
         The models `detect` needs for the system.
     """
-    return {model_id: models[model_id, system.cache_floor] for model_id in system.model_ids}
+    return {
+        model_id: models[model_id, system.cache_floor_of(model_id)] for model_id in system.model_ids
+    }
 
 
 def build_system_detector(
@@ -601,7 +663,7 @@ def _model_detector(system: SystemConfig, model_id: str, model: NameModel) -> De
     return GlinerDetector(
         model,
         labels=system.labels,
-        threshold=system.threshold,
+        threshold=system.threshold_of(model_id),
         name=model_id,
         distractors=system.distractors,
     )

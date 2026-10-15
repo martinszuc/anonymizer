@@ -103,6 +103,9 @@ docstrings, not here; they go stale in two places.
   configs keep working. A model trained here (`python -m experiments train`) is
   an entry of its storage root's `models/trained.json`, not of the shipped
   catalog: clients that know the root read it with `load_catalog(root=...)`.
+  A model's decision threshold is its entry's `threshold`, settled in one
+  place (`name_model_threshold`: the caller's, else the entry's, else the
+  engine's default); a client never hardcodes a model's threshold.
 - A model's person and address spans pass `detect.NamesOnly` (`roles.py`,
   applied by `build_detector`): lowercase edge words trimmed, spans of role
   nouns only ("Kupující", "Adult") dropped; address-field labels ("Post Code",

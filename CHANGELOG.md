@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.7.0 (2026-10-15)
+
+<!-- Release notes generated using configuration in .github/release.yml at main -->
+
+## What's Changed
+### Software
+* feat(benchmark): comparable history across document sets, backfill and PR diff by @martinszuc in https://github.com/martinszuc/anonymizer/pull/110
+* feat: per-model decision threshold in the catalog by @martinszuc in https://github.com/martinszuc/anonymizer/pull/115
+* ci: list experiments under their own section of the release notes by @martinszuc in https://github.com/martinszuc/anonymizer/pull/120
+### Experiments
+* feat(experiments): train on an NVIDIA GPU with --device cuda by @martinszuc in https://github.com/martinszuc/anonymizer/pull/106
+* feat(experiments): Czech-only and Slovak-only training configs for RQ7 by @martinszuc in https://github.com/martinszuc/anonymizer/pull/108
+* feat(experiments): --tag names a config retrained on another machine by @martinszuc in https://github.com/martinszuc/anonymizer/pull/109
+* feat(scripts): MetaCentrum training and scoring jobs by @martinszuc in https://github.com/martinszuc/anonymizer/pull/111
+* fix(scripts): MetaCentrum jobs keep their scores, files stay private, uv is checked by @martinszuc in https://github.com/martinszuc/anonymizer/pull/114
+* feat(experiments): MetaCentrum training results and their run configs by @martinszuc in https://github.com/martinszuc/anonymizer/pull/113
+* docs(findings): the same training on an L40S, and training on one language by @martinszuc in https://github.com/martinszuc/anonymizer/pull/116
+* feat(experiments): score run configs with GLiNER on a GPU by @martinszuc in https://github.com/martinszuc/anonymizer/pull/117
+* chore(experiments): rq6-gpu-dev and rq7-dev results, with findings by @martinszuc in https://github.com/martinszuc/anonymizer/pull/118
+* feat(experiments): oversample a training corpus, and the recipe sweep (stage A) by @martinszuc in https://github.com/martinszuc/anonymizer/pull/119
+
+
+**Full Changelog**: https://github.com/martinszuc/anonymizer/compare/v0.6.0...v0.7.0
+
 ## 0.6.0 (2026-10-14)
 
 ## What's Changed

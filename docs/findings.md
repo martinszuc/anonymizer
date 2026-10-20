@@ -1293,6 +1293,34 @@ scored higher.
   both and Slovak-only lower (−0.031). Slovak-only is highest only on OpenPII, both
   splits (+0.003 to +0.004, 3/3).
 
+### 2026-10-20 · Recipe sweep, stage A: real-data repeats against steps (development data)
+
+`experiments/configs/recipe/` on MetaCentrum (fobos, NVIDIA L40S), commit `94ed4ac`,
+clean tree, the config's seed only: `train-cs-sk-ce` with CNEC 2.0 and UNER-SK train
+repeated 1, 3, 5 or 10 times (`repeat`) and 2,000, 5,000 or 10,000 steps of 16; the 1×
+2,000 cell is `train-cs-sk-ce-gpu`. Scores are the development scores each training run
+writes (person F2, partial match); one seed per cell, so differences below the seed
+spread of 2026-10-15 (sd 0.002–0.007 on CNEC and UNER-SK) are not read as effects.
+`rq6-recipe-dev` (paired bootstrap) has not been run.
+
+| repeat \ steps | CNEC 2k / 5k / 10k | UNER-SK 2k / 5k / 10k | REDACT 2k / 5k / 10k |
+|---|---|---|---|
+| 1× | 0.936 / 0.926 / 0.931 | 0.902 / 0.878 / 0.887 | 0.899 / 0.898 / 0.907 |
+| 3× | 0.939 / 0.940 / 0.943 | 0.902 / 0.907 / 0.892 | 0.942 / 0.893 / 0.892 |
+| 5× | 0.939 / 0.930 / 0.940 | 0.906 / 0.900 / 0.903 | 0.939 / 0.897 / 0.902 |
+| 10× | 0.939 / 0.932 / 0.943 | 0.908 / 0.903 / 0.893 | 0.942 / 0.894 / 0.897 |
+
+- **The recipe moves real-text scores little.** Against the 1× 2,000 baseline the best
+  cell gains +0.007 on CNEC (3× and 10× at 10,000 steps) and +0.006 on UNER-SK (10× at
+  2,000), both within one seed's spread.
+- **More steps without repeats lowers UNER-SK** (0.878 and 0.887 against 0.902); OpenPII
+  then makes up about 90 % of what the extra steps see, and its dev scores rise to 0.993–0.995.
+- **REDACT takes two values**, about 0.94 or 0.89–0.91, by whether one record is found
+  (recall 0.99–1.00 against 0.92–0.94; the record of 2026-10-13). The three 2,000-step
+  cells with repeats found it, every other cell missed it; with one seed this is not an
+  effect of the recipe.
+- Seconds per step rise with the share of real examples (0.246 at 1×, 0.27 at 10×).
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

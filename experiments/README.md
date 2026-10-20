@@ -37,7 +37,7 @@ version), and each device has its own cache (*Cache*).
    `core.pipeline.build_detector` and run by `core.pipeline.run_detection`,
    exactly as the command line and the review window run them. A system's
    options only switch what those functions offer: the name model (`none`,
-   a catalog GLiNER or NameTag 3 model by id, `gliner` being the default
+   a catalog GLiNER, NameTag 3 or token classifier model by id, `gliner` being the default
    one, or a list of two combined by `combine = "union"` or `"agreement"`),
    GLiNER's threshold, labels and distractors, the name filter, propagation,
    and the language (the corpus's, recognised from the text, or none).
@@ -300,6 +300,8 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/rq7-dev.toml` | RQ7: ce trained on Czech only, Slovak only and both, all on MetaCentrum, three seeds each, vs rules+gliner |
 | `configs/recipe/train-recipe-r*-s*k.toml` | RQ6 recipe sweep, stage A: `train-cs-sk-ce` with the real corpora repeated 1, 3, 5 or 10 times (`repeat`) and 2,000, 5,000 or 10,000 steps |
 | `configs/rq6-recipe-dev.toml` | the eleven recipes against `train-cs-sk-ce --tag gpu`, config seed, threshold 0.3 |
+| `configs/train-xlmr-smoke.toml` | token classifier smoke run on MetaCentrum: 400 examples, 40 steps of 8, bf16, 25 documents per dev split |
+| `configs/train-cs-sk-xlmr-ce.toml` | RQ6's second family: a token classifier on XLM-RoBERTa large, the data of `train-cs-sk-ce`, 4,200 steps of 16 (about 3 passes), bf16 on CUDA |
 
 A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on
@@ -320,7 +322,8 @@ uv run python -m experiments train --config experiments/configs/train-cs-sk-ce.t
     --resource-root /path/to/main/checkout
 ```
 
-fine-tunes GLiNER (`train.py`) on this machine's Apple GPU (`device =
+fine-tunes GLiNER (`train.py`; the token classifier, the second family, is
+below) on this machine's Apple GPU (`device =
 "mps"`), an NVIDIA GPU (`"cuda"`) or CPU, from a config naming the base model, the train splits and
 how many examples to draw from each (seeded) and how often each repeats
 (`repeat`, to oversample a small corpus; the results record it under
@@ -378,6 +381,45 @@ resource root, are never committed or published, and their entry says
 batches of 16 train 1.26 times as fast (`docs/findings.md`), so `train-cs-sk-ce`
 (2,000 steps of 16) takes about an hour and a quarter, plus about a quarter of
 an hour of scoring.
+
+### The token classifier
+
+The second model family of RQ6 is a token classifier: XLM-RoBERTa large (the
+encoder of NameTag 3 multilingual) with a linear layer writing one BIO label
+per word (`token_training.py`, `core/detect/token_classifier.py`). A config
+selects it by its `base`: `xlm-roberta-large` is a catalog encoder listed for
+`training`, where a GLiNER name model trains GLiNER (`train-cs-sk-xlmr-ce.toml`).
+
+- **Same examples, same types.** The examples are those GLiNER trains on, drawn
+  with the same seed (and `repeat`); a GLiNER token is a word, cut into
+  subwords on its own and labelled at its first one, as detection cuts it.
+  The labels are `O` and `B-`/`I-` of `person`, `street address` and
+  `organization`, so the model answers GLiNER's call, runs inside
+  `GlinerDetector` (windows of 150 GLiNER tokens, widening to words, the
+  organisation distractor) and is scored, cached and moved to `--device` as
+  GLiNER is. An example longer than 512 subwords is cut after its last whole
+  word and counted (`training.log.truncated`); 150 GLiNER tokens are about 280
+  subwords even in punctuation-heavy text.
+- **Partial annotation.** A corpus that does not mark a type (OpenPII no
+  organisations, UNER no addresses) would teach its unmarked spans as `O`.
+  For a word labelled `O`, the loss accepts the labels of the types its corpus
+  does not mark: `-log(p(O) + p(those labels))`. Where every type is marked
+  this is cross-entropy. `loss = "weighted"` multiplies the words inside a span
+  by `positive_weight`.
+- **Hyperparameters.** One learning rate (`head_learning_rate` and focal loss
+  are refused), linear warm-up and decay, and `precision = "bf16"` or `"fp16"`
+  on CUDA only (refused on another device before any data is read; drop it to
+  train with `--device mps` or `cpu`). The classification layer is drawn from
+  the config's seed, so one seed gives the same weights on one machine.
+- **Decoding.** Greedy per word; `I-` after `O` or another type starts a span.
+  A span's score is the mean probability of its type (`B-` plus `I-`) over its
+  words; the threshold (default 0.5, the entry's `threshold` as for GLiNER)
+  filters spans only, so the cache floor argument of *Cache* holds.
+- **Storing.** `<root>/models/<model>/` holds `config.json` (its `id2label`
+  names the labels) and `model.safetensors`; the entry's engine is
+  `token-classifier` and its tokenizer is the catalog's
+  `xlm-roberta-large-tokenizer`, a requirement as for GLiNER. Fetch the base
+  once with `uv run python scripts/download.py fetch xlm-roberta-large`.
 
 ### Seeds
 
@@ -567,6 +609,6 @@ ANONYMIZER_RESOURCE_ROOT=/path/to/main/checkout uv run pytest -m dataset tests/e
 ## Not yet
 
 Other detectors (a new engine plugs in as another `model` value in
-`systems.py`); a token classifier trained here (RQ6's second candidate); OCR (RQ2 is `python -m benchmark ocr`); examples of
+`systems.py`); results of the token classifier (*The token classifier*); OCR (RQ2 is `python -m benchmark ocr`); examples of
 errors in CNEC and UNER, which needs a way to show corpus text without storing it
 (the error analysis keeps examples of the synthetic corpora only).

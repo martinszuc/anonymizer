@@ -43,7 +43,9 @@ inference; models load from a local cache and the test suite fails on any outbou
   Czech/Slovak name model is trained in this repository (`python -m
   experiments train`, fine-tuned GLiNER): three losses, and three weights of
   the recall-weighted loss, each trained with three seeds and scored on
-  development data (`experiments/results/rq6-*`). The comparison with
+  development data (`experiments/results/rq6-*`). A second family, a token
+  classifier on XLM-RoBERTa large trained from the same examples, can be
+  trained and run by catalog id; it has no results yet. The comparison with
   existing models on reserved test data has not been run.
 - **Not yet:** Office and text formats, HEIC images, a per-OS bundle of the
   review window (see *Installing and releases*).

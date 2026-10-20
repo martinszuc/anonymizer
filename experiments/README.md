@@ -300,6 +300,7 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/rq7-dev.toml` | RQ7: ce trained on Czech only, Slovak only and both, all on MetaCentrum, three seeds each, vs rules+gliner |
 | `configs/recipe/train-recipe-r*-s*k.toml` | RQ6 recipe sweep, stage A: `train-cs-sk-ce` with the real corpora repeated 1, 3, 5 or 10 times (`repeat`) and 2,000, 5,000 or 10,000 steps |
 | `configs/rq6-recipe-dev.toml` | the eleven recipes against `train-cs-sk-ce --tag gpu`, config seed, threshold 0.3 |
+| `configs/rq6-xlmr-dev.toml` | XLM-R token classifier (0.5 and 0.2) and GLiNER ce/focal (`-gpu`), three seeds each, vs NameTag 3 multilingual and Czech and zero-shot GLiNER, on CNEC, UNER-SK and REDACT dev |
 | `configs/train-xlmr-smoke.toml` | token classifier smoke run on MetaCentrum: 400 examples, 40 steps of 8, bf16, 25 documents per dev split |
 | `configs/train-cs-sk-xlmr-ce.toml` | RQ6's second family: a token classifier on XLM-RoBERTa large, the data of `train-cs-sk-ce`, 4,200 steps of 16 (about 3 passes), bf16 on CUDA |
 

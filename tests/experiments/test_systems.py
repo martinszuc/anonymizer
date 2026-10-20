@@ -31,10 +31,10 @@ from experiments.systems import (
     cache_floor,
     cache_path,
     detect,
-    gliner_loader,
     model_loader,
     model_versions,
     parse_system,
+    span_model_loader,
 )
 from tests.experiments.conftest import ScoredStandIn, StandInSplitter, StandInTagger
 
@@ -435,7 +435,7 @@ class TestCache:
 
 def test_loader_reports_missing_model(tmp_path: Path):
     with pytest.raises(FileNotFoundError, match="model files missing"):
-        gliner_loader(tmp_path)("gliner-multi-v2.1")
+        span_model_loader(tmp_path)("gliner-multi-v2.1")
 
 
 class _Movable(ScoredStandIn):
@@ -455,7 +455,7 @@ def test_the_loader_moves_a_gliner_model_to_the_device(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, device: str
 ):
     movable = _Movable()
-    monkeypatch.setattr(systems_module, "load_gliner_model", lambda root, model_id: movable)
+    monkeypatch.setattr(systems_module, "load_gliner_model", lambda root, model_id, **_: movable)
     assert model_loader(tmp_path, device=device)(GLINER) is movable
     assert movable.devices == [device]
 
@@ -501,5 +501,60 @@ class TestModels:
             "transformers",
             models_module.NameModelEngine(lambda *_: RuleDetector([]), "transformers", "ner"),
         )
-        with pytest.raises(ValueError, match="runs on transformers, not gliner or nametag3"):
+        with pytest.raises(
+            ValueError, match="runs on transformers, not one of gliner, token-classifier, nametag3"
+        ):
             parse_system("x", {"model": "token-classifier"})
+
+
+class TestTokenClassifier:
+    """A token classifier trained here runs, is cached and moves like GLiNER."""
+
+    MODEL = "xlmr-tuned"
+
+    @pytest.fixture
+    def catalog(self, monkeypatch: pytest.MonkeyPatch, tuned_catalog: Catalog) -> Catalog:
+        tuned = dataclasses.replace(
+            tuned_catalog["gliner-cs-tuned"],
+            id=self.MODEL,
+            engine="token-classifier",
+            requires=("xlm-roberta-large-tokenizer",),
+        )
+        catalog = Catalog({**tuned_catalog.resources, tuned.id: tuned})
+        monkeypatch.setattr(models_module, "load_catalog", lambda **_: catalog)
+        monkeypatch.setattr(systems_module, "load_catalog", lambda **_: catalog)
+        return catalog
+
+    def test_it_runs_at_its_engines_threshold_as_a_span_model(self, catalog: Catalog):
+        system = parse_system("tc", {"model": self.MODEL}, catalog)
+        assert system.engines == ("token-classifier",)
+        assert system.span_model_ids == (self.MODEL,)
+        assert system.threshold_of(self.MODEL) == 0.5
+        assert system.cache_floor_of(self.MODEL) == CACHE_FLOOR
+        assert system.describe()["threshold"] == 0.5
+
+    def test_its_output_is_cached_as_spans(self, catalog: Catalog, tmp_path: Path):
+        cached = systems_module.cached_model(
+            self.MODEL,
+            PredictionCache(tmp_path / "c.json"),
+            lambda _: ScoredStandIn({}),
+            lambda _: StandInSplitter(),
+            catalog,
+        )
+        assert isinstance(cached, CachedSpanModel)
+
+    @pytest.mark.parametrize("device", ["cpu", "cuda"])
+    def test_the_loader_loads_it_and_moves_it_to_the_device(
+        self, monkeypatch: pytest.MonkeyPatch, catalog: Catalog, tmp_path: Path, device: str
+    ):
+        movable = _Movable()
+        loaded: list[str] = []
+
+        def load(root: Path, model_id: str, **_: object) -> _Movable:
+            loaded.append(model_id)
+            return movable
+
+        monkeypatch.setattr(systems_module, "load_token_classifier_model", load)
+        assert model_loader(tmp_path, catalog, device)(self.MODEL) is movable
+        assert loaded == [self.MODEL]
+        assert movable.devices == [device]

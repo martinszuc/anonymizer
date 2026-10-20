@@ -249,3 +249,17 @@ def tuned_catalog(monkeypatch: pytest.MonkeyPatch) -> Catalog:
     monkeypatch.setattr(models_module, "load_catalog", lambda **_: catalog)
     monkeypatch.setattr(systems_module, "load_catalog", lambda **_: catalog)
     return catalog
+
+
+@pytest.fixture
+def training_root(resource_root: Path) -> Path:
+    """The synthetic corpora with train splits, and the base model's config."""
+    plain = resource_root / "data/cnec-2.0/Czech_Named_Entity_Corpus_2.0/cnec2.0/data/plain"
+    (plain / "named_ent_train.txt").write_text("\n".join(CNEC_LINES) + "\n", encoding="utf-8")
+    (resource_root / "data/uner-sk-snk/sk_snk-ud-train.iob2").write_text(
+        UNER_TEXT, encoding="utf-8"
+    )
+    base = resource_root / "models/gliner-multi-v2.1"
+    base.mkdir(parents=True)
+    (base / "gliner_config.json").write_text('{"max_len": 384}', encoding="utf-8")
+    return resource_root

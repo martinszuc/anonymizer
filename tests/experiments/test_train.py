@@ -47,7 +47,7 @@ from experiments.train import (
     with_seed,
     with_tag,
 )
-from tests.experiments.conftest import CNEC_LINES, UNER_TEXT, ScoredStandIn
+from tests.experiments.conftest import ScoredStandIn
 from tests.resources.test_catalog import trained_entry
 
 CONFIGS = Path(__file__).parents[2] / "experiments" / "configs"
@@ -220,20 +220,6 @@ def test_sampling_is_seeded_and_takes_all_when_asked_for_more():
     assert seed_for(1, "cnec-2.0/train") != seed_for(1, "uner-sk-snk/train")
 
 
-@pytest.fixture
-def training_root(resource_root: Path) -> Path:
-    """The synthetic corpora with train splits, and the base model's config."""
-    plain = resource_root / "data/cnec-2.0/Czech_Named_Entity_Corpus_2.0/cnec2.0/data/plain"
-    (plain / "named_ent_train.txt").write_text("\n".join(CNEC_LINES) + "\n", encoding="utf-8")
-    (resource_root / "data/uner-sk-snk/sk_snk-ud-train.iob2").write_text(
-        UNER_TEXT, encoding="utf-8"
-    )
-    base = resource_root / "models/gliner-multi-v2.1"
-    base.mkdir(parents=True)
-    (base / "gliner_config.json").write_text('{"max_len": 384}', encoding="utf-8")
-    return resource_root
-
-
 def test_a_corpus_becomes_examples_with_its_labels(training_root: Path):
     conversion = Conversion()
     corpus = load_corpus("cnec-2.0", "train", training_root)
@@ -295,7 +281,10 @@ class TestConfig:
             ("evaluate.limit", -1, "limit must be"),
             ("model", "gliner-multi-v2.1", "shipped catalog entry"),
             ("model", "Gliner Tuned", "no valid catalog id"),
-            ("base", "onnxtr-fast-base", "unknown name model"),
+            ("base", "onnxtr-fast-base", "neither a GLiNER name model nor an encoder"),
+            ("base", "gliner-unknown", "unknown base model"),
+            ("base", "xlm-roberta-large-tokenizer", "neither a GLiNER name model"),
+            ("training.precision", "bf16", "token classifier only"),
             ("device", "rocm", "device must be"),
             ("training.loss", "dice", "loss must be"),
             ("training.focal_alpha", 1.5, "0 < focal_alpha < 1"),
@@ -456,10 +445,10 @@ class StandInGliner:
 
 class Recorder:
     def __init__(self) -> None:
-        self.fitted: list[list[dict[str, Any]]] = []
+        self.fitted: list[list[Example]] = []
         self.loaded: list[str] = []
 
-    def fit(self, model: Any, examples: list[dict[str, Any]], config: TrainConfig, work: Path):
+    def fit(self, model: Any, examples: list[Example], config: TrainConfig, work: Path):
         assert isinstance(model, StandInGliner)
         assert work.is_dir()
         self.fitted.append(examples)
@@ -491,7 +480,7 @@ def test_training_stores_registers_and_scores_the_model(training_root: Path, tmp
         "uner-sk-snk/train": 1,
     }
     assert len(examples) == results["examples"]["count"]
-    assert {tuple(example["ner_labels"]) for example in examples} >= {ALL_LABELS}
+    assert {example.labels for example in examples} >= {ALL_LABELS}
 
     stored = training_root / "models/gliner-cs-test"
     assert sorted(path.name for path in stored.iterdir()) == [
@@ -602,7 +591,7 @@ def test_the_command_trains_a_replicate_with_another_seed(
     recorder = Recorder()
     seeds: list[int] = []
 
-    def fit(model: Any, examples: list[dict[str, Any]], config: TrainConfig, work: Path):
+    def fit(model: Any, examples: list[Example], config: TrainConfig, work: Path):
         seeds.append(config.seed)
         return recorder.fit(model, examples, config, work)
 

@@ -1,0 +1,50 @@
+name = "train-xlmr-smoke"
+description = """
+Smoke run of the token classifier's training path on MetaCentrum: a hundred
+examples from each train split, 40 steps of 8 on XLM-RoBERTa large in bf16, scored
+on the first 25 documents of each development split. Proves the path and times a
+step; its scores say nothing about the model."""
+model = "xlmr-cs-sk-smoke"
+base = "xlm-roberta-large"
+seed = 20261010
+device = "cuda"
+
+[training]
+steps = 40
+batch_size = 8
+learning_rate = 2e-5
+weight_decay = 0.01
+warmup_ratio = 0.1
+loss = "ce"
+precision = "bf16"
+logging_steps = 5
+
+[[corpora]]
+id = "openpii-1m-cs"
+split = "train"
+examples = 100
+
+[[corpora]]
+id = "openpii-1m-sk"
+split = "train"
+examples = 100
+
+[[corpora]]
+id = "cnec-2.0"
+split = "train"
+examples = 100
+
+[[corpora]]
+id = "uner-sk-snk"
+split = "train"
+examples = 100
+
+[evaluate]
+limit = 25
+datasets = [
+    { id = "cnec-2.0", split = "dtest" },
+    { id = "uner-sk-snk", split = "dev" },
+    { id = "redact", split = "sample" },
+    { id = "openpii-1m-cs", split = "dev" },
+    { id = "openpii-1m-sk", split = "dev" },
+]

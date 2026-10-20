@@ -44,7 +44,7 @@ from experiments.phenomena import PhenomenonTally
 from experiments.seeds import summarize
 from experiments.systems import (
     CACHE_FLOOR,
-    SPAN_MODEL_ENGINE,
+    SPAN_MODEL_ENGINES,
     NameModel,
     PredictionCache,
     SystemConfig,
@@ -184,7 +184,7 @@ def corpus_models(
     opened: dict[tuple[str, float], NameModel] = {}
     for system in config.systems:
         for model_id in system.model_ids:
-            gliner = name_model(model_id, catalog).engine == SPAN_MODEL_ENGINE
+            gliner = name_model(model_id, catalog).engine in SPAN_MODEL_ENGINES
             floor = system.cache_floor_of(model_id) if gliner else CACHE_FLOOR
             if (model_id, floor) not in opened:
                 path = cache_path(

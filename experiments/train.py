@@ -1,4 +1,9 @@
-"""Fine-tuning GLiNER for Czech and Slovak names and addresses, from a config, seeded.
+"""Training a name model for Czech and Slovak names and addresses, from a config, seeded.
+
+Two model families are trained from the same examples: GLiNER fine-tuned
+from a GLiNER name model of the catalog, and a token classifier (BIO labels
+per word, `token_training.py`) trained from a catalog encoder whose `uses`
+holds `training` (XLM-RoBERTa large). The config's `base` decides which.
 
 `python -m experiments train --config experiments/configs/train-<name>.toml`
 reads the train splits of the configured corpora (`examples.py` turns them
@@ -18,7 +23,7 @@ during training, the time it took and the scores.
 name = "train-smoke"          # names the results files
 description = "..."
 model = "gliner-cs-sk-smoke"  # catalog id of the trained model
-base = "gliner-multi-v2.1"    # a GLiNER name model of the catalog
+base = "gliner-multi-v2.1"    # a GLiNER name model, or an encoder (xlm-roberta-large)
 seed = 20261010
 device = "mps"                # "mps" (the Apple GPU), "cuda" (NVIDIA) or "cpu"
 
@@ -34,6 +39,7 @@ focal_alpha = 0.75            # focal: weight of the positive spans; above 0.5 f
 focal_gamma = 2.0             # focal: fades out the pairs already classified well
 # positive_weight = 3.0       # weighted: a missed span costs 3 false alarms
 # negative_focus = 0.0        # weighted: fades out the easy negative pairs only
+# precision = "bf16"          # token classifier on CUDA: "bf16" or "fp16"; "fp32" by default
 
 [[corpora]]                   # train splits only
 id = "openpii-1m-cs"
@@ -54,6 +60,11 @@ recall-weighted loss (`loss.py`, which also records how gliner computes its
 own): the positive pairs' term is multiplied by `positive_weight`, and
 `negative_focus` optionally fades out the easy negatives, never the
 positives; `positive_weight = 1` without focus is `ce`.
+
+A token classifier takes one learning rate (`head_learning_rate` is
+refused), the loss `ce` or `weighted` with `positive_weight` (a word inside a
+span costs that many false alarms; `token_training.py`), and optionally
+`precision`. Its trained model's engine is `token-classifier`.
 
 `--seed N` on the command line trains the same config with another seed
 (`with_seed`): the model is stored as `<model>-s<N>` and the results as
@@ -88,9 +99,10 @@ from pathlib import Path
 from typing import Any, cast
 
 import anonymizer.core
-from anonymizer.core.detect import name_model
 from anonymizer.core.detect.gliner import SpanModel, load_gliner_model
-from anonymizer.core.resources import Catalog, load_catalog, trained_catalog_path
+from anonymizer.core.detect.models import NAME_MODEL_ALIASES
+from anonymizer.core.detect.token_classifier import TOKEN_CLASSIFIER_ENGINE
+from anonymizer.core.resources import Catalog, Resource, load_catalog, trained_catalog_path
 from anonymizer.core.resources.catalog import CATALOG_SCHEMA, is_resource_id, parse_catalog
 
 from experiments.config import DatasetRef, parse_config, replicate_id
@@ -101,9 +113,13 @@ from experiments.run import DEVICES, Progress, check_device, git_state, gpu, mac
 
 TRAINING_SCHEMA = 1
 CPUINFO = Path("/proc/cpuinfo")
+GLINER_ENGINE = "gliner"
 LOSSES = ("ce", "focal", "weighted")
+TOKEN_CLASSIFIER_LOSSES = ("ce", "weighted")
+PRECISIONS = ("fp32", "bf16", "fp16")
 WEIGHTS = "model.safetensors"
 CONFIG = "gliner_config.json"
+TOKEN_CLASSIFIER_CONFIG = "config.json"
 
 _KEYS = frozenset(
     {"name", "description", "model", "base", "seed", "device", "training", "corpora", "evaluate"}
@@ -123,6 +139,7 @@ _TRAINING_KEYS = frozenset(
         "negative_focus",
         "max_tokens",
         "logging_steps",
+        "precision",
     }
 )
 
@@ -144,6 +161,7 @@ class Hyperparameters:
     negative_focus: float = 0.0
     max_tokens: int = MAX_TOKENS
     logging_steps: int = 10
+    precision: str = "fp32"
 
 
 @dataclass(frozen=True)
@@ -164,7 +182,9 @@ class TrainConfig:
         name: Names the results files.
         description: Free text, copied into the results.
         model: Catalog id the trained model is stored under.
-        base: Catalog id of the GLiNER model trained from.
+        base: Catalog id of the GLiNER model or the encoder trained from.
+        engine: The trained model's engine, decided by the base: `gliner`
+            or `token-classifier`.
         seed: Seeds the draw of examples, their order and the training.
         device: `mps`, `cuda` or `cpu`.
         training: Hyperparameters.
@@ -182,6 +202,7 @@ class TrainConfig:
     description: str
     model: str
     base: str
+    engine: str
     seed: int
     device: str
     training: Hyperparameters
@@ -272,8 +293,9 @@ def parse_train_config(raw: dict[str, Any], catalog: Catalog | None = None) -> T
     Raises:
         ValueError: On an unknown key; a corpus split that is not a train
             split, or an evaluated split that is not a development split; a
-            model id the shipped catalog uses; a base that is not a GLiNER
-            name model; or a hyperparameter out of range.
+            model id the shipped catalog uses; a base that is neither a
+            GLiNER name model nor an encoder for training; or a
+            hyperparameter out of range or not used by the base's family.
     """
     catalog = catalog or load_catalog()
     _known(raw, _KEYS, "the config")
@@ -284,10 +306,13 @@ def parse_train_config(raw: dict[str, Any], catalog: Catalog | None = None) -> T
     if model in load_catalog().resources:
         msg = f"model {model!r} is a shipped catalog entry; name the trained model otherwise"
         raise ValueError(msg)
-    base = name_model(str(raw.get("base", "gliner-multi-v2.1")), catalog)
-    if base.engine != "gliner":
-        msg = f"base {base.id!r} runs on {base.engine}; only a GLiNER model can be trained here"
+    base_id = str(raw.get("base", "gliner-multi-v2.1"))
+    base_id = NAME_MODEL_ALIASES.get(base_id, base_id)
+    if base_id not in catalog.resources:
+        msg = f"unknown base model {base_id!r}"
         raise ValueError(msg)
+    base = catalog[base_id]
+    engine = trained_engine(base)
     device = str(raw.get("device", "mps"))
     if device not in DEVICES:
         msg = f"device must be one of {DEVICES}"
@@ -316,14 +341,33 @@ def parse_train_config(raw: dict[str, Any], catalog: Catalog | None = None) -> T
         description=str(raw.get("description", "")),
         model=model,
         base=base.id,
+        engine=engine,
         seed=int(raw.get("seed", 0)),
         device=device,
-        training=_hyperparameters(dict(raw.get("training", {}))),
+        training=_hyperparameters(dict(raw.get("training", {})), engine),
         corpora=corpora,
         evaluate=references,
         limit=None if limit is None else _positive(limit, "limit"),
         raw=raw,
     )
+
+
+def trained_engine(base: Resource) -> str:
+    """Return the engine of a model trained from a base: `gliner` or `token-classifier`.
+
+    Raises:
+        ValueError: If the base is neither a GLiNER name model nor an encoder
+            listed for training.
+    """
+    if base.engine == GLINER_ENGINE and "ner" in base.uses:
+        return GLINER_ENGINE
+    if base.engine == "transformers" and "training" in base.uses:
+        return TOKEN_CLASSIFIER_ENGINE
+    msg = (
+        f"base {base.id!r} is neither a GLiNER name model nor an encoder to train a "
+        "token classifier from (engine transformers, uses training)"
+    )
+    raise ValueError(msg)
 
 
 def _known(table: dict[str, Any], keys: frozenset[str], where: str) -> None:
@@ -359,11 +403,20 @@ def _corpus(entry: dict[str, Any]) -> CorpusRef:
     )
 
 
-def _hyperparameters(table: dict[str, Any]) -> Hyperparameters:
+def _hyperparameters(table: dict[str, Any], engine: str = GLINER_ENGINE) -> Hyperparameters:
     _known(table, _TRAINING_KEYS, "[training]")
     loss = str(table.get("loss", "ce"))
     if loss not in LOSSES:
         msg = f"loss must be one of {LOSSES}"
+        raise ValueError(msg)
+    precision = str(table.get("precision", "fp32"))
+    if precision not in PRECISIONS:
+        msg = f"precision must be one of {PRECISIONS}"
+        raise ValueError(msg)
+    if engine == TOKEN_CLASSIFIER_ENGINE:
+        _token_classifier_keys(table, loss)
+    elif "precision" in table:
+        msg = "precision applies to the token classifier only"
         raise ValueError(msg)
     focal = {"focal_alpha", "focal_gamma"} & set(table)
     if loss != "focal" and focal:
@@ -419,7 +472,19 @@ def _hyperparameters(table: dict[str, Any]) -> Hyperparameters:
         negative_focus=negative_focus,
         max_tokens=max_tokens,
         logging_steps=_positive(table.get("logging_steps", 10), "logging_steps"),
+        precision=precision,
     )
+
+
+def _token_classifier_keys(table: dict[str, Any], loss: str) -> None:
+    """Refuse what a token classifier does not train with."""
+    if loss not in TOKEN_CLASSIFIER_LOSSES:
+        msg = f"a token classifier's loss must be one of {TOKEN_CLASSIFIER_LOSSES}"
+        raise ValueError(msg)
+    unused = {"head_learning_rate", "negative_focus"} & set(table)
+    if unused:
+        msg = f"{sorted(unused)} apply to GLiNER only"
+        raise ValueError(msg)
 
 
 def training_examples(
@@ -451,11 +516,12 @@ def seed_for(seed: int, purpose: str) -> int:
     return int.from_bytes(digest[:8], "big")
 
 
-Fit = Callable[[Any, list[dict[str, Any]], TrainConfig, Path], dict[str, Any]]
-"""Trains a loaded model in place on GLiNER examples; returns the trainer's log."""
+Fit = Callable[[Any, list[Example], TrainConfig, Path], dict[str, Any]]
+"""Trains a loaded model in place on the examples; returns the trainer's log."""
 
 Load = Callable[[Path, str, Catalog], Any]
-"""Loads a catalog GLiNER model by id from a storage root, ready on the device."""
+"""Loads a catalog model by id from a storage root, ready on the device: the
+base to train, or the trained model to score."""
 
 
 def train(
@@ -478,7 +544,8 @@ def train(
             is stored and listed there.
         cache_dir: Where the name models' output is cached.
         progress: Told what is running (no corpus text).
-        fit: Trains the model; gliner's Trainer (seeded by it) by default.
+        fit: Trains the model; by default the family's trainer, seeded by
+            the config (`fit_gliner`, `token_training.fit_token_classifier`).
         load: Loads the base and the trained model; from the catalog's files
             onto the configured device by default.
 
@@ -488,15 +555,19 @@ def train(
     # transformers' Trainer would otherwise quietly pick whichever accelerator
     # it finds, and the results would record the wrong device.
     check_device(config.device)
-    load = load or _loader(config.device)
+    if config.training.precision != "fp32" and config.device != "cuda":
+        msg = f"precision {config.training.precision} needs device cuda, not {config.device}"
+        raise ValueError(msg)
+    family_load, family_fit = _family(config)
+    load, fit = load or family_load, fit or family_fit
     conversion = Conversion()
     examples, data_versions = training_examples(config, resource_root, conversion)
     progress(f"{len(examples)} examples drawn from {len(config.corpora)} train splits")
     catalog = load_catalog(root=resource_root)
     model = load(resource_root, config.base, catalog)
     started = time.perf_counter()
-    with tempfile.TemporaryDirectory(prefix="gliner-training-") as work:
-        log = (fit or fit_gliner)(model, [ex.to_gliner() for ex in examples], config, Path(work))
+    with tempfile.TemporaryDirectory(prefix="name-model-training-") as work:
+        log = fit(model, examples, config, Path(work))
     seconds = time.perf_counter() - started
     progress(f"trained {config.training.steps} steps in {seconds:.0f} s")
     entry = store_model(model, config, resource_root, catalog, data_versions)
@@ -546,6 +617,18 @@ def train(
     }
 
 
+def _family(config: TrainConfig) -> tuple[Load, Fit]:
+    """Return how the config's model family is loaded and trained."""
+    if config.engine == TOKEN_CLASSIFIER_ENGINE:
+        from experiments import token_training
+
+        return (
+            token_training.loader(config.device, config.seed, config.base),
+            token_training.fit_token_classifier,
+        )
+    return _loader(config.device), fit_gliner
+
+
 def _loader(device: str) -> Load:
     def load(root: Path, model_id: str, catalog: Catalog) -> Any:
         model: Any = load_gliner_model(root, model_id, catalog=catalog)
@@ -555,20 +638,19 @@ def _loader(device: str) -> Load:
     return load
 
 
-def fit_gliner(
-    model: Any, examples: list[dict[str, Any]], config: TrainConfig, work: Path
-) -> dict[str, Any]:
+def fit_gliner(model: Any, drawn: list[Example], config: TrainConfig, work: Path) -> dict[str, Any]:
     """Train a GLiNER model in place with gliner's Trainer.
 
     Args:
         model: The loaded GLiNER model.
-        examples: Examples in gliner's format (`Example.to_gliner`).
+        drawn: The drawn examples, given to gliner in its format (`Example.to_gliner`).
         config: The configuration.
         work: Scratch directory for the trainer; nothing is kept from it.
 
     Returns:
         The losses logged during training and the trainer's summary.
     """
+    examples = [example.to_gliner() for example in drawn]
     hyper = config.training
     arguments = model.create_training_args(
         output_dir=str(work),
@@ -650,24 +732,32 @@ def store_model(
 ) -> dict[str, Any]:
     """Store the trained weights under the root and list them in its `trained.json`.
 
-    Training changes the weights only, so the base model's `gliner_config.json`
-    is stored beside them and the model loads exactly as its base does, with
-    the base's tokenizer from the catalog. The config gliner writes itself
-    would not do: it pins the indices of the special tokens gliner adds to
-    the tokenizer, which the catalog's tokenizer does not hold yet, and
-    names the local encoder folder the model was loaded with.
+    A GLiNER model changes in its weights only, so the base model's
+    `gliner_config.json` is stored beside them and the model loads exactly
+    as its base does, with the base's tokenizer from the catalog. The config
+    gliner writes itself would not do: it pins the indices of the special
+    tokens gliner adds to the tokenizer, which the catalog's tokenizer does
+    not hold yet, and names the local encoder folder the model was loaded
+    with. A token classifier keeps the `config.json` transformers writes,
+    whose `id2label` names its labels; its tokenizer is the base's
+    requirement too.
 
     Returns:
         The model's catalog entry.
     """
     base = catalog[config.base]
+    gliner = config.engine == GLINER_ENGINE
+    kept = (CONFIG, WEIGHTS) if gliner else (TOKEN_CLASSIFIER_CONFIG, WEIGHTS)
     target = base.directory(resource_root).with_name(config.model)
     staging = target.with_name(f".{config.model}.staging")
     shutil.rmtree(staging, ignore_errors=True)
     model.save_pretrained(staging / "saved", safe_serialization=True)
+    if gliner:
+        shutil.copyfile(base.directory(resource_root) / CONFIG, staging / CONFIG)
+    else:
+        (staging / "saved" / TOKEN_CLASSIFIER_CONFIG).replace(staging / TOKEN_CLASSIFIER_CONFIG)
     (staging / "saved" / WEIGHTS).replace(staging / WEIGHTS)
     shutil.rmtree(staging / "saved")
-    shutil.copyfile(base.directory(resource_root) / CONFIG, staging / CONFIG)
     shutil.rmtree(target, ignore_errors=True)
     staging.replace(target)
     corpora = [
@@ -678,10 +768,14 @@ def store_model(
     ]
     entry = {
         "id": config.model,
-        "name": f"GLiNER fine-tuned on this machine ({config.name})",
+        "name": (
+            f"GLiNER fine-tuned on this machine ({config.name})"
+            if gliner
+            else f"Token classifier trained on this machine from {base.id} ({config.name})"
+        ),
         "kind": "model",
         "uses": ["ner"],
-        "engine": base.engine,
+        "engine": config.engine,
         "trained": True,
         "source": f"experiments/results/{config.name}.json",
         "version": _sha256(target / WEIGHTS),
@@ -698,7 +792,7 @@ def store_model(
         ),
         "files": [
             {"path": name, "size": (target / name).stat().st_size, "sha256": _sha256(target / name)}
-            for name in (CONFIG, WEIGHTS)
+            for name in kept
         ],
     }
     register(resource_root, entry)

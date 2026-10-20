@@ -24,8 +24,9 @@ Everything lives on one storage, mounted on every frontend and node:
   tools/        uv, its cache and its Python
 ```
 
-A job (`train.pbs`) copies `root/data`, the base model and its tokenizer into
-its scratch,
+A job (`train.pbs`) copies `root/data`, the config's base model and its
+tokenizer (`base_models.py` reads them from the catalog: GLiNER and mDeBERTa's
+tokenizer, or XLM-RoBERTa large and its tokenizer) into its scratch,
 trains there with the scratch as the resource root, then moves the trained
 model into `root/models/` and lists it in `root/models/trained.json`
 (`keep_trained.py`, under a lock, since jobs finish side by side) and copies
@@ -51,9 +52,11 @@ hold real public names: they stay in `root/models/` and never leave it.
    /storage/budejovice1/home/xszum00/anonymizer/scripts/metacentrum/setup.sh
    ```
 
-2. On the Mac, copy the corpora, the base model and its tokenizer (about 6 GB),
-   readable by you only, and verify
-   them there against the catalog; the password is asked once:
+2. On the Mac, copy the corpora and the base models with their tokenizers
+   (GLiNER and XLM-RoBERTa large, about 8 GB), readable by you only, and
+   verify them there against the catalog; the password is asked once. Fetch
+   XLM-R first if it is not stored (`uv run python scripts/download.py fetch
+   xlm-roberta-large`); rsync copies only what the storage lacks:
 
    ```sh
    scripts/metacentrum/push-data.sh
@@ -78,6 +81,19 @@ one cluster:
 ```sh
 CLUSTER=fobos scripts/metacentrum/submit.sh experiments/configs/train-cs-sk-ce.toml base 1 2
 ```
+
+The token classifier (`experiments/README.md`, *The token classifier*) has its
+own smoke run and is submitted the same way; its configs were never run
+elsewhere, so they keep their names with `TAG=`:
+
+```sh
+TAG= CLUSTER=any scripts/metacentrum/submit.sh experiments/configs/train-xlmr-smoke.toml
+TAG= CLUSTER=fobos scripts/metacentrum/submit.sh experiments/configs/train-cs-sk-xlmr-ce.toml
+```
+
+Both train in bf16, which needs CUDA. XLM-R large has 560 million parameters
+against GLiNER's 290 million, so a step costs more; the smoke run's
+`seconds_per_step` tells whether the 2-hour limit holds 4,200 steps.
 
 `base` is the config's own seed, `1 2` its replicates (`<model>-gpu-s1`,
 `<model>-gpu-s2` with the default tag); each seed is its own job, and they run

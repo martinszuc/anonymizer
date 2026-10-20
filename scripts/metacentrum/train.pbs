@@ -12,19 +12,21 @@ set -euo pipefail
 source "$STORE/anonymizer/scripts/metacentrum/env.sh"
 trap 'clean_scratch' EXIT
 
-BASE_MODELS=(gliner-multi-v2.1 mdeberta-v3-base-tokenizer)
-
 echo "job $PBS_JOBID on $(hostname -f): $CONFIG tag ${TAG:-none} seed ${SEED:-from the config}"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv
+
+cd "$REPO"
+# The config's base model and its tokenizer, from the catalog (GLiNER or XLM-R).
+base_models=$(uv run --no-sync python scripts/metacentrum/base_models.py "$CONFIG")
+echo "base models: $(echo $base_models)"
 
 scratch_root=$SCRATCHDIR/root
 mkdir -p "$scratch_root/models"
 cp -r "$ROOT/data" "$scratch_root/"
-for model in "${BASE_MODELS[@]}"; do
+for model in $base_models; do
     cp -r "$ROOT/models/$model" "$scratch_root/models/"
 done
 
-cd "$REPO"
 set --
 if [ -n "${TAG:-}" ]; then
     set -- "$@" --tag "$TAG"

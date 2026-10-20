@@ -1,12 +1,14 @@
 #!/bin/bash
-# Copy the corpora and base models training reads from this Mac to MetaCentrum,
-# then re-hash them there against the catalog. Run on the Mac, from the checkout.
+# Copy the corpora and base models training reads (GLiNER, XLM-R large) from this
+# Mac to MetaCentrum, then re-hash them there against the catalog. Run on the Mac,
+# from the checkout. Every base a config may name (scripts/metacentrum/base_models.py)
+# must be in MODELS, or train.pbs finds nothing to copy.
 set -euo pipefail
 
 HOST=${HOST:-xszum00@skirit.metacentrum.cz}
 STORE=${STORE:-/storage/budejovice1/home/xszum00}
 DATASETS=(cnec-2.0 uner-sk-snk openpii-1m redact)
-MODELS=(gliner-multi-v2.1 mdeberta-v3-base-tokenizer)
+MODELS=(gliner-multi-v2.1 mdeberta-v3-base-tokenizer xlm-roberta-large xlm-roberta-large-tokenizer)
 
 cd "$(git rev-parse --show-toplevel)"
 # One ssh connection for every step, so the password is asked once.

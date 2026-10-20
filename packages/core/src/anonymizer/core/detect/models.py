@@ -6,8 +6,9 @@ the command line, the review window, the benchmark and the experiments offer
 every such entry. A model trained on this machine is an entry of its storage
 root's `models/trained.json`, so a client that knows the root reads its
 catalog with `load_catalog(root=...)`; the functions taking a root do so
-when given no catalog. A new kind of model (a token classifier, say) adds one
-loader to `NAME_MODEL_ENGINES` and the package that runs it.
+when given no catalog. A new kind of model adds one loader to
+`NAME_MODEL_ENGINES` and the package that runs it: GLiNER, NameTag 3 and the
+token classifier trained here (`token_classifier.py`) are three.
 
 A model's decision threshold is settled here too (`name_model_threshold`):
 the caller's if it gives one, else the catalog entry's, else the engine's
@@ -29,6 +30,13 @@ from anonymizer.core.detect.gliner import (
     load_gliner_detector,
 )
 from anonymizer.core.detect.nametag import NAMETAG_ENGINE, load_nametag_detector
+from anonymizer.core.detect.token_classifier import (
+    DEFAULT_THRESHOLD as TOKEN_CLASSIFIER_THRESHOLD,
+)
+from anonymizer.core.detect.token_classifier import (
+    TOKEN_CLASSIFIER_ENGINE,
+    load_token_classifier_detector,
+)
 from anonymizer.core.resources import Catalog, Resource, load_catalog, missing_resources
 
 DEFAULT_NAME_MODEL = GLINER_RESOURCE
@@ -77,6 +85,17 @@ NAME_MODEL_ENGINES: dict[str, NameModelEngine] = {
         ),
         package="ufal.udpipe",
         group="ner",
+    ),
+    TOKEN_CLASSIFIER_ENGINE: NameModelEngine(
+        lambda root, model_id, catalog, threshold: load_token_classifier_detector(
+            root,
+            model_id,
+            catalog=catalog,
+            threshold=TOKEN_CLASSIFIER_THRESHOLD if threshold is None else threshold,
+        ),
+        package="transformers",
+        group="ner",
+        default_threshold=TOKEN_CLASSIFIER_THRESHOLD,
     ),
 }
 """Loaders by the catalog's `engine` field."""

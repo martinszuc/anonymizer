@@ -243,6 +243,36 @@ sha256 = "cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865"
 source_digest = "git-sha1:db9af13bf09fd3028ca32be90d3fb66d5e470399"
 
 [[resource]]
+id = "xlm-roberta-large"
+name = "XLM-RoBERTa large: encoder weights"
+kind = "model"
+uses = ["training"]
+engine = "transformers"
+source = "https://huggingface.co/FacebookAI/xlm-roberta-large"
+version = "c23d21b0620b635a76227c604d44e43a9f0ee389"
+licence = "MIT"
+languages = ["mul"]
+requires = ["xlm-roberta-large-tokenizer"]
+notes = """
+Base encoder of the token classifier trained here (RQ6), the encoder NameTag 3 \
+multilingual is built on. Only the safetensors weights are listed; \
+pytorch_model.bin, tf_model.h5 and flax_model.msgpack hold the same model. Its \
+tokenizer is the requirement; config.json is listed here too, so the folder loads \
+as a model on its own."""
+
+[[resource.files]]
+path = "config.json"
+url = "https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/c23d21b0620b635a76227c604d44e43a9f0ee389/config.json"
+size = 616
+sha256 = "ec7c3a99c58a38ebb702a2297f1c4586944e841b5eb29d201ff87e0f9c9abe0e"
+
+[[resource.files]]
+path = "model.safetensors"
+url = "https://huggingface.co/FacebookAI/xlm-roberta-large/resolve/c23d21b0620b635a76227c604d44e43a9f0ee389/model.safetensors"
+size = 2244817354
+sha256 = "2dfa19f172412917cab174da04b46e2134811b723666965fd0aabd97caa6e23b"
+
+[[resource]]
 id = "onnxtr-fast-base"
 name = "OnnxTR FAST base: text detection"
 kind = "model"

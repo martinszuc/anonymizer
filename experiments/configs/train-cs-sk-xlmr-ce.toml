@@ -1,0 +1,50 @@
+name = "train-cs-sk-xlmr-ce"
+description = """
+RQ6, second model family: a token classifier (BIO labels per word) on XLM-RoBERTa
+large, the encoder of NameTag 3 multilingual, trained with cross-entropy on the
+examples of train-cs-sk-ce: every CNEC 2.0 and UNER Slovak-SNK train example and
+10,000 drawn from each OpenPII 1M train split (22,308 examples with this seed).
+4,200 steps of 16 (about 3.0 passes), one learning rate with linear warm-up and
+decay, bf16 on an NVIDIA card. Trained on MetaCentrum (docs/metacentrum.md);
+--device overrides the device, and precision must then be removed off CUDA."""
+model = "xlmr-cs-sk-ce"
+base = "xlm-roberta-large"
+seed = 20261010
+device = "cuda"
+
+[training]
+steps = 4200
+batch_size = 16
+learning_rate = 2e-5
+weight_decay = 0.01
+warmup_ratio = 0.1
+loss = "ce"
+precision = "bf16"
+logging_steps = 25
+
+[[corpora]]
+id = "cnec-2.0"
+split = "train"
+
+[[corpora]]
+id = "uner-sk-snk"
+split = "train"
+
+[[corpora]]
+id = "openpii-1m-cs"
+split = "train"
+examples = 10000
+
+[[corpora]]
+id = "openpii-1m-sk"
+split = "train"
+examples = 10000
+
+[evaluate]
+datasets = [
+    { id = "cnec-2.0", split = "dtest" },
+    { id = "uner-sk-snk", split = "dev" },
+    { id = "redact", split = "sample" },
+    { id = "openpii-1m-cs", split = "dev" },
+    { id = "openpii-1m-sk", split = "dev" },
+]

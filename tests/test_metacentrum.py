@@ -101,3 +101,38 @@ def test_staging_folders_are_named_after_the_job(
 
 def test_the_command_line_needs_both_roots(keeper: ModuleType):
     assert keeper.main(["only-one"]) == 2
+
+
+SCRIPTS = SCRIPT.parent
+REPOSITORY = SCRIPTS.parents[1]
+
+
+@pytest.fixture(scope="module")
+def bases() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("base_models", SCRIPTS / "base_models.py")
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_a_job_copies_the_configs_base_and_its_tokenizer(
+    bases: ModuleType, capsys: pytest.CaptureFixture[str]
+):
+    configs = REPOSITORY / "experiments" / "configs"
+    assert bases.base_models(configs / "train-smoke.toml") == [
+        "mdeberta-v3-base-tokenizer",
+        "gliner-multi-v2.1",
+    ]
+    assert bases.main([str(configs / "train-xlmr-smoke.toml")]) == 0
+    assert capsys.readouterr().out.split() == ["xlm-roberta-large-tokenizer", "xlm-roberta-large"]
+    assert bases.main([]) == 2
+
+
+def test_push_data_copies_every_base_a_shipped_config_names(bases: ModuleType):
+    script = (SCRIPTS / "push-data.sh").read_text(encoding="utf-8")
+    pushed = set(script.split("MODELS=(", 1)[1].split(")", 1)[0].split())
+    configs = (REPOSITORY / "experiments" / "configs").rglob("train-*.toml")
+    needed = {model for path in configs for model in bases.base_models(path)}
+    assert needed <= pushed

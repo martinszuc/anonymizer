@@ -20,7 +20,8 @@ spans with a score. Four properties of the model shape this module:
 
 `gliner` (and PyTorch with it) is an optional dependency: install the `ner`
 extra. The detector itself only needs an object with an `inference` method,
-which keeps it testable without the model.
+which keeps it testable without the model, and lets the token classifier
+trained here (`token_classifier.py`) run in it too.
 """
 
 from __future__ import annotations
@@ -112,7 +113,7 @@ class _Window:
 
 
 class GlinerDetector:
-    """Detects entities with a GLiNER model, window by window.
+    """Detects entities with a GLiNER model, or a token classifier, window by window.
 
     Attributes:
         labels: Prompt label → entity type.
@@ -351,20 +352,36 @@ def load_gliner_model(
         ImportError: If the `gliner` package is not installed.
     """
     catalog = catalog or load_catalog(root=root)
-    missing = missing_resources(catalog, model_id, root)
-    if missing:
-        remedy = (
-            f"it was trained on this machine, as {catalog[model_id].source} records"
-            if catalog[model_id].trained and model_id in missing
-            else f"fetch them with: uv run python scripts/download.py fetch {model_id}"
-        )
-        msg = f"model files missing under {root}: {', '.join(missing)}; {remedy}"
-        raise FileNotFoundError(msg)
+    require_stored(catalog, model_id, root)
     with step(log, "load name model", done_level=logging.INFO, model=model_id):
         return load_gliner(
             catalog[model_id].directory(root),
             catalog[encoder_resource(catalog, model_id)].directory(root),
         )
+
+
+def require_stored(catalog: Catalog, model_id: str, root: Path) -> None:
+    """Refuse a model whose files, or those of its requirements, are not stored under a root.
+
+    Args:
+        catalog: The resource catalog.
+        model_id: Catalog id of the model.
+        root: Storage root holding `models/`.
+
+    Raises:
+        FileNotFoundError: Naming what is missing and how to get it: the
+            download command, or the training record of a model trained here.
+    """
+    missing = missing_resources(catalog, model_id, root)
+    if not missing:
+        return
+    remedy = (
+        f"it was trained on this machine, as {catalog[model_id].source} records"
+        if catalog[model_id].trained and model_id in missing
+        else f"fetch them with: uv run python scripts/download.py fetch {model_id}"
+    )
+    msg = f"model files missing under {root}: {', '.join(missing)}; {remedy}"
+    raise FileNotFoundError(msg)
 
 
 def encoder_resource(catalog: Catalog, model_id: str) -> str:
@@ -402,12 +419,7 @@ def load_gliner(model_dir: Path, encoder_dir: Path) -> SpanModel:
     Raises:
         ImportError: If the `gliner` package is not installed.
     """
-    # Belt and braces: local_files_only covers the model, the variables cover
-    # anything transformers resolves on its own. Set outright rather than as
-    # defaults, so an environment saying otherwise cannot reopen the network.
-    # huggingface_hub reads them when first imported, which happens below.
-    for variable in _OFFLINE_VARIABLES:
-        os.environ[variable] = "1"
+    force_offline()
     with without_known_warnings():
         try:
             from gliner import GLiNER  # pyright: ignore[reportMissingImports]
@@ -419,6 +431,19 @@ def load_gliner(model_dir: Path, encoder_dir: Path) -> SpanModel:
     # gliner types the result as a union of every architecture it can load;
     # this model's config selects a uni-encoder span model, which fits.
     return cast("SpanModel", model)
+
+
+def force_offline() -> None:
+    """Keep the Hugging Face libraries off the network for the rest of the process.
+
+    Belt and braces: `local_files_only` covers the model, the variables cover
+    anything transformers resolves on its own. Set outright rather than as
+    defaults, so an environment saying otherwise cannot reopen the network.
+    huggingface_hub reads them when first imported, so call this before
+    importing gliner or transformers.
+    """
+    for variable in _OFFLINE_VARIABLES:
+        os.environ[variable] = "1"
 
 
 @contextmanager

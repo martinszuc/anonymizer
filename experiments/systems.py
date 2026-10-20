@@ -20,7 +20,10 @@ sets no threshold runs each model at its own (`name_model_threshold`: the
 catalog entry's, else GLiNER's default), so the floor is chosen per model
 from that effective threshold. GLiNER may run on a GPU (`model_loader`); its
 output there is cached apart from the CPU's, for the reason `cache_path`
-gives. NameTag 3
+gives. A token classifier trained here answers GLiNER's call
+(`core.detect.token_classifier`) and is cached, filtered and run on a device
+exactly as GLiNER is: its threshold filters decoded spans only, so the same
+floor argument holds. NameTag 3
 (`CachedTagger`) has no threshold; its labels are cached per page of
 sentences. Everything after the model (windows, sentences, word widening,
 the name filter, the rules, merging, propagation, titles) runs for real on
@@ -65,6 +68,10 @@ from anonymizer.core.detect.nametag import (
     load_nametag_tagger,
     model_directory,
 )
+from anonymizer.core.detect.token_classifier import (
+    TOKEN_CLASSIFIER_ENGINE,
+    load_token_classifier_model,
+)
 from anonymizer.core.language import AUTO
 from anonymizer.core.pipeline import build_detector, resolve_language, run_detection
 from anonymizer.core.resources import Catalog, load_catalog
@@ -80,10 +87,10 @@ Low enough for the threshold matching a recall weight of 10: `t / (w(1 - t) + t)
 is 0.041 at the default 0.3 (`experiments/README.md`, *Training*).
 """
 
-SPAN_MODEL_ENGINE = "gliner"
-"""The engine whose spans are cached and filtered by score."""
+SPAN_MODEL_ENGINES = ("gliner", TOKEN_CLASSIFIER_ENGINE)
+"""Engines answering GLiNER's call, whose spans are cached and filtered by score."""
 
-ENGINES = (SPAN_MODEL_ENGINE, NAMETAG_ENGINE)
+ENGINES = (*SPAN_MODEL_ENGINES, NAMETAG_ENGINE)
 """Engines whose output the harness can cache."""
 
 LANGUAGES = ("dataset", "auto", "none")
@@ -101,9 +108,11 @@ class SystemConfig:
             ids.
         combine: How several models are combined: `union` (everything
             either found) or `agreement` (what all of them found).
-        threshold: GLiNER's minimum score for every GLiNER model of the
-            system; `None` runs each at its own (`model_thresholds`).
-        labels: GLiNER's prompt label → entity type.
+        threshold: The minimum score for every span model (GLiNER, token
+            classifier) of the system; `None` runs each at its own
+            (`model_thresholds`).
+        labels: GLiNER's prompt label → entity type; a token classifier's
+            types are named the same.
         distractors: GLiNER labels asked for whose spans are dropped.
         names_only: Cut the models' person and address spans back to the value.
         propagate: Mark further occurrences of what was found.
@@ -112,9 +121,9 @@ class SystemConfig:
         engines: The engine of each model, as the catalog names them when
             the system was parsed; empty when built directly, which reports
             GLiNER's options.
-        model_thresholds: Each GLiNER model's own threshold by catalog id
+        model_thresholds: Each span model's own threshold by catalog id
             (`name_model_threshold`), filled when the system is parsed
-            without a threshold; a model missing here runs at
+            without a threshold; a model missing here runs at GLiNER's
             `DEFAULT_THRESHOLD`.
     """
 
@@ -144,17 +153,17 @@ class SystemConfig:
 
     @property
     def span_model_ids(self) -> tuple[str, ...]:
-        """The catalog ids of the system's GLiNER models; every model when built directly."""
+        """The catalog ids of the system's span models; every model when built directly."""
         if not self.engines:
             return self.model_ids
         return tuple(
             model_id
             for model_id, engine in zip(self.model_ids, self.engines, strict=True)
-            if engine == SPAN_MODEL_ENGINE
+            if engine in SPAN_MODEL_ENGINES
         )
 
     def threshold_of(self, model_id: str) -> float:
-        """Return the threshold a GLiNER model of the system runs at."""
+        """Return the threshold a span model of the system runs at."""
         if self.threshold is not None:
             return self.threshold
         return self.model_thresholds.get(model_id, DEFAULT_THRESHOLD)
@@ -276,10 +285,10 @@ def parse_system(
 def _model_thresholds(
     system: str, models: Sequence[str], engines: Sequence[str], catalog: Catalog
 ) -> dict[str, float]:
-    """Return each GLiNER model's own threshold; refuse one no cache reaches."""
+    """Return each span model's own threshold; refuse one no cache reaches."""
     thresholds: dict[str, float] = {}
     for model, engine in zip(models, engines, strict=True):
-        if engine != SPAN_MODEL_ENGINE:
+        if engine not in SPAN_MODEL_ENGINES:
             continue
         model_id = name_model(model, catalog).id
         threshold = name_model_threshold(model_id, catalog) or DEFAULT_THRESHOLD
@@ -313,7 +322,9 @@ def _check_model(system: str, model: str, catalog: Catalog) -> str:
         msg = f"system {system!r}: {error}, or none"
         raise ValueError(msg) from error
     if engine not in ENGINES:
-        msg = f"system {system!r}: model {model!r} runs on {engine}, not {' or '.join(ENGINES)}"
+        msg = (
+            f"system {system!r}: model {model!r} runs on {engine}, not one of {', '.join(ENGINES)}"
+        )
         raise ValueError(msg)
     return engine
 
@@ -544,20 +555,28 @@ def _safe(version: str) -> str:
     return re.sub(r"[^A-Za-z0-9.-]+", "_", version)[:64]
 
 
-def gliner_loader(resource_root: Path, device: str = "cpu") -> Callable[[str], SpanModel]:
-    """Return a function loading a catalog GLiNER model, by id, from the storage root.
+def span_model_loader(
+    resource_root: Path, catalog: Catalog | None = None, device: str = "cpu"
+) -> Callable[[str], SpanModel]:
+    """Return a function loading a catalog span model (GLiNER, token classifier), by id.
 
     Args:
         resource_root: Storage root holding `models/`.
-        device: Where the model runs (`run.DEVICES`). gliner loads it onto the
-            CPU; its `inference` moves each batch to the model's device.
+        catalog: The catalog naming the models; the shipped one when omitted.
+        device: Where the model runs (`run.DEVICES`). Both load onto the CPU
+            and move each batch to the model's device.
 
     Raises:
         FileNotFoundError: When called, if the model is not stored under the root.
     """
+    catalog = catalog or load_catalog()
 
     def load(model_id: str) -> SpanModel:
-        model: Any = load_gliner_model(resource_root, model_id)
+        model: Any = (
+            load_token_classifier_model(resource_root, model_id, catalog=catalog)
+            if name_model(model_id, catalog).engine == TOKEN_CLASSIFIER_ENGINE
+            else load_gliner_model(resource_root, model_id, catalog=catalog)
+        )
         return model.to(device)
 
     return load
@@ -568,17 +587,17 @@ def model_loader(
 ) -> Callable[[str], SpanModel | Tagger]:
     """Return a function loading a catalog name model of either engine, by id.
 
-    `device` is where a GLiNER model runs; NameTag 3 runs on the CPU.
+    `device` is where a span model runs; NameTag 3 runs on the CPU.
 
     Raises:
         FileNotFoundError: When called, if the model is not stored under the root.
     """
-    load_gliner = gliner_loader(resource_root, device)
     catalog = catalog or load_catalog()
+    load_span_model = span_model_loader(resource_root, catalog, device)
 
     def load(model_id: str) -> SpanModel | Tagger:
-        if name_model(model_id, catalog).engine == SPAN_MODEL_ENGINE:
-            return load_gliner(model_id)
+        if name_model(model_id, catalog).engine in SPAN_MODEL_ENGINES:
+            return load_span_model(model_id)
         return load_nametag_tagger(
             model_directory(resource_root, model_id, catalog),
             catalog[encoder_resource(catalog, model_id)].directory(resource_root),
@@ -610,9 +629,9 @@ def cached_model(
 ) -> NameModel:
     """Wrap a name model, loaded on first need, in the cache of its engine.
 
-    `floor` is the threshold GLiNER is asked at; NameTag has none.
+    `floor` is the threshold a span model is asked at; NameTag has none.
     """
-    if name_model(model_id, catalog).engine == SPAN_MODEL_ENGINE:
+    if name_model(model_id, catalog).engine in SPAN_MODEL_ENGINES:
         return CachedSpanModel(functools.partial(load_model, model_id), cache, floor)
     return CachedTagger(
         functools.partial(load_model, model_id), functools.partial(load_splitter, model_id), cache

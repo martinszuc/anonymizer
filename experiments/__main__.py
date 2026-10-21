@@ -15,6 +15,9 @@ and what it wrongly flags (`experiments.errors`), into `results/<name>-errors.*`
 `leaks scan.pdf --engines onnxtr --system rules+gliner --out leaks/` counts
 why the leak check fails on one document (`experiments.leaks`).
 
+`overlap` counts, per train split, the sentences whose text a dev or test
+split also holds: what `drop_overlap` leaves out of training (`experiments.overlap`).
+
 `funsd --work outputs/funsd --engines onnxtr,kraken` reads FUNSD's real
 scanned forms with each engine and writes counts to `results/funsd-test.*`
 (`experiments.funsd`); the work directory receives the scans and stays out of git.
@@ -39,6 +42,7 @@ from experiments.datasets import DATASETS, Role, load_corpus
 from experiments.errors import analyse, check_examples_folder, write_errors
 from experiments.funsd import SPLITS, run_funsd, write_results
 from experiments.leaks import breakdown, breakdown_markdown, write_breakdown
+from experiments.overlap import OverlapFilter, held_texts
 from experiments.report import latex, markdown
 from experiments.run import DEVICES, run
 from experiments.train import (
@@ -125,6 +129,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="also count the test splits, which are otherwise not read (as stage = final)",
     )
+    overlap = commands.add_parser(
+        "overlap", help="count train sentences whose text a dev or test split also holds"
+    )
+    overlap.add_argument(
+        "datasets", nargs="*", help="datasets whose train splits to count (default: all)"
+    )
     leaks = commands.add_parser("leaks", help="count why the leak check fails on one PDF")
     leaks.add_argument("pdf", type=Path, help="document to load, detect, redact and check")
     leaks.add_argument("--out", type=Path, required=True, help="directory for leaks.json and .md")
@@ -158,7 +168,7 @@ def main(argv: list[str] | None = None) -> int:
             help="where GLiNER predicts (default: cpu; cuda on an NVIDIA GPU, mps on a Mac); "
             "its output is cached per device and the results record it under machine",
         )
-    for command in (run_parser, train_parser, errors_parser, datasets, leaks, funsd):
+    for command in (run_parser, train_parser, errors_parser, datasets, overlap, leaks, funsd):
         command.add_argument(
             "--resource-root",
             type=Path,
@@ -173,6 +183,8 @@ def main(argv: list[str] | None = None) -> int:
     root = resolve_resource_root(args.resource_root)
     if args.command == "datasets":
         return _count(root, final=args.final)
+    if args.command == "overlap":
+        return _overlap(root, args.datasets)
     if args.command == "leaks":
         return _leaks(args, root)
     if args.command == "funsd":
@@ -294,6 +306,31 @@ def _count(root: Path, *, final: bool) -> int:
                 f"{corpus.key} ({role}, {corpus.language}): {len(corpus.documents)} documents, "
                 f"{corpus.sentences} sentences or records; gold {gold}; "
                 f"skipped {corpus.skipped}"
+            )
+    return 0
+
+
+def _overlap(root: Path, datasets: list[str]) -> int:
+    """Print, per train split, how many sentences a dev or test split repeats; counts only."""
+    unknown = sorted(set(datasets) - set(DATASETS))
+    if unknown:
+        print(f"overlap: unknown datasets {unknown}", file=sys.stderr)
+        return 2
+    held = held_texts(root)
+    for name, sentences in held.sentences.items():
+        print(f"held out {name}: {sentences} sentences or records")
+    for dataset, spec in DATASETS.items():
+        if datasets and dataset not in datasets:
+            continue
+        for split, role in spec.splits.items():
+            if role is not Role.TRAIN:
+                continue
+            matches = OverlapFilter(held)
+            corpus = load_corpus(dataset, split, root, exclude=matches)
+            found = ", ".join(f"{name} {count}" for name, count in sorted(matches.sources.items()))
+            print(
+                f"{corpus.key}: {corpus.excluded} of {corpus.sentences + corpus.excluded} "
+                f"sentences or records repeat dev or test text{f' ({found})' if found else ''}"
             )
     return 0
 

@@ -47,7 +47,7 @@ from experiments.train import (
     with_seed,
     with_tag,
 )
-from tests.experiments.conftest import ScoredStandIn
+from tests.experiments.conftest import CNEC_LINES, ScoredStandIn
 from tests.resources.test_catalog import trained_entry
 
 CONFIGS = Path(__file__).parents[2] / "experiments" / "configs"
@@ -751,3 +751,75 @@ def test_on_linux_the_cpu_model_is_recorded(tmp_path: Path, monkeypatch: pytest.
     assert train_module._chip() == "AMD EPYC 7543 32-Core"
     monkeypatch.setattr(train_module, "CPUINFO", tmp_path / "absent")
     assert train_module._chip() == train_module.platform.processor()
+
+
+class TestOverlap:
+    def test_a_corpus_that_may_repeat_held_out_text_needs_the_check(self):
+        raw = copy.deepcopy(CONFIG)
+        raw["corpora"].append({"id": "wikigoldsk", "split": "train"})
+        with pytest.raises(ValueError, match="wikigoldsk may repeat text"):
+            parse_train_config(raw)
+        assert parse_train_config({**raw, "drop_overlap": True}).drop_overlap
+        assert not parse_train_config(CONFIG).drop_overlap
+        with pytest.raises(ValueError, match="drop_overlap must be true or false"):
+            parse_train_config({**CONFIG, "drop_overlap": "yes"})
+        with pytest.raises(ValueError, match="not a train split"):
+            parse_train_config(_changed("corpora.0", {"id": "slavicner-cs", "split": "dev"}))
+
+    def test_train_sentences_held_out_elsewhere_are_dropped_and_counted(
+        self, training_root: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        from experiments import overlap
+        from experiments import train as train_module
+
+        # The synthetic root stores CNEC's dev and test splits, which repeat its train lines.
+        monkeypatch.setattr(
+            train_module,
+            "held_texts",
+            lambda root: overlap.held_texts(root, {"cnec-2.0": DATASETS["cnec-2.0"]}),
+        )
+        conversion = Conversion()
+        checked = parse_train_config({**CONFIG, "drop_overlap": True})
+        examples, _ = training_examples(checked, training_root, conversion)
+        counts = conversion.to_dict()
+        assert counts["overlapping"] == {
+            "cnec-2.0/train": len(CNEC_LINES),
+            "openpii-1m-cs/train": 0,
+            "uner-sk-snk/train": 0,
+        }
+        assert counts["overlap_sources"]["cnec-2.0/train"] == {
+            "cnec-2.0/dtest": len(CNEC_LINES),
+            "cnec-2.0/etest": 1,
+        }
+        assert counts["overlap_checked"] == {"cnec-2.0/dtest": 4, "cnec-2.0/etest": 1}
+        assert counts["drawn"]["cnec-2.0/train"] == 0
+        assert len(examples) == 3  # one of UNER, two of OpenPII
+
+        # Without the check nothing is dropped and the results keep their earlier keys.
+        unchecked = Conversion()
+        training_examples(parse_train_config(CONFIG), training_root, unchecked)
+        assert unchecked.drawn["cnec-2.0/train"] > 0
+        assert not {"overlapping", "overlap_sources", "overlap_checked"} & set(unchecked.to_dict())
+
+    def test_the_configs_with_more_data_differ_from_their_twins_only_in_the_data(self):
+        added = ["wikigoldsk", "slavicner-cs"]
+        for twin_name in ("train-cs-sk-ce", "train-cs-sk-xlmr-ce"):
+            twin = tomllib.loads((CONFIGS / f"{twin_name}.toml").read_text(encoding="utf-8"))
+            more = tomllib.loads((CONFIGS / f"{twin_name}-more.toml").read_text(encoding="utf-8"))
+            assert more["drop_overlap"] is True
+            assert (more["base"], more["seed"], more["device"]) == (
+                twin["base"],
+                twin["seed"],
+                "cuda",
+            )
+            assert {k: v for k, v in more["training"].items() if k != "steps"} == {
+                k: v for k, v in twin["training"].items() if k != "steps"
+            }
+            real = [entry for entry in more["corpora"] if "examples" not in entry]
+            assert [entry["id"] for entry in real] == ["cnec-2.0", "uner-sk-snk", *added]
+            assert all(entry["repeat"] == 3 for entry in real)
+            drawn = [entry for entry in twin["corpora"] if "examples" in entry]
+            assert [entry for entry in more["corpora"] if "examples" in entry] == drawn
+            evaluated = more["evaluate"]["datasets"]
+            assert evaluated[:5] == twin["evaluate"]["datasets"]
+            assert [entry["id"] for entry in evaluated[5:]] == added

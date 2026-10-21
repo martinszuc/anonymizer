@@ -101,6 +101,12 @@ class Conversion:
         spans: Spans in the drawn examples, per label.
         tokens: Tokens in the drawn examples.
         empty: Drawn examples holding no span.
+        overlapping: Sentences left out per corpus key because a dev or
+            test split holds their text (`overlap.py`), when checked.
+        overlap_sources: Per corpus key, the dev and test splits those
+            sentences were found in, with counts.
+        overlap_checked: The dev and test splits checked against, with the
+            sentences read from each; empty when nothing was checked.
     """
 
     examples: Counter[str] = field(default_factory=Counter)
@@ -110,6 +116,9 @@ class Conversion:
     spans: Counter[str] = field(default_factory=Counter)
     tokens: int = 0
     empty: int = 0
+    overlapping: dict[str, int] = field(default_factory=dict)
+    overlap_sources: dict[str, dict[str, int]] = field(default_factory=dict)
+    overlap_checked: dict[str, int] = field(default_factory=dict)
 
     def add_drawn(self, key: str, examples: Sequence[Example], repeat: int = 1) -> None:
         """Count the examples drawn from one corpus, each counted once however often it repeats."""
@@ -121,9 +130,18 @@ class Conversion:
             self.tokens += len(example.tokens)
             self.empty += not example.spans
 
+    def add_overlap(self, key: str, excluded: int, sources: Mapping[str, int]) -> None:
+        """Count the sentences of one corpus left out as dev or test text, and where they were."""
+        self.overlapping[key] = excluded
+        self.overlap_sources[key] = dict(sorted(sources.items()))
+
     def to_dict(self) -> dict[str, Any]:
-        """Return the counts as plain data, for the results file."""
-        return {
+        """Return the counts as plain data, for the results file.
+
+        The overlap counts appear only when the overlap was checked, so the
+        results of configs that do not check it keep their earlier keys.
+        """
+        counts: dict[str, Any] = {
             "converted": dict(sorted(self.examples.items())),
             "too_wide": dict(sorted(self.too_wide.items())),
             "drawn": dict(sorted(self.drawn.items())),
@@ -132,6 +150,11 @@ class Conversion:
             "tokens": self.tokens,
             "empty": self.empty,
         }
+        if self.overlap_checked:
+            counts["overlapping"] = dict(sorted(self.overlapping.items()))
+            counts["overlap_sources"] = dict(sorted(self.overlap_sources.items()))
+            counts["overlap_checked"] = self.overlap_checked
+        return counts
 
 
 def corpus_labels(spec: DatasetSpec, taught: Mapping[EntityType, str]) -> tuple[str, ...]:

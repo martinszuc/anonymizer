@@ -325,6 +325,8 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/train-xlmr-smoke.toml` | token classifier smoke run on MetaCentrum: 400 examples, 40 steps of 8, bf16, 25 documents per dev split |
 | `configs/train-cs-sk-xlmr-ce.toml` | RQ6's second family: a token classifier on XLM-RoBERTa large, the data of `train-cs-sk-ce`, 4,200 steps of 16 (about 3 passes), bf16 on CUDA |
 | `configs/train-cs-sk-xlmr-ce-more.toml`, `train-cs-sk-ce-more.toml` | the two families with WikiGoldSK and SlavicNER Czech added, every real corpus repeated 3 times, OpenPII 10,000 + 10,000, repeated text dropped (35,051 examples): XLM-R 6,600 steps (about 3 passes), GLiNER 2,000 steps; also scored on the WikiGoldSK and SlavicNER dev splits |
+| `configs/train-cs-sk-xlmr-ce-r3.toml` | the token classifier with the real corpora repeated 3× (GLiNER's stage B recipe), same steps |
+| `configs/train-cs-sk-focal-r3.toml` | GLiNER focal loss with the real corpora repeated 3×, the candidate joining focal (UNER-SK) and stage B (REDACT) |
 
 A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on

@@ -59,6 +59,8 @@ def test_shipped_corpora_naming_real_people_are_flagged():
     catalog = load_catalog()
     assert catalog["cnec-2.0"].real_personal_data
     assert catalog["uner-sk-snk"].real_personal_data
+    assert catalog["wikigoldsk"].real_personal_data
+    assert catalog["slavicner"].real_personal_data
     assert not catalog["redact"].real_personal_data
 
 

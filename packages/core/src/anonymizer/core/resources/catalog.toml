@@ -566,3 +566,80 @@ path = "train.jsonl"
 url = "https://huggingface.co/datasets/ai4privacy/pii-masking-openpii-1m/resolve/ecfdc547f4a0955600cfe6ab98ba2a162207fcc0/data/train.jsonl"
 size = 3690456830
 sha256 = "f167e4290bc8dc9d92866e1e7be57821e3847f0dc4b02140a9a5540fb9151743"
+
+[[resource]]
+id = "wikigoldsk"
+name = "WikiGoldSK"
+kind = "dataset"
+uses = ["benchmark", "training"]
+source = "https://huggingface.co/datasets/NaiveNeuron/wikigoldsk"
+version = "9cdad365952d5d651eeda09b96d642069d6fcf2b"
+licence = "CC-BY-SA-3.0"
+languages = ["sk"]
+real_personal_data = true
+notes = """
+Slovak Wikipedia articles annotated by hand with PER, LOC, ORG and MISC in IOB2: \
+one "token tag" pair per line, separated by a space, sentences by a blank line, \
+no document boundaries. 4,687 train, 669 dev and 1,340 test sentences. Names \
+real people. The Hugging Face copy is used because its card states the licence \
+(CC BY-SA 3.0; cite arXiv:2304.04026). dataset-full-docs.txt is not listed: \
+the splits are what is read. The files are not in Git LFS, so Hugging Face \
+publishes only their git blob SHA-1; the SHA-256 was recorded after a download \
+verified against it."""
+
+[[resource.files]]
+path = "README.md"
+url = "https://huggingface.co/datasets/NaiveNeuron/wikigoldsk/resolve/9cdad365952d5d651eeda09b96d642069d6fcf2b/README.md"
+size = 496
+sha256 = "026b3146a4e7f3f01594ba7d13f3fa65fa949c83d01701f4b1da2bdde3cf1d4a"
+source_digest = "git-sha1:908440126da43bdf45e0454bacc3b2ad5f12b95a"
+
+[[resource.files]]
+path = "train.txt"
+url = "https://huggingface.co/datasets/NaiveNeuron/wikigoldsk/resolve/9cdad365952d5d651eeda09b96d642069d6fcf2b/train.txt"
+size = 813469
+sha256 = "0f7b85d59f672a27b152536d690594bcda8f48feef33b23af5d8123639e3b4ed"
+source_digest = "git-sha1:2f10e30e8d0dcd48d6af145e475bbc6c417e41ab"
+
+[[resource.files]]
+path = "dev.txt"
+url = "https://huggingface.co/datasets/NaiveNeuron/wikigoldsk/resolve/9cdad365952d5d651eeda09b96d642069d6fcf2b/dev.txt"
+size = 115399
+sha256 = "cab0ca220e45a78836a4a73650f3fb29f66eea2350437376ab0cddbd07ad233d"
+source_digest = "git-sha1:7e07b4f2d6e7186838d11c0be8119def2c48ce79"
+
+[[resource.files]]
+path = "test.txt"
+url = "https://huggingface.co/datasets/NaiveNeuron/wikigoldsk/resolve/9cdad365952d5d651eeda09b96d642069d6fcf2b/test.txt"
+size = 229927
+sha256 = "2536d7beac3fcccb97d5e6177eff0e6fee1bce4de3503ecf0304c501100ce7ca"
+source_digest = "git-sha1:8c982e410e4f609e583bb8c1eecfb7a938ee8cf3"
+
+[[resource]]
+id = "slavicner"
+name = "SlavicNER: Cross-lingual Named Entity Corpus for Slavic Languages"
+kind = "dataset"
+uses = ["benchmark", "training"]
+source = "https://github.com/SlavicNLP/SlavicNER"
+version = "2c72947c4d85df156537f1dc92bd80f4180f6c71"
+licence = "LicenseRef-SlavicNER-research-only"
+languages = ["mul", "cs"]
+real_personal_data = true
+notes = """
+BSNLP 2017-2023 shared-task news on seven topics in six Slavic languages (987 \
+Czech documents of 5,017), every mention marked with character offsets, \
+category (PER, LOC, ORG, EVT, PRO), lemma and a cross-lingual id. Names real \
+public figures. No licence file at the pinned commit; the paper (LREC-COLING \
+2024, aclanthology 2024.lrec-main.369, section 5) says the corpus is "publicly \
+available for research purposes" and asks any further use to contact the \
+authors: research only and non-commercial, like CNEC. Only the Czech files are \
+read. The archive is the repository at the pinned commit as GitHub builds it \
+(two downloads gave the same bytes, 2026-10-21); each of its 10,040 files \
+matched the commit's git blob SHA-1, and the SHA-256 was recorded after."""
+
+[[resource.files]]
+path = "SlavicNER.zip"
+url = "https://codeload.github.com/SlavicNLP/SlavicNER/zip/2c72947c4d85df156537f1dc92bd80f4180f6c71"
+size = 14943688
+sha256 = "4540fc95f23bffecf625c8a5a5aa0dde1596ddc7df045787fe014219897d8416"
+unpack = "zip"

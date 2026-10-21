@@ -1,0 +1,51 @@
+name = "train-cs-sk-xlmr-ce-r3"
+description = """
+RQ6, second model family with the recipe GLiNER's stage B carried forward:
+train-cs-sk-xlmr-ce with every CNEC 2.0 and UNER Slovak-SNK train example repeated
+3× (6,924 of 26,924 examples with this seed, the rest 10,000 from each OpenPII 1M
+split). Steps stay at 4,200 of 16 (about 2.5 passes), so the data mix is the only
+change. With 3× real data every GLiNER seed found the REDACT record the 1× runs
+miss. Trained on MetaCentrum (docs/metacentrum.md)."""
+model = "xlmr-cs-sk-ce-r3"
+base = "xlm-roberta-large"
+seed = 20261010
+device = "cuda"
+
+[training]
+steps = 4200
+batch_size = 16
+learning_rate = 2e-5
+weight_decay = 0.01
+warmup_ratio = 0.1
+loss = "ce"
+precision = "bf16"
+logging_steps = 25
+
+[[corpora]]
+id = "cnec-2.0"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "uner-sk-snk"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "openpii-1m-cs"
+split = "train"
+examples = 10000
+
+[[corpora]]
+id = "openpii-1m-sk"
+split = "train"
+examples = 10000
+
+[evaluate]
+datasets = [
+    { id = "cnec-2.0", split = "dtest" },
+    { id = "uner-sk-snk", split = "dev" },
+    { id = "redact", split = "sample" },
+    { id = "openpii-1m-cs", split = "dev" },
+    { id = "openpii-1m-sk", split = "dev" },
+]

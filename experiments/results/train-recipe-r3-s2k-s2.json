@@ -1,0 +1,2815 @@
+{
+  "schema": 1,
+  "name": "train-recipe-r3-s2k-s2",
+  "description": "RQ6 recipe sweep, stage A: train-cs-sk-ce with every CNEC 2.0 and UNER Slovak-SNK\ntrain example repeated 3× (6,924 of 26,924 examples, the rest 10,000 from each\nOpenPII 1M split) and 2,000 steps of 16 (about 1.2 passes). Everything else is\ntrain-cs-sk-ce; its own cell (1×, 2,000 steps) is train-cs-sk-ce --tag gpu. Trained on\nMetaCentrum (docs/metacentrum.md); chosen on development data only.",
+  "created": "2026-10-21T00:44:04+00:00",
+  "tool_version": "0.6.0",
+  "git": {
+    "commit": "156b8b704e31554324a466dd7111c3f6fbb82f55",
+    "dirty": false
+  },
+  "machine": {
+    "system": "Linux",
+    "release": "6.12.111+deb13-amd64",
+    "machine": "x86_64",
+    "processor": "",
+    "python": "3.12.14",
+    "chip": "AMD EPYC 9454 48-Core Processor",
+    "device": "cuda",
+    "gpu": "NVIDIA L40S",
+    "cuda": "13.0",
+    "torch": "2.14.0",
+    "transformers": "5.12.1",
+    "accelerate": "1.15.0",
+    "gliner": "0.2.29"
+  },
+  "seed": 2,
+  "replicate": 2,
+  "tag": null,
+  "config": {
+    "name": "train-recipe-r3-s2k",
+    "description": "RQ6 recipe sweep, stage A: train-cs-sk-ce with every CNEC 2.0 and UNER Slovak-SNK\ntrain example repeated 3× (6,924 of 26,924 examples, the rest 10,000 from each\nOpenPII 1M split) and 2,000 steps of 16 (about 1.2 passes). Everything else is\ntrain-cs-sk-ce; its own cell (1×, 2,000 steps) is train-cs-sk-ce --tag gpu. Trained on\nMetaCentrum (docs/metacentrum.md); chosen on development data only.",
+    "model": "gliner-recipe-r3-s2k",
+    "base": "gliner-multi-v2.1",
+    "seed": 20261010,
+    "device": "cuda",
+    "training": {
+      "steps": 2000,
+      "batch_size": 16,
+      "learning_rate": 1e-05,
+      "head_learning_rate": 5e-05,
+      "weight_decay": 0.01,
+      "warmup_ratio": 0.1,
+      "loss": "ce",
+      "logging_steps": 25
+    },
+    "corpora": [
+      {
+        "id": "cnec-2.0",
+        "split": "train",
+        "repeat": 3
+      },
+      {
+        "id": "uner-sk-snk",
+        "split": "train",
+        "repeat": 3
+      },
+      {
+        "id": "openpii-1m-cs",
+        "split": "train",
+        "examples": 10000
+      },
+      {
+        "id": "openpii-1m-sk",
+        "split": "train",
+        "examples": 10000
+      }
+    ],
+    "evaluate": {
+      "datasets": [
+        {
+          "id": "cnec-2.0",
+          "split": "dtest"
+        },
+        {
+          "id": "uner-sk-snk",
+          "split": "dev"
+        },
+        {
+          "id": "redact",
+          "split": "sample"
+        },
+        {
+          "id": "openpii-1m-cs",
+          "split": "dev"
+        },
+        {
+          "id": "openpii-1m-sk",
+          "split": "dev"
+        }
+      ]
+    }
+  },
+  "base": {
+    "id": "gliner-multi-v2.1",
+    "version": "443d26d654e0324125a96bebd8e796c14ff2efe6"
+  },
+  "datasets": {
+    "cnec-2.0": "hdl:11858/00-097C-0000-0023-1B22-8",
+    "uner-sk-snk": "1dc4d129e4279e4d2e69cd868432a9c396511bf8",
+    "openpii-1m": "ecfdc547f4a0955600cfe6ab98ba2a162207fcc0"
+  },
+  "examples": {
+    "count": 26924,
+    "converted": {
+      "cnec-2.0/train": 1406,
+      "openpii-1m-cs/train": 38268,
+      "openpii-1m-sk/train": 37943,
+      "uner-sk-snk/train": 902
+    },
+    "too_wide": {
+      "person": 1,
+      "street address": 1650
+    },
+    "drawn": {
+      "cnec-2.0/train": 1406,
+      "openpii-1m-cs/train": 10000,
+      "openpii-1m-sk/train": 10000,
+      "uner-sk-snk/train": 902
+    },
+    "repeated": {
+      "cnec-2.0/train": 3,
+      "uner-sk-snk/train": 3
+    },
+    "spans": {
+      "organization": 2595,
+      "person": 24003,
+      "street address": 8582
+    },
+    "tokens": 1404493,
+    "empty": 4787
+  },
+  "training": {
+    "steps": 2000,
+    "seconds": 523.3,
+    "seconds_per_step": 0.262,
+    "log": {
+      "loss": [
+        {
+          "step": 25,
+          "loss": 86.4578
+        },
+        {
+          "step": 50,
+          "loss": 59.6206
+        },
+        {
+          "step": 75,
+          "loss": 40.4668
+        },
+        {
+          "step": 100,
+          "loss": 38.1144
+        },
+        {
+          "step": 125,
+          "loss": 30.8765
+        },
+        {
+          "step": 150,
+          "loss": 30.5869
+        },
+        {
+          "step": 175,
+          "loss": 22.4398
+        },
+        {
+          "step": 200,
+          "loss": 27.1862
+        },
+        {
+          "step": 225,
+          "loss": 21.4016
+        },
+        {
+          "step": 250,
+          "loss": 30.0829
+        },
+        {
+          "step": 275,
+          "loss": 21.134
+        },
+        {
+          "step": 300,
+          "loss": 26.7589
+        },
+        {
+          "step": 325,
+          "loss": 27.6862
+        },
+        {
+          "step": 350,
+          "loss": 22.0083
+        },
+        {
+          "step": 375,
+          "loss": 13.6954
+        },
+        {
+          "step": 400,
+          "loss": 23.2297
+        },
+        {
+          "step": 425,
+          "loss": 20.0074
+        },
+        {
+          "step": 450,
+          "loss": 17.9522
+        },
+        {
+          "step": 475,
+          "loss": 18.1671
+        },
+        {
+          "step": 500,
+          "loss": 21.7139
+        },
+        {
+          "step": 525,
+          "loss": 16.4594
+        },
+        {
+          "step": 550,
+          "loss": 18.4063
+        },
+        {
+          "step": 575,
+          "loss": 18.1173
+        },
+        {
+          "step": 600,
+          "loss": 17.6959
+        },
+        {
+          "step": 625,
+          "loss": 17.1772
+        },
+        {
+          "step": 650,
+          "loss": 20.2664
+        },
+        {
+          "step": 675,
+          "loss": 19.5011
+        },
+        {
+          "step": 700,
+          "loss": 17.0215
+        },
+        {
+          "step": 725,
+          "loss": 18.3124
+        },
+        {
+          "step": 750,
+          "loss": 14.9405
+        },
+        {
+          "step": 775,
+          "loss": 14.4899
+        },
+        {
+          "step": 800,
+          "loss": 16.7673
+        },
+        {
+          "step": 825,
+          "loss": 14.4274
+        },
+        {
+          "step": 850,
+          "loss": 15.3306
+        },
+        {
+          "step": 875,
+          "loss": 19.6016
+        },
+        {
+          "step": 900,
+          "loss": 14.7002
+        },
+        {
+          "step": 925,
+          "loss": 11.4903
+        },
+        {
+          "step": 950,
+          "loss": 13.5431
+        },
+        {
+          "step": 975,
+          "loss": 15.155
+        },
+        {
+          "step": 1000,
+          "loss": 13.6001
+        },
+        {
+          "step": 1025,
+          "loss": 13.563
+        },
+        {
+          "step": 1050,
+          "loss": 12.7246
+        },
+        {
+          "step": 1075,
+          "loss": 12.7956
+        },
+        {
+          "step": 1100,
+          "loss": 12.5627
+        },
+        {
+          "step": 1125,
+          "loss": 16.9028
+        },
+        {
+          "step": 1150,
+          "loss": 10.2185
+        },
+        {
+          "step": 1175,
+          "loss": 12.3454
+        },
+        {
+          "step": 1200,
+          "loss": 12.4516
+        },
+        {
+          "step": 1225,
+          "loss": 16.3735
+        },
+        {
+          "step": 1250,
+          "loss": 13.0335
+        },
+        {
+          "step": 1275,
+          "loss": 11.3386
+        },
+        {
+          "step": 1300,
+          "loss": 14.3398
+        },
+        {
+          "step": 1325,
+          "loss": 12.7541
+        },
+        {
+          "step": 1350,
+          "loss": 14.8423
+        },
+        {
+          "step": 1375,
+          "loss": 14.578
+        },
+        {
+          "step": 1400,
+          "loss": 10.96
+        },
+        {
+          "step": 1425,
+          "loss": 13.3016
+        },
+        {
+          "step": 1450,
+          "loss": 12.1144
+        },
+        {
+          "step": 1475,
+          "loss": 12.158
+        },
+        {
+          "step": 1500,
+          "loss": 9.1744
+        },
+        {
+          "step": 1525,
+          "loss": 11.3706
+        },
+        {
+          "step": 1550,
+          "loss": 13.0833
+        },
+        {
+          "step": 1575,
+          "loss": 11.8127
+        },
+        {
+          "step": 1600,
+          "loss": 11.0215
+        },
+        {
+          "step": 1625,
+          "loss": 12.0131
+        },
+        {
+          "step": 1650,
+          "loss": 11.2291
+        },
+        {
+          "step": 1675,
+          "loss": 15.2164
+        },
+        {
+          "step": 1700,
+          "loss": 10.9697
+        },
+        {
+          "step": 1725,
+          "loss": 8.2508
+        },
+        {
+          "step": 1750,
+          "loss": 12.2381
+        },
+        {
+          "step": 1775,
+          "loss": 8.3637
+        },
+        {
+          "step": 1800,
+          "loss": 11.2025
+        },
+        {
+          "step": 1825,
+          "loss": 9.743
+        },
+        {
+          "step": 1850,
+          "loss": 9.2331
+        },
+        {
+          "step": 1875,
+          "loss": 14.4898
+        },
+        {
+          "step": 1900,
+          "loss": 9.6331
+        },
+        {
+          "step": 1925,
+          "loss": 6.9865
+        },
+        {
+          "step": 1950,
+          "loss": 9.3116
+        },
+        {
+          "step": 1975,
+          "loss": 8.8892
+        },
+        {
+          "step": 2000,
+          "loss": 7.4658
+        }
+      ],
+      "summary": {
+        "train_runtime": 521.7608,
+        "train_samples_per_second": 61.331,
+        "train_steps_per_second": 3.833
+      }
+    }
+  },
+  "model": {
+    "id": "gliner-recipe-r3-s2k-s2",
+    "name": "GLiNER fine-tuned on this machine (train-recipe-r3-s2k-s2)",
+    "kind": "model",
+    "uses": [
+      "ner"
+    ],
+    "engine": "gliner",
+    "trained": true,
+    "source": "experiments/results/train-recipe-r3-s2k-s2.json",
+    "version": "e97d6256603c97f11c2632dc12709f8d877147fbce4a92ea764a84f1c047f1bb",
+    "licence": "LicenseRef-Trained-Locally",
+    "languages": [
+      "cs",
+      "sk"
+    ],
+    "requires": [
+      "mdeberta-v3-base-tokenizer"
+    ],
+    "real_personal_data": true,
+    "notes": "Trained from gliner-multi-v2.1 (Apache-2.0) on cnec-2.0@hdl:11858/00-097C-0000-0023-1B22-8 (CC-BY-NC-SA-3.0), uner-sk-snk@1dc4d129e4279e4d2e69cd868432a9c396511bf8 (CC-BY-SA-4.0), openpii-1m@ecfdc547f4a0955600cfe6ab98ba2a162207fcc0 (CC-BY-4.0). Local use only: never committed or published.",
+    "files": [
+      {
+        "path": "gliner_config.json",
+        "size": 477,
+        "sha256": "e25f61d91620df84aae8076811ee592e926e94d341b82e7bc1be359718f83017"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 1155830112,
+        "sha256": "e97d6256603c97f11c2632dc12709f8d877147fbce4a92ea764a84f1c047f1bb"
+      }
+    ]
+  },
+  "evaluation": {
+    "schema": 1,
+    "name": "train-recipe-r3-s2k-s2-dev",
+    "description": "rules+gliner-recipe-r3-s2k-s2 after training (train-recipe-r3-s2k-s2).",
+    "stage": "dev",
+    "created": "2026-10-21T00:44:01+00:00",
+    "tool_version": "0.6.0",
+    "git": {
+      "commit": "156b8b704e31554324a466dd7111c3f6fbb82f55",
+      "dirty": false
+    },
+    "machine": {
+      "system": "Linux",
+      "release": "6.12.111+deb13-amd64",
+      "machine": "x86_64",
+      "processor": "",
+      "python": "3.12.14",
+      "device": "cuda",
+      "gpu": "NVIDIA L40S",
+      "cuda": "13.0"
+    },
+    "seed": 2,
+    "resamples": 1000,
+    "cache_floor": 0.1,
+    "models": {
+      "mdeberta-v3-base-tokenizer": "a0484667b22365f84929a935b5e50a51f71f159d",
+      "gliner-recipe-r3-s2k-s2": "e97d6256603c97f11c2632dc12709f8d877147fbce4a92ea764a84f1c047f1bb"
+    },
+    "datasets": {
+      "cnec-2.0": "hdl:11858/00-097C-0000-0023-1B22-8",
+      "uner-sk-snk": "1dc4d129e4279e4d2e69cd868432a9c396511bf8",
+      "redact": "252232ac29669beeb99cb6474eeb2736761be508",
+      "openpii-1m-cs": "ecfdc547f4a0955600cfe6ab98ba2a162207fcc0",
+      "openpii-1m-sk": "ecfdc547f4a0955600cfe6ab98ba2a162207fcc0"
+    },
+    "systems": {
+      "rules+gliner-recipe-r3-s2k-s2": {
+        "model": "gliner-recipe-r3-s2k-s2",
+        "propagate": true,
+        "language": "dataset",
+        "threshold": 0.3,
+        "labels": {
+          "person": "person",
+          "street address": "address"
+        },
+        "distractors": [
+          "organization"
+        ],
+        "names_only": true
+      }
+    },
+    "config": {
+      "name": "train-recipe-r3-s2k-s2-dev",
+      "description": "rules+gliner-recipe-r3-s2k-s2 after training (train-recipe-r3-s2k-s2).",
+      "seed": 2,
+      "datasets": [
+        {
+          "id": "cnec-2.0",
+          "split": "dtest",
+          "text": "written"
+        },
+        {
+          "id": "uner-sk-snk",
+          "split": "dev",
+          "text": "written"
+        },
+        {
+          "id": "redact",
+          "split": "sample",
+          "text": "written"
+        },
+        {
+          "id": "openpii-1m-cs",
+          "split": "dev",
+          "text": "written"
+        },
+        {
+          "id": "openpii-1m-sk",
+          "split": "dev",
+          "text": "written"
+        }
+      ],
+      "systems": {
+        "rules+gliner-recipe-r3-s2k-s2": {
+          "model": "gliner-recipe-r3-s2k-s2"
+        }
+      }
+    },
+    "corpora": {
+      "cnec-2.0/dtest": {
+        "dataset": "cnec-2.0",
+        "version": "hdl:11858/00-097C-0000-0023-1B22-8",
+        "split": "dtest",
+        "role": "dev",
+        "language": "cs",
+        "text": "written",
+        "documents": 75,
+        "pages": 75,
+        "sentences": 900,
+        "scored_types": [
+          "address",
+          "email",
+          "person",
+          "phone",
+          "url"
+        ],
+        "gold": {
+          "address": 22,
+          "email": 19,
+          "person": 524,
+          "phone": 37,
+          "url": 4
+        },
+        "unmapped": {
+          "gu": 283,
+          "nc": 196,
+          "oa": 187,
+          "gc": 148,
+          "ty": 145,
+          "th": 125,
+          "s": 121,
+          "n_": 63,
+          "f": 55,
+          "T": 53,
+          "td": 50,
+          "tm": 50,
+          "oe": 45,
+          "pc": 43,
+          "no": 36,
+          "om": 35,
+          "?": 31,
+          "segm": 30,
+          "op": 30,
+          "mn": 30,
+          "ia": 28,
+          "gr": 28,
+          "ns": 28,
+          "o_": 20,
+          "nb": 20,
+          "pp": 19,
+          "or": 19,
+          "ni": 18,
+          "na": 18,
+          "cap": 15,
+          "gl": 12,
+          "gh": 11,
+          "gt": 9,
+          "ms": 8,
+          "gs": 8,
+          "g_": 8,
+          "lower": 7,
+          "gq": 6,
+          "tf": 5,
+          "C": 3,
+          "ah": 1
+        },
+        "skipped": 0,
+        "systems": {
+          "rules+gliner-recipe-r3-s2k-s2": {
+            "languages": {
+              "cs": 75
+            },
+            "unscored_predictions": {
+              "birth_number": 5,
+              "company_id": 4,
+              "bank_account": 4
+            },
+            "seconds": 1.85,
+            "cache": {
+              "hits": 0,
+              "misses": 202
+            },
+            "scores": {
+              "strict": {
+                "address": {
+                  "counts": {
+                    "predicted": 28,
+                    "predicted_matched": 5,
+                    "gold": 22,
+                    "gold_matched": 5
+                  },
+                  "precision": {
+                    "value": 0.1786,
+                    "low": 0.0526,
+                    "high": 0.3684
+                  },
+                  "recall": {
+                    "value": 0.2273,
+                    "low": 0.0714,
+                    "high": 0.4615
+                  },
+                  "f1": {
+                    "value": 0.2,
+                    "low": 0.0606,
+                    "high": 0.4
+                  },
+                  "f2": {
+                    "value": 0.2155,
+                    "low": 0.0667,
+                    "high": 0.4268
+                  }
+                },
+                "email": {
+                  "counts": {
+                    "predicted": 19,
+                    "predicted_matched": 19,
+                    "gold": 19,
+                    "gold_matched": 19
+                  },
+                  "precision": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "recall": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "f1": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "f2": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  }
+                },
+                "person": {
+                  "counts": {
+                    "predicted": 548,
+                    "predicted_matched": 475,
+                    "gold": 524,
+                    "gold_matched": 475
+                  },
+                  "precision": {
+                    "value": 0.8668,
+                    "low": 0.8307,
+                    "high": 0.8983
+                  },
+                  "recall": {
+                    "value": 0.9065,
+                    "low": 0.8825,
+                    "high": 0.9287
+                  },
+                  "f1": {
+                    "value": 0.8862,
+                    "low": 0.8613,
+                    "high": 0.9078
+                  },
+                  "f2": {
+                    "value": 0.8983,
+                    "low": 0.8758,
+                    "high": 0.9186
+                  }
+                },
+                "phone": {
+                  "counts": {
+                    "predicted": 23,
+                    "predicted_matched": 23,
+                    "gold": 37,
+                    "gold_matched": 23
+                  },
+                  "precision": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "recall": {
+                    "value": 0.6216,
+                    "low": 0.2917,
+                    "high": 0.875
+                  },
+                  "f1": {
+                    "value": 0.7667,
+                    "low": 0.4516,
+                    "high": 0.9333
+                  },
+                  "f2": {
+                    "value": 0.6725,
+                    "low": 0.3398,
+                    "high": 0.8974
+                  }
+                },
+                "url": {
+                  "counts": {
+                    "predicted": 2,
+                    "predicted_matched": 2,
+                    "gold": 4,
+                    "gold_matched": 2
+                  },
+                  "precision": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "recall": {
+                    "value": 0.5,
+                    "low": 0.0,
+                    "high": 1.0
+                  },
+                  "f1": {
+                    "value": 0.6667,
+                    "low": 0.0,
+                    "high": 1.0
+                  },
+                  "f2": {
+                    "value": 0.5556,
+                    "low": 0.0,
+                    "high": 1.0
+                  }
+                },
+                "any": {
+                  "counts": {
+                    "predicted": 620,
+                    "predicted_matched": 524,
+                    "gold": 606,
+                    "gold_matched": 524
+                  },
+                  "precision": {
+                    "value": 0.8452,
+                    "low": 0.8079,
+                    "high": 0.8783
+                  },
+                  "recall": {
+                    "value": 0.8647,
+                    "low": 0.8218,
+                    "high": 0.8988
+                  },
+                  "f1": {
+                    "value": 0.8548,
+                    "low": 0.82,
+                    "high": 0.8837
+                  },
+                  "f2": {
+                    "value": 0.8607,
+                    "low": 0.8213,
+                    "high": 0.8917
+                  }
+                }
+              },
+              "partial": {
+                "address": {
+                  "counts": {
+                    "predicted": 28,
+                    "predicted_matched": 25,
+                    "gold": 22,
+                    "gold_matched": 19
+                  },
+                  "precision": {
+                    "value": 0.8929,
+                    "low": 0.7857,
+                    "high": 1.0
+                  },
+                  "recall": {
+                    "value": 0.8636,
+                    "low": 0.7143,
+                    "high": 1.0
+                  },
+                  "f1": {
+                    "value": 0.878,
+                    "low": 0.7778,
+                    "high": 0.96
+                  },
+                  "f2": {
+                    "value": 0.8693,
+                    "low": 0.7434,
+                    "high": 0.9797
+                  }
+                },
+                "email": {
+                  "counts": {
+                    "predicted": 19,
+                    "predicted_matched": 19,
+                    "gold": 19,
+                    "gold_matched": 19
+                  },
+                  "precision": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "recall": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "f1": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "f2": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  }
+                },
+                "person": {
+                  "counts": {
+                    "predicted": 548,
+                    "predicted_matched": 494,
+                    "gold": 524,
+                    "gold_matched": 493
+                  },
+                  "precision": {
+                    "value": 0.9015,
+                    "low": 0.8681,
+                    "high": 0.9319
+                  },
+                  "recall": {
+                    "value": 0.9408,
+                    "low": 0.9194,
+                    "high": 0.9608
+                  },
+                  "f1": {
+                    "value": 0.9207,
+                    "low": 0.8988,
+                    "high": 0.9394
+                  },
+                  "f2": {
+                    "value": 0.9327,
+                    "low": 0.9124,
+                    "high": 0.95
+                  }
+                },
+                "phone": {
+                  "counts": {
+                    "predicted": 23,
+                    "predicted_matched": 23,
+                    "gold": 37,
+                    "gold_matched": 23
+                  },
+                  "precision": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "recall": {
+                    "value": 0.6216,
+                    "low": 0.2917,
+                    "high": 0.875
+                  },
+                  "f1": {
+                    "value": 0.7667,
+                    "low": 0.4516,
+                    "high": 0.9333
+                  },
+                  "f2": {
+                    "value": 0.6725,
+                    "low": 0.3398,
+                    "high": 0.8974
+                  }
+                },
+                "url": {
+                  "counts": {
+                    "predicted": 2,
+                    "predicted_matched": 2,
+                    "gold": 4,
+                    "gold_matched": 2
+                  },
+                  "precision": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "recall": {
+                    "value": 0.5,
+                    "low": 0.0,
+                    "high": 1.0
+                  },
+                  "f1": {
+                    "value": 0.6667,
+                    "low": 0.0,
+                    "high": 1.0
+                  },
+                  "f2": {
+                    "value": 0.5556,
+                    "low": 0.0,
+                    "high": 1.0
+                  }
+                },
+                "any": {
+                  "counts": {
+                    "predicted": 620,
+                    "predicted_matched": 563,
+                    "gold": 606,
+                    "gold_matched": 561
+                  },
+                  "precision": {
+                    "value": 0.9081,
+                    "low": 0.8759,
+                    "high": 0.9358
+                  },
+                  "recall": {
+                    "value": 0.9257,
+                    "low": 0.8912,
+                    "high": 0.9542
+                  },
+                  "f1": {
+                    "value": 0.9168,
+                    "low": 0.8911,
+                    "high": 0.9379
+                  },
+                  "f2": {
+                    "value": 0.9222,
+                    "low": 0.8916,
+                    "high": 0.9463
+                  }
+                }
+              }
+            },
+            "coverage": {
+              "address": {
+                "counts": {
+                  "gold_characters": 1036,
+                  "residual_characters": 474,
+                  "gold_items": 22,
+                  "hidden_items": 5,
+                  "over_characters": 65,
+                  "text_characters": 92135
+                },
+                "residual": {
+                  "value": 0.4575,
+                  "low": 0.3231,
+                  "high": 0.5737
+                },
+                "hidden_whole": {
+                  "value": 0.2273,
+                  "low": 0.0714,
+                  "high": 0.4615
+                },
+                "over_redaction": {
+                  "value": 0.7055,
+                  "low": 0.1623,
+                  "high": 1.3522
+                }
+              },
+              "email": {
+                "counts": {
+                  "gold_characters": 362,
+                  "residual_characters": 0,
+                  "gold_items": 19,
+                  "hidden_items": 19,
+                  "over_characters": 0,
+                  "text_characters": 92135
+                },
+                "residual": {
+                  "value": 0.0,
+                  "low": 0.0,
+                  "high": 0.0
+                },
+                "hidden_whole": {
+                  "value": 1.0,
+                  "low": 1.0,
+                  "high": 1.0
+                },
+                "over_redaction": {
+                  "value": 0.0,
+                  "low": 0.0,
+                  "high": 0.0
+                }
+              },
+              "person": {
+                "counts": {
+                  "gold_characters": 5455,
+                  "residual_characters": 231,
+                  "gold_items": 524,
+                  "hidden_items": 482,
+                  "over_characters": 385,
+                  "text_characters": 92135
+                },
+                "residual": {
+                  "value": 0.0423,
+                  "low": 0.0289,
+                  "high": 0.056
+                },
+                "hidden_whole": {
+                  "value": 0.9198,
+                  "low": 0.8981,
+                  "high": 0.9399
+                },
+                "over_redaction": {
+                  "value": 4.1787,
+                  "low": 2.8819,
+                  "high": 5.5209
+                }
+              },
+              "phone": {
+                "counts": {
+                  "gold_characters": 415,
+                  "residual_characters": 136,
+                  "gold_items": 37,
+                  "hidden_items": 23,
+                  "over_characters": 0,
+                  "text_characters": 92135
+                },
+                "residual": {
+                  "value": 0.3277,
+                  "low": 0.0924,
+                  "high": 0.6364
+                },
+                "hidden_whole": {
+                  "value": 0.6216,
+                  "low": 0.2917,
+                  "high": 0.875
+                },
+                "over_redaction": {
+                  "value": 0.0,
+                  "low": 0.0,
+                  "high": 0.0
+                }
+              },
+              "url": {
+                "counts": {
+                  "gold_characters": 86,
+                  "residual_characters": 33,
+                  "gold_items": 4,
+                  "hidden_items": 2,
+                  "over_characters": 0,
+                  "text_characters": 92135
+                },
+                "residual": {
+                  "value": 0.3837,
+                  "low": 0.0,
+                  "high": 1.0
+                },
+                "hidden_whole": {
+                  "value": 0.5,
+                  "low": 0.0,
+                  "high": 1.0
+                },
+                "over_redaction": {
+                  "value": 0.0,
+                  "low": 0.0,
+                  "high": 0.0
+                }
+              },
+              "any": {
+                "counts": {
+                  "gold_characters": 7153,
+                  "residual_characters": 783,
+                  "gold_items": 606,
+                  "hidden_items": 531,
+                  "over_characters": 444,
+                  "text_characters": 92135
+                },
+                "residual": {
+                  "value": 0.1095,
+                  "low": 0.0748,
+                  "high": 0.1492
+                },
+                "hidden_whole": {
+                  "value": 0.8762,
+                  "low": 0.8336,
+                  "high": 0.9088
+                },
+                "over_redaction": {
+                  "value": 4.819,
+                  "low": 3.4919,
+                  "high": 6.4052
+                }
+              }
+            }
+          }
+        },
+        "comparisons": []
+      },
+      "uner-sk-snk/dev": {
+        "dataset": "uner-sk-snk",
+        "version": "1dc4d129e4279e4d2e69cd868432a9c396511bf8",
+        "split": "dev",
+        "role": "dev",
+        "language": "sk",
+        "text": "written",
+        "documents": 36,
+        "pages": 106,
+        "sentences": 1060,
+        "scored_types": [
+          "person"
+        ],
+        "gold": {
+          "person": 276
+        },
+        "unmapped": {
+          "LOC": 300
+        },
+        "skipped": 0,
+        "systems": {
+          "rules+gliner-recipe-r3-s2k-s2": {
+            "languages": {
+              "sk": 36
+            },
+            "unscored_predictions": {},
+            "seconds": 1.8,
+            "cache": {
+              "hits": 0,
+              "misses": 134
+            },
+            "scores": {
+              "strict": {
+                "person": {
+                  "counts": {
+                    "predicted": 296,
+                    "predicted_matched": 239,
+                    "gold": 276,
+                    "gold_matched": 239
+                  },
+                  "precision": {
+                    "value": 0.8074,
+                    "low": 0.7189,
+                    "high": 0.8826
+                  },
+                  "recall": {
+                    "value": 0.8659,
+                    "low": 0.8153,
+                    "high": 0.911
+                  },
+                  "f1": {
+                    "value": 0.8357,
+                    "low": 0.7756,
+                    "high": 0.8846
+                  },
+                  "f2": {
+                    "value": 0.8536,
+                    "low": 0.806,
+                    "high": 0.8945
+                  }
+                }
+              },
+              "partial": {
+                "person": {
+                  "counts": {
+                    "predicted": 296,
+                    "predicted_matched": 250,
+                    "gold": 276,
+                    "gold_matched": 252
+                  },
+                  "precision": {
+                    "value": 0.8446,
+                    "low": 0.751,
+                    "high": 0.9186
+                  },
+                  "recall": {
+                    "value": 0.913,
+                    "low": 0.8704,
+                    "high": 0.9502
+                  },
+                  "f1": {
+                    "value": 0.8775,
+                    "low": 0.8173,
+                    "high": 0.9222
+                  },
+                  "f2": {
+                    "value": 0.8985,
+                    "low": 0.8579,
+                    "high": 0.9315
+                  }
+                }
+              }
+            },
+            "coverage": {
+              "person": {
+                "counts": {
+                  "gold_characters": 2482,
+                  "residual_characters": 175,
+                  "gold_items": 276,
+                  "hidden_items": 247,
+                  "over_characters": 372,
+                  "text_characters": 65078
+                },
+                "residual": {
+                  "value": 0.0705,
+                  "low": 0.0403,
+                  "high": 0.1039
+                },
+                "hidden_whole": {
+                  "value": 0.8949,
+                  "low": 0.8445,
+                  "high": 0.9378
+                },
+                "over_redaction": {
+                  "value": 5.7162,
+                  "low": 2.6376,
+                  "high": 9.6824
+                }
+              }
+            }
+          }
+        },
+        "comparisons": []
+      },
+      "redact/sample": {
+        "dataset": "redact",
+        "version": "252232ac29669beeb99cb6474eeb2736761be508",
+        "split": "sample",
+        "role": "dev",
+        "language": "cs",
+        "text": "written",
+        "documents": 40,
+        "pages": 40,
+        "sentences": 40,
+        "scored_types": [
+          "address",
+          "birth_number",
+          "date",
+          "email",
+          "id_number",
+          "person",
+          "phone"
+        ],
+        "gold": {
+          "address": 27,
+          "birth_number": 20,
+          "date": 29,
+          "email": 61,
+          "id_number": 5,
+          "person": 219,
+          "phone": 27
+        },
+        "unmapped": {
+          "Customer_Reference_Number": 80,
+          "Org_Name": 45,
+          "Date_Time": 43,
+          "City": 35,
+          "Employee_ID_Number": 24,
+          "Business_Title": 17,
+          "Location": 16,
+          "State": 15,
+          "Sex_Orientation": 10,
+          "Religion": 9,
+          "Medical_Information": 7,
+          "Static_IP_Address": 6,
+          "Credit_Card_Numbers": 6,
+          "Nationality": 5,
+          "Professional_Background": 4,
+          "Account_Statements": 3,
+          "PEP_Status": 3,
+          "Age": 3,
+          "Citizenship_Status": 2,
+          "Allergy_Information": 2,
+          "Geolocation_Data": 2,
+          "Disciplinary_Action": 2,
+          "Performance_Assessment": 2,
+          "Emergency_Contact_Details": 2,
+          "Compensation_and_Salary": 2,
+          "Password": 1,
+          "Crime": 1,
+          "Tax_Reference_Number": 1,
+          "Social_Media_Identifiers": 1,
+          "Political_Party": 1
+        },
+        "skipped": 4,
+        "systems": {
+          "rules+gliner-recipe-r3-s2k-s2": {
+            "languages": {
+              "cs": 40
+            },
+            "unscored_predictions": {
+              "url": 4,
+              "bank_account": 4,
+              "company_id": 3
+            },
+            "seconds": 1.24,
+            "cache": {
+              "hits": 0,
+              "misses": 153
+            },
+            "scores": {
+              "strict": {
+                "address": {
+                  "counts": {
+                    "predicted": 52,
+                    "predicted_matched": 22,
+                    "gold": 27,
+                    "gold_matched": 22
+                  },
+                  "precision": {
+                    "value": 0.4231,
+                    "low": 0.2857,
+                    "high": 0.5932
+                  },
+                  "recall": {
+                    "value": 0.8148,
+                    "low": 0.6538,
+                    "high": 0.9655
+                  },
+                  "f1": {
+                    "value": 0.557,
+                    "low": 0.4051,
+                    "high": 0.7174
+                  },
+                  "f2": {
+                    "value": 0.6875,
+                    "low": 0.538,
+                    "high": 0.8333
+                  }
+                },
+                "birth_number": {
+                  "counts": {
+                    "predicted": 1,
+                    "predicted_matched": 1,
+                    "gold": 20,
+                    "gold_matched": 1
+                  },
+                  "precision": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "recall": {
+                    "value": 0.05,
+                    "low": 0.0,
+                    "high": 0.1538
+                  },
+                  "f1": {
+                    "value": 0.0952,
+                    "low": 0.0,
+                    "high": 0.2667
+                  },
+                  "f2": {
+                    "value": 0.0617,
+                    "low": 0.0,
+                    "high": 0.1852
+                  }
+                },
+                "date": {
+                  "counts": {
+                    "predicted": 16,
+                    "predicted_matched": 16,
+                    "gold": 29,
+                    "gold_matched": 16
+                  },
+                  "precision": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "recall": {
+                    "value": 0.5517,
+                    "low": 0.2941,
+                    "high": 0.8235
+                  },
+                  "f1": {
+                    "value": 0.7111,
+                    "low": 0.4545,
+                    "high": 0.9032
+                  },
+                  "f2": {
+                    "value": 0.6061,
+                    "low": 0.3425,
+                    "high": 0.8537
+                  }
+                },
+                "email": {
+                  "counts": {
+                    "predicted": 64,
+                    "predicted_matched": 61,
+                    "gold": 61,
+                    "gold_matched": 61
+                  },
+                  "precision": {
+                    "value": 0.9531,
+                    "low": 0.8448,
+                    "high": 1.0
+                  },
+                  "recall": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "f1": {
+                    "value": 0.976,
+                    "low": 0.9159,
+                    "high": 1.0
+                  },
+                  "f2": {
+                    "value": 0.9903,
+                    "low": 0.9646,
+                    "high": 1.0
+                  }
+                },
+                "id_number": {
+                  "counts": {
+                    "predicted": 0,
+                    "predicted_matched": 0,
+                    "gold": 5,
+                    "gold_matched": 0
+                  },
+                  "precision": {
+                    "value": null,
+                    "low": null,
+                    "high": null
+                  },
+                  "recall": {
+                    "value": 0.0,
+                    "low": 0.0,
+                    "high": 0.0
+                  },
+                  "f1": {
+                    "value": 0.0,
+                    "low": 0.0,
+                    "high": 0.0
+                  },
+                  "f2": {
+                    "value": 0.0,
+                    "low": 0.0,
+                    "high": 0.0
+                  }
+                },
+                "person": {
+                  "counts": {
+                    "predicted": 257,
+                    "predicted_matched": 156,
+                    "gold": 219,
+                    "gold_matched": 156
+                  },
+                  "precision": {
+                    "value": 0.607,
+                    "low": 0.4529,
+                    "high": 0.7672
+                  },
+                  "recall": {
+                    "value": 0.7123,
+                    "low": 0.5973,
+                    "high": 0.821
+                  },
+                  "f1": {
+                    "value": 0.6555,
+                    "low": 0.5333,
+                    "high": 0.7784
+                  },
+                  "f2": {
+                    "value": 0.6884,
+                    "low": 0.5789,
+                    "high": 0.7986
+                  }
+                },
+                "phone": {
+                  "counts": {
+                    "predicted": 32,
+                    "predicted_matched": 26,
+                    "gold": 27,
+                    "gold_matched": 26
+                  },
+                  "precision": {
+                    "value": 0.8125,
+                    "low": 0.65,
+                    "high": 0.9677
+                  },
+                  "recall": {
+                    "value": 0.963,
+                    "low": 0.8788,
+                    "high": 1.0
+                  },
+                  "f1": {
+                    "value": 0.8814,
+                    "low": 0.7586,
+                    "high": 0.9825
+                  },
+                  "f2": {
+                    "value": 0.9286,
+                    "low": 0.8411,
+                    "high": 0.9929
+                  }
+                },
+                "any": {
+                  "counts": {
+                    "predicted": 422,
+                    "predicted_matched": 284,
+                    "gold": 388,
+                    "gold_matched": 284
+                  },
+                  "precision": {
+                    "value": 0.673,
+                    "low": 0.5765,
+                    "high": 0.7719
+                  },
+                  "recall": {
+                    "value": 0.732,
+                    "low": 0.6689,
+                    "high": 0.7957
+                  },
+                  "f1": {
+                    "value": 0.7012,
+                    "low": 0.6324,
+                    "high": 0.7701
+                  },
+                  "f2": {
+                    "value": 0.7194,
+                    "low": 0.661,
+                    "high": 0.7826
+                  }
+                }
+              },
+              "partial": {
+                "address": {
+                  "counts": {
+                    "predicted": 52,
+                    "predicted_matched": 28,
+                    "gold": 27,
+                    "gold_matched": 27
+                  },
+                  "precision": {
+                    "value": 0.5385,
+                    "low": 0.4,
+                    "high": 0.6852
+                  },
+                  "recall": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "f1": {
+                    "value": 0.7,
+                    "low": 0.5714,
+                    "high": 0.8132
+                  },
+                  "f2": {
+                    "value": 0.8537,
+                    "low": 0.7692,
+                    "high": 0.9158
+                  }
+                },
+                "birth_number": {
+                  "counts": {
+                    "predicted": 1,
+                    "predicted_matched": 1,
+                    "gold": 20,
+                    "gold_matched": 1
+                  },
+                  "precision": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "recall": {
+                    "value": 0.05,
+                    "low": 0.0,
+                    "high": 0.1538
+                  },
+                  "f1": {
+                    "value": 0.0952,
+                    "low": 0.0,
+                    "high": 0.2667
+                  },
+                  "f2": {
+                    "value": 0.0617,
+                    "low": 0.0,
+                    "high": 0.1852
+                  }
+                },
+                "date": {
+                  "counts": {
+                    "predicted": 16,
+                    "predicted_matched": 16,
+                    "gold": 29,
+                    "gold_matched": 16
+                  },
+                  "precision": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "recall": {
+                    "value": 0.5517,
+                    "low": 0.2941,
+                    "high": 0.8235
+                  },
+                  "f1": {
+                    "value": 0.7111,
+                    "low": 0.4545,
+                    "high": 0.9032
+                  },
+                  "f2": {
+                    "value": 0.6061,
+                    "low": 0.3425,
+                    "high": 0.8537
+                  }
+                },
+                "email": {
+                  "counts": {
+                    "predicted": 64,
+                    "predicted_matched": 61,
+                    "gold": 61,
+                    "gold_matched": 61
+                  },
+                  "precision": {
+                    "value": 0.9531,
+                    "low": 0.8448,
+                    "high": 1.0
+                  },
+                  "recall": {
+                    "value": 1.0,
+                    "low": 1.0,
+                    "high": 1.0
+                  },
+                  "f1": {
+                    "value": 0.976,
+                    "low": 0.9159,
+                    "high": 1.0
+                  },
+                  "f2": {
+                    "value": 0.9903,
+                    "low": 0.9646,
+                    "high": 1.0
+                  }
+                },
+                "id_number": {
+                  "counts": {
+                    "predicted": 0,
+                    "predicted_matched": 0,
+                    "gold": 5,
+                    "gold_matched": 0
+                  },
+                  "precision": {
+                    "value": null,
+                    "low": null,
+                    "high": null
+                  },
+                  "recall": {
+                    "value": 0.0,
+                    "low": 0.0,
+                    "high": 0.0
+                  },
+                  "f1": {
+                    "value": 0.0,
+                    "low": 0.0,
+                    "high": 0.0
+                  },
+                  "f2": {
+                    "value": 0.0,
+                    "low": 0.0,
+                    "high": 0.0
+                  }
+                },
+                "person": {
+                  "counts": {
+                    "predicted": 257,
+                    "predicted_matched": 209,
+                    "gold": 219,
+                    "gold_matched": 217
+                  },
+                  "precision": {
+                    "value": 0.8132,
+                    "low": 0.6481,
+                    "high": 0.9628
+                  },
+                  "recall": {
+                    "value": 0.9909,
+                    "low": 0.9776,
+                    "high": 1.0
+                  },
+                  "f1": {
+                    "value": 0.8933,
+                    "low": 0.7817,
+                    "high": 0.9778
+                  },
+                  "f2": {
+                    "value": 0.9494,
+                    "low": 0.8948,
+                    "high": 0.9887
+                  }
+                },
+                "phone": {
+                  "counts": {
+                    "predicted": 32,
+                    "predicted_matched": 26,
+                    "gold": 27,
+                    "gold_matched": 26
+                  },
+                  "precision": {
+                    "value": 0.8125,
+                    "low": 0.65,
+                    "high": 0.9677
+                  },
+                  "recall": {
+                    "value": 0.963,
+                    "low": 0.8788,
+                    "high": 1.0
+                  },
+                  "f1": {
+                    "value": 0.8814,
+                    "low": 0.7586,
+                    "high": 0.9825
+                  },
+                  "f2": {
+                    "value": 0.9286,
+                    "low": 0.8411,
+                    "high": 0.9929
+                  }
+                },
+                "any": {
+                  "counts": {
+                    "predicted": 422,
+                    "predicted_matched": 344,
+                    "gold": 388,
+                    "gold_matched": 351
+                  },
+                  "precision": {
+                    "value": 0.8152,
+                    "low": 0.7044,
+                    "high": 0.9074
+                  },
+                  "recall": {
+                    "value": 0.9046,
+                    "low": 0.8611,
+                    "high": 0.9416
+                  },
+                  "f1": {
+                    "value": 0.8576,
+                    "low": 0.7877,
+                    "high": 0.9098
+                  },
+                  "f2": {
+                    "value": 0.8852,
+                    "low": 0.8395,
+                    "high": 0.9201
+                  }
+                }
+              }
+            },
+            "coverage": {
+              "address": {
+                "counts": {
+                  "gold_characters": 699,
+                  "residual_characters": 15,
+                  "gold_items": 27,
+                  "hidden_items": 26,
+                  "over_characters": 401,
+                  "text_characters": 64696
+                },
+                "residual": {
+                  "value": 0.0215,
+                  "low": 0.0,
+                  "high": 0.0696
+                },
+                "hidden_whole": {
+                  "value": 0.963,
+                  "low": 0.875,
+                  "high": 1.0
+                },
+                "over_redaction": {
+                  "value": 6.1982,
+                  "low": 2.9362,
+                  "high": 10.024
+                }
+              },
+              "birth_number": {
+                "counts": {
+                  "gold_characters": 201,
+                  "residual_characters": 115,
+                  "gold_items": 20,
+                  "hidden_items": 9,
+                  "over_characters": 0,
+                  "text_characters": 64696
+                },
+                "residual": {
+                  "value": 0.5721,
+                  "low": 0.3608,
+                  "high": 0.8105
+                },
+                "hidden_whole": {
+                  "value": 0.45,
+                  "low": 0.2105,
+                  "high": 0.65
+                },
+                "over_redaction": {
+                  "value": 0.0,
+                  "low": 0.0,
+                  "high": 0.0
+                }
+              },
+              "date": {
+                "counts": {
+                  "gold_characters": 301,
+                  "residual_characters": 139,
+                  "gold_items": 29,
+                  "hidden_items": 16,
+                  "over_characters": 0,
+                  "text_characters": 64696
+                },
+                "residual": {
+                  "value": 0.4618,
+                  "low": 0.1964,
+                  "high": 0.7078
+                },
+                "hidden_whole": {
+                  "value": 0.5517,
+                  "low": 0.2941,
+                  "high": 0.8235
+                },
+                "over_redaction": {
+                  "value": 0.0,
+                  "low": 0.0,
+                  "high": 0.0
+                }
+              },
+              "email": {
+                "counts": {
+                  "gold_characters": 1441,
+                  "residual_characters": 0,
+                  "gold_items": 61,
+                  "hidden_items": 61,
+                  "over_characters": 64,
+                  "text_characters": 64696
+                },
+                "residual": {
+                  "value": 0.0,
+                  "low": 0.0,
+                  "high": 0.0
+                },
+                "hidden_whole": {
+                  "value": 1.0,
+                  "low": 1.0,
+                  "high": 1.0
+                },
+                "over_redaction": {
+                  "value": 0.9892,
+                  "low": 0.0,
+                  "high": 3.0569
+                }
+              },
+              "id_number": {
+                "counts": {
+                  "gold_characters": 44,
+                  "residual_characters": 44,
+                  "gold_items": 5,
+                  "hidden_items": 0,
+                  "over_characters": 0,
+                  "text_characters": 64696
+                },
+                "residual": {
+                  "value": 1.0,
+                  "low": 1.0,
+                  "high": 1.0
+                },
+                "hidden_whole": {
+                  "value": 0.0,
+                  "low": 0.0,
+                  "high": 0.0
+                },
+                "over_redaction": {
+                  "value": 0.0,
+                  "low": 0.0,
+                  "high": 0.0
+                }
+              },
+              "person": {
+                "counts": {
+                  "gold_characters": 2236,
+                  "residual_characters": 22,
+                  "gold_items": 219,
+                  "hidden_items": 214,
+                  "over_characters": 704,
+                  "text_characters": 64696
+                },
+                "residual": {
+                  "value": 0.0098,
+                  "low": 0.0018,
+                  "high": 0.021
+                },
+                "hidden_whole": {
+                  "value": 0.9772,
+                  "low": 0.9477,
+                  "high": 0.9963
+                },
+                "over_redaction": {
+                  "value": 10.8817,
+                  "low": 5.727,
+                  "high": 17.63
+                }
+              },
+              "phone": {
+                "counts": {
+                  "gold_characters": 342,
+                  "residual_characters": 12,
+                  "gold_items": 27,
+                  "hidden_items": 26,
+                  "over_characters": 48,
+                  "text_characters": 64696
+                },
+                "residual": {
+                  "value": 0.0351,
+                  "low": 0.0,
+                  "high": 0.1151
+                },
+                "hidden_whole": {
+                  "value": 0.963,
+                  "low": 0.8788,
+                  "high": 1.0
+                },
+                "over_redaction": {
+                  "value": 0.7419,
+                  "low": 0.0,
+                  "high": 1.9937
+                }
+              },
+              "any": {
+                "counts": {
+                  "gold_characters": 5264,
+                  "residual_characters": 347,
+                  "gold_items": 388,
+                  "hidden_items": 352,
+                  "over_characters": 1217,
+                  "text_characters": 64696
+                },
+                "residual": {
+                  "value": 0.0659,
+                  "low": 0.0355,
+                  "high": 0.1028
+                },
+                "hidden_whole": {
+                  "value": 0.9072,
+                  "low": 0.8529,
+                  "high": 0.9485
+                },
+                "over_redaction": {
+                  "value": 18.8111,
+                  "low": 12.6166,
+                  "high": 25.904
+                }
+              }
+            }
+          }
+        },
+        "comparisons": []
+      },
+      "openpii-1m-cs/dev": {
+        "dataset": "openpii-1m-cs",
+        "version": "ecfdc547f4a0955600cfe6ab98ba2a162207fcc0",
+        "split": "dev",
+        "role": "dev",
+        "language": "cs",
+        "text": "written",
+        "documents": 4672,
+        "pages": 4672,
+        "sentences": 4672,
+        "scored_types": [
+          "address",
+          "email",
+          "person"
+        ],
+        "gold": {
+          "address": 2119,
+          "email": 2625,
+          "person": 4353
+        },
+        "unmapped": {
+          "DATE": 3687,
+          "TITLE": 2120,
+          "TELEPHONENUM": 1915,
+          "AGE": 1686,
+          "IDCARDNUM": 1082,
+          "CITY": 1064,
+          "CREDITCARDNUMBER": 1020,
+          "DRIVERLICENSENUM": 940,
+          "SEX": 930,
+          "TAXNUM": 867,
+          "GENDER": 808,
+          "SOCIALNUM": 764,
+          "PASSPORTNUM": 655,
+          "BUILDINGNUM": 94
+        },
+        "skipped": 0,
+        "systems": {
+          "rules+gliner-recipe-r3-s2k-s2": {
+            "languages": {
+              "cs": 4672
+            },
+            "unscored_predictions": {
+              "phone": 1468,
+              "date": 407,
+              "birth_number": 223,
+              "credit_card": 65,
+              "bank_account": 60,
+              "url": 3
+            },
+            "seconds": 64.85,
+            "cache": {
+              "hits": 0,
+              "misses": 4883
+            },
+            "scores": {
+              "strict": {
+                "address": {
+                  "counts": {
+                    "predicted": 2067,
+                    "predicted_matched": 1754,
+                    "gold": 2119,
+                    "gold_matched": 1754
+                  },
+                  "precision": {
+                    "value": 0.8486,
+                    "low": 0.8329,
+                    "high": 0.864
+                  },
+                  "recall": {
+                    "value": 0.8277,
+                    "low": 0.8111,
+                    "high": 0.8435
+                  },
+                  "f1": {
+                    "value": 0.838,
+                    "low": 0.8233,
+                    "high": 0.8535
+                  },
+                  "f2": {
+                    "value": 0.8318,
+                    "low": 0.816,
+                    "high": 0.8475
+                  }
+                },
+                "email": {
+                  "counts": {
+                    "predicted": 2611,
+                    "predicted_matched": 2495,
+                    "gold": 2625,
+                    "gold_matched": 2495
+                  },
+                  "precision": {
+                    "value": 0.9556,
+                    "low": 0.9473,
+                    "high": 0.9637
+                  },
+                  "recall": {
+                    "value": 0.9505,
+                    "low": 0.9423,
+                    "high": 0.959
+                  },
+                  "f1": {
+                    "value": 0.953,
+                    "low": 0.9449,
+                    "high": 0.961
+                  },
+                  "f2": {
+                    "value": 0.9515,
+                    "low": 0.9433,
+                    "high": 0.9598
+                  }
+                },
+                "person": {
+                  "counts": {
+                    "predicted": 4326,
+                    "predicted_matched": 4252,
+                    "gold": 4353,
+                    "gold_matched": 4252
+                  },
+                  "precision": {
+                    "value": 0.9829,
+                    "low": 0.9781,
+                    "high": 0.9871
+                  },
+                  "recall": {
+                    "value": 0.9768,
+                    "low": 0.9709,
+                    "high": 0.9816
+                  },
+                  "f1": {
+                    "value": 0.9798,
+                    "low": 0.975,
+                    "high": 0.984
+                  },
+                  "f2": {
+                    "value": 0.978,
+                    "low": 0.9726,
+                    "high": 0.9825
+                  }
+                },
+                "any": {
+                  "counts": {
+                    "predicted": 9004,
+                    "predicted_matched": 8502,
+                    "gold": 9097,
+                    "gold_matched": 8502
+                  },
+                  "precision": {
+                    "value": 0.9442,
+                    "low": 0.9391,
+                    "high": 0.9488
+                  },
+                  "recall": {
+                    "value": 0.9346,
+                    "low": 0.9293,
+                    "high": 0.9399
+                  },
+                  "f1": {
+                    "value": 0.9394,
+                    "low": 0.9345,
+                    "high": 0.9441
+                  },
+                  "f2": {
+                    "value": 0.9365,
+                    "low": 0.9315,
+                    "high": 0.9416
+                  }
+                }
+              },
+              "partial": {
+                "address": {
+                  "counts": {
+                    "predicted": 2067,
+                    "predicted_matched": 2059,
+                    "gold": 2119,
+                    "gold_matched": 2020
+                  },
+                  "precision": {
+                    "value": 0.9961,
+                    "low": 0.9936,
+                    "high": 0.9986
+                  },
+                  "recall": {
+                    "value": 0.9533,
+                    "low": 0.9436,
+                    "high": 0.9621
+                  },
+                  "f1": {
+                    "value": 0.9742,
+                    "low": 0.969,
+                    "high": 0.9789
+                  },
+                  "f2": {
+                    "value": 0.9616,
+                    "low": 0.9537,
+                    "high": 0.9686
+                  }
+                },
+                "email": {
+                  "counts": {
+                    "predicted": 2611,
+                    "predicted_matched": 2606,
+                    "gold": 2625,
+                    "gold_matched": 2606
+                  },
+                  "precision": {
+                    "value": 0.9981,
+                    "low": 0.9962,
+                    "high": 0.9996
+                  },
+                  "recall": {
+                    "value": 0.9928,
+                    "low": 0.9894,
+                    "high": 0.9957
+                  },
+                  "f1": {
+                    "value": 0.9954,
+                    "low": 0.9935,
+                    "high": 0.9971
+                  },
+                  "f2": {
+                    "value": 0.9938,
+                    "low": 0.9911,
+                    "high": 0.9961
+                  }
+                },
+                "person": {
+                  "counts": {
+                    "predicted": 4326,
+                    "predicted_matched": 4305,
+                    "gold": 4353,
+                    "gold_matched": 4307
+                  },
+                  "precision": {
+                    "value": 0.9951,
+                    "low": 0.9928,
+                    "high": 0.9973
+                  },
+                  "recall": {
+                    "value": 0.9894,
+                    "low": 0.9862,
+                    "high": 0.9925
+                  },
+                  "f1": {
+                    "value": 0.9923,
+                    "low": 0.9903,
+                    "high": 0.9941
+                  },
+                  "f2": {
+                    "value": 0.9906,
+                    "low": 0.9879,
+                    "high": 0.993
+                  }
+                },
+                "any": {
+                  "counts": {
+                    "predicted": 9004,
+                    "predicted_matched": 8972,
+                    "gold": 9097,
+                    "gold_matched": 8938
+                  },
+                  "precision": {
+                    "value": 0.9964,
+                    "low": 0.9951,
+                    "high": 0.9977
+                  },
+                  "recall": {
+                    "value": 0.9825,
+                    "low": 0.9797,
+                    "high": 0.9852
+                  },
+                  "f1": {
+                    "value": 0.9894,
+                    "low": 0.9879,
+                    "high": 0.991
+                  },
+                  "f2": {
+                    "value": 0.9853,
+                    "low": 0.983,
+                    "high": 0.9875
+                  }
+                }
+              }
+            },
+            "coverage": {
+              "address": {
+                "counts": {
+                  "gold_characters": 54531,
+                  "residual_characters": 4717,
+                  "gold_items": 2119,
+                  "hidden_items": 1978,
+                  "over_characters": 1314,
+                  "text_characters": 1265104
+                },
+                "residual": {
+                  "value": 0.0865,
+                  "low": 0.0706,
+                  "high": 0.1043
+                },
+                "hidden_whole": {
+                  "value": 0.9335,
+                  "low": 0.9211,
+                  "high": 0.9438
+                },
+                "over_redaction": {
+                  "value": 1.0386,
+                  "low": 0.8508,
+                  "high": 1.2291
+                }
+              },
+              "email": {
+                "counts": {
+                  "gold_characters": 42022,
+                  "residual_characters": 919,
+                  "gold_items": 2625,
+                  "hidden_items": 2495,
+                  "over_characters": 98,
+                  "text_characters": 1265104
+                },
+                "residual": {
+                  "value": 0.0219,
+                  "low": 0.0173,
+                  "high": 0.0266
+                },
+                "hidden_whole": {
+                  "value": 0.9505,
+                  "low": 0.9423,
+                  "high": 0.959
+                },
+                "over_redaction": {
+                  "value": 0.0775,
+                  "low": 0.0152,
+                  "high": 0.1506
+                }
+              },
+              "person": {
+                "counts": {
+                  "gold_characters": 65734,
+                  "residual_characters": 545,
+                  "gold_items": 4353,
+                  "hidden_items": 4298,
+                  "over_characters": 372,
+                  "text_characters": 1265104
+                },
+                "residual": {
+                  "value": 0.0083,
+                  "low": 0.0057,
+                  "high": 0.0112
+                },
+                "hidden_whole": {
+                  "value": 0.9874,
+                  "low": 0.9835,
+                  "high": 0.9906
+                },
+                "over_redaction": {
+                  "value": 0.294,
+                  "low": 0.1996,
+                  "high": 0.4013
+                }
+              },
+              "any": {
+                "counts": {
+                  "gold_characters": 162287,
+                  "residual_characters": 6181,
+                  "gold_items": 9097,
+                  "hidden_items": 8771,
+                  "over_characters": 1784,
+                  "text_characters": 1265104
+                },
+                "residual": {
+                  "value": 0.0381,
+                  "low": 0.0322,
+                  "high": 0.0443
+                },
+                "hidden_whole": {
+                  "value": 0.9642,
+                  "low": 0.9602,
+                  "high": 0.968
+                },
+                "over_redaction": {
+                  "value": 1.4102,
+                  "low": 1.1865,
+                  "high": 1.6349
+                }
+              }
+            }
+          }
+        },
+        "comparisons": []
+      },
+      "openpii-1m-sk/dev": {
+        "dataset": "openpii-1m-sk",
+        "version": "ecfdc547f4a0955600cfe6ab98ba2a162207fcc0",
+        "split": "dev",
+        "role": "dev",
+        "language": "sk",
+        "text": "written",
+        "documents": 4451,
+        "pages": 4451,
+        "sentences": 4451,
+        "scored_types": [
+          "address",
+          "email",
+          "person"
+        ],
+        "gold": {
+          "address": 2118,
+          "email": 2465,
+          "person": 4344
+        },
+        "unmapped": {
+          "DATE": 3695,
+          "TITLE": 2117,
+          "TELEPHONENUM": 1853,
+          "AGE": 1634,
+          "CITY": 1099,
+          "IDCARDNUM": 1040,
+          "CREDITCARDNUMBER": 976,
+          "DRIVERLICENSENUM": 864,
+          "SEX": 862,
+          "GENDER": 839,
+          "TAXNUM": 819,
+          "SOCIALNUM": 767,
+          "PASSPORTNUM": 655,
+          "BUILDINGNUM": 102
+        },
+        "skipped": 0,
+        "systems": {
+          "rules+gliner-recipe-r3-s2k-s2": {
+            "languages": {
+              "sk": 4451
+            },
+            "unscored_predictions": {
+              "date": 326,
+              "phone": 203,
+              "birth_number": 92,
+              "bank_account": 57,
+              "credit_card": 50,
+              "iban": 10,
+              "url": 3
+            },
+            "seconds": 62.94,
+            "cache": {
+              "hits": 0,
+              "misses": 4678
+            },
+            "scores": {
+              "strict": {
+                "address": {
+                  "counts": {
+                    "predicted": 2072,
+                    "predicted_matched": 1734,
+                    "gold": 2118,
+                    "gold_matched": 1734
+                  },
+                  "precision": {
+                    "value": 0.8369,
+                    "low": 0.821,
+                    "high": 0.8532
+                  },
+                  "recall": {
+                    "value": 0.8187,
+                    "low": 0.8005,
+                    "high": 0.8355
+                  },
+                  "f1": {
+                    "value": 0.8277,
+                    "low": 0.8109,
+                    "high": 0.8433
+                  },
+                  "f2": {
+                    "value": 0.8223,
+                    "low": 0.8045,
+                    "high": 0.8387
+                  }
+                },
+                "email": {
+                  "counts": {
+                    "predicted": 2452,
+                    "predicted_matched": 2359,
+                    "gold": 2465,
+                    "gold_matched": 2359
+                  },
+                  "precision": {
+                    "value": 0.9621,
+                    "low": 0.9547,
+                    "high": 0.9693
+                  },
+                  "recall": {
+                    "value": 0.957,
+                    "low": 0.9489,
+                    "high": 0.9649
+                  },
+                  "f1": {
+                    "value": 0.9595,
+                    "low": 0.9522,
+                    "high": 0.9669
+                  },
+                  "f2": {
+                    "value": 0.958,
+                    "low": 0.9503,
+                    "high": 0.9657
+                  }
+                },
+                "person": {
+                  "counts": {
+                    "predicted": 4312,
+                    "predicted_matched": 4211,
+                    "gold": 4344,
+                    "gold_matched": 4211
+                  },
+                  "precision": {
+                    "value": 0.9766,
+                    "low": 0.9713,
+                    "high": 0.9815
+                  },
+                  "recall": {
+                    "value": 0.9694,
+                    "low": 0.9634,
+                    "high": 0.9749
+                  },
+                  "f1": {
+                    "value": 0.973,
+                    "low": 0.9677,
+                    "high": 0.978
+                  },
+                  "f2": {
+                    "value": 0.9708,
+                    "low": 0.9653,
+                    "high": 0.9763
+                  }
+                },
+                "any": {
+                  "counts": {
+                    "predicted": 8836,
+                    "predicted_matched": 8308,
+                    "gold": 8927,
+                    "gold_matched": 8308
+                  },
+                  "precision": {
+                    "value": 0.9402,
+                    "low": 0.9344,
+                    "high": 0.9457
+                  },
+                  "recall": {
+                    "value": 0.9307,
+                    "low": 0.9248,
+                    "high": 0.9366
+                  },
+                  "f1": {
+                    "value": 0.9354,
+                    "low": 0.9299,
+                    "high": 0.9408
+                  },
+                  "f2": {
+                    "value": 0.9326,
+                    "low": 0.927,
+                    "high": 0.9382
+                  }
+                }
+              },
+              "partial": {
+                "address": {
+                  "counts": {
+                    "predicted": 2072,
+                    "predicted_matched": 2058,
+                    "gold": 2118,
+                    "gold_matched": 2019
+                  },
+                  "precision": {
+                    "value": 0.9932,
+                    "low": 0.9896,
+                    "high": 0.9966
+                  },
+                  "recall": {
+                    "value": 0.9533,
+                    "low": 0.9437,
+                    "high": 0.9619
+                  },
+                  "f1": {
+                    "value": 0.9728,
+                    "low": 0.9676,
+                    "high": 0.9777
+                  },
+                  "f2": {
+                    "value": 0.961,
+                    "low": 0.9533,
+                    "high": 0.9682
+                  }
+                },
+                "email": {
+                  "counts": {
+                    "predicted": 2452,
+                    "predicted_matched": 2446,
+                    "gold": 2465,
+                    "gold_matched": 2446
+                  },
+                  "precision": {
+                    "value": 0.9976,
+                    "low": 0.9955,
+                    "high": 0.9992
+                  },
+                  "recall": {
+                    "value": 0.9923,
+                    "low": 0.9885,
+                    "high": 0.9955
+                  },
+                  "f1": {
+                    "value": 0.9949,
+                    "low": 0.9929,
+                    "high": 0.9967
+                  },
+                  "f2": {
+                    "value": 0.9933,
+                    "low": 0.9904,
+                    "high": 0.9959
+                  }
+                },
+                "person": {
+                  "counts": {
+                    "predicted": 4312,
+                    "predicted_matched": 4292,
+                    "gold": 4344,
+                    "gold_matched": 4294
+                  },
+                  "precision": {
+                    "value": 0.9954,
+                    "low": 0.9924,
+                    "high": 0.9975
+                  },
+                  "recall": {
+                    "value": 0.9885,
+                    "low": 0.985,
+                    "high": 0.992
+                  },
+                  "f1": {
+                    "value": 0.9919,
+                    "low": 0.9896,
+                    "high": 0.994
+                  },
+                  "f2": {
+                    "value": 0.9899,
+                    "low": 0.987,
+                    "high": 0.9926
+                  }
+                },
+                "any": {
+                  "counts": {
+                    "predicted": 8836,
+                    "predicted_matched": 8803,
+                    "gold": 8927,
+                    "gold_matched": 8766
+                  },
+                  "precision": {
+                    "value": 0.9963,
+                    "low": 0.9945,
+                    "high": 0.9976
+                  },
+                  "recall": {
+                    "value": 0.982,
+                    "low": 0.9789,
+                    "high": 0.9845
+                  },
+                  "f1": {
+                    "value": 0.9891,
+                    "low": 0.9873,
+                    "high": 0.9906
+                  },
+                  "f2": {
+                    "value": 0.9848,
+                    "low": 0.9823,
+                    "high": 0.9869
+                  }
+                }
+              }
+            },
+            "coverage": {
+              "address": {
+                "counts": {
+                  "gold_characters": 50782,
+                  "residual_characters": 4881,
+                  "gold_items": 2118,
+                  "hidden_items": 1982,
+                  "over_characters": 1488,
+                  "text_characters": 1281871
+                },
+                "residual": {
+                  "value": 0.0961,
+                  "low": 0.0774,
+                  "high": 0.1148
+                },
+                "hidden_whole": {
+                  "value": 0.9358,
+                  "low": 0.9247,
+                  "high": 0.946
+                },
+                "over_redaction": {
+                  "value": 1.1608,
+                  "low": 0.9661,
+                  "high": 1.3734
+                }
+              },
+              "email": {
+                "counts": {
+                  "gold_characters": 39142,
+                  "residual_characters": 798,
+                  "gold_items": 2465,
+                  "hidden_items": 2361,
+                  "over_characters": 128,
+                  "text_characters": 1281871
+                },
+                "residual": {
+                  "value": 0.0204,
+                  "low": 0.0158,
+                  "high": 0.0254
+                },
+                "hidden_whole": {
+                  "value": 0.9578,
+                  "low": 0.9497,
+                  "high": 0.9658
+                },
+                "over_redaction": {
+                  "value": 0.0999,
+                  "low": 0.0251,
+                  "high": 0.188
+                }
+              },
+              "person": {
+                "counts": {
+                  "gold_characters": 66268,
+                  "residual_characters": 578,
+                  "gold_items": 4344,
+                  "hidden_items": 4279,
+                  "over_characters": 418,
+                  "text_characters": 1281871
+                },
+                "residual": {
+                  "value": 0.0087,
+                  "low": 0.0059,
+                  "high": 0.0116
+                },
+                "hidden_whole": {
+                  "value": 0.985,
+                  "low": 0.981,
+                  "high": 0.989
+                },
+                "over_redaction": {
+                  "value": 0.3261,
+                  "low": 0.2287,
+                  "high": 0.4341
+                }
+              },
+              "any": {
+                "counts": {
+                  "gold_characters": 156192,
+                  "residual_characters": 6257,
+                  "gold_items": 8927,
+                  "hidden_items": 8622,
+                  "over_characters": 2034,
+                  "text_characters": 1281871
+                },
+                "residual": {
+                  "value": 0.0401,
+                  "low": 0.0335,
+                  "high": 0.0464
+                },
+                "hidden_whole": {
+                  "value": 0.9658,
+                  "low": 0.9618,
+                  "high": 0.97
+                },
+                "over_redaction": {
+                  "value": 1.5867,
+                  "low": 1.3334,
+                  "high": 1.8412
+                }
+              }
+            }
+          }
+        },
+        "comparisons": []
+      }
+    }
+  }
+}

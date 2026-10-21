@@ -181,8 +181,8 @@ change from version to version. See [`benchmark/README.md`](benchmark/README.md)
 
 ## Experiments
 
-Detection quality on public corpora (CNEC 2.0, UNER Slovak, REDACT, OpenPII)
-and generated name-form sets, from one command per config, with bootstrap
+Detection quality on public corpora (CNEC 2.0, UNER Slovak, WikiGoldSK,
+SlavicNER Czech, REDACT, OpenPII) and generated name-form sets, from one command per config, with bootstrap
 intervals; OCR on FUNSD's scanned forms; the training of the own name model. Results tables are
 committed in `experiments/results/`; corpora and weights are not. See
 [`experiments/README.md`](experiments/README.md).

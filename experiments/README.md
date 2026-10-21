@@ -127,15 +127,17 @@ renders a file without coverage exactly as before.
 |---|---|---|---|
 | `cnec-2.0` | `train` (train), `dtest` (dev), `etest` (test) | cs | person, address, phone, email, url |
 | `uner-sk-snk` | `train` (train), `dev` (dev), `test` (test) | sk | person |
+| `wikigoldsk` | `train` (train), `dev` (dev), `test` (test) | sk | person |
+| `slavicner-cs` | `train` (train), `dev` (dev) | cs | person |
 | `redact` | `sample` (dev), `test` (test) | cs | person, email, phone, address, date, birth_number, id_number |
 | `openpii-1m-cs`, `-sk`, `-en` | `train` (train), `dev` (dev), `test` (test) | cs, sk, en | person, address, email |
 | `name-forms-cs`, `-sk` | `dev` (dev), `test` (test) | cs, sk | person, with recall per name form |
 | `heldout-cs`, `-sk` | `dev` (dev), `test` (test) | cs, sk | person, address, email, phone, birth_number, date, bank_account, iban; recall per name form |
 
 Only the types a corpus annotates are scored on it; any other prediction is
-counted under `unscored_predictions`. CNEC and UNER also keep their
-organisations in the gold, never scored: training teaches the name model's
-`organization` distractor from them. The full mapping from each corpus's
+counted under `unscored_predictions`. CNEC, UNER, WikiGoldSK and SlavicNER
+also keep their organisations in the gold, never scored: training teaches the
+name model's `organization` distractor from them. The full mapping from each corpus's
 types to ours, and what is left out and why, is in the `datasets.py`
 docstring. In short: CNEC persons are the outermost `P` containers plus first
 names and surnames standing alone (not inhabitants, mythological persons or
@@ -143,6 +145,15 @@ titles); UNER persons are `PER`; REDACT is read for its Czech records only
 (it has no Slovak), and a full name nested over its first name counts once.
 Its `sample` split is the 1,000-record sample file; `test` is the full
 release's Czech records that the sample does not repeat.
+WikiGoldSK (Slovak Wikipedia, CC BY-SA 3.0) is read from its `token tag`
+files: persons are `PER`, and with no article boundaries its sentences are cut
+into page-like chunks as CNEC's are. Its `test` split is reserved.
+SlavicNER (BSNLP news, research use only) is one catalog entry read as one
+dataset per language; only Czech is registered. Each non-empty line of a
+document is a sentence, persons are `PER`, and the source's cross-topic split
+gives `train` and `dev` (the part the paper calls tuning); its dev documents
+share the topics of the train ones, so its dev scores are in-domain. Both name
+real people (`real_personal_data`).
 OpenPII 1M is one catalog entry read as one dataset per language. It has no
 test split, so its validation split is cut in two by a hash of each record's
 uid: `dev` for tuning, `test` reserved. Its identifiers and phone numbers are
@@ -152,6 +163,16 @@ The name-forms sets and the held-out set are generated in code
 (`name_forms.py`, `heldout.py`), not downloaded: no files, no catalog
 entry, and their version is the generator's. See *Name forms* and
 *Held-out synthetic set* below.
+
+The train splits of WikiGoldSK and SlavicNER may repeat a dev or test
+sentence of another corpus (UNER's genres are not documented, and Slovak
+Wikipedia feeds several corpora), so a training config reading them must set
+`drop_overlap` (*Training*). `python -m experiments overlap [datasets]`
+counts, per train split, the sentences whose text a dev or test split also
+holds (2026-10-21: CNEC 65 of 7,193, 18 of them longer than 80 characters,
+repeated in its own dtest and etest; UNER 8 of 8,483; WikiGoldSK 6 of 4,687,
+all in its own test split; SlavicNER 14 of 2,626, in its dev part; OpenPII cs
+and sk none).
 
 UNER keeps each sentence as written (`# text`) and groups pages by source
 document. `text = "tokens"` on a dataset entry builds the text instead from
@@ -303,6 +324,7 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/rq6-xlmr-dev.toml` | XLM-R token classifier (0.5 and 0.2) and GLiNER ce/focal (`-gpu`), three seeds each, vs NameTag 3 multilingual and Czech and zero-shot GLiNER, on CNEC, UNER-SK and REDACT dev |
 | `configs/train-xlmr-smoke.toml` | token classifier smoke run on MetaCentrum: 400 examples, 40 steps of 8, bf16, 25 documents per dev split |
 | `configs/train-cs-sk-xlmr-ce.toml` | RQ6's second family: a token classifier on XLM-RoBERTa large, the data of `train-cs-sk-ce`, 4,200 steps of 16 (about 3 passes), bf16 on CUDA |
+| `configs/train-cs-sk-xlmr-ce-more.toml`, `train-cs-sk-ce-more.toml` | the two families with WikiGoldSK and SlavicNER Czech added, every real corpus repeated 3 times, OpenPII 10,000 + 10,000, repeated text dropped (35,051 examples): XLM-R 6,600 steps (about 3 passes), GLiNER 2,000 steps; also scored on the WikiGoldSK and SlavicNER dev splits |
 
 A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on
@@ -341,6 +363,18 @@ positives. `positive_weight = 1` without focus is `ce`, value for value.
 `loss.py` also records how gliner computes its loss. The config module
 docstring lists every key. Only train splits are read for training
 and only development splits for scoring; anything else is refused.
+
+`drop_overlap = true` first reads the text of every dev and test split of
+every dataset (`overlap.py`) and leaves out each train sentence whose text,
+NFC with all whitespace removed, one of them holds; the results count them
+per train split (`examples.overlapping`), per matching split
+(`examples.overlap_sources`) and list the splits read (`examples.overlap_checked`).
+It is the one place training opens a test split: texts are hashed, gold spans
+are not read and nothing is scored. A sentence repeated inside a longer unit
+(a REDACT or OpenPII record) is not found. The check fails if a dataset is not
+stored rather than passing without having looked. A config reading WikiGoldSK
+or SlavicNER is refused without it; it is off by default, so the configs
+trained before it draw the same examples as then.
 
 1. **Examples** (`examples.py`): each split is loaded as the evaluation
    loads it and its pages are cut into examples of at most 150 GLiNER

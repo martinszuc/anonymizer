@@ -7,7 +7,7 @@ set -euo pipefail
 
 HOST=${HOST:-xszum00@skirit.metacentrum.cz}
 STORE=${STORE:-/storage/budejovice1/home/xszum00}
-DATASETS=(cnec-2.0 uner-sk-snk openpii-1m redact)
+DATASETS=(cnec-2.0 uner-sk-snk wikigoldsk slavicner openpii-1m redact)
 MODELS=(gliner-multi-v2.1 mdeberta-v3-base-tokenizer xlm-roberta-large xlm-roberta-large-tokenizer)
 
 cd "$(git rev-parse --show-toplevel)"

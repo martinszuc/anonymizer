@@ -1,0 +1,59 @@
+name = "rq6-xlmr-dev"
+description = """
+RQ6, the two model families against the opponent on development data, three seeds
+each: the XLM-RoBERTa large token classifier (train-cs-sk-xlmr-ce, at its default 0.5
+and at 0.2) and GLiNER fine-tuned with cross-entropy and focal loss (--tag gpu), all
+trained on MetaCentrum (fobos, NVIDIA L40S), against NameTag 3 multilingual (the
+headline opponent), NameTag 3 Czech and GLiNER zero-shot. Only the corpora of real
+text, where the final test is decided (OpenPII is saturated at 0.99 for every trained
+model and costs NameTag hours on a CPU). Train the XLM-R models first
+(docs/metacentrum.md); NameTag 3 must be stored in the resource root."""
+stage = "dev"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+nametag-multi", "rules+xlmr-cs-sk-ce"],
+    ["rules+nametag-multi", "rules+gliner-cs-sk-ce-gpu"],
+    ["rules+nametag-multi", "rules+gliner-cs-sk-focal-gpu"],
+    ["rules+gliner-cs-sk-ce-gpu", "rules+xlmr-cs-sk-ce"],
+    ["rules+xlmr-cs-sk-ce", "rules+xlmr-cs-sk-ce@0.2"],
+    ["rules+nametag-cs", "rules+xlmr-cs-sk-ce"],
+]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[systems."rules+gliner"]
+model = "gliner"
+
+[systems."rules+nametag-multi"]
+model = "nametag3-multilingual-260521"
+
+[systems."rules+nametag-cs"]
+model = "nametag3-czech-cnec2.0-240830"
+
+[systems."rules+gliner-cs-sk-ce-gpu"]
+model = "gliner-cs-sk-ce-gpu"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-focal-gpu"]
+model = "gliner-cs-sk-focal-gpu"
+seeds = [1, 2]
+
+[systems."rules+xlmr-cs-sk-ce"]
+model = "xlmr-cs-sk-ce"
+seeds = [1, 2]
+
+[systems."rules+xlmr-cs-sk-ce@0.2"]
+model = "xlmr-cs-sk-ce"
+threshold = 0.2
+seeds = [1, 2]

@@ -1,0 +1,53 @@
+name = "train-cs-sk-focal-r3"
+description = """
+RQ6, the final-model candidate that joins two development results: train-cs-sk-focal
+(gliner's focal loss, alpha 0.75, gamma 2; best on UNER-SK) with every CNEC 2.0 and
+UNER Slovak-SNK train example repeated 3x (6,924 of 26,924 examples, the rest 10,000
+from each OpenPII 1M split), the recipe with which every ce seed found the REDACT
+record the 1x runs miss (stage B). 2,000 steps of 16, as both parents. Trained on
+MetaCentrum (docs/metacentrum.md)."""
+model = "gliner-cs-sk-focal-r3"
+base = "gliner-multi-v2.1"
+seed = 20261010
+device = "cuda"
+
+[training]
+steps = 2000
+batch_size = 16
+learning_rate = 1e-5
+head_learning_rate = 5e-5
+weight_decay = 0.01
+warmup_ratio = 0.1
+loss = "focal"
+focal_alpha = 0.75
+focal_gamma = 2.0
+logging_steps = 25
+
+[[corpora]]
+id = "cnec-2.0"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "uner-sk-snk"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "openpii-1m-cs"
+split = "train"
+examples = 10000
+
+[[corpora]]
+id = "openpii-1m-sk"
+split = "train"
+examples = 10000
+
+[evaluate]
+datasets = [
+    { id = "cnec-2.0", split = "dtest" },
+    { id = "uner-sk-snk", split = "dev" },
+    { id = "redact", split = "sample" },
+    { id = "openpii-1m-cs", split = "dev" },
+    { id = "openpii-1m-sk", split = "dev" },
+]

@@ -62,6 +62,17 @@ hold real public names: they stay in `root/models/` and never leave it.
    scripts/metacentrum/push-data.sh
    ```
 
+   The small corpora can instead be fetched on the frontend from their
+   official sources, checked against the catalog like any download (WikiGoldSK
+   1 MB, SlavicNER 15 MB; CNEC and UNER-SK the same way):
+
+   ```sh
+   source /storage/budejovice1/home/xszum00/anonymizer/scripts/metacentrum/env.sh
+   cd $REPO
+   uv run --no-sync python scripts/download.py --root $ROOT fetch wikigoldsk --yes
+   uv run --no-sync python scripts/download.py --root $ROOT fetch slavicner --yes
+   ```
+
 ## Every run
 
 On the frontend:
@@ -94,6 +105,15 @@ TAG= CLUSTER=fobos scripts/metacentrum/submit.sh experiments/configs/train-cs-sk
 Both train in bf16, which needs CUDA. XLM-R large has 560 million parameters
 against GLiNER's 290 million, so a step costs more; the smoke run's
 `seconds_per_step` tells whether the 2-hour limit holds 4,200 steps.
+
+The configs with WikiGoldSK and SlavicNER added (`-more`) were never run
+elsewhere either; they read every dev and test split to drop repeated text
+(`drop_overlap`), so the corpora must all be in `$ROOT/data`:
+
+```sh
+TAG= CLUSTER=fobos scripts/metacentrum/submit.sh experiments/configs/train-cs-sk-xlmr-ce-more.toml
+TAG= CLUSTER=fobos scripts/metacentrum/submit.sh experiments/configs/train-cs-sk-ce-more.toml
+```
 
 `base` is the config's own seed, `1 2` its replicates (`<model>-gpu-s1`,
 `<model>-gpu-s2` with the default tag); each seed is its own job, and they run

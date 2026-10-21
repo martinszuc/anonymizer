@@ -1,4 +1,4 @@
-"""Keeping a model a MetaCentrum job trained in its scratch (`keep_trained.py`)."""
+"""MetaCentrum scripts: keeping a trained model (`keep_trained.py`), what a job copies."""
 
 import importlib.util
 import json
@@ -8,6 +8,8 @@ from types import ModuleType
 import pytest
 from anonymizer.core.resources import trained_catalog_path
 
+from experiments.datasets import DATASETS
+from experiments.train import load_train_config
 from tests.resources.test_catalog import store_trained, trained_entry
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "metacentrum" / "keep_trained.py"
@@ -135,4 +137,20 @@ def test_push_data_copies_every_base_a_shipped_config_names(bases: ModuleType):
     pushed = set(script.split("MODELS=(", 1)[1].split(")", 1)[0].split())
     configs = (REPOSITORY / "experiments" / "configs").rglob("train-*.toml")
     needed = {model for path in configs for model in bases.base_models(path)}
+    assert needed <= pushed
+
+
+def test_push_data_copies_every_corpus_a_shipped_config_reads():
+    script = (SCRIPTS / "push-data.sh").read_text(encoding="utf-8")
+    pushed = set(script.split("DATASETS=(", 1)[1].split(")", 1)[0].split())
+    needed: set[str] = set()
+    for path in (REPOSITORY / "experiments" / "configs").rglob("train-*.toml"):
+        config = load_train_config(path)
+        for dataset in [corpus.id for corpus in config.corpora] + [
+            reference.id for reference in config.evaluate
+        ]:
+            spec = DATASETS[dataset]
+            if spec.generated is None:
+                needed.add(spec.catalog_id)
+    assert {"wikigoldsk", "slavicner"} <= needed
     assert needed <= pushed

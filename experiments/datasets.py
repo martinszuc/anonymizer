@@ -34,6 +34,26 @@ align with it, so punctuation sits where the writer put it)
     person   `PER`. `LOC` is not personal data on its own.
     organization (not scored)  `ORG`.
 
+WikiGoldSK (Slovak Wikipedia; `token tag` per line, IOB2, no document
+boundaries, so tokens joined by spaces and cut into page-like chunks as CNEC)
+    person   `PER`. Not `LOC` or `MISC`.
+    organization (not scored)  `ORG`.
+    Splits: the source's `train`, `dev` and `test`; `test` is reserved.
+
+SlavicNER (BSNLP news, one language per dataset: `slavicner-cs`; every
+mention with character offsets into the raw document; each non-empty line of
+a document, a paragraph, is one "sentence", and pages follow documents)
+    person   `PER`. Not `LOC`, `EVT` (events), `PRO` (products).
+    organization (not scored)  `ORG`.
+    Splits: the source's cross-topic split (`SPLIT_cross-topic_*.txt`, every
+    topic in both parts): its `train` part is `train`, its `test` part,
+    which the paper calls the tuning part, is `dev`. No test split.
+
+The train splits of WikiGoldSK and SlavicNER may repeat text of another
+corpus's dev or test split (Slovak Wikipedia is read by several corpora), so
+a training config reading them must drop such text (`DatasetSpec.check_overlap`,
+`overlap.py`).
+
 REDACT (synthetic records; Czech records only, as the corpus has no Slovak)
     person        Full_Name, First_Given_Name, Last_Family_Name
     email         Work_Email_Address, Personal_Email_Address
@@ -210,6 +230,8 @@ class Corpus:
         sentences: Sentences (or records) read.
         unmapped: Source types read but not scored, with counts.
         skipped: Gold spans dropped because they did not match the text.
+        excluded: Sentences left out because the loader was told to
+            (`load_corpus(exclude=...)`), not counted in `sentences`.
     """
 
     dataset: str
@@ -223,6 +245,7 @@ class Corpus:
     sentences: int = 0
     unmapped: Counter[str] = field(default_factory=Counter)
     skipped: int = 0
+    excluded: int = 0
 
     @property
     def key(self) -> str:
@@ -257,6 +280,9 @@ class DatasetSpec:
             personal data, so are kept in the gold for training only.
         generated: For a dataset generated in code rather than read from
             files, its generator's version; it has no catalog entry.
+        check_overlap: Its train split may repeat text of a dev or test
+            split, so a training config reading it must drop such text
+            (`drop_overlap` in `train.py`).
     """
 
     id: str
@@ -267,6 +293,7 @@ class DatasetSpec:
     resource: str | None = None
     unscored: frozenset[EntityType] = frozenset()
     generated: str | None = None
+    check_overlap: bool = False
 
     @property
     def catalog_id(self) -> str:
@@ -498,6 +525,146 @@ def _joined(tokens: list[str]) -> tuple[str, list[int]]:
 def read_uner(directory: Path, split: str, form: TextForm) -> list[list[Sentence]]:
     """Read a UNER Slovak-SNK split (see `TextForm` for the two ways)."""
     return parse_iob2((directory / f"sk_snk-ud-{split}.iob2").read_text(encoding="utf-8"), form)
+
+
+# --- WikiGoldSK -------------------------------------------------------------
+
+WIKIGOLDSK_FILES = {"train": "train.txt", "dev": "dev.txt", "test": "test.txt"}
+
+
+def parse_conll(text: str) -> list[Sentence]:
+    """Parse a two-column IOB2 file: `token tag` per line, a blank line after each sentence.
+
+    Every non-blank line is a token, even one starting with `#`: the format
+    has no comments.
+
+    Args:
+        text: Contents of the file.
+
+    Returns:
+        The sentences, tokens joined by single spaces, `PER` spans as persons.
+
+    Raises:
+        ValueError: If a line holds no tag.
+    """
+    sentences: list[Sentence] = []
+    rows: list[tuple[str, str]] = []
+    for number, line in enumerate(text.splitlines(), start=1):
+        if not line.strip():
+            if rows:
+                sentences.append(_iob2_sentence(rows, None))
+            rows = []
+            continue
+        columns = line.rsplit(maxsplit=1)
+        if len(columns) != 2:
+            msg = f"line {number} holds no tag"
+            raise ValueError(msg)
+        rows.append((columns[0], columns[1]))
+    if rows:
+        sentences.append(_iob2_sentence(rows, None))
+    return sentences
+
+
+def read_wikigoldsk(directory: Path, split: str, form: TextForm) -> list[list[Sentence]]:  # noqa: ARG001
+    """Read a WikiGoldSK split; each page-like chunk of sentences is a document of its own.
+
+    The files keep no article boundaries, so none can be kept together.
+    """
+    text = (directory / WIKIGOLDSK_FILES[split]).read_text(encoding="utf-8")
+    return list(_chunks(parse_conll(text), SENTENCES_PER_PAGE))
+
+
+# --- SlavicNER --------------------------------------------------------------
+
+SLAVICNER_ID = "slavicner"
+SLAVICNER_SPLITS = {"train": "SPLIT_cross-topic_train.txt", "dev": "SPLIT_cross-topic_test.txt"}
+"""Our split → the source's cross-topic split file (its `test` part is the tuning part)."""
+
+_SLAVICNER_TYPES = {"PER": EntityType.PERSON, "ORG": EntityType.ORGANIZATION}
+
+
+def parse_slavicner(text: str, annotations: str) -> list[Sentence]:
+    """Turn one SlavicNER document and its mentions into one sentence per non-empty line.
+
+    The text is normalised to NFC with the offsets moved along. A mention
+    whose offsets do not cut out its own string is dropped and counted under
+    `(span not in text)`; one that does never crosses a line, as a line of
+    the `.tsv` holds no line break.
+
+    Args:
+        text: The raw document (`raw/<topic>/<language>/<file>.txt`).
+        annotations: Its mentions (`ner/.../<file>.tsv`): start, end (one
+            past the mention), mention, lemma, category, cross-lingual id,
+            separated by tabs.
+
+    Returns:
+        The document's lines (paragraphs) with mapped spans.
+
+    Raises:
+        ValueError: If an annotation line does not hold six columns.
+    """
+    unmapped: list[str] = []
+    mentions: list[tuple[EntityType, int, int]] = []
+    for number, line in enumerate(annotations.splitlines(), start=1):
+        if not line.strip():
+            continue
+        columns = line.split("\t")
+        if len(columns) != 6:
+            msg = f"annotation line {number} holds {len(columns)} columns, not 6"
+            raise ValueError(msg)
+        start, end, mention, category = int(columns[0]), int(columns[1]), columns[2], columns[4]
+        if end <= start or text[start:end] != mention:
+            unmapped.append(_SKIPPED)
+            continue
+        kind = _SLAVICNER_TYPES.get(category)
+        if kind is None:
+            unmapped.append(category)
+            continue
+        mentions.append((kind, _nfc_offset(text, start), _nfc_offset(text, end)))
+    normalised = unicodedata.normalize("NFC", text)
+    sentences: list[Sentence] = []
+    line_start = 0
+    for line in normalised.split("\n"):
+        line_end = line_start + len(line)
+        if line.strip():
+            spans = tuple(
+                SourceSpan(kind, start - line_start, end - line_start)
+                for kind, start, end in mentions
+                if line_start <= start and end <= line_end
+            )
+            sentences.append(Sentence(line, spans))
+        line_start = line_end + 1
+    if sentences and unmapped:
+        first = sentences[0]
+        sentences[0] = Sentence(first.text, first.spans, tuple(unmapped))
+    return sentences
+
+
+def slavicner_reader(language: str) -> Callable[[Path, str, TextForm], list[list[Sentence]]]:
+    """Return the reader of one language's documents of a cross-topic split, one document each."""
+
+    def read(directory: Path, split: str, form: TextForm) -> list[list[Sentence]]:  # noqa: ARG001
+        version = load_catalog()[SLAVICNER_ID].version
+        root = directory / "SlavicNER" / f"SlavicNER-{version}"
+        listed = (root / SLAVICNER_SPLITS[split]).read_text(encoding="utf-8").split()
+        documents: list[list[Sentence]] = []
+        for raw in listed:
+            parts = raw.split("/")
+            if len(parts) != 4 or parts[0] != "raw":
+                msg = f"{SLAVICNER_SPLITS[split]} lists a path not of the form raw/<topic>/<lang>/"
+                raise ValueError(msg)
+            if parts[2] != language:
+                continue
+            annotations = root / "ner" / Path(*parts[1:]).with_suffix(".tsv")
+            documents.append(
+                parse_slavicner(
+                    (root / raw).read_text(encoding="utf-8"),
+                    annotations.read_text(encoding="utf-8"),
+                )
+            )
+        return documents
+
+    return read
 
 
 # --- REDACT -----------------------------------------------------------------
@@ -820,6 +987,25 @@ DATASETS: dict[str, DatasetSpec] = {
         read=read_uner,
         unscored=frozenset({EntityType.ORGANIZATION}),
     ),
+    "wikigoldsk": DatasetSpec(
+        id="wikigoldsk",
+        language="sk",
+        types=frozenset({EntityType.PERSON}),
+        splits={"train": Role.TRAIN, "dev": Role.DEV, "test": Role.TEST},
+        read=read_wikigoldsk,
+        unscored=frozenset({EntityType.ORGANIZATION}),
+        check_overlap=True,
+    ),
+    "slavicner-cs": DatasetSpec(
+        id="slavicner-cs",
+        language="cs",
+        types=frozenset({EntityType.PERSON}),
+        splits={"train": Role.TRAIN, "dev": Role.DEV},
+        read=slavicner_reader("cs"),
+        resource=SLAVICNER_ID,
+        unscored=frozenset({EntityType.ORGANIZATION}),
+        check_overlap=True,
+    ),
     "redact": DatasetSpec(
         id="redact",
         language="cs",
@@ -871,12 +1057,34 @@ def dataset_version(dataset: str) -> str:
     return load_catalog()[spec.catalog_id].version
 
 
+def read_sentences(
+    dataset: str, split: str, resource_root: Path, form: TextForm = TextForm.WRITTEN
+) -> list[list[Sentence]]:
+    """Read one split of a dataset as sentences grouped by document, before any page is built.
+
+    Raises:
+        ValueError: If the dataset or split is unknown.
+        FileNotFoundError: If the dataset is not stored under the root.
+    """
+    spec = DATASETS.get(dataset)
+    if spec is None:
+        msg = f"unknown dataset {dataset!r}; choose from {sorted(DATASETS)}"
+        raise ValueError(msg)
+    if split not in spec.splits:
+        msg = f"{dataset} has no split {split!r}; choose from {sorted(spec.splits)}"
+        raise ValueError(msg)
+    if spec.generated is not None:
+        return spec.read(resource_root, split, form)
+    return spec.read(load_catalog()[spec.catalog_id].directory(resource_root), split, form)
+
+
 def load_corpus(
     dataset: str,
     split: str,
     resource_root: Path,
     form: TextForm = TextForm.WRITTEN,
     limit: int | None = None,
+    exclude: Callable[[Sentence], bool] | None = None,
 ) -> Corpus:
     """Load one split of a catalogued dataset from the storage root.
 
@@ -887,6 +1095,9 @@ def load_corpus(
         form: How sentences become page text.
         limit: Keep only the first documents, for a quick look; every count
             of the corpus describes those.
+        exclude: Tells which sentences to leave out (counted in
+            `Corpus.excluded`, over the whole split); a document left with
+            none is left out.
 
     Returns:
         The corpus with its documents and gold spans.
@@ -895,20 +1106,21 @@ def load_corpus(
         ValueError: If the dataset or split is unknown.
         FileNotFoundError: If the dataset is not stored under the root.
     """
-    spec = DATASETS.get(dataset)
-    if spec is None:
-        msg = f"unknown dataset {dataset!r}; choose from {sorted(DATASETS)}"
-        raise ValueError(msg)
-    role = spec.splits.get(split)
-    if role is None:
-        msg = f"{dataset} has no split {split!r}; choose from {sorted(spec.splits)}"
-        raise ValueError(msg)
-    if spec.generated is not None:
-        groups = spec.read(resource_root, split, form)
-        return build_corpus(spec, split, spec.generated, groups[:limit], form)
-    resource = load_catalog()[spec.catalog_id]
-    groups = spec.read(resource.directory(resource_root), split, form)
-    return build_corpus(spec, split, resource.version, groups[:limit], form)
+    groups = read_sentences(dataset, split, resource_root, form)
+    spec = DATASETS[dataset]
+    excluded = 0
+    if exclude is not None:
+        kept: list[list[Sentence]] = []
+        for sentences in groups:
+            remaining = [sentence for sentence in sentences if not exclude(sentence)]
+            excluded += len(sentences) - len(remaining)
+            if remaining:
+                kept.append(remaining)
+        groups = kept
+    version = spec.generated or load_catalog()[spec.catalog_id].version
+    corpus = build_corpus(spec, split, version, groups[:limit], form)
+    corpus.excluded = excluded
+    return corpus
 
 
 def build_corpus(

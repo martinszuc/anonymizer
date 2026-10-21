@@ -1,4 +1,5 @@
-"""Synthetic corpora in the formats of CNEC 2.0, UNER, REDACT and OpenPII; a scored stand-in.
+"""Synthetic corpora in the formats of CNEC 2.0, UNER, WikiGoldSK, SlavicNER, REDACT and
+OpenPII; a scored stand-in.
 
 Every name and number is invented.
 """
@@ -50,6 +51,71 @@ UNER_TEXT = """# newdoc id = doc-a
 4\t.\tO\t-\t-
 
 """
+
+
+WIKIGOLDSK_TEXT = """Peter B-PER
+Horák I-PER
+pracoval O
+v O
+Slovnafte B-ORG
+. O
+
+# O
+Košice B-LOC
+oslavujú O
+Deň B-MISC
+mesta I-MISC
+s O
+Evou I-PER
+. O
+"""
+"""Two sentences: the second starts with a `#` token and has an inside tag after `O`."""
+
+SLAVICNER_TEXT = (
+    "Zpráva o Janu Novákovi\n\nJan Novák jednal s firmou Alfa Group v Brně.\n\n"
+    "Komise zasedala v Bruselu."
+)
+SLAVICNER_MENTIONS = [
+    ("Janu Novákovi", "PER"),
+    ("Jan Novák", "PER"),
+    ("Alfa Group", "ORG"),
+    ("Brně", "LOC"),
+    ("Komise", "ORG"),
+    ("Bruselu", "LOC"),
+]
+
+
+def slavicner_annotations(text: str, mentions: list[tuple[str, str]]) -> str:
+    """A SlavicNER `.tsv`; each mention is looked up after the previous one."""
+    rows: list[str] = []
+    position = 0
+    for mention, category in mentions:
+        start = text.index(mention, position)
+        end = start + len(mention)
+        rows.append(f"{start}\t{end}\t{mention}\t{mention}\t{category}\t{category}-{len(rows)}")
+        position = end
+    return "\n".join(rows) + "\n"
+
+
+def store_slavicner(
+    root: Path, documents: dict[str, tuple[str, str]], splits: dict[str, list[str]]
+) -> Path:
+    """Store documents (`raw` path → text and annotations) and split files as the archive does."""
+    version = load_catalog()["slavicner"].version
+    folder = root / "data/slavicner/SlavicNER" / f"SlavicNER-{version}"
+    folder.mkdir(parents=True, exist_ok=True)
+    for raw, (text, annotations) in documents.items():
+        source = folder / raw
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text(text, encoding="utf-8")
+        tsv = folder / "ner" / Path(raw).relative_to("raw").with_suffix(".tsv")
+        tsv.parent.mkdir(parents=True, exist_ok=True)
+        tsv.write_text(annotations, encoding="utf-8")
+    for name, listed in splits.items():
+        (folder / f"SPLIT_cross-topic_{name}.txt").write_text(
+            "\n".join(listed) + "\n", encoding="utf-8"
+        )
+    return folder
 
 
 def redact_records() -> list[dict[str, Any]]:

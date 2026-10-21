@@ -46,6 +46,26 @@ def test_uner_dev_split_both_ways():
 
 
 @pytest.mark.dataset
+def test_wikigoldsk_dev_split():
+    corpus = _load("wikigoldsk", "dev")
+    assert corpus.sentences == 669
+    assert corpus.gold_counts() == {"person": 298, "organization": 190}
+    assert corpus.unmapped == {"LOC": 461, "MISC": 160}
+    assert corpus.skipped == 0
+
+
+@pytest.mark.dataset
+def test_slavicner_czech_cross_topic_split():
+    train, dev = _load("slavicner-cs", "train"), _load("slavicner-cs", "dev")
+    # 987 Czech documents, each in one part of the source's cross-topic split.
+    assert (len(train.documents), len(dev.documents)) == (899, 88)
+    assert (train.sentences, dev.sentences) == (2626, 259)
+    assert train.gold_counts() == {"person": 4034, "organization": 4010}
+    assert dev.gold_counts() == {"person": 396, "organization": 379}
+    assert train.skipped == dev.skipped == 0
+
+
+@pytest.mark.dataset
 def test_redact_czech_records():
     corpus = _load("redact", "sample")
     assert len(corpus.documents) == 40
@@ -55,7 +75,12 @@ def test_redact_czech_records():
 
 @pytest.mark.dataset
 def test_every_gold_span_cuts_its_text():
-    for dataset, split in (("cnec-2.0", "etest"), ("uner-sk-snk", "test")):
+    for dataset, split in (
+        ("cnec-2.0", "etest"),
+        ("uner-sk-snk", "test"),
+        ("wikigoldsk", "test"),
+        ("slavicner-cs", "train"),
+    ):
         corpus = _load(dataset, split)
         for gold in corpus.documents:
             for entity in gold.gold:

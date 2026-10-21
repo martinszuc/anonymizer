@@ -11,6 +11,7 @@ from experiments.datasets import (
     OPENPII_LANGUAGES,
     REDACT_FILES,
     SENTENCES_PER_PAGE,
+    WIKIGOLDSK_FILES,
     Role,
     TextForm,
     load_corpus,
@@ -18,18 +19,25 @@ from experiments.datasets import (
     openpii_half,
     outermost,
     parse_cnec_line,
+    parse_conll,
     parse_iob2,
     parse_openpii,
     parse_redact,
+    parse_slavicner,
     read_redact,
 )
 from tests.experiments.conftest import (
     CNEC_LINES,
     OPENPII_FORM,
     OPENPII_FORM_LABELS,
+    SLAVICNER_MENTIONS,
+    SLAVICNER_TEXT,
     UNER_TEXT,
+    WIKIGOLDSK_TEXT,
     openpii_record,
     redact_records,
+    slavicner_annotations,
+    store_slavicner,
 )
 
 
@@ -103,6 +111,110 @@ class TestIob2:
     def test_an_inside_tag_without_a_beginning_starts_a_span(self):
         text = "1\tVidel\tO\t-\t-\n2\tJána\tI-PER\t-\t-\n3\tB\tB-PER\t-\t-\n"
         assert _spans(parse_iob2(text)[0][0]) == [("person", "Jána"), ("person", "B")]
+
+
+class TestWikiGoldSk:
+    def test_two_columns_with_persons_organisations_and_a_hash_token(self):
+        first, second = parse_conll(WIKIGOLDSK_TEXT)
+        assert first.text == "Peter Horák pracoval v Slovnafte ."
+        assert _spans(first) == [("person", "Peter Horák"), ("organization", "Slovnafte")]
+        assert first.unmapped == ()
+        # `#` is a token, not a comment; an inside tag after `O` starts a person.
+        assert second.text == "# Košice oslavujú Deň mesta s Evou ."
+        assert _spans(second) == [("person", "Evou")]
+        assert second.unmapped == ("LOC", "MISC")
+
+    def test_tabs_and_a_missing_final_blank_line_are_read(self):
+        (sentence,) = parse_conll("Ján\tB-PER\nspí\tO")
+        assert _spans(sentence) == [("person", "Ján")]
+
+    def test_a_line_without_a_tag_is_refused(self):
+        with pytest.raises(ValueError, match="line 2 holds no tag"):
+            parse_conll("Ján B-PER\nspí\n")
+
+    def test_splits_and_roles(self, tmp_path: Path):
+        folder = tmp_path / "data/wikigoldsk"
+        folder.mkdir(parents=True)
+        for name in WIKIGOLDSK_FILES.values():
+            (folder / name).write_text((WIKIGOLDSK_TEXT + "\n") * 7, encoding="utf-8")
+        train = load_corpus("wikigoldsk", "train", tmp_path)
+        assert (train.role, train.language, train.sentences) == (Role.TRAIN, "sk", 14)
+        # No article boundaries: page-like chunks, each a document of its own.
+        assert len(train.documents) == 2
+        assert train.gold_counts() == {"organization": 7, "person": 14}
+        assert train.types == {EntityType.PERSON}
+        assert load_corpus("wikigoldsk", "dev", tmp_path).role is Role.DEV
+        assert load_corpus("wikigoldsk", "test", tmp_path).role is Role.TEST
+
+
+class TestSlavicNer:
+    def test_each_line_is_a_sentence_with_its_mentions(self):
+        annotations = slavicner_annotations(SLAVICNER_TEXT, SLAVICNER_MENTIONS)
+        sentences = parse_slavicner(SLAVICNER_TEXT, annotations)
+        assert [_spans(sentence) for sentence in sentences] == [
+            [("person", "Janu Novákovi")],
+            [("person", "Jan Novák"), ("organization", "Alfa Group")],
+            [("organization", "Komise")],
+        ]
+        assert sum((sentence.unmapped for sentence in sentences), ()) == ("LOC", "LOC")
+
+    def test_offsets_follow_nfc_normalisation(self):
+        text = "Pane Nováku, Petr Novák volal."
+        annotations = slavicner_annotations(text, [("Nováku", "PER"), ("Petr Novák", "PER")])
+        (sentence,) = parse_slavicner(text, annotations)
+        assert sentence.text == "Pane Nováku, Petr Novák volal."
+        assert _spans(sentence) == [("person", "Nováku"), ("person", "Petr Novák")]
+
+    def test_mentions_off_their_text_are_skipped(self):
+        text = "Jan\nNovák a Eva Malá."
+        rows = "0\t3\tJan\tx\tPER\tp-1\n12\t16\tEva Malá\tx\tPER\tp-2\n0\t0\t\tx\tPER\tp-3\n"
+        sentences = parse_slavicner(text, rows)
+        assert [_spans(sentence) for sentence in sentences] == [[("person", "Jan")], []]
+        assert sentences[0].unmapped == ("(span not in text)", "(span not in text)")
+
+    def test_an_annotation_line_needs_six_columns(self):
+        with pytest.raises(ValueError, match="holds 3 columns"):
+            parse_slavicner("Jan Novák", "0\t3\tJan\n")
+
+    def test_the_cross_topic_split_of_one_language(self, tmp_path: Path):
+        annotations = slavicner_annotations(SLAVICNER_TEXT, SLAVICNER_MENTIONS)
+        documents = {
+            "raw/brexit/cs/brexit_cs.txt_file_1.txt": (SLAVICNER_TEXT, annotations),
+            "raw/brexit/cs/brexit_cs.txt_file_2.txt": (
+                "Eva Malá mlčela.",
+                "0\t8\tEva Malá\tx\tPER\tp\n",
+            ),
+            "raw/brexit/pl/brexit_pl.txt_file_1.txt": (
+                "Jan Kowalski.",
+                "0\t12\tJan Kowalski\tx\tPER\tp\n",
+            ),
+        }
+        store_slavicner(
+            tmp_path,
+            documents,
+            {
+                "train": ["raw/brexit/pl/brexit_pl.txt_file_1.txt", *list(documents)[:1]],
+                "test": [list(documents)[1]],
+            },
+        )
+        train = load_corpus("slavicner-cs", "train", tmp_path)
+        assert (train.role, train.language, len(train.documents), train.sentences) == (
+            Role.TRAIN,
+            "cs",
+            1,
+            3,
+        )
+        assert train.gold_counts() == {"organization": 2, "person": 2}
+        assert train.unmapped == {"LOC": 2}
+        # The source's test part is the tuning part: development data.
+        dev = load_corpus("slavicner-cs", "dev", tmp_path)
+        assert (dev.role, dev.gold_counts()) == (Role.DEV, {"person": 1})
+        assert set(DATASETS["slavicner-cs"].splits) == {"train", "dev"}
+
+    def test_a_split_listing_another_kind_of_path_is_refused(self, tmp_path: Path):
+        store_slavicner(tmp_path, {}, {"train": ["ner/brexit/cs/file.tsv"]})
+        with pytest.raises(ValueError, match="not of the form"):
+            load_corpus("slavicner-cs", "train", tmp_path)
 
 
 class TestRedact:

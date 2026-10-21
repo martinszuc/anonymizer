@@ -1,0 +1,67 @@
+name = "train-cs-sk-xlmr-ce-more"
+description = """
+RQ6, more real training data: train-cs-sk-xlmr-ce with WikiGoldSK train (Slovak
+Wikipedia) and SlavicNER's Czech cross-topic train part (BSNLP news) added to CNEC 2.0
+and UNER Slovak-SNK, every real corpus repeated 3x, and 10,000 examples drawn from each
+OpenPII 1M train split. Train sentences whose text a dev or test split also holds are
+left out (drop_overlap; 2026-10-21: 65 CNEC, 8 UNER, 6 WikiGoldSK and 14 SlavicNER
+sentences). 5,017 real examples x 3 + 20,000 = 35,051 examples; 6,600 steps of 16
+(about 3.0 passes, as train-cs-sk-xlmr-ce). Everything else is train-cs-sk-xlmr-ce.
+Also scored on the WikiGoldSK and SlavicNER dev splits; SlavicNER's shares the topics
+of its train part. Trained on MetaCentrum (docs/metacentrum.md)."""
+model = "xlmr-cs-sk-ce-more"
+base = "xlm-roberta-large"
+seed = 20261010
+device = "cuda"
+drop_overlap = true
+
+[training]
+steps = 6600
+batch_size = 16
+learning_rate = 2e-5
+weight_decay = 0.01
+warmup_ratio = 0.1
+loss = "ce"
+precision = "bf16"
+logging_steps = 25
+
+[[corpora]]
+id = "cnec-2.0"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "uner-sk-snk"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "wikigoldsk"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "slavicner-cs"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "openpii-1m-cs"
+split = "train"
+examples = 10000
+
+[[corpora]]
+id = "openpii-1m-sk"
+split = "train"
+examples = 10000
+
+[evaluate]
+datasets = [
+    { id = "cnec-2.0", split = "dtest" },
+    { id = "uner-sk-snk", split = "dev" },
+    { id = "redact", split = "sample" },
+    { id = "openpii-1m-cs", split = "dev" },
+    { id = "openpii-1m-sk", split = "dev" },
+    { id = "wikigoldsk", split = "dev" },
+    { id = "slavicner-cs", split = "dev" },
+]

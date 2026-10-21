@@ -26,6 +26,7 @@ model = "gliner-cs-sk-smoke"  # catalog id of the trained model
 base = "gliner-multi-v2.1"    # a GLiNER name model, or an encoder (xlm-roberta-large)
 seed = 20261010
 device = "mps"                # "mps" (the Apple GPU), "cuda" (NVIDIA) or "cpu"
+# drop_overlap = true         # leave out train text found in any dev or test split (below)
 
 [training]
 steps = 40
@@ -65,6 +66,13 @@ A token classifier takes one learning rate (`head_learning_rate` is
 refused), the loss `ce` or `weighted` with `positive_weight` (a word inside a
 span costs that many false alarms; `token_training.py`), and optionally
 `precision`. Its trained model's engine is `token-classifier`.
+
+`drop_overlap = true` leaves out every train sentence whose text occurs in a
+dev or test split of any dataset (`overlap.py`), counted per train split and
+per matching split under `examples.overlapping` and `examples.overlap_sources`.
+A config reading a corpus whose train split may repeat such text
+(`DatasetSpec.check_overlap`: WikiGoldSK, SlavicNER) must set it; it is off by
+default so the configs trained before it read the same examples as then.
 
 `--seed N` on the command line trains the same config with another seed
 (`with_seed`): the model is stored as `<model>-s<N>` and the results as
@@ -108,6 +116,7 @@ from anonymizer.core.resources.catalog import CATALOG_SCHEMA, is_resource_id, pa
 from experiments.config import DatasetRef, parse_config, replicate_id
 from experiments.datasets import DATASETS, Role, load_corpus
 from experiments.examples import MAX_TOKENS, Conversion, Example, corpus_examples, sample
+from experiments.overlap import OverlapFilter, held_texts
 from experiments.report import markdown
 from experiments.run import DEVICES, Progress, check_device, git_state, gpu, machine, run
 
@@ -122,7 +131,18 @@ CONFIG = "gliner_config.json"
 TOKEN_CLASSIFIER_CONFIG = "config.json"
 
 _KEYS = frozenset(
-    {"name", "description", "model", "base", "seed", "device", "training", "corpora", "evaluate"}
+    {
+        "name",
+        "description",
+        "model",
+        "base",
+        "seed",
+        "device",
+        "drop_overlap",
+        "training",
+        "corpora",
+        "evaluate",
+    }
 )
 _TRAINING_KEYS = frozenset(
     {
@@ -192,6 +212,8 @@ class TrainConfig:
         evaluate: Development splits to score the trained model on.
         limit: Documents per development split, all when `None`.
         raw: The file's contents, for the results.
+        drop_overlap: Leave out train sentences whose text occurs in a dev
+            or test split (`overlap.py`).
         replicate: The seed given on the command line (`with_seed`), which
             replaced the file's seed and suffixed its name and model.
         tag: The tag given on the command line (`with_tag`), which suffixed
@@ -210,6 +232,7 @@ class TrainConfig:
     evaluate: tuple[DatasetRef, ...]
     limit: int | None
     raw: dict[str, Any]
+    drop_overlap: bool = False
     replicate: int | None = None
     tag: str | None = None
 
@@ -293,6 +316,7 @@ def parse_train_config(raw: dict[str, Any], catalog: Catalog | None = None) -> T
     Raises:
         ValueError: On an unknown key; a corpus split that is not a train
             split, or an evaluated split that is not a development split; a
+            corpus that may repeat dev or test text without `drop_overlap`; a
             model id the shipped catalog uses; a base that is neither a
             GLiNER name model nor an encoder for training; or a
             hyperparameter out of range or not used by the base's family.
@@ -320,6 +344,17 @@ def parse_train_config(raw: dict[str, Any], catalog: Catalog | None = None) -> T
     corpora = tuple(_corpus(entry) for entry in raw.get("corpora", []))
     if not corpora:
         msg = "no corpora to train on"
+        raise ValueError(msg)
+    drop_overlap = raw.get("drop_overlap", False)
+    if not isinstance(drop_overlap, bool):
+        msg = "drop_overlap must be true or false"
+        raise ValueError(msg)
+    unchecked = [ref.id for ref in corpora if DATASETS[ref.id].check_overlap and not drop_overlap]
+    if unchecked:
+        msg = (
+            f"{', '.join(unchecked)} may repeat text of a dev or test split; "
+            "set drop_overlap = true to train on it"
+        )
         raise ValueError(msg)
     evaluate = dict(raw.get("evaluate", {}))
     _known(evaluate, frozenset({"datasets", "limit"}), "[evaluate]")
@@ -349,6 +384,7 @@ def parse_train_config(raw: dict[str, Any], catalog: Catalog | None = None) -> T
         evaluate=references,
         limit=None if limit is None else _positive(limit, "limit"),
         raw=raw,
+        drop_overlap=drop_overlap,
     )
 
 
@@ -492,15 +528,24 @@ def training_examples(
 ) -> tuple[list[Example], dict[str, str]]:
     """Read the configured train splits and draw their examples.
 
+    With `drop_overlap`, the text of every dev and test split is read first
+    and train sentences repeating it are left out (`overlap.py`).
+
     Returns:
         The examples, and the version of every dataset read, by catalog id.
     """
     catalog = load_catalog()
     examples: list[Example] = []
     versions: dict[str, str] = {}
+    held = held_texts(resource_root) if config.drop_overlap else None
+    if held is not None:
+        conversion.overlap_checked = dict(sorted(held.sentences.items()))
     for reference in config.corpora:
         spec = DATASETS[reference.id]
-        corpus = load_corpus(reference.id, reference.split, resource_root)
+        matches = OverlapFilter(held) if held is not None else None
+        corpus = load_corpus(reference.id, reference.split, resource_root, exclude=matches)
+        if matches is not None:
+            conversion.add_overlap(corpus.key, corpus.excluded, matches.sources)
         converted = corpus_examples(corpus, spec, conversion, max_tokens=config.training.max_tokens)
         drawn = sample(converted, reference.examples, seed_for(config.seed, corpus.key))
         conversion.add_drawn(corpus.key, drawn, reference.repeat)

@@ -1,0 +1,77 @@
+name = "rq6-candidates-dev"
+description = """
+RQ6, the final-model candidates against the opponent on development data, three seeds
+each, all trained on MetaCentrum (fobos, NVIDIA L40S): GLiNER focal loss with the real
+corpora 3x (train-cs-sk-focal-r3), GLiNER cross-entropy and focal loss with WikiGoldSK
+and SlavicNER added (train-cs-sk-ce-more, train-cs-sk-focal-more), the XLM-R token
+classifier with them (train-cs-sk-xlmr-ce-more), and the union of XLM-R and GLiNER
+focal with the added corpora, seed paired with seed, since XLM-R leads on CNEC and
+UNER-SK and GLiNER focal on REDACT. Against NameTag 3 multilingual (the headline
+opponent), NameTag 3 Czech and zero-shot GLiNER, on the dev splits of real text and
+WikiGoldSK dev. Train train-cs-sk-focal-more first."""
+stage = "dev"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+nametag-multi", "rules+gliner-cs-sk-focal-r3"],
+    ["rules+nametag-multi", "rules+gliner-cs-sk-ce-more"],
+    ["rules+nametag-multi", "rules+gliner-cs-sk-focal-more"],
+    ["rules+nametag-multi", "rules+xlmr-cs-sk-ce-more"],
+    ["rules+nametag-multi", "rules+xlmr|focal-more"],
+    ["rules+xlmr-cs-sk-ce-more", "rules+xlmr|focal-more"],
+    ["rules+gliner-cs-sk-focal-more", "rules+xlmr|focal-more"],
+    ["rules+nametag-cs", "rules+xlmr|focal-more"],
+]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[[datasets]]
+id = "wikigoldsk"
+split = "dev"
+
+[systems."rules+gliner"]
+model = "gliner"
+
+[systems."rules+nametag-multi"]
+model = "nametag3-multilingual-260521"
+
+[systems."rules+nametag-cs"]
+model = "nametag3-czech-cnec2.0-240830"
+
+[systems."rules+gliner-cs-sk-focal-r3"]
+model = "gliner-cs-sk-focal-r3"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-ce-more"]
+model = "gliner-cs-sk-ce-more"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-focal-more"]
+model = "gliner-cs-sk-focal-more"
+seeds = [1, 2]
+
+[systems."rules+xlmr-cs-sk-ce-more"]
+model = "xlmr-cs-sk-ce-more"
+seeds = [1, 2]
+
+[systems."rules+xlmr|focal-more"]
+model = ["xlmr-cs-sk-ce-more", "gliner-cs-sk-focal-more"]
+combine = "union"
+
+[systems."rules+xlmr|focal-more-s1"]
+model = ["xlmr-cs-sk-ce-more-s1", "gliner-cs-sk-focal-more-s1"]
+combine = "union"
+
+[systems."rules+xlmr|focal-more-s2"]
+model = ["xlmr-cs-sk-ce-more-s2", "gliner-cs-sk-focal-more-s2"]
+combine = "union"

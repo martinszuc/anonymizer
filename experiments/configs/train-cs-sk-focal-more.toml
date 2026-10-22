@@ -1,0 +1,66 @@
+name = "train-cs-sk-focal-more"
+description = """
+RQ6, a final-model candidate: train-cs-sk-ce-more (CNEC 2.0, UNER Slovak-SNK,
+WikiGoldSK and SlavicNER Czech train, every real corpus repeated 3x, 10,000 from each
+OpenPII 1M split, held-out text dropped) with gliner's focal loss (alpha 0.75, gamma 2)
+of train-cs-sk-focal, which leads on UNER-SK and REDACT among the GLiNER models.
+35,051 examples, 2,000 steps of 16. Only the loss differs from train-cs-sk-ce-more.
+Trained on MetaCentrum (docs/metacentrum.md)."""
+model = "gliner-cs-sk-focal-more"
+base = "gliner-multi-v2.1"
+seed = 20261010
+device = "cuda"
+drop_overlap = true
+
+[training]
+steps = 2000
+batch_size = 16
+learning_rate = 1e-5
+head_learning_rate = 5e-5
+weight_decay = 0.01
+warmup_ratio = 0.1
+loss = "focal"
+focal_alpha = 0.75
+focal_gamma = 2.0
+logging_steps = 25
+
+[[corpora]]
+id = "cnec-2.0"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "uner-sk-snk"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "wikigoldsk"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "slavicner-cs"
+split = "train"
+repeat = 3
+
+[[corpora]]
+id = "openpii-1m-cs"
+split = "train"
+examples = 10000
+
+[[corpora]]
+id = "openpii-1m-sk"
+split = "train"
+examples = 10000
+
+[evaluate]
+datasets = [
+    { id = "cnec-2.0", split = "dtest" },
+    { id = "uner-sk-snk", split = "dev" },
+    { id = "redact", split = "sample" },
+    { id = "openpii-1m-cs", split = "dev" },
+    { id = "openpii-1m-sk", split = "dev" },
+    { id = "wikigoldsk", split = "dev" },
+    { id = "slavicner-cs", split = "dev" },
+]

@@ -36,6 +36,7 @@ import functools
 import hashlib
 import json
 import re
+import uuid
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -372,7 +373,10 @@ class PredictionCache:
         if not self._dirty:
             return
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        staging = self.path.with_name(self.path.name + ".part")
+        # A staging file of this writer's own: two runs saving the same cache
+        # (two jobs on a shared storage) would otherwise rename each other's.
+        # The last writer's entries win; the other's are predicted again.
+        staging = self.path.with_name(f"{self.path.name}.{uuid.uuid4().hex}.part")
         staging.write_text(json.dumps(self._entries, sort_keys=True), encoding="utf-8")
         staging.replace(self.path)
         self._dirty = False

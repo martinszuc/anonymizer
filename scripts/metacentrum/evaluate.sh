@@ -25,7 +25,7 @@ for config in "$@"; do
     require_config "$config"
 done
 cluster=${CLUSTER:-fobos}
-select="select=1:ncpus=8:ngpus=1:gpu_mem=16gb:mem=48gb"
+select="select=1:ncpus=4:ngpus=1:gpu_mem=16gb:mem=32gb"
 if [ "$cluster" != any ]; then
     select+=":cluster=$cluster"
 fi

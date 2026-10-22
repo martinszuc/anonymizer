@@ -21,7 +21,7 @@ shift
 seeds=("${@:-base}")
 tag=${TAG-gpu}
 
-select="select=1:ncpus=4:ngpus=1:gpu_mem=16gb:mem=32gb:scratch_local=40gb"
+select="select=1:ncpus=2:ngpus=1:gpu_mem=16gb:mem=24gb:scratch_local=40gb"
 if [ "$CLUSTER" != any ]; then
     select+=":cluster=$CLUSTER"
 fi

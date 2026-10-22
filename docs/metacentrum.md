@@ -118,9 +118,15 @@ TAG= CLUSTER=fobos scripts/metacentrum/submit.sh experiments/configs/train-cs-sk
 `base` is the config's own seed, `1 2` its replicates (`<model>-gpu-s1`,
 `<model>-gpu-s2` with the default tag); each seed is its own job, and they run
 side by side. `qdel <job id>` cancels one. A config path is given relative to
-the checkout; the scripts refuse any other before queueing. Each job asks for 1 GPU with at least 16 GB, 4 CPUs,
-32 GB of memory, 40 GB of scratch and 2 hours (`submit.sh`, `train.pbs`); a
+the checkout; the scripts refuse any other before queueing. Each job asks for 1 GPU with at least 16 GB, 2 CPUs,
+24 GB of memory, 40 GB of scratch and 2 hours (`submit.sh`, `train.pbs`); a
 2,000-step run took about 8 minutes of training on an L40S.
+
+Ask for little: training runs on the GPU, so 2 CPUs feed it. On 2026-10-22 two
+jobs asking for 4 CPUs waited over 10 hours while fobos had free GPUs on nodes
+with only 2–3 free CPUs (the rest held by CPU jobs). A job that waits long can be
+made smaller while queued: `pbsnodes fobos<N>.meta.zcu.cz` shows a node's free
+CPUs, GPUs and memory, and `qalter -l select=... <job id>` changes the request.
 
 A pinned cluster must serve the `gpu` queue: `pbsnodes <node> | grep
 queue_list` shows the queues of one of its nodes. galdor is not in `gpu`
@@ -141,7 +147,7 @@ after the one before it ended, since they share the prediction cache:
 scripts/metacentrum/evaluate.sh experiments/configs/rq6-gpu-dev.toml experiments/configs/rq7-dev.toml
 ```
 
-Each job asks for 1 GPU with at least 16 GB, 8 CPUs, 48 GB of memory and 4
+Each job asks for 1 GPU with at least 16 GB, 4 CPUs, 32 GB of memory and 4
 hours (`evaluate.sh`, `run.pbs`; `rq6-gpu-dev` and `rq7-dev`, chained, finished
 30 minutes apart on an L40S), on fobos unless `CLUSTER=` names another
 cluster (`CLUSTER=any` lets PBS pick, for a smoke test). Scores compared in

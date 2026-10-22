@@ -15,6 +15,10 @@ and what it wrongly flags (`experiments.errors`), into `results/<name>-errors.*`
 `leaks scan.pdf --engines onnxtr --system rules+gliner --out leaks/` counts
 why the leak check fails on one document (`experiments.leaks`).
 
+`verdict results/rq6-test.json --candidate rules+<model>` applies the
+author's fixed rule to the run's comparisons with NameTag 3 multilingual: win,
+tie or loss per set and the sentence fixed for that outcome (`experiments.verdict`).
+
 `overlap` counts, per train split, the sentences whose text a dev or test
 split also holds: what `drop_overlap` leaves out of training (`experiments.overlap`).
 
@@ -53,6 +57,8 @@ from experiments.train import (
     with_tag,
     write_training,
 )
+from experiments.verdict import markdown as verdict_markdown
+from experiments.verdict import verdicts
 
 RESULTS = Path(__file__).parent / "results"
 
@@ -123,6 +129,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     tables = commands.add_parser("tables", help="rewrite the tables of a stored results file")
     tables.add_argument("results", type=Path, help="<name>.json")
+    verdict = commands.add_parser(
+        "verdict", help="win, tie or loss per set against the opponent, by the fixed rule"
+    )
+    verdict.add_argument("results", type=Path, help="<name>.json of a run comparing the two")
+    verdict.add_argument("--candidate", required=True, help="the own model's system name")
+    verdict.add_argument(
+        "--opponent",
+        default="rules+nametag-multi",
+        help="the opponent's system name (default: rules+nametag-multi)",
+    )
     datasets = commands.add_parser("datasets", help="count documents and gold spans per split")
     datasets.add_argument(
         "--final",
@@ -180,6 +196,8 @@ def main(argv: list[str] | None = None) -> int:
         results = json.loads(args.results.read_text(encoding="utf-8"))
         _write_tables(results, args.results.parent)
         return 0
+    if args.command == "verdict":
+        return _verdict(args)
     root = resolve_resource_root(args.resource_root)
     if args.command == "datasets":
         return _count(root, final=args.final)
@@ -203,6 +221,17 @@ def main(argv: list[str] | None = None) -> int:
     path.write_text(json.dumps(results, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     _write_tables(results, args.out)
     print(f"wrote {path} and its .md and .tex")
+    return 0
+
+
+def _verdict(args: argparse.Namespace) -> int:
+    results = json.loads(args.results.read_text(encoding="utf-8"))
+    try:
+        outcomes = verdicts(results, args.opponent, args.candidate)
+    except ValueError as error:
+        print(f"verdict: {error}", file=sys.stderr)
+        return 2
+    print(verdict_markdown(results, outcomes, args.candidate), end="")
     return 0
 
 

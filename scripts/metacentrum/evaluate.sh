@@ -9,6 +9,8 @@
 # results; pull-results.sh fetches both. Configs naming the same models share
 # the prediction cache, so each job waits for the one before it
 # (depend=afterany) instead of running side by side.
+# COMMAND=errors runs `experiments errors` instead (what kind of names each
+# system misses and wrongly flags); the default is `run`.
 # AFTER=<job id>[:<job id>...] makes the first wait for training jobs to succeed:
 # a model replaced while a run reads it would cache the new model's predictions
 # under the old model's version.
@@ -16,7 +18,7 @@ set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
 if [ $# -lt 1 ]; then
-    sed -n '2,14p' "$0" >&2
+    sed -n '2,16p' "$0" >&2
     exit 2
 fi
 for config in "$@"; do
@@ -31,7 +33,7 @@ fi
 mkdir -p "$LOGS"
 depend=${AFTER:+afterok:$AFTER}
 for config in "$@"; do
-    job=$(qsub -N "$(basename "$config" .toml)" -v "STORE=$STORE,CONFIG=$config" \
+    job=$(qsub -N "$(basename "$config" .toml)${COMMAND:+-$COMMAND}" -v "STORE=$STORE,CONFIG=$config,COMMAND=${COMMAND:-run}" \
         -l "$select" -o "$LOGS/" ${depend:+-W depend=$depend} \
         "$REPO/scripts/metacentrum/run.pbs")
     depend=afterany:$job

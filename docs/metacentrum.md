@@ -151,6 +151,9 @@ The predictions go to `cache/` in files of the device's own
 (`experiments/README.md`, *Cache*); the results record the card under
 `machine`.
 
+`COMMAND=errors scripts/metacentrum/evaluate.sh <config>` runs `experiments errors`
+instead, from the same cache (what kind of names each system misses).
+
 Never score a model while it is being retrained: the run would cache the new
 weights' predictions under the old version. Submitted together with training,
 `AFTER=<job id>:<job id> scripts/metacentrum/evaluate.sh ...` starts only once

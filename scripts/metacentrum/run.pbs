@@ -1,9 +1,10 @@
 #!/bin/bash
 #PBS -l walltime=4:00:00
 #PBS -j oe
-# One `experiments run` on a GPU node: scores the systems of a run config with the
-# models in the storage's resource root. Submitted by evaluate.sh, which passes
-# STORE and CONFIG (qsub -v) and the resources (qsub -l select=...).
+# One `experiments run` (or `errors`, with COMMAND=errors) on a GPU node: scores
+# the systems of a run config with the models in the storage's resource root.
+# Submitted by evaluate.sh, which passes STORE, CONFIG and COMMAND (qsub -v) and
+# the resources (qsub -l select=...).
 #
 # GLiNER predicts on the GPU (--device cuda); NameTag 3 and everything after the
 # models run on the CPU. Predictions are cached in the storage, per device, so a
@@ -12,8 +13,9 @@
 set -euo pipefail
 source "$STORE/anonymizer/scripts/metacentrum/env.sh"
 
-echo "job $PBS_JOBID on $(hostname -f): run $CONFIG"
+command=${COMMAND:-run}
+echo "job $PBS_JOBID on $(hostname -f): $command $CONFIG"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv
 cd "$REPO"
-uv run --no-sync python -m experiments run --config "$CONFIG" --device cuda \
+uv run --no-sync python -m experiments "$command" --config "$CONFIG" --device cuda \
     --resource-root "$ROOT" --cache-dir "$STORE/cache" --out "$RESULTS"

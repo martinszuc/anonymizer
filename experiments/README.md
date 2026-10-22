@@ -322,11 +322,13 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/recipe/train-recipe-r*-s*k.toml` | RQ6 recipe sweep, stage A: `train-cs-sk-ce` with the real corpora repeated 1, 3, 5 or 10 times (`repeat`) and 2,000, 5,000 or 10,000 steps |
 | `configs/rq6-recipe-dev.toml` | the eleven recipes against `train-cs-sk-ce --tag gpu`, config seed, threshold 0.3 |
 | `configs/rq6-xlmr-dev.toml` | XLM-R token classifier (0.5 and 0.2) and GLiNER ce/focal (`-gpu`), three seeds each, vs NameTag 3 multilingual and Czech and zero-shot GLiNER, on CNEC, UNER-SK and REDACT dev |
+| `configs/rq6-candidates-dev.toml` | the final-model candidates (focal 3×, ce/focal/XLM-R with the added corpora, the union of XLM-R and GLiNER focal) vs NameTag 3 and zero-shot GLiNER, on real-text dev splits and WikiGoldSK dev |
 | `configs/train-xlmr-smoke.toml` | token classifier smoke run on MetaCentrum: 400 examples, 40 steps of 8, bf16, 25 documents per dev split |
 | `configs/train-cs-sk-xlmr-ce.toml` | RQ6's second family: a token classifier on XLM-RoBERTa large, the data of `train-cs-sk-ce`, 4,200 steps of 16 (about 3 passes), bf16 on CUDA |
 | `configs/train-cs-sk-xlmr-ce-more.toml`, `train-cs-sk-ce-more.toml` | the two families with WikiGoldSK and SlavicNER Czech added, every real corpus repeated 3 times, OpenPII 10,000 + 10,000, repeated text dropped (35,051 examples): XLM-R 6,600 steps (about 3 passes), GLiNER 2,000 steps; also scored on the WikiGoldSK and SlavicNER dev splits |
 | `configs/train-cs-sk-xlmr-ce-r3.toml` | the token classifier with the real corpora repeated 3× (GLiNER's stage B recipe), same steps |
 | `configs/train-cs-sk-focal-r3.toml` | GLiNER focal loss with the real corpora repeated 3×, the candidate joining focal (UNER-SK) and stage B (REDACT) |
+| `configs/train-cs-sk-focal-more.toml` | GLiNER focal loss with WikiGoldSK and SlavicNER added, real corpora 3×; only the loss differs from `train-cs-sk-ce-more` |
 
 A config names every split explicitly. A test split is refused unless the
 config says `stage = "final"`: thresholds and labels are chosen on

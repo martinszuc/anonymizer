@@ -378,6 +378,18 @@ class TestCache:
         assert cache.path.exists()
         assert len(PredictionCache(cache.path)) == 1
 
+    def test_two_writers_of_one_cache_both_save(self, tmp_path: Path):
+        path = tmp_path / "cache.json"
+        first, second = PredictionCache(path), PredictionCache(path)
+        first["a"] = []
+        second["b"] = []
+        # A staging file another writer left behind is not in the way.
+        (tmp_path / "cache.json.part").write_text("{", encoding="utf-8")
+        first.save()
+        second.save()
+        assert len(PredictionCache(path)) == 1
+        assert sorted(p.name for p in tmp_path.iterdir()) == ["cache.json", "cache.json.part"]
+
     def test_tagger_answers_from_the_cache_without_text(self, tmp_path: Path):
         stand_in = StandInTagger({("Jan", "Novák"): ("P", 0.9)})
         sentences = [["Podepsal", "Jan", "Novák", "."]]

@@ -323,6 +323,7 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/rq6-recipe-dev.toml` | the eleven recipes against `train-cs-sk-ce --tag gpu`, config seed, threshold 0.3 |
 | `configs/rq6-xlmr-dev.toml` | XLM-R token classifier (0.5 and 0.2) and GLiNER ce/focal (`-gpu`), three seeds each, vs NameTag 3 multilingual and Czech and zero-shot GLiNER, on CNEC, UNER-SK and REDACT dev |
 | `configs/rq6-candidates-dev.toml` | the final-model candidates (focal 3×, ce/focal/XLM-R with the added corpora, the union of XLM-R and GLiNER focal) vs NameTag 3 and zero-shot GLiNER, on real-text dev splits and WikiGoldSK dev |
+| `configs/rq6-errors-candidates-dev.toml` | for `errors`: XLM-R with the added corpora against GLiNER focal (added corpora, real 3×), three seeds each: what kind of names each misses, especially on REDACT |
 | `configs/train-xlmr-smoke.toml` | token classifier smoke run on MetaCentrum: 400 examples, 40 steps of 8, bf16, 25 documents per dev split |
 | `configs/train-cs-sk-xlmr-ce.toml` | RQ6's second family: a token classifier on XLM-RoBERTa large, the data of `train-cs-sk-ce`, 4,200 steps of 16 (about 3 passes), bf16 on CUDA |
 | `configs/train-cs-sk-xlmr-ce-more.toml`, `train-cs-sk-ce-more.toml` | the two families with WikiGoldSK and SlavicNER Czech added, every real corpus repeated 3 times, OpenPII 10,000 + 10,000, repeated text dropped (35,051 examples): XLM-R 6,600 steps (about 3 passes), GLiNER 2,000 steps; also scored on the WikiGoldSK and SlavicNER dev splits |
@@ -541,6 +542,21 @@ beside the first, so filling it never rewrites the file other runs read. Every
 step after the model runs again on every run. A rerun from a warm cache takes
 seconds and does not load the model. Systems combining two models reuse
 each model's cache, so a union or agreement costs no extra inference.
+
+## Verdict
+
+```sh
+uv run python -m experiments verdict experiments/results/<run>.json --candidate rules+<model>
+```
+
+applies the rule the author fixed before any test data was read (`JOURNAL.md`,
+2026-10-11, decisions 2B and 3) to a run's comparisons of NameTag 3 multilingual
+(`--opponent` names another) with the candidate: a set is a **win** when the
+candidate is better on person F2 (partial) and on residual share, both paired
+bootstrap 95 % intervals excluding 0; a **loss** when it is significantly worse on
+either; a **tie** otherwise. It prints the two differences per set and the
+sentence fixed for that combination of outcomes (`verdict.py`). On a dev run it
+only places a candidate; the claim is made once, on a `stage = "final"` run.
 
 ## Error analysis
 

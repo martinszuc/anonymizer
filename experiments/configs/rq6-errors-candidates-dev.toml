@@ -1,0 +1,38 @@
+name = "rq6-errors-candidates-dev"
+description = """
+RQ6, error analysis of the final-model candidates on development data (python -m
+experiments errors): the XLM-R token classifier with WikiGoldSK and SlavicNER added,
+which leads on UNER-SK (0.961) but stays at 0.89 on REDACT on every seed, against GLiNER
+focal loss with the same data and with the real corpora 3x, which keep 0.94 there.
+Counts what kind of names each misses and wrongly flags, three seeds each. Reads the
+prediction cache rq6-candidates-dev fills; run after it."""
+stage = "dev"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+gliner-cs-sk-focal-more", "rules+xlmr-cs-sk-ce-more"],
+]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[systems."rules+xlmr-cs-sk-ce-more"]
+model = "xlmr-cs-sk-ce-more"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-focal-more"]
+model = "gliner-cs-sk-focal-more"
+seeds = [1, 2]
+
+[systems."rules+gliner-cs-sk-focal-r3"]
+model = "gliner-cs-sk-focal-r3"
+seeds = [1, 2]

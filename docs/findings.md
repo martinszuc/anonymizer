@@ -1321,6 +1321,49 @@ spread of 2026-10-15 (sd 0.002–0.007 on CNEC and UNER-SK) are not read as effe
   effect of the recipe.
 - Seconds per step rise with the share of real examples (0.246 at 1×, 0.27 at 10×).
 
+### 2026-10-22 · Both families against NameTag 3, and more real data (development data)
+
+`rq6-xlmr-dev` on an L40S (`--device cuda`, commit `0b2364f`, clean tree): the XLM-R token
+classifier (`train-cs-sk-xlmr-ce`, at 0.5 and 0.2) and GLiNER ce and focal (`-gpu`), three
+seeds each, all trained on fobos, against NameTag 3 multilingual and Czech. Person F2,
+partial match; Δ for the config seeds' pair with its 95 % paired bootstrap interval, then
+on how many of the three seed pairs the candidate was higher.
+
+| NameTag 3 multi → | CNEC (0.905) | UNER-SK (0.881) | REDACT (0.935) |
+|---|---|---|---|
+| GLiNER ce | +0.032 [+0.011, +0.053], 3/3 | +0.021 [−0.011, +0.050], 3/3 | −0.036 [−0.135, +0.039], 2/3 |
+| GLiNER focal | +0.022 [+0.000, +0.044], 3/3 | +0.042 [+0.007, +0.076], 3/3 | +0.007 [−0.019, +0.042], 3/3 |
+| XLM-R | +0.036 [+0.016, +0.058], 3/3 | +0.035 [+0.004, +0.067], 3/3 | −0.033 [−0.133, +0.039], 1/3 |
+
+- **Two of the three main sets already separate on dev**: XLM-R and GLiNER ce beat NameTag 3
+  multilingual on CNEC, XLM-R and GLiNER focal on UNER-SK, intervals above zero. On REDACT
+  (40 documents, 219 names) no model separates; the config-seed runs of ce and XLM-R miss the
+  one record of 2026-10-13, which widens their intervals.
+- **NameTag 3 Czech** stays ahead of XLM-R on CNEC (−0.009 [−0.024, +0.005], 0/3), the corpus
+  it was trained on, and far behind on UNER-SK (+0.084 for XLM-R).
+- **XLM-R's threshold barely matters**: at 0.2 instead of 0.5 its F2 moves by less than 0.005
+  on every corpus; its word probabilities sit near 0 or 1.
+
+Training-time dev scores of the newer models (person F2, mean ± sd over three seeds; each
+run's own scores, not paired; fobos, commit `0b2364f`). *More* adds WikiGoldSK and SlavicNER
+Czech train with every real corpus 3× and held-out text dropped (`drop_overlap`: 93 train
+sentences whose text a dev or test split holds: CNEC 65, SlavicNER 14, UNER-SK 8,
+WikiGoldSK 6).
+
+| model | CNEC | UNER-SK | REDACT | WikiGoldSK dev |
+|---|---|---|---|---|
+| GLiNER focal, real 3× | 0.938 ± 0.005 | 0.921 ± 0.011 | 0.940 ± 0.007 | – |
+| GLiNER ce, more | 0.930 ± 0.003 | 0.936 ± 0.009 | 0.936 ± 0.026 | 0.953 ± 0.003 |
+| XLM-R, real 3× | 0.944 ± 0.003 | 0.902 ± 0.004 | 0.893 ± 0.007 | – |
+| XLM-R, more | 0.938 ± 0.001 | **0.961 ± 0.003** | 0.894 ± 0.006 | 0.974 ± 0.003 |
+
+- **More Slovak data is the lever on Slovak**: XLM-R rises from 0.904 to 0.961 on UNER-SK
+  (recall 0.982), GLiNER ce from 0.902 to 0.936; CNEC stays within 0.01.
+- **XLM-R misses on REDACT on every seed once real data repeats** (0.893, 0.894; recall
+  0.93), where GLiNER focal keeps 0.94. Not yet analysed by error type.
+- Next: `rq6-candidates-dev` (focal with the added corpora, and the union of XLM-R and
+  GLiNER focal, against NameTag 3).
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

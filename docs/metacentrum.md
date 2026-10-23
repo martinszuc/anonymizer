@@ -172,6 +172,21 @@ file already there is never replaced:
 scripts/metacentrum/pull-results.sh
 ```
 
+## The final test
+
+Run once, when the author decides the model is chosen (JOURNAL.md): the main
+sets, then the home-advantage sets with a longer limit, chained like any two
+run configs:
+
+```sh
+WALLTIME=12:00:00 scripts/metacentrum/evaluate.sh experiments/configs/rq6-test.toml experiments/configs/rq6-test-home.toml
+```
+
+A final run refuses to start when its results file already exists, so a
+duplicate job cannot read the test again. After pulling the results:
+`uv run python -m experiments verdict experiments/results/rq6-test.json
+--candidate "rules+xlmr|focal-more"`.
+
 ## Rules
 
 - **One kind of machine per table.** Models compared in one table are trained

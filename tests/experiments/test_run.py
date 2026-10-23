@@ -259,6 +259,24 @@ def test_command_line(resource_root: Path, tmp_path: Path, capsys: pytest.Captur
     assert "Novák" not in printed
 
 
+def test_a_final_run_is_not_repeated(
+    resource_root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    config = tmp_path / "final.toml"
+    config.write_text(
+        'name = "rules-final"\nstage = "final"\nseed = 3\nresamples = 20\n'
+        '[[datasets]]\nid = "cnec-2.0"\nsplit = "etest"\n[systems.rules]\n',
+        encoding="utf-8",
+    )
+    out = tmp_path / "results"
+    out.mkdir()
+    (out / "rules-final.json").write_text("{}", encoding="utf-8")
+    root = ["--resource-root", str(resource_root)]
+    assert main(["run", "--config", str(config), "--out", str(out), *root]) == 2
+    assert "reads the test data once" in capsys.readouterr().err
+    assert (out / "rules-final.json").read_text(encoding="utf-8") == "{}"
+
+
 def test_counting_reads_test_splits_only_when_asked_for(
     resource_root: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ):

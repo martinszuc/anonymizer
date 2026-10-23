@@ -324,6 +324,8 @@ addresses on the test forms. These are derived, not annotated.
 | `configs/rq6-xlmr-dev.toml` | XLM-R token classifier (0.5 and 0.2) and GLiNER ce/focal (`-gpu`), three seeds each, vs NameTag 3 multilingual and Czech and zero-shot GLiNER, on CNEC, UNER-SK and REDACT dev |
 | `configs/rq6-candidates-dev.toml` | the final-model candidates (focal 3×, ce/focal/XLM-R with the added corpora, the union of XLM-R and GLiNER focal) vs NameTag 3 and zero-shot GLiNER, on real-text dev splits and WikiGoldSK dev |
 | `configs/rq6-errors-candidates-dev.toml` | for `errors`: XLM-R with the added corpora against GLiNER focal (added corpora, real 3×), three seeds each: what kind of names each misses, especially on REDACT |
+| `configs/rq6-test.toml` | **the final test**, run once: the union of XLM-R and GLiNER focal (both `-more`, config seed) vs NameTag 3 multilingual on full REDACT, CNEC etest and UNER-SK test; `verdict` on its first comparison |
+| `configs/rq6-test-home.toml` | the same systems on the home-advantage sets (OpenPII test, held-out synthetic set), reported apart |
 | `configs/train-xlmr-smoke.toml` | token classifier smoke run on MetaCentrum: 400 examples, 40 steps of 8, bf16, 25 documents per dev split |
 | `configs/train-cs-sk-xlmr-ce.toml` | RQ6's second family: a token classifier on XLM-RoBERTa large, the data of `train-cs-sk-ce`, 4,200 steps of 16 (about 3 passes), bf16 on CUDA |
 | `configs/train-cs-sk-xlmr-ce-more.toml`, `train-cs-sk-ce-more.toml` | the two families with WikiGoldSK and SlavicNER Czech added, every real corpus repeated 3 times, OpenPII 10,000 + 10,000, repeated text dropped (35,051 examples): XLM-R 6,600 steps (about 3 passes), GLiNER 2,000 steps; also scored on the WikiGoldSK and SlavicNER dev splits |
@@ -557,6 +559,9 @@ bootstrap 95 % intervals excluding 0; a **loss** when it is significantly worse 
 either; a **tie** otherwise. It prints the two differences per set and the
 sentence fixed for that combination of outcomes (`verdict.py`). On a dev run it
 only places a candidate; the claim is made once, on a `stage = "final"` run.
+
+A `stage = "final"` run refuses to start when its results file already exists:
+the test data is read once, and a duplicate job must not repeat or replace it.
 
 ## Error analysis
 

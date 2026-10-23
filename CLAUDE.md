@@ -215,7 +215,3 @@ Each of these cost a bug or a wrong claim once.
   versions by hand; `version.txt` and the three `__version__` lines (marked
   `x-release-please-version`) are bumped together. Pre-1.0, `feat` bumps the
   minor version and `fix` the patch.
-
-## Out of scope for AI sessions
-
-Thesis text (analysis, literature review, conclusions) is written by the author outside this repository. Repository docs describe the software only.

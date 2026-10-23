@@ -1364,6 +1364,37 @@ WikiGoldSK 6).
 - Next: `rq6-candidates-dev` (focal with the added corpora, and the union of XLM-R and
   GLiNER focal, against NameTag 3).
 
+### 2026-10-23 · The candidates against NameTag 3, and the model chosen (development data)
+
+`rq6-candidates-dev` and `rq6-errors-candidates-dev` on an L40S (`--device cuda`, commit
+`caf443d`, clean tree), all models trained on fobos with WikiGoldSK and SlavicNER added
+(`-more`, `drop_overlap`) unless named otherwise. `python -m experiments verdict` against
+NameTag 3 multilingual on the three main dev sets (person F2 and residual share, both
+intervals excluding 0), config seed:
+
+| candidate | CNEC | UNER-SK | REDACT | mean F2 of the three |
+|---|---|---|---|---|
+| XLM-R ∪ GLiNER focal (more) | win | win | tie | **0.9407** |
+| GLiNER focal (more) | win | win | tie | 0.9400 |
+| XLM-R (more) | win | win | tie | 0.9293 |
+| GLiNER ce (more) | win | win | tie | 0.9240 |
+| GLiNER focal, real 3× (no overlap guard) | win | tie | tie | – |
+| *NameTag 3 multilingual* | | | | *0.9069* |
+
+- **The rule fixed on 2026-10-22 picks the union** of the XLM-R token classifier and
+  GLiNER focal loss, both with the added corpora: four candidates tie on two wins each,
+  and the union has the highest mean F2, 0.0007 above GLiNER focal alone (0.0003 over
+  all three seeds). It also has the lowest residual share on every set (CNEC 0.025,
+  UNER-SK 0.004, REDACT 0.009, against NameTag 3 multilingual's 0.098, 0.111, 0.023) and
+  wins WikiGoldSK dev, which the rule does not count.
+- **Why XLM-R needs GLiNER on REDACT**: on every seed XLM-R misses record #35 (the
+  support chat whose agent name is written 13 times inside `Agent_<surname>` tokens;
+  91 of its 126 residual characters) and 13–15 one-word names; GLiNER focal (more) misses
+  one name and leaves 17 residual characters in total. XLM-R also finds some names with a
+  title only in part (3 to 8 of 19 names of three or more words).
+- **REDACT still does not separate** for any candidate (dev sample of 40 records); the
+  union's interval is −0.005 [−0.033, +0.032] F2 against NameTag 3 multilingual.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

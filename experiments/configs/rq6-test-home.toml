@@ -1,0 +1,51 @@
+name = "rq6-test-home"
+description = """
+RQ6, the final test on the home-advantage sets, run once and reported apart from the
+main sets (decision 1): OpenPII 1M test (Czech and Slovak; only the own model trained on
+OpenPII) and the held-out synthetic set (no model trained on it, but its templates are
+the author's). Same systems and comparisons as rq6-test; no verdict is drawn here."""
+stage = "final"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+nametag-multi", "rules+xlmr|focal-more"],
+    ["rules+nametag-cs", "rules+xlmr|focal-more"],
+    ["rules+gliner", "rules+xlmr|focal-more"],
+    ["rules+nametag-multi", "rules+xlmr-cs-sk-ce-more"],
+    ["rules+nametag-multi", "rules+gliner-cs-sk-focal-more"],
+]
+
+[[datasets]]
+id = "openpii-1m-cs"
+split = "test"
+
+[[datasets]]
+id = "openpii-1m-sk"
+split = "test"
+
+[[datasets]]
+id = "heldout-cs"
+split = "test"
+
+[[datasets]]
+id = "heldout-sk"
+split = "test"
+
+[systems."rules+gliner"]
+model = "gliner"
+
+[systems."rules+nametag-multi"]
+model = "nametag3-multilingual-260521"
+
+[systems."rules+nametag-cs"]
+model = "nametag3-czech-cnec2.0-240830"
+
+[systems."rules+xlmr|focal-more"]
+model = ["xlmr-cs-sk-ce-more", "gliner-cs-sk-focal-more"]
+combine = "union"
+
+[systems."rules+xlmr-cs-sk-ce-more"]
+model = "xlmr-cs-sk-ce-more"
+
+[systems."rules+gliner-cs-sk-focal-more"]
+model = "gliner-cs-sk-focal-more"

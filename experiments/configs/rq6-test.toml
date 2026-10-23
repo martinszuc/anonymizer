@@ -1,0 +1,52 @@
+name = "rq6-test"
+description = """
+RQ6, the final test on the main sets, run once: the model chosen on development data by
+the rule fixed on 2026-10-22 (JOURNAL.md), the union of the XLM-R token classifier and
+GLiNER focal loss, both trained with WikiGoldSK and SlavicNER added and held-out text
+dropped, config seed (decision of 2026-10-14), against NameTag 3 multilingual (the
+headline opponent, decision 2A). The main sets are fair to both sides (decision 1):
+full REDACT (496 Czech records, never trained on), CNEC 2.0 etest and UNER-SK test (both
+sides trained on their train splits). The verdict is python -m experiments verdict on the
+first comparison (decisions 2B and 3). NameTag 3 Czech, zero-shot GLiNER and the two
+parts of the union are reported as data. All own models trained on fobos (NVIDIA L40S)."""
+stage = "final"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+nametag-multi", "rules+xlmr|focal-more"],
+    ["rules+nametag-cs", "rules+xlmr|focal-more"],
+    ["rules+gliner", "rules+xlmr|focal-more"],
+    ["rules+nametag-multi", "rules+xlmr-cs-sk-ce-more"],
+    ["rules+nametag-multi", "rules+gliner-cs-sk-focal-more"],
+]
+
+[[datasets]]
+id = "redact"
+split = "test"
+
+[[datasets]]
+id = "cnec-2.0"
+split = "etest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "test"
+
+[systems."rules+gliner"]
+model = "gliner"
+
+[systems."rules+nametag-multi"]
+model = "nametag3-multilingual-260521"
+
+[systems."rules+nametag-cs"]
+model = "nametag3-czech-cnec2.0-240830"
+
+[systems."rules+xlmr|focal-more"]
+model = ["xlmr-cs-sk-ce-more", "gliner-cs-sk-focal-more"]
+combine = "union"
+
+[systems."rules+xlmr-cs-sk-ce-more"]
+model = "xlmr-cs-sk-ce-more"
+
+[systems."rules+gliner-cs-sk-focal-more"]
+model = "gliner-cs-sk-focal-more"

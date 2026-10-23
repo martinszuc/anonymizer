@@ -212,12 +212,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "errors":
         return _errors(args, root)
     config = load_config(args.config, load_catalog(root=root))
+    path = args.out / f"{config.name}.json"
+    # Test data is read once: a second final run, even an accidental duplicate
+    # job, must not replace (or quietly repeat) the one already written.
+    if config.stage == "final" and path.exists():
+        print(f"run: {path} exists; a final run reads the test data once", file=sys.stderr)
+        return 2
     cache_dir = args.cache_dir or root / ".cache" / "experiments"
     results = run(
         config, resource_root=root, cache_dir=cache_dir, progress=print, device=args.device
     )
     args.out.mkdir(parents=True, exist_ok=True)
-    path = args.out / f"{config.name}.json"
     path.write_text(json.dumps(results, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     _write_tables(results, args.out)
     print(f"wrote {path} and its .md and .tex")

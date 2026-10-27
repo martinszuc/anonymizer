@@ -1447,6 +1447,13 @@ Verified on saved files, one probe per kind of content under a box:
   meaningless. Probes check the fixture's starting state first.
 - None of the real samples has content outside the visible area or a thumbnail;
   those fixes are exercised by synthetic files only.
+- **The width of removed text stays in the file** (2026-10-27, saved and reloaded,
+  with an unredacted control line). `apply_redactions()` replaces the removed
+  glyphs by a `TJ` displacement as wide as they were, so the words after them keep
+  their exact positions: nothing on the line shifts. The displacement equals the
+  black box's width, so it tells a reader no more than the box does, but a width
+  in a proportional font narrows the candidates for a short value such as a
+  surname. Pinned by `test_the_words_around_a_removed_value_keep_their_place`.
 
 - `Page.apply_redactions()` removes a link only if a redaction box overlaps its
   rectangle; links elsewhere on the page survive. A URL entity whose box is the

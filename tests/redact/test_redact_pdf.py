@@ -81,6 +81,27 @@ class TestPageText:
             fills = [drawing.get("fill") for drawing in pdf.load_page(0).get_drawings()]
         assert (0.0, 0.0, 0.0) in fills
 
+    def test_the_words_around_a_removed_value_keep_their_place(self, tmp_path: Path):
+        source = write_pdf(tmp_path / "line.pdf", [[f"Contact {CONTACT_EMAIL} KEEP", "KEEP"]])
+        document = detected(source)
+        output = tmp_path / "out.pdf"
+        redact_pdf(source, document, output)
+
+        def kept_words(path: Path) -> list[tuple[str, float, float]]:
+            with pymupdf.open(path) as pdf:
+                words = pdf.load_page(0).get_text("words")
+            return [(word[4], round(word[0], 2), round(word[1], 2)) for word in words]
+
+        before, after = kept_words(source), kept_words(output)
+        assert [word for word in before if word[0] != CONTACT_EMAIL] == after
+        # The removed glyphs become a gap as wide as they were, so the width of
+        # the value is left in the file, as the box itself shows it.
+        with pymupdf.open(output) as pdf:
+            content = pdf.load_page(0).read_contents().decode("latin-1")
+            box = next(d["rect"] for d in pdf.load_page(0).get_drawings() if d.get("fill"))
+        gap = -float(content.split("(Contact )")[1].split("(")[0]) * 11 / 1000
+        assert gap == pytest.approx(box.width, abs=0.5)
+
     def test_one_box_per_line_hides_how_the_value_was_grouped(self, contact_pdf: Path):
         document = detected(contact_pdf)
         phone = next(entity for entity in document.entities if entity.type is EntityType.PHONE)

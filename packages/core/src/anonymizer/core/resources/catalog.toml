@@ -310,7 +310,7 @@ licence = "Apache-2.0"
 languages = ["en", "da", "fr", "it", "es", "de", "pt", "cs", "pl", "nl", "no", "fi"]
 requires = ["onnxtr-fast-base"]
 notes = """
-PARSeq fine-tuned by the docTR maintainer on a multilingual vocabulary of 195 characters, every Czech letter included; docTR's own recognition models use a French vocabulary without háček letters. Slovak is not listed but its letters are in the vocabulary. config.json carries the vocabulary; only its git blob SHA-1 is published."""
+PARSeq fine-tuned by the docTR maintainer on a multilingual vocabulary of 195 characters, every Czech letter included; docTR's own recognition models use a French vocabulary without háček letters. Slovak is not listed, and its ĺ, ľ and ŕ (either case) are missing from the vocabulary, so the model cannot output them. config.json carries the vocabulary; only its git blob SHA-1 is published."""
 
 [[resource.files]]
 path = "config.json"

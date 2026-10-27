@@ -6,6 +6,10 @@ Format: `YYMMDD/XXX` (issued before 1954, no check digit) or `YYMMDD/XXXX`
 The month field encodes more than the month: `+50` marks a female holder, and
 `+20` (with `+70` for female) marks a number from an exhausted daily series,
 used since 2004. Valid month fields are therefore 1-12, 21-32, 51-62 and 71-82.
+
+The Czech insurance number (evidenční číslo pojištěnce, EČP), given to people
+without a birth number, has the same format and check digit with `+40` added
+to the day, so day fields 41-71 are accepted as well.
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ _PATTERN = re.compile(r"(?<![\d/])(\d{6})\s*/?\s*(\d{3,4})(?![\d/])")
 
 _FEMALE_MONTH_OFFSET = 50
 _EXTENDED_MONTH_OFFSET = 20
+_INSURANCE_DAY_OFFSET = 40
 _CHECKSUM_MODULUS = 11
 # Numbers issued from 1954 onwards carry a check digit; earlier ones have 9 digits.
 _FIRST_CHECKSUM_YEAR = 1954
@@ -42,6 +47,8 @@ def _birth_date(digits: str) -> date | None:
     year_field = int(digits[0:2])
     month = _normalized_month(int(digits[2:4]))
     day = int(digits[4:6])
+    if day > _INSURANCE_DAY_OFFSET:
+        day -= _INSURANCE_DAY_OFFSET
     # Two digits cannot distinguish centuries on their own: a 10-digit number
     # belongs to 1954-2053, a 9-digit one to 1900-1953.
     year = 1900 + year_field

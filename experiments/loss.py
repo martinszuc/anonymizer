@@ -43,11 +43,14 @@ clamping, masks and sum). It is computed from the logits the unchanged
 forward pass returns (`weighted_trainer`), so gliner's span enumeration,
 masks and label handling are reused, not reimplemented.
 
-In a model that fitted the training data perfectly, weighting the positives
-by `w` moves a pair's predicted odds by the factor `w`, as a lower threshold
-would; training with it also changes what the encoder learns, which a
-threshold cannot. That is why the comparison includes cross-entropy at a
-lower threshold (`experiments/README.md`, *Training*).
+At the population minimiser of the loss (with `gamma = 0`, the prediction
+that minimises the expected loss for every pair), weighting the positives by
+`w` multiplies a pair's predicted odds by `w`, as a lower threshold would.
+A model fitting the training data perfectly would predict 0 or 1 under any
+weight, so the argument concerns the expected loss, not the fit. Training
+with it also changes what the encoder learns, which a threshold cannot. That
+is why the comparison includes cross-entropy at a lower threshold
+(`experiments/README.md`, *Training*).
 """
 
 from __future__ import annotations

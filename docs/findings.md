@@ -1395,6 +1395,38 @@ intervals excluding 0), config seed:
 - **REDACT still does not separate** for any candidate (dev sample of 40 records); the
   union's interval is −0.005 [−0.033, +0.032] F2 against NameTag 3 multilingual.
 
+### 2026-10-29 · The final test: the chosen model against NameTag 3 (test data, read once)
+
+`rq6-test` and `rq6-test-home`, `stage = "final"`, each run once on an L40S (fobos,
+`--device cuda`, commit `12a0f55`, clean tree), seed 20261010, 1,000 resamples. The model
+is the one chosen on dev on 2026-10-23, unchanged: the union of `xlmr-cs-sk-ce-more`
+(threshold 0.5) and `gliner-cs-sk-focal-more` (0.3), both at the engine default, as on dev,
+config seed. REDACT test is the full release less the 40 dev sample records: 456 records.
+
+`python -m experiments verdict` against NameTag 3 multilingual (person F2, partial match,
+and person residual share; both paired 95 % intervals excluding 0):
+
+| set | union F2 | NameTag 3 multi F2 | ΔF2 | union residual | NameTag 3 multi residual | Δresidual | outcome |
+|---|---|---|---|---|---|---|---|
+| REDACT test | 0.915 | 0.903 | +0.012 [+0.001, +0.024] | 0.036 | 0.053 | −0.017 [−0.026, −0.009] | win |
+| CNEC 2.0 etest | 0.945 | 0.885 | +0.060 [+0.027, +0.100] | 0.021 | 0.110 | −0.089 [−0.131, −0.056] | win |
+| UNER-SK test | 0.972 | 0.902 | +0.070 [+0.045, +0.098] | 0.020 | 0.093 | −0.073 [−0.103, −0.049] | win |
+
+- **The win rule holds on all three main sets**: the fixed sentence is "beats NameTag 3
+  multilingual on the reserved test data". REDACT, a tie on dev (40 records), separates
+  on the 456 test records, by the smallest margin of the three.
+- **Against NameTag 3 Czech** (reported as data, not the verdict): person ΔF2 −0.001
+  [−0.01, +0.01] on REDACT and +0.002 [−0.02, +0.02] on CNEC, neither separating; +0.082
+  [+0.06, +0.10] on UNER-SK. On Czech text the union is level with the Czech model, ahead
+  on Slovak.
+- **The parts alone** (person F2): XLM-R 0.899 / 0.949 / 0.965, GLiNER focal 0.917 / 0.928
+  / 0.971 (REDACT / CNEC / UNER-SK). Neither part is best on every set.
+- **Home-advantage sets** (no verdict; only the own models trained on OpenPII, and the
+  held-out templates are the author's): union person F2 0.997 on OpenPII cs and sk, 0.997
+  held-out cs, 0.999 held-out sk; NameTag 3 multilingual 0.944, 0.944, 0.984, 0.985.
+- Outside names, every system shares the rules: on REDACT test birth numbers are found
+  at recall 0.067 (19 / 283) by all of them; this is a rule finding, not part of RQ6.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

@@ -10,6 +10,8 @@ VALID = [
     "541231/0002",  # first year with a check digit
     "531231/1235",  # two-digit year 53 resolves to 2053 for ten digits
     "531231123",  # nine-digit form, issued before 1954
+    "900141/1232",  # Czech insurance number (EČP): day +40
+    "905171/1230",  # EČP for a woman, 31st day; remainder 10 recorded as 0
 ]
 
 INVALID = [
@@ -17,6 +19,9 @@ INVALID = [
     "901301/0007",  # month 13
     "900132/0007",  # day 32
     "902901/0007",  # month 29 is not a valid offset month
+    "900140/1233",  # day field 40: the EČP offset on day 0
+    "900172/1234",  # day field 72: the EČP offset on day 32
+    "900141/1233",  # EČP with the check digit off by one
     "900101123",  # nine digits but a post-1954 year
     "90010/0007",  # too few digits
     "900101/00007",  # too many digits
@@ -52,6 +57,11 @@ def test_finds_number_in_running_text():
 
 def test_skips_invalid_candidates_in_text():
     assert list(find_birth_numbers("faktura 900101/0008 ze dne 1. 1. 2026")) == []
+
+
+def test_finds_an_insurance_number_in_running_text():
+    text = "Pojištěnec bez r. č., EČP 905171/1230, státní příslušnost SK."
+    assert [match.text for match in find_birth_numbers(text)] == ["905171/1230"]
 
 
 def test_finds_several_numbers():

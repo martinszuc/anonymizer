@@ -88,9 +88,8 @@ class TestPageText:
         redact_pdf(source, document, output)
 
         def kept_words(path: Path) -> list[tuple[str, float, float]]:
-            with pymupdf.open(path) as pdf:
-                words = pdf.load_page(0).get_text("words")
-            return [(word[4], round(word[0], 2), round(word[1], 2)) for word in words]
+            words = load_document(path).pages[0].words
+            return [(word.text, round(word.bbox.x0, 2), round(word.bbox.y0, 2)) for word in words]
 
         before, after = kept_words(source), kept_words(output)
         assert [word for word in before if word[0] != CONTACT_EMAIL] == after

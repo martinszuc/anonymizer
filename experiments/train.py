@@ -108,9 +108,15 @@ from typing import Any, cast
 
 import anonymizer.core
 from anonymizer.core.detect.gliner import SpanModel, load_gliner_model
-from anonymizer.core.detect.models import NAME_MODEL_ALIASES
+from anonymizer.core.detect.models import NAME_MODEL_ALIASES, name_model
 from anonymizer.core.detect.token_classifier import TOKEN_CLASSIFIER_ENGINE
-from anonymizer.core.resources import Catalog, Resource, load_catalog, trained_catalog_path
+from anonymizer.core.resources import (
+    UNION_ENGINE,
+    Catalog,
+    Resource,
+    load_catalog,
+    trained_catalog_path,
+)
 from anonymizer.core.resources.catalog import CATALOG_SCHEMA, is_resource_id, parse_catalog
 
 from experiments.config import DatasetRef, parse_config, replicate_id
@@ -839,6 +845,51 @@ def store_model(
             {"path": name, "size": (target / name).stat().st_size, "sha256": _sha256(target / name)}
             for name in kept
         ],
+    }
+    register(resource_root, entry)
+    return entry
+
+
+def register_union(resource_root: Path, model_id: str, members: list[str]) -> dict[str, Any]:
+    """List a union of name models in the root's `trained.json`, so clients load it by one id.
+
+    Args:
+        resource_root: Storage root holding `models/`.
+        model_id: The union's catalog id.
+        members: Catalog ids (or earlier names) of two or more name models.
+
+    Returns:
+        The entry written.
+
+    Raises:
+        ValueError: If a member is not a name model or is a union, or the
+            list would not load.
+    """
+    catalog = load_catalog(root=resource_root)
+    resources = [name_model(member, catalog) for member in members]
+    if any(resource.engine == UNION_ENGINE for resource in resources):
+        msg = "a union's members are single models, not unions"
+        raise ValueError(msg)
+    pins = "\n".join(f"{resource.id}@{resource.version}" for resource in resources)
+    entry = {
+        "id": model_id,
+        "name": "Union of " + " and ".join(resource.id for resource in resources),
+        "kind": "model",
+        "uses": ["ner"],
+        "engine": UNION_ENGINE,
+        "trained": True,
+        "source": "union of " + ", ".join(resource.id for resource in resources),
+        # The members' pins when the union was listed; it has no weights of its own.
+        "version": hashlib.sha256(pins.encode()).hexdigest(),
+        "licence": "LicenseRef-Trained-Locally",
+        "languages": sorted({code for resource in resources for code in resource.languages}),
+        "requires": [resource.id for resource in resources],
+        "real_personal_data": any(resource.real_personal_data for resource in resources),
+        "notes": (
+            "Everything its members find, each at its own threshold, merged as the rules "
+            "and a model are. Local use only: never committed or published."
+        ),
+        "files": [],
     }
     register(resource_root, entry)
     return entry

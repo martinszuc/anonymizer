@@ -1,6 +1,7 @@
 """Models and datasets: the pinned catalog and its verified download."""
 
 from anonymizer.core.resources.catalog import (
+    UNION_ENGINE,
     Catalog,
     Resource,
     ResourceFile,
@@ -29,6 +30,7 @@ from anonymizer.core.resources.location import (
 from anonymizer.core.settings import settings_file
 
 __all__ = [
+    "UNION_ENGINE",
     "Catalog",
     "ChecksumError",
     "FetchResult",

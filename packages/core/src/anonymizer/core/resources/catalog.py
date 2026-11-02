@@ -18,6 +18,11 @@ data: every client runs the model at it unless the caller gives another
 (`detect.name_model_threshold`). Training never writes one; it is added to
 the entry by hand once chosen, and training the same id again replaces the
 entry without it, since new weights need their threshold chosen again.
+
+A name model may also be a union of other name models (`engine = "union"`):
+its entry has no files, requires its members (two or more) and is loaded as
+everything they find together (`detect.models`). It lets a client choose by
+one id a combination the evaluation measured.
 """
 
 from __future__ import annotations
@@ -37,6 +42,9 @@ ResourceKind = Literal["model", "dataset"]
 
 KIND_DIRECTORIES: dict[str, str] = {"model": "models", "dataset": "data"}
 """Top-level directory each kind is stored under, relative to the storage root."""
+
+UNION_ENGINE = "union"
+"""Engine of a name model made of other name models; its entry has no files."""
 
 TRAINED_CATALOG = "trained.json"
 """A storage root's catalog of models trained on this machine, in its `models/` folder."""
@@ -273,7 +281,13 @@ def _parse_resource(entry: dict[str, Any], *, trained: bool) -> Resource:
     if not trained and not str(entry["source"]).startswith("https://"):
         raise fail("source must be an HTTPS URL")
     raw_files = entry.get("files", [])
-    if not raw_files:
+    requires = tuple(entry.get("requires", ()))
+    if entry.get("engine") == UNION_ENGINE:
+        if raw_files:
+            raise fail("a union of name models has no files of its own")
+        if uses != ("ner",) or len(set(requires)) < 2:
+            raise fail("a union is a name model (uses ner) requiring two or more name models")
+    elif not raw_files:
         raise fail("no files")
     files = tuple(_parse_file(raw_file, fail, trained=trained) for raw_file in raw_files)
     paths = [item.path for item in files]
@@ -292,7 +306,7 @@ def _parse_resource(entry: dict[str, Any], *, trained: bool) -> Resource:
         languages=languages,
         files=files,
         engine=entry.get("engine"),
-        requires=tuple(entry.get("requires", ())),
+        requires=requires,
         real_personal_data=bool(entry.get("real_personal_data", False)),
         notes=entry.get("notes", "").strip(),
         trained=trained,

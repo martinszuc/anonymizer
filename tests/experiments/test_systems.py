@@ -14,7 +14,7 @@ from anonymizer.core.detect import (
     RuleDetector,
 )
 from anonymizer.core.detect import models as models_module
-from anonymizer.core.resources import Catalog
+from anonymizer.core.resources import Catalog, load_catalog
 from anonymizer.core.types import Document, EntityType
 
 from experiments import systems as systems_module
@@ -37,6 +37,7 @@ from experiments.systems import (
     span_model_loader,
 )
 from tests.experiments.conftest import ScoredStandIn, StandInSplitter, StandInTagger
+from tests.resources.test_catalog import store_trained, trained_entry, union_entry
 
 TEXT = "Smlouvu podepsal pan Jan Novák v Brně."
 GLINER = "gliner-multi-v2.1"
@@ -118,6 +119,16 @@ class TestParseSystem:
             "distractors": ["organization"],
             "names_only": True,
         }
+
+    def test_a_union_entry_runs_as_its_members_combined(self, tmp_path: Path):
+        store_trained(tmp_path, trained_entry(threshold=0.041), union_entry())
+        catalog = load_catalog(root=tmp_path)
+        system = parse_system("rules+cs-union", {"model": "cs-union"}, catalog)
+        assert system.model_ids == ("gliner-cs-tuned", GLINER)
+        assert system.combine == "union"
+        assert system.model_thresholds == {"gliner-cs-tuned": 0.041, GLINER: 0.3}
+        with pytest.raises(ValueError, match="combine must be union"):
+            parse_system("x", {"model": "cs-union", "combine": "agreement"}, catalog)
 
     def test_a_threshold_below_the_floor_reads_the_low_cache(self):
         low = parse_system("low", {"model": "gliner", "threshold": 0.04})

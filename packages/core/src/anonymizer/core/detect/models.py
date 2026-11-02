@@ -10,6 +10,12 @@ when given no catalog. A new kind of model adds one loader to
 `NAME_MODEL_ENGINES` and the package that runs it: GLiNER, NameTag 3 and the
 token classifier trained here (`token_classifier.py`) are three.
 
+A union of name models (`engine = "union"`, see `resources.catalog`) is a
+name model too: it loads each member at its own threshold and reports
+everything they find, merged as the rules and a model are
+(`CombinedDetector`). The experiments combine models the same way, so a
+union chosen there runs unchanged in every client.
+
 A model's decision threshold is settled here too (`name_model_threshold`):
 the caller's if it gives one, else the catalog entry's, else the engine's
 default. Every client loads through `load_name_model`, so a fine-tuned model
@@ -23,7 +29,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from anonymizer.core.detect.base import Detector
+from anonymizer.core.detect.base import CombinedDetector, Detector
 from anonymizer.core.detect.gliner import (
     DEFAULT_THRESHOLD,
     GLINER_RESOURCE,
@@ -37,7 +43,13 @@ from anonymizer.core.detect.token_classifier import (
     TOKEN_CLASSIFIER_ENGINE,
     load_token_classifier_detector,
 )
-from anonymizer.core.resources import Catalog, Resource, load_catalog, missing_resources
+from anonymizer.core.resources import (
+    UNION_ENGINE,
+    Catalog,
+    Resource,
+    load_catalog,
+    missing_resources,
+)
 
 DEFAULT_NAME_MODEL = GLINER_RESOURCE
 """The model `--ner` and the window use unless another is chosen."""
@@ -96,6 +108,12 @@ NAME_MODEL_ENGINES: dict[str, NameModelEngine] = {
         package="transformers",
         group="ner",
         default_threshold=TOKEN_CLASSIFIER_THRESHOLD,
+    ),
+    UNION_ENGINE: NameModelEngine(
+        lambda root, model_id, catalog, _threshold: _load_union(root, model_id, catalog),
+        # Each member's package is checked instead (`name_model_installed`).
+        package="",
+        group="ner",
     ),
 }
 """Loaders by the catalog's `engine` field."""
@@ -176,6 +194,38 @@ def name_model_threshold(
     return chosen if chosen is not None else engine.default_threshold
 
 
+def union_members(model_id: str, catalog: Catalog | None = None) -> tuple[str, ...]:
+    """Return the catalog ids of the name models a union is made of.
+
+    Args:
+        model_id: A union's catalog id.
+        catalog: The resource catalog; the one shipped with the core when omitted.
+
+    Returns:
+        The members in the entry's order.
+
+    Raises:
+        ValueError: If no name model has that id, it is not a union, or a
+            member is not a name model or is a union itself.
+    """
+    resource = name_model(model_id, catalog)
+    if resource.engine != UNION_ENGINE:
+        msg = f"name model {resource.id!r} is not a union"
+        raise ValueError(msg)
+    members = tuple(name_model(member, catalog).id for member in resource.requires)
+    if any(name_model(member, catalog).engine == UNION_ENGINE for member in members):
+        msg = f"union {resource.id!r} has a union among its members"
+        raise ValueError(msg)
+    return members
+
+
+def _load_union(root: Path, model_id: str, catalog: Catalog) -> Detector:
+    members = [
+        load_name_model(member, root, catalog) for member in union_members(model_id, catalog)
+    ]
+    return CombinedDetector(members, name=model_id)
+
+
 def name_model_installed(model_id: str, catalog: Catalog | None = None) -> bool:
     """Whether a name model's optional dependencies are installed, checked without importing them.
 
@@ -191,6 +241,9 @@ def name_model_installed(model_id: str, catalog: Catalog | None = None) -> bool:
     Raises:
         ValueError: If no name model has that id.
     """
+    if name_model(model_id, catalog).engine == UNION_ENGINE:
+        members = union_members(model_id, catalog)
+        return all(name_model_installed(member, catalog) for member in members)
     package = name_model_engine(model_id, catalog).package
     try:
         return importlib.util.find_spec(package) is not None

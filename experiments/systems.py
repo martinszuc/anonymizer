@@ -6,7 +6,9 @@ so the harness measures what the command line and the review window ship;
 the options only switch what those functions already offer. A system may
 run two name models beside the rules: their union (`CombinedDetector`, as
 the rules and a model are combined) or only what both found
-(`AgreementDetector`).
+(`AgreementDetector`). A union entry of the catalog (`engine = "union"`)
+runs as its members combined that way, which is how the clients load it, so
+each member's output is cached as any model's.
 
 The name models are the slow part, so their raw output is cached per model
 input. GLiNER (`CachedSpanModel`) is asked once at `CACHE_FLOOR` and the
@@ -49,6 +51,7 @@ from anonymizer.core.detect import (
     NametagDetector,
     name_model,
     name_model_threshold,
+    union_members,
 )
 from anonymizer.core.detect.base import Detector
 from anonymizer.core.detect.gliner import (
@@ -75,7 +78,7 @@ from anonymizer.core.detect.token_classifier import (
 )
 from anonymizer.core.language import AUTO
 from anonymizer.core.pipeline import build_detector, resolve_language, run_detection
-from anonymizer.core.resources import Catalog, load_catalog
+from anonymizer.core.resources import UNION_ENGINE, Catalog, load_catalog
 from anonymizer.core.types import Document, EntityType
 
 CACHE_FLOOR = 0.1
@@ -243,8 +246,10 @@ def parse_system(
     model: str | tuple[str, ...] = (
         tuple(str(item) for item in raw_model) if isinstance(raw_model, list) else str(raw_model)
     )
-    models = model if isinstance(model, tuple) else ((model,) if model != "none" else ())
     catalog = catalog or load_catalog()
+    if isinstance(model, str) and model != "none":
+        model = _expand_union(name, model, table, catalog)
+    models = model if isinstance(model, tuple) else ((model,) if model != "none" else ())
     engines = tuple(_check_model(name, item, catalog) for item in models)
     if isinstance(model, tuple) and len({name_model(item, catalog).id for item in models}) < 2:
         msg = f"system {name!r}: a list of models needs two different models"
@@ -313,6 +318,22 @@ def cache_floor(threshold: float) -> float:
         msg = f"threshold {threshold} is below the lowest cache floor {LOW_CACHE_FLOOR}"
         raise ValueError(msg)
     return CACHE_FLOOR if threshold >= CACHE_FLOOR else LOW_CACHE_FLOOR
+
+
+def _expand_union(
+    system: str, model: str, table: Mapping[str, Any], catalog: Catalog
+) -> str | tuple[str, ...]:
+    """Return a union entry's members, combined as the clients combine them; else the model."""
+    try:
+        resource = name_model(model, catalog)
+    except ValueError:
+        return model  # _check_model reports it
+    if resource.engine != UNION_ENGINE:
+        return model
+    if str(table.get("combine", "union")) != "union":
+        msg = f"system {system!r}: model {model!r} is a union; combine must be union"
+        raise ValueError(msg)
+    return union_members(resource.id, catalog)
 
 
 def _check_model(system: str, model: str, catalog: Catalog) -> str:

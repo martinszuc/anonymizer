@@ -44,6 +44,7 @@ from anonymizer.core.detect.models import (
     name_model_threshold,
     name_models,
     system_model,
+    union_members,
 )
 from anonymizer.core.detect.nametag import NametagDetector, load_nametag_detector
 from anonymizer.core.detect.propagate import propagate_occurrences
@@ -192,4 +193,5 @@ __all__ = [
     "propagate_occurrences",
     "role_words_for",
     "system_model",
+    "union_members",
 ]

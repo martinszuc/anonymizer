@@ -259,3 +259,54 @@ class TestTrainedModels:
     def test_the_shipped_catalog_lists_no_trained_model(self):
         with pytest.raises(ValueError, match=r"only a storage root's trained\.json"):
             parse_catalog(_with({"trained": True}))
+
+
+def union_entry(**change: Any) -> dict[str, Any]:
+    entry: dict[str, Any] = {
+        "id": "cs-union",
+        "name": "Union of two name models",
+        "kind": "model",
+        "uses": ["ner"],
+        "engine": "union",
+        "trained": True,
+        "source": "union of gliner-cs-tuned, gliner-multi-v2.1",
+        "version": SHA256_HELLO,
+        "licence": "LicenseRef-Trained-Locally",
+        "languages": ["cs", "sk"],
+        "requires": ["gliner-cs-tuned", "gliner-multi-v2.1"],
+        "files": [],
+    }
+    entry.update(change)
+    return entry
+
+
+class TestUnion:
+    def test_a_union_has_no_files_and_requires_its_members(self, tmp_path: Path):
+        store_trained(tmp_path, trained_entry(), union_entry())
+        catalog = load_catalog(root=tmp_path)
+        assert catalog["cs-union"].files == ()
+        assert [resource.id for resource in catalog.with_requirements("cs-union")] == [
+            "mdeberta-v3-base-tokenizer",
+            "gliner-cs-tuned",
+            "gliner-multi-v2.1",
+            "cs-union",
+        ]
+
+    @pytest.mark.parametrize(
+        ("change", "message"),
+        [
+            ({"files": [{"path": "w.bin", "size": 6, "sha256": SHA256_HELLO}]}, "no files of"),
+            ({"requires": ["gliner-cs-tuned"]}, "two or more"),
+            ({"requires": ["gliner-cs-tuned", "gliner-cs-tuned"]}, "two or more"),
+            ({"uses": ["ner", "benchmark"]}, "uses ner"),
+        ],
+    )
+    def test_a_malformed_union_is_refused(self, tmp_path: Path, change: dict, message: str):
+        store_trained(tmp_path, trained_entry(), union_entry(**change))
+        with pytest.raises(ValueError, match=message):
+            load_catalog(root=tmp_path)
+
+    def test_only_a_union_may_have_no_files(self, tmp_path: Path):
+        store_trained(tmp_path, trained_entry(files=[]))
+        with pytest.raises(ValueError, match="no files"):
+            load_catalog(root=tmp_path)

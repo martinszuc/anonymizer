@@ -200,6 +200,9 @@ def verify_resource(resource: Resource, root: Path) -> dict[str, str]:
 
 def resource_status(resource: Resource, root: Path) -> str:
     """Return `absent`, `partial` or `present` from file existence alone (no hashing)."""
+    if not resource.files:
+        # A union of name models stores nothing of its own; its members are checked apart.
+        return "present"
     directory = resource.directory(root)
     found = sum((directory / item.path).exists() for item in resource.files)
     if found == 0:

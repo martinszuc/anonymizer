@@ -151,7 +151,10 @@ has no download source: training lists it in its storage root's
 `models/trained.json` with the SHA-256 of each file, and it is chosen the same way
 whenever that root is the resource root. A name model's entry may set `threshold`,
 its minimum span score chosen on development data; every client then runs the
-model at it instead of GLiNER's default 0.3.
+model at it instead of GLiNER's default 0.3. Two or more name models can be
+listed as one union (`python -m experiments union <id> <model> <model>`), which
+every client then offers by that id: it reports everything its members find,
+each at its own threshold, as the evaluation combines them.
 
 Files land in `models/<id>/` or `data/<id>/` of the repository (both git-ignored;
 `--root` names another place). The CLI, the review window and the benchmark read

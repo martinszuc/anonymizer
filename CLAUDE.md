@@ -103,6 +103,9 @@ docstrings, not here; they go stale in two places.
   configs keep working. A model trained here (`python -m experiments train`) is
   an entry of its storage root's `models/trained.json`, not of the shipped
   catalog: clients that know the root read it with `load_catalog(root=...)`.
+  A union of name models is an entry too (`engine = "union"`, no files,
+  `requires` its members; `python -m experiments union`), loaded as the
+  members' `CombinedDetector`, exactly as the experiments combine them.
   A model's decision threshold is its entry's `threshold`, settled in one
   place (`name_model_threshold`: the caller's, else the entry's, else the
   engine's default); a client never hardcodes a model's threshold.

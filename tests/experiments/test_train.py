@@ -40,6 +40,7 @@ from experiments.train import (
     load_train_config,
     parse_train_config,
     register,
+    register_union,
     seed_for,
     train,
     training_examples,
@@ -426,6 +427,31 @@ def test_registering_adds_or_replaces_one_entry(tmp_path: Path):
     assert load_catalog(root=tmp_path)["gliner-cs-tuned"].name == "retrained"
     with pytest.raises(ValueError, match="duplicate resource id"):
         register(tmp_path, trained_entry(id="gliner-multi-v2.1"))
+
+
+def test_a_union_is_listed_by_one_command(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
+    register(tmp_path, trained_entry())
+    command = ["union", "cs-union", "gliner-cs-tuned", "gliner", "--resource-root", str(tmp_path)]
+    assert main(command) == 0
+    assert "cs-union: union of gliner-cs-tuned, gliner-multi-v2.1" in capsys.readouterr().out
+    union = load_catalog(root=tmp_path)["cs-union"]
+    assert (union.engine, union.requires, union.files) == (
+        "union",
+        ("gliner-cs-tuned", "gliner-multi-v2.1"),
+        (),
+    )
+    assert union.languages == ("cs", "mul", "sk")
+
+
+def test_a_union_takes_single_name_models(tmp_path: Path):
+    register(tmp_path, trained_entry())
+    with pytest.raises(ValueError, match="unknown name model"):
+        register_union(tmp_path, "bad", ["gliner-cs-tuned", "mdeberta-v3-base-tokenizer"])
+    register_union(tmp_path, "cs-union", ["gliner-cs-tuned", "gliner"])
+    with pytest.raises(ValueError, match="not unions"):
+        register_union(tmp_path, "outer", ["cs-union", "gliner"])
+    with pytest.raises(ValueError, match="two or more"):
+        register_union(tmp_path, "lonely", ["gliner-cs-tuned"])
 
 
 WEIGHTS = b"stand-in weights after training"

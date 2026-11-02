@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from anonymizer.core.detect import (
     DEFAULT_NAME_MODEL,
+    CombinedDetector,
     GlinerDetector,
     load_name_model,
     missing_name_model_files,
@@ -16,6 +17,7 @@ from anonymizer.core.detect import (
     name_model_threshold,
     name_models,
     system_model,
+    union_members,
 )
 from anonymizer.core.detect import gliner as gliner_module
 from anonymizer.core.detect.gliner import (
@@ -24,10 +26,11 @@ from anonymizer.core.detect.gliner import (
     DEFAULT_THRESHOLD,
     encoder_resource,
 )
+from anonymizer.core.pipeline import build_detector
 from anonymizer.core.resources import Catalog, Resource, ResourceFile, load_catalog
 
-from tests.detect.test_gliner import StandInModel
-from tests.resources.test_catalog import store_trained, trained_entry
+from tests.detect.test_gliner import StandInModel, _page
+from tests.resources.test_catalog import store_trained, trained_entry, union_entry
 
 
 def _resource(
@@ -262,3 +265,78 @@ class TestThreshold:
             name_model_threshold(self.NAMETAG, catalog)
         with pytest.raises(ValueError, match="which has no threshold"):
             load_name_model(self.NAMETAG, Path("/models-root"), catalog)
+
+
+class TestUnion:
+    @pytest.fixture
+    def root(self, tmp_path: Path) -> Path:
+        store_trained(tmp_path, trained_entry(threshold=0.041), union_entry())
+        return tmp_path
+
+    @pytest.fixture
+    def stand_ins(self, monkeypatch: pytest.MonkeyPatch) -> dict[str, StandInModel]:
+        """Each member finds its own names, chosen by the folder it is loaded from."""
+        models = {
+            "gliner-cs-tuned": StandInModel({"Jan Novák": "person", "Novák": "person"}),
+            "gliner-multi-v2.1": StandInModel({"Novák": "person", "Petra Svobodová": "person"}),
+        }
+        monkeypatch.setattr(
+            gliner_module, "load_gliner", lambda model_dir, _: models[model_dir.name]
+        )
+        monkeypatch.setattr(gliner_module, "missing_resources", lambda *_: [])
+        return models
+
+    def test_a_union_is_offered_and_loads_each_member_at_its_own_threshold(
+        self, root: Path, stand_ins: dict[str, StandInModel]
+    ):
+        catalog = load_catalog(root=root)
+        assert "cs-union" in [resource.id for resource in name_models(catalog)]
+        assert union_members("cs-union", catalog) == ("gliner-cs-tuned", "gliner-multi-v2.1")
+        detector = load_name_model("cs-union", root)
+        assert isinstance(detector, CombinedDetector)
+        assert detector.name == "cs-union"
+        members = detector.detectors
+        assert all(isinstance(member, GlinerDetector) for member in members)
+        assert [member.threshold for member in members if isinstance(member, GlinerDetector)] == [
+            0.041,
+            DEFAULT_THRESHOLD,
+        ]
+
+    def test_the_union_reports_what_either_member_finds_merged(
+        self, root: Path, stand_ins: dict[str, StandInModel]
+    ):
+        text = "Smlouvu podepsal Jan Novák a Petra Svobodová."
+        detector = build_detector("cs", model=load_name_model("cs-union", root))
+        found = sorted(str(entity.text) for entity in detector.detect(_page(text)))
+        # "Novák" from both lies inside "Jan Novák" and is merged away.
+        assert found == ["Jan Novák", "Petra Svobodová"]
+
+    def test_a_union_has_no_threshold_of_its_own(self, root: Path):
+        catalog = load_catalog(root=root)
+        assert name_model_threshold("cs-union", catalog) is None
+        with pytest.raises(ValueError, match="which has no threshold"):
+            name_model_threshold("cs-union", catalog, 0.3)
+
+    def test_missing_files_are_the_members(self, root: Path):
+        assert missing_name_model_files("cs-union", root) == [
+            "mdeberta-v3-base-tokenizer",
+            "gliner-cs-tuned",
+            "gliner-multi-v2.1",
+        ]
+
+    def test_installed_when_every_member_is(self, root: Path, monkeypatch: pytest.MonkeyPatch):
+        catalog = load_catalog(root=root)
+        monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
+        assert name_model_installed("cs-union", catalog) is False
+        monkeypatch.setattr(importlib.util, "find_spec", lambda name: object())
+        assert name_model_installed("cs-union", catalog) is True
+
+    def test_only_a_union_has_members(self, root: Path):
+        with pytest.raises(ValueError, match="is not a union"):
+            union_members("gliner-cs-tuned", load_catalog(root=root))
+
+    def test_a_union_of_unions_is_refused(self, tmp_path: Path):
+        nested = union_entry(id="outer", requires=["cs-union", "gliner-multi-v2.1"])
+        store_trained(tmp_path, trained_entry(), union_entry(), nested)
+        with pytest.raises(ValueError, match="a union among its members"):
+            union_members("outer", load_catalog(root=tmp_path))

@@ -406,7 +406,14 @@ trained before it draw the same examples as then.
    the CLI, the window, the benchmark and every run config that sets no
    `threshold` run the model at it (the entry is validated on every load,
    0 < t < 1). Training the same id again replaces the entry and drops it,
-   since new weights need their threshold chosen again.
+   since new weights need their threshold chosen again. A union of trained
+   (or shipped) name models is listed with `python -m experiments union
+   <id> <model> <model>`: an entry with no files that requires its members,
+   which every client loads as their `CombinedDetector` and a run config
+   names as `model = "<id>"`, run as the members combined (each cached as
+   usual). The final RQ6 model is listed this way:
+   `python -m experiments union xlmr-focal-more xlmr-cs-sk-ce-more
+   gliner-cs-sk-focal-more`.
 4. **Scoring**: the stored model is loaded back through the root's catalog
    and `rules+<model>` is scored on the `[evaluate]` splits, as `experiments
    run --device <training device>` would (its predictions land in that

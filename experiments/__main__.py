@@ -51,6 +51,7 @@ from experiments.report import latex, markdown
 from experiments.run import DEVICES, run
 from experiments.train import (
     load_train_config,
+    register_union,
     train,
     with_device,
     with_seed,
@@ -127,6 +128,11 @@ def main(argv: list[str] | None = None) -> int:
         help="also write example spans of the synthetic corpora into this folder, which "
         "must be ignored by git (e.g. outputs/error-examples); never for CNEC or UNER",
     )
+    union = commands.add_parser(
+        "union", help="list a union of name models in trained.json, chosen by one id"
+    )
+    union.add_argument("model", help="the union's catalog id")
+    union.add_argument("members", nargs="+", help="catalog ids of two or more name models")
     tables = commands.add_parser("tables", help="rewrite the tables of a stored results file")
     tables.add_argument("results", type=Path, help="<name>.json")
     verdict = commands.add_parser(
@@ -184,7 +190,16 @@ def main(argv: list[str] | None = None) -> int:
             help="where GLiNER predicts (default: cpu; cuda on an NVIDIA GPU, mps on a Mac); "
             "its output is cached per device and the results record it under machine",
         )
-    for command in (run_parser, train_parser, errors_parser, datasets, overlap, leaks, funsd):
+    for command in (
+        run_parser,
+        train_parser,
+        errors_parser,
+        datasets,
+        overlap,
+        leaks,
+        funsd,
+        union,
+    ):
         command.add_argument(
             "--resource-root",
             type=Path,
@@ -209,6 +224,10 @@ def main(argv: list[str] | None = None) -> int:
         return _funsd(args, root)
     if args.command == "train":
         return _train(args, root)
+    if args.command == "union":
+        entry = register_union(root, args.model, args.members)
+        print(f"{entry['id']}: union of {', '.join(entry['requires'])}")
+        return 0
     if args.command == "errors":
         return _errors(args, root)
     config = load_config(args.config, load_catalog(root=root))

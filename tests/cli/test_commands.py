@@ -148,6 +148,18 @@ class TestRedact:
         assert "KEEP this line" in text_of(output)
         assert "leak check passed" in capsys.readouterr().out
 
+    def test_text_export_writes_labels_instead_of_values(
+        self, pdf: Path, capsys: pytest.CaptureFixture
+    ):
+        output = pdf.with_name("out.txt")
+        assert main(["redact", str(pdf), "-o", str(output), "--lang", "cs", "--text"]) == 0
+        text = output.read_text(encoding="utf-8")
+        assert CONTACT_EMAIL not in text
+        assert "603 123 456" not in text
+        assert "[EMAIL]" in text
+        assert "KEEP this line" in text
+        assert "leak check passed" in capsys.readouterr().out
+
     def test_reviewed_session_decides_what_is_kept(self, pdf: Path):
         session = pdf.with_name("review.json")
         main(["detect", str(pdf), "-o", str(session)])

@@ -14,7 +14,7 @@ from anonymizer.cli import html_report, report
 from anonymizer.core.detect import load_name_model
 from anonymizer.core.ingest import OcrEngine, load_document, pages_needing_ocr
 from anonymizer.core.pipeline import build_detector, resolve_language, run_detection
-from anonymizer.core.redact import export_redacted, find_leaks
+from anonymizer.core.redact import export_redacted, export_redacted_text, find_leaks
 from anonymizer.core.session import load_session, save_session
 from anonymizer.core.types import Document
 
@@ -108,8 +108,12 @@ def run_redact(
     force: bool,
     output: Output,
     ocr: OcrEngine | None = None,
+    text: bool = False,
 ) -> int:
-    """Redact a PDF, and write it only if the leak check passes (`export_redacted`)."""
+    """Redact a PDF, and write it only if the leak check passes (`export_redacted`).
+
+    With `text`, the labelled text is written instead (`export_redacted_text`).
+    """
     if destination.resolve() == source.resolve():
         msg = "the output must not overwrite the input"
         raise CommandError(msg)
@@ -119,7 +123,11 @@ def run_redact(
     )
     _refuse_unreadable_pages(document, allow=allow_pages_without_text, output=output)
 
-    leaks = export_redacted(source, document, destination, ocr=ocr)
+    leaks = (
+        export_redacted_text(document, destination)
+        if text
+        else export_redacted(source, document, destination, ocr=ocr)
+    )
     if leaks:
         print(report.leak_report(leaks), file=output.err)
         print(f"nothing written to {destination}", file=output.err)

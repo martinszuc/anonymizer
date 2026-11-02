@@ -87,6 +87,7 @@ uv run anonymize detect cv.pdf -o review.json --lang cs --show
 uv run anonymize redact cv.pdf -o cv-redacted.pdf --session review.json
 uv run anonymize inspect cv.pdf -o cv.html --lang cs   # pages with the found items drawn on
 uv run anonymize redact photo.jpg -o photo-redacted.pdf --ocr onnxtr --lang cs
+uv run anonymize redact cv.pdf -o cv.txt --session review.json --text   # labelled text, e.g. for a language model
 ```
 
 A photo or a scanned image (JPEG, PNG or TIFF; not HEIC, so export iPhone

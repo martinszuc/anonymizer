@@ -3,7 +3,7 @@
 RQ1, development data: the rules alone against the rules with the name model as shipped,
 on Czech (CNEC 2.0 dtest, REDACT sample) and Slovak (UNER Slovak-SNK dev).
 
-Stage: dev · commit 6d9072f94f (uncommitted changes) · 2026-10-10T17:34:49+00:00 · seed 20261002, 1000 resamples · models: mdeberta-v3-base-tokenizer @ a0484667b2, gliner-multi-v2.1 @ 443d26d654 · tool 0.4.0
+Stage: dev · commit ecc05ebf46 · 2026-11-02T17:38:59+00:00 · seed 20261002, 1000 resamples · models: mdeberta-v3-base-tokenizer @ a0484667b2, gliner-multi-v2.1 @ 443d26d654 · tool 0.6.0
 
 ## cnec-2.0/dtest · cs · dev
 
@@ -43,6 +43,25 @@ Stage: dev · commit 6d9072f94f (uncommitted changes) · 2026-10-10T17:34:49+00:
 | any | rules | 0.780 [0.59, 0.90] | 0.076 [0.03, 0.13] | 0.138 [0.06, 0.23] | 0.093 [0.04, 0.16] | 46 / 606 |
 | any | rules+gliner | 0.780 [0.72, 0.83] | 0.733 [0.68, 0.78] | 0.756 [0.70, 0.80] | 0.742 [0.69, 0.78] | 444 / 606 |
 
+### Leak coverage
+
+Characters other than whitespace. Residual: share of gold characters no prediction covers, whatever its type (lower is better). Hidden whole: gold spans with every character covered. Over: characters predicted outside every gold span, per 1,000 characters of text.
+
+| type | system | residual | hidden whole | over / 1k | hidden / gold |
+|---|---|---|---|---|---|
+| address | rules | 0.782 [0.65, 0.88] | 0.091 [0.00, 0.27] | 0.5 [0.1, 1.1] | 2 / 22 |
+| address | rules+gliner | 0.404 [0.28, 0.51] | 0.182 [0.04, 0.39] | 3.0 [1.7, 4.5] | 4 / 22 |
+| email | rules | 0.000 [0.00, 0.00] | 1.000 [1.00, 1.00] | 0.0 [0.0, 0.0] | 19 / 19 |
+| email | rules+gliner | 0.000 [0.00, 0.00] | 1.000 [1.00, 1.00] | 0.0 [0.0, 0.0] | 19 / 19 |
+| person | rules | 1.000 [1.00, 1.00] | 0.000 [0.00, 0.00] | 0.0 [0.0, 0.0] | 0 / 524 |
+| person | rules+gliner | 0.152 [0.11, 0.20] | 0.800 [0.75, 0.84] | 3.8 [2.4, 5.6] | 419 / 524 |
+| phone | rules | 0.328 [0.10, 0.62] | 0.622 [0.31, 0.88] | 0.0 [0.0, 0.0] | 23 / 37 |
+| phone | rules+gliner | 0.328 [0.10, 0.62] | 0.622 [0.31, 0.88] | 0.0 [0.0, 0.0] | 23 / 37 |
+| url | rules | 0.384 [0.00, 1.00] | 0.500 [0.00, 1.00] | 0.0 [0.0, 0.0] | 2 / 4 |
+| url | rules+gliner | 0.384 [0.00, 1.00] | 0.500 [0.00, 1.00] | 0.0 [0.0, 0.0] | 2 / 4 |
+| any | rules | 0.871 [0.80, 0.93] | 0.076 [0.03, 0.13] | 0.5 [0.1, 1.1] | 46 / 606 |
+| any | rules+gliner | 0.187 [0.15, 0.23] | 0.771 [0.72, 0.81] | 6.8 [4.6, 9.3] | 467 / 606 |
+
 ### rules → rules+gliner (paired)
 
 Candidate minus baseline; p is two-sided, from the same resamples.
@@ -62,6 +81,17 @@ Candidate minus baseline; p is two-sided, from the same resamples.
 | url | partial | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | 1.000 |
 | any | partial | -0.075 [-0.13, -0.01] | +0.731 [+0.67, +0.79] | +0.685 [+0.59, +0.77] | +0.723 [+0.65, +0.79] | 0.000 |
 
+Leak coverage, candidate minus baseline:
+
+| type | Δresidual | Δhidden whole | Δover / 1k | p (residual) |
+|---|---|---|---|---|
+| address | -0.378 [-0.47, -0.27] | +0.091 [+0.00, +0.23] | +2.5 [+1.3, +3.8] | 0.000 |
+| email | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | +0.0 [+0.0, +0.0] | 1.000 |
+| person | -0.848 [-0.89, -0.80] | +0.800 [+0.75, +0.84] | +3.8 [+2.4, +5.6] | 0.000 |
+| phone | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | +0.0 [+0.0, +0.0] | 1.000 |
+| url | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | +0.0 [+0.0, +0.0] | 1.000 |
+| any | -0.684 [-0.75, -0.61] | +0.695 [+0.63, +0.75] | +6.3 [+4.2, +8.6] | 0.000 |
+
 ## uner-sk-snk/dev · sk · dev
 
 36 documents, 106 pages, 1060 sentences or records. Gold spans: person 276.
@@ -80,6 +110,15 @@ Candidate minus baseline; p is two-sided, from the same resamples.
 | person | rules | – | 0.000 [0.00, 0.00] | 0.000 [0.00, 0.00] | 0.000 [0.00, 0.00] | 0 / 276 |
 | person | rules+gliner | 0.770 [0.67, 0.85] | 0.620 [0.54, 0.71] | 0.687 [0.61, 0.75] | 0.645 [0.57, 0.72] | 171 / 276 |
 
+### Leak coverage
+
+Characters other than whitespace. Residual: share of gold characters no prediction covers, whatever its type (lower is better). Hidden whole: gold spans with every character covered. Over: characters predicted outside every gold span, per 1,000 characters of text.
+
+| type | system | residual | hidden whole | over / 1k | hidden / gold |
+|---|---|---|---|---|---|
+| person | rules | 1.000 [1.00, 1.00] | 0.000 [0.00, 0.00] | 0.0 [0.0, 0.0] | 0 / 276 |
+| person | rules+gliner | 0.278 [0.20, 0.35] | 0.656 [0.57, 0.74] | 5.3 [2.6, 8.8] | 181 / 276 |
+
 ### rules → rules+gliner (paired)
 
 Candidate minus baseline; p is two-sided, from the same resamples.
@@ -88,6 +127,12 @@ Candidate minus baseline; p is two-sided, from the same resamples.
 |---|---|---|---|---|---|---|
 | person | strict | – | +0.620 [+0.54, +0.71] | +0.687 [+0.61, +0.75] | +0.645 [+0.57, +0.72] | 0.000 |
 | person | partial | – | +0.674 [+0.59, +0.76] | +0.743 [+0.67, +0.81] | +0.700 [+0.63, +0.77] | 0.000 |
+
+Leak coverage, candidate minus baseline:
+
+| type | Δresidual | Δhidden whole | Δover / 1k | p (residual) |
+|---|---|---|---|---|
+| person | -0.722 [-0.80, -0.65] | +0.656 [+0.57, +0.74] | +5.3 [+2.6, +8.8] | 0.000 |
 
 ## redact/sample · cs · dev
 
@@ -135,6 +180,29 @@ Candidate minus baseline; p is two-sided, from the same resamples.
 | any | rules | 0.825 [0.74, 0.90] | 0.291 [0.25, 0.33] | 0.430 [0.38, 0.47] | 0.335 [0.29, 0.38] | 113 / 388 |
 | any | rules+gliner | 0.490 [0.40, 0.59] | 0.637 [0.56, 0.71] | 0.554 [0.48, 0.63] | 0.601 [0.53, 0.67] | 247 / 388 |
 
+### Leak coverage
+
+Characters other than whitespace. Residual: share of gold characters no prediction covers, whatever its type (lower is better). Hidden whole: gold spans with every character covered. Over: characters predicted outside every gold span, per 1,000 characters of text.
+
+| type | system | residual | hidden whole | over / 1k | hidden / gold |
+|---|---|---|---|---|---|
+| address | rules | 0.608 [0.36, 0.82] | 0.333 [0.14, 0.56] | 2.8 [1.3, 5.0] | 9 / 27 |
+| address | rules+gliner | 0.117 [0.04, 0.20] | 0.444 [0.22, 0.70] | 8.4 [4.1, 14.8] | 12 / 27 |
+| birth_number | rules | 0.572 [0.32, 0.81] | 0.450 [0.21, 0.69] | 0.0 [0.0, 0.0] | 9 / 20 |
+| birth_number | rules+gliner | 0.572 [0.32, 0.81] | 0.450 [0.21, 0.69] | 0.0 [0.0, 0.0] | 9 / 20 |
+| date | rules | 0.462 [0.19, 0.73] | 0.552 [0.26, 0.82] | 0.0 [0.0, 0.0] | 16 / 29 |
+| date | rules+gliner | 0.462 [0.19, 0.73] | 0.552 [0.26, 0.82] | 0.0 [0.0, 0.0] | 16 / 29 |
+| email | rules | 0.000 [0.00, 0.00] | 1.000 [1.00, 1.00] | 1.0 [0.0, 3.1] | 61 / 61 |
+| email | rules+gliner | 0.000 [0.00, 0.00] | 1.000 [1.00, 1.00] | 1.0 [0.0, 3.1] | 61 / 61 |
+| id_number | rules | 1.000 [1.00, 1.00] | 0.000 [0.00, 0.00] | 0.0 [0.0, 0.0] | 0 / 5 |
+| id_number | rules+gliner | 1.000 [1.00, 1.00] | 0.000 [0.00, 0.00] | 0.0 [0.0, 0.0] | 0 / 5 |
+| person | rules | 1.000 [1.00, 1.00] | 0.000 [0.00, 0.00] | 0.0 [0.0, 0.0] | 0 / 219 |
+| person | rules+gliner | 0.052 [0.03, 0.08] | 0.904 [0.85, 0.94] | 19.5 [10.2, 29.2] | 198 / 219 |
+| phone | rules | 0.035 [0.00, 0.13] | 0.963 [0.86, 1.00] | 0.7 [0.0, 2.0] | 26 / 27 |
+| phone | rules+gliner | 0.035 [0.00, 0.13] | 0.963 [0.86, 1.00] | 0.7 [0.0, 2.0] | 26 / 27 |
+| any | rules | 0.564 [0.50, 0.63] | 0.312 [0.27, 0.36] | 4.5 [2.1, 7.5] | 121 / 388 |
+| any | rules+gliner | 0.097 [0.06, 0.14] | 0.830 [0.76, 0.88] | 29.6 [19.9, 39.1] | 322 / 388 |
+
 ### rules → rules+gliner (paired)
 
 Candidate minus baseline; p is two-sided, from the same resamples.
@@ -157,3 +225,16 @@ Candidate minus baseline; p is two-sided, from the same resamples.
 | person | partial | – | +0.918 [+0.87, +0.95] | +0.760 [+0.65, +0.88] | +0.848 [+0.77, +0.91] | 0.000 |
 | phone | partial | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | 1.000 |
 | any | partial | -0.152 [-0.26, -0.03] | +0.559 [+0.50, +0.61] | +0.328 [+0.24, +0.41] | +0.477 [+0.41, +0.54] | 0.000 |
+
+Leak coverage, candidate minus baseline:
+
+| type | Δresidual | Δhidden whole | Δover / 1k | p (residual) |
+|---|---|---|---|---|
+| address | -0.491 [-0.67, -0.30] | +0.111 [+0.00, +0.24] | +5.6 [+2.2, +10.2] | 0.000 |
+| birth_number | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | +0.0 [+0.0, +0.0] | 1.000 |
+| date | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | +0.0 [+0.0, +0.0] | 1.000 |
+| email | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | +0.0 [+0.0, +0.0] | 1.000 |
+| id_number | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | +0.0 [+0.0, +0.0] | 1.000 |
+| person | -0.948 [-0.97, -0.92] | +0.904 [+0.85, +0.94] | +19.5 [+10.2, +29.2] | 0.000 |
+| phone | +0.000 [+0.00, +0.00] | +0.000 [+0.00, +0.00] | +0.0 [+0.0, +0.0] | 1.000 |
+| any | -0.468 [-0.52, -0.41] | +0.518 [+0.45, +0.57] | +25.1 [+16.1, +34.9] | 0.000 |

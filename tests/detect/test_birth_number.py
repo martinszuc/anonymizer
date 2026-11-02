@@ -67,3 +67,44 @@ def test_finds_an_insurance_number_in_running_text():
 def test_finds_several_numbers():
     text = "matka 905101/1233, otec 900101/0007"
     assert [match.text for match in find_birth_numbers(text)] == ["905101/1233", "900101/0007"]
+
+
+# 900101000 mod 11 is 7, so 900101/0007 is valid and any other last digit is a
+# wrong check digit on a real date; 900141/1232 is the valid EČP of the same day.
+@pytest.mark.parametrize(
+    ("text", "value"),
+    [
+        ("Rodné číslo: 900101/0008, trvalý pobyt Brno.", "900101/0008"),
+        ("rodného čísla 900101/0008 a adresy", "900101/0008"),
+        ("rodne cislo 900101 / 0008", "900101 / 0008"),
+        ("Pan Novák, r. č. 900101/0008, bydliště Brno.", "900101/0008"),
+        ("R.Č.: 9001010008", "9001010008"),
+        ("rod. č. 900101/0009", "900101/0009"),
+        ("RČ 900101/0008", "900101/0008"),
+        ("rč.900101/0008", "900101/0008"),
+        ("EČP 900141/1233", "900141/1233"),
+    ],
+)
+def test_finds_a_labelled_number_with_a_wrong_check_digit(text, value):
+    found = list(find_birth_numbers(text))
+    assert len(found) == 1
+    assert text[found[0].start : found[0].end] == value
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "faktura 900101/0008 ze dne 1. 1. 2026",  # no label
+        "rodné číslo uvedeno níže, faktura 900101/0008",  # label not right before
+        "Marc 900101/0008",  # the label letters end another word
+        "r. č. 901301/0008",  # month 13
+        "r. č. 900132/0008",  # day 32
+        "r. č. 900101008",  # nine digits but a post-1954 year
+    ],
+)
+def test_a_label_does_not_rescue_other_candidates(text):
+    assert list(find_birth_numbers(text)) == []
+
+
+def test_a_label_does_not_change_validity():
+    assert not is_valid_birth_number("900101/0008")

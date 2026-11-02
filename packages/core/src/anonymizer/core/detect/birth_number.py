@@ -10,6 +10,12 @@ used since 2004. Valid month fields are therefore 1-12, 21-32, 51-62 and 71-82.
 The Czech insurance number (evidenční číslo pojištěnce, EČP), given to people
 without a birth number, has the same format and check digit with `+40` added
 to the day, so day fields 41-71 are accepted as well.
+
+A ten-digit number with a real date but a wrong check digit is still reported
+when a label (`rodné číslo`, `r. č.`, `RČ`, `EČP`) stands right before it. The
+label is the evidence, as for IČO: a mistyped or misread birth number is still
+the holder's, and missing it leaks it, while a bare digit string with a wrong
+check digit is far more often something else.
 """
 
 from __future__ import annotations
@@ -23,6 +29,14 @@ from anonymizer.core.types import EntityType
 
 # Optional whitespace is tolerated around the separator because OCR inserts it.
 _PATTERN = re.compile(r"(?<![\d/])(\d{6})\s*/?\s*(\d{3,4})(?![\d/])")
+
+# A label ending right before the number; diacritics are optional because OCR drops them.
+_LABEL_BEFORE = re.compile(
+    r"(?<!\w)(?:rodn\w*\s+[čc]\w*\.?|rod\.\s*[čc]\.?|r\.\s*[čc]\.?|r[čc]|e[čc]p)\s*[:.]?\s*$",
+    re.IGNORECASE,
+)
+# Enough characters before a number to hold the longest label and its punctuation.
+_LABEL_REACH = 30
 
 _FEMALE_MONTH_OFFSET = 50
 _EXTENDED_MONTH_OFFSET = 20
@@ -85,15 +99,30 @@ def is_valid_birth_number(value: str) -> bool:
     return check_digit == expected
 
 
+def _is_dated(value: str) -> bool:
+    """Check a ten-digit number's encoded date, leaving its check digit aside."""
+    digits = re.sub(r"[\s/]", "", value)
+    return len(digits) == 10 and _birth_date(digits) is not None
+
+
+def _is_labelled(text: str, start: int) -> bool:
+    """Tell whether a birth-number label ends right before `start`."""
+    return _LABEL_BEFORE.search(text[max(0, start - _LABEL_REACH) : start]) is not None
+
+
 def find_birth_numbers(text: str) -> Iterator[Match]:
-    """Yield the valid birth numbers in a text.
+    """Yield the birth numbers in a text.
+
+    A number counts if it is valid, or if it has ten digits and a real date
+    but a wrong check digit and a label stands right before it.
 
     Args:
         text: Text to scan.
 
     Yields:
-        One match per valid birth number, in order of appearance.
+        One match per birth number, in order of appearance.
     """
     for found in _PATTERN.finditer(text):
-        if is_valid_birth_number(found[0]):
+        labelled_typo = _is_dated(found[0]) and _is_labelled(text, found.start())
+        if is_valid_birth_number(found[0]) or labelled_typo:
             yield Match.from_regex(found, EntityType.BIRTH_NUMBER)

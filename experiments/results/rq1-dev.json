@@ -3,18 +3,19 @@
   "name": "rq1-dev",
   "description": "RQ1, development data: the rules alone against the rules with the name model as shipped,\non Czech (CNEC 2.0 dtest, REDACT sample) and Slovak (UNER Slovak-SNK dev).",
   "stage": "dev",
-  "created": "2026-10-10T17:34:49+00:00",
-  "tool_version": "0.4.0",
+  "created": "2026-11-02T17:38:59+00:00",
+  "tool_version": "0.6.0",
   "git": {
-    "commit": "6d9072f94fdde45173d39b446d2ba407310c47a6",
-    "dirty": true
+    "commit": "ecc05ebf46562411962b01079726b4a01061118b",
+    "dirty": false
   },
   "machine": {
     "system": "Darwin",
     "release": "25.6.0",
     "machine": "arm64",
     "processor": "arm",
-    "python": "3.12.14"
+    "python": "3.12.14",
+    "device": "cpu"
   },
   "seed": 20261002,
   "resamples": 1000,
@@ -113,13 +114,10 @@
         "gu": 283,
         "nc": 196,
         "oa": 187,
-        "ic": 153,
         "gc": 148,
         "ty": 145,
         "th": 125,
         "s": 121,
-        "io": 79,
-        "if": 75,
         "n_": 63,
         "f": 55,
         "T": 53,
@@ -152,7 +150,6 @@
         "lower": 7,
         "gq": 6,
         "tf": 5,
-        "i_": 4,
         "C": 3,
         "ah": 1
       },
@@ -167,7 +164,7 @@
             "company_id": 4,
             "bank_account": 4
           },
-          "seconds": 0.03,
+          "seconds": 0.04,
           "scores": {
             "strict": {
               "address": {
@@ -509,6 +506,158 @@
                 }
               }
             }
+          },
+          "coverage": {
+            "address": {
+              "counts": {
+                "gold_characters": 1036,
+                "residual_characters": 810,
+                "gold_items": 22,
+                "hidden_items": 2,
+                "over_characters": 50,
+                "text_characters": 92135
+              },
+              "residual": {
+                "value": 0.7819,
+                "low": 0.6453,
+                "high": 0.878
+              },
+              "hidden_whole": {
+                "value": 0.0909,
+                "low": 0.0,
+                "high": 0.2667
+              },
+              "over_redaction": {
+                "value": 0.5427,
+                "low": 0.087,
+                "high": 1.0766
+              }
+            },
+            "email": {
+              "counts": {
+                "gold_characters": 362,
+                "residual_characters": 0,
+                "gold_items": 19,
+                "hidden_items": 19,
+                "over_characters": 0,
+                "text_characters": 92135
+              },
+              "residual": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              },
+              "hidden_whole": {
+                "value": 1.0,
+                "low": 1.0,
+                "high": 1.0
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "person": {
+              "counts": {
+                "gold_characters": 5455,
+                "residual_characters": 5455,
+                "gold_items": 524,
+                "hidden_items": 0,
+                "over_characters": 0,
+                "text_characters": 92135
+              },
+              "residual": {
+                "value": 1.0,
+                "low": 1.0,
+                "high": 1.0
+              },
+              "hidden_whole": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "phone": {
+              "counts": {
+                "gold_characters": 415,
+                "residual_characters": 136,
+                "gold_items": 37,
+                "hidden_items": 23,
+                "over_characters": 0,
+                "text_characters": 92135
+              },
+              "residual": {
+                "value": 0.3277,
+                "low": 0.1,
+                "high": 0.622
+              },
+              "hidden_whole": {
+                "value": 0.6216,
+                "low": 0.3056,
+                "high": 0.8788
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "url": {
+              "counts": {
+                "gold_characters": 86,
+                "residual_characters": 33,
+                "gold_items": 4,
+                "hidden_items": 2,
+                "over_characters": 0,
+                "text_characters": 92135
+              },
+              "residual": {
+                "value": 0.3837,
+                "low": 0.0,
+                "high": 1.0
+              },
+              "hidden_whole": {
+                "value": 0.5,
+                "low": 0.0,
+                "high": 1.0
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "any": {
+              "counts": {
+                "gold_characters": 7153,
+                "residual_characters": 6233,
+                "gold_items": 606,
+                "hidden_items": 46,
+                "over_characters": 50,
+                "text_characters": 92135
+              },
+              "residual": {
+                "value": 0.8714,
+                "low": 0.8035,
+                "high": 0.9304
+              },
+              "hidden_whole": {
+                "value": 0.0759,
+                "low": 0.0315,
+                "high": 0.1312
+              },
+              "over_redaction": {
+                "value": 0.5427,
+                "low": 0.087,
+                "high": 1.0766
+              }
+            }
           }
         },
         "rules+gliner": {
@@ -520,7 +669,7 @@
             "company_id": 4,
             "bank_account": 4
           },
-          "seconds": 0.27,
+          "seconds": 0.07,
           "cache": {
             "hits": 202,
             "misses": 0
@@ -866,6 +1015,158 @@
                 }
               }
             }
+          },
+          "coverage": {
+            "address": {
+              "counts": {
+                "gold_characters": 1036,
+                "residual_characters": 418,
+                "gold_items": 22,
+                "hidden_items": 4,
+                "over_characters": 276,
+                "text_characters": 92135
+              },
+              "residual": {
+                "value": 0.4035,
+                "low": 0.2825,
+                "high": 0.5077
+              },
+              "hidden_whole": {
+                "value": 0.1818,
+                "low": 0.0357,
+                "high": 0.3889
+              },
+              "over_redaction": {
+                "value": 2.9956,
+                "low": 1.7044,
+                "high": 4.469
+              }
+            },
+            "email": {
+              "counts": {
+                "gold_characters": 362,
+                "residual_characters": 0,
+                "gold_items": 19,
+                "hidden_items": 19,
+                "over_characters": 0,
+                "text_characters": 92135
+              },
+              "residual": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              },
+              "hidden_whole": {
+                "value": 1.0,
+                "low": 1.0,
+                "high": 1.0
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "person": {
+              "counts": {
+                "gold_characters": 5455,
+                "residual_characters": 832,
+                "gold_items": 524,
+                "hidden_items": 419,
+                "over_characters": 352,
+                "text_characters": 92135
+              },
+              "residual": {
+                "value": 0.1525,
+                "low": 0.1127,
+                "high": 0.1954
+              },
+              "hidden_whole": {
+                "value": 0.7996,
+                "low": 0.7495,
+                "high": 0.8424
+              },
+              "over_redaction": {
+                "value": 3.8205,
+                "low": 2.3595,
+                "high": 5.5703
+              }
+            },
+            "phone": {
+              "counts": {
+                "gold_characters": 415,
+                "residual_characters": 136,
+                "gold_items": 37,
+                "hidden_items": 23,
+                "over_characters": 0,
+                "text_characters": 92135
+              },
+              "residual": {
+                "value": 0.3277,
+                "low": 0.1,
+                "high": 0.622
+              },
+              "hidden_whole": {
+                "value": 0.6216,
+                "low": 0.3056,
+                "high": 0.8788
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "url": {
+              "counts": {
+                "gold_characters": 86,
+                "residual_characters": 33,
+                "gold_items": 4,
+                "hidden_items": 2,
+                "over_characters": 0,
+                "text_characters": 92135
+              },
+              "residual": {
+                "value": 0.3837,
+                "low": 0.0,
+                "high": 1.0
+              },
+              "hidden_whole": {
+                "value": 0.5,
+                "low": 0.0,
+                "high": 1.0
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "any": {
+              "counts": {
+                "gold_characters": 7153,
+                "residual_characters": 1339,
+                "gold_items": 606,
+                "hidden_items": 467,
+                "over_characters": 628,
+                "text_characters": 92135
+              },
+              "residual": {
+                "value": 0.1872,
+                "low": 0.1501,
+                "high": 0.2275
+              },
+              "hidden_whole": {
+                "value": 0.7706,
+                "low": 0.7229,
+                "high": 0.8117
+              },
+              "over_redaction": {
+                "value": 6.8161,
+                "low": 4.5883,
+                "high": 9.318
+              }
+            }
           }
         }
       },
@@ -1190,6 +1491,128 @@
                 }
               }
             }
+          },
+          "coverage": {
+            "address": {
+              "residual": {
+                "delta": -0.3784,
+                "low": -0.4678,
+                "high": -0.2674,
+                "p_value": 0.0
+              },
+              "hidden_whole": {
+                "delta": 0.0909,
+                "low": 0.0,
+                "high": 0.2308,
+                "p_value": 0.27
+              },
+              "over_redaction": {
+                "delta": 2.4529,
+                "low": 1.3278,
+                "high": 3.7866,
+                "p_value": 0.0
+              }
+            },
+            "email": {
+              "residual": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "hidden_whole": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "over_redaction": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              }
+            },
+            "person": {
+              "residual": {
+                "delta": -0.8475,
+                "low": -0.8873,
+                "high": -0.8046,
+                "p_value": 0.0
+              },
+              "hidden_whole": {
+                "delta": 0.7996,
+                "low": 0.7495,
+                "high": 0.8424,
+                "p_value": 0.0
+              },
+              "over_redaction": {
+                "delta": 3.8205,
+                "low": 2.3595,
+                "high": 5.5703,
+                "p_value": 0.0
+              }
+            },
+            "phone": {
+              "residual": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "hidden_whole": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "over_redaction": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              }
+            },
+            "url": {
+              "residual": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "hidden_whole": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "over_redaction": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              }
+            },
+            "any": {
+              "residual": {
+                "delta": -0.6842,
+                "low": -0.7521,
+                "high": -0.6139,
+                "p_value": 0.0
+              },
+              "hidden_whole": {
+                "delta": 0.6947,
+                "low": 0.6305,
+                "high": 0.7527,
+                "p_value": 0.0
+              },
+              "over_redaction": {
+                "delta": 6.2734,
+                "low": 4.1977,
+                "high": 8.5856,
+                "p_value": 0.0
+              }
+            }
           }
         }
       ]
@@ -1211,8 +1634,7 @@
         "person": 276
       },
       "unmapped": {
-        "LOC": 300,
-        "ORG": 60
+        "LOC": 300
       },
       "skipped": 0,
       "systems": {
@@ -1283,6 +1705,33 @@
                 }
               }
             }
+          },
+          "coverage": {
+            "person": {
+              "counts": {
+                "gold_characters": 2482,
+                "residual_characters": 2482,
+                "gold_items": 276,
+                "hidden_items": 0,
+                "over_characters": 0,
+                "text_characters": 65078
+              },
+              "residual": {
+                "value": 1.0,
+                "low": 1.0,
+                "high": 1.0
+              },
+              "hidden_whole": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            }
           }
         },
         "rules+gliner": {
@@ -1292,7 +1741,7 @@
           "unscored_predictions": {
             "address": 1
           },
-          "seconds": 0.13,
+          "seconds": 0.04,
           "cache": {
             "hits": 134,
             "misses": 0
@@ -1358,6 +1807,33 @@
                 }
               }
             }
+          },
+          "coverage": {
+            "person": {
+              "counts": {
+                "gold_characters": 2482,
+                "residual_characters": 690,
+                "gold_items": 276,
+                "hidden_items": 181,
+                "over_characters": 346,
+                "text_characters": 65078
+              },
+              "residual": {
+                "value": 0.278,
+                "low": 0.2009,
+                "high": 0.353
+              },
+              "hidden_whole": {
+                "value": 0.6558,
+                "low": 0.5727,
+                "high": 0.743
+              },
+              "over_redaction": {
+                "value": 5.3167,
+                "low": 2.6448,
+                "high": 8.7563
+              }
+            }
           }
         }
       },
@@ -1420,6 +1896,28 @@
                   "high": 0.7719,
                   "p_value": 0.0
                 }
+              }
+            }
+          },
+          "coverage": {
+            "person": {
+              "residual": {
+                "delta": -0.722,
+                "low": -0.7991,
+                "high": -0.647,
+                "p_value": 0.0
+              },
+              "hidden_whole": {
+                "delta": 0.6558,
+                "low": 0.5727,
+                "high": 0.743,
+                "p_value": 0.0
+              },
+              "over_redaction": {
+                "delta": 5.3167,
+                "low": 2.6448,
+                "high": 8.7563,
+                "p_value": 0.0
               }
             }
           }
@@ -1951,6 +2449,208 @@
                 }
               }
             }
+          },
+          "coverage": {
+            "address": {
+              "counts": {
+                "gold_characters": 699,
+                "residual_characters": 425,
+                "gold_items": 27,
+                "hidden_items": 9,
+                "over_characters": 180,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 0.608,
+                "low": 0.3605,
+                "high": 0.8167
+              },
+              "hidden_whole": {
+                "value": 0.3333,
+                "low": 0.1364,
+                "high": 0.5625
+              },
+              "over_redaction": {
+                "value": 2.7822,
+                "low": 1.2882,
+                "high": 4.9622
+              }
+            },
+            "birth_number": {
+              "counts": {
+                "gold_characters": 201,
+                "residual_characters": 115,
+                "gold_items": 20,
+                "hidden_items": 9,
+                "over_characters": 0,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 0.5721,
+                "low": 0.321,
+                "high": 0.8082
+              },
+              "hidden_whole": {
+                "value": 0.45,
+                "low": 0.2083,
+                "high": 0.6875
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "date": {
+              "counts": {
+                "gold_characters": 301,
+                "residual_characters": 139,
+                "gold_items": 29,
+                "hidden_items": 16,
+                "over_characters": 0,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 0.4618,
+                "low": 0.1947,
+                "high": 0.732
+              },
+              "hidden_whole": {
+                "value": 0.5517,
+                "low": 0.2632,
+                "high": 0.8182
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "email": {
+              "counts": {
+                "gold_characters": 1441,
+                "residual_characters": 0,
+                "gold_items": 61,
+                "hidden_items": 61,
+                "over_characters": 64,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              },
+              "hidden_whole": {
+                "value": 1.0,
+                "low": 1.0,
+                "high": 1.0
+              },
+              "over_redaction": {
+                "value": 0.9892,
+                "low": 0.0,
+                "high": 3.0944
+              }
+            },
+            "id_number": {
+              "counts": {
+                "gold_characters": 44,
+                "residual_characters": 44,
+                "gold_items": 5,
+                "hidden_items": 0,
+                "over_characters": 0,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 1.0,
+                "low": 1.0,
+                "high": 1.0
+              },
+              "hidden_whole": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "person": {
+              "counts": {
+                "gold_characters": 2236,
+                "residual_characters": 2236,
+                "gold_items": 219,
+                "hidden_items": 0,
+                "over_characters": 0,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 1.0,
+                "low": 1.0,
+                "high": 1.0
+              },
+              "hidden_whole": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "phone": {
+              "counts": {
+                "gold_characters": 342,
+                "residual_characters": 12,
+                "gold_items": 27,
+                "hidden_items": 26,
+                "over_characters": 48,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 0.0351,
+                "low": 0.0,
+                "high": 0.129
+              },
+              "hidden_whole": {
+                "value": 0.963,
+                "low": 0.8636,
+                "high": 1.0
+              },
+              "over_redaction": {
+                "value": 0.7419,
+                "low": 0.0,
+                "high": 2.0232
+              }
+            },
+            "any": {
+              "counts": {
+                "gold_characters": 5264,
+                "residual_characters": 2971,
+                "gold_items": 388,
+                "hidden_items": 121,
+                "over_characters": 292,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 0.5644,
+                "low": 0.5049,
+                "high": 0.6255
+              },
+              "hidden_whole": {
+                "value": 0.3119,
+                "low": 0.265,
+                "high": 0.36
+              },
+              "over_redaction": {
+                "value": 4.5134,
+                "low": 2.0504,
+                "high": 7.5328
+              }
+            }
           }
         },
         "rules+gliner": {
@@ -1962,7 +2662,7 @@
             "bank_account": 4,
             "company_id": 3
           },
-          "seconds": 0.16,
+          "seconds": 0.06,
           "cache": {
             "hits": 153,
             "misses": 0
@@ -2420,6 +3120,208 @@
                 }
               }
             }
+          },
+          "coverage": {
+            "address": {
+              "counts": {
+                "gold_characters": 699,
+                "residual_characters": 82,
+                "gold_items": 27,
+                "hidden_items": 12,
+                "over_characters": 541,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 0.1173,
+                "low": 0.0381,
+                "high": 0.1958
+              },
+              "hidden_whole": {
+                "value": 0.4444,
+                "low": 0.2222,
+                "high": 0.6957
+              },
+              "over_redaction": {
+                "value": 8.3622,
+                "low": 4.1402,
+                "high": 14.8077
+              }
+            },
+            "birth_number": {
+              "counts": {
+                "gold_characters": 201,
+                "residual_characters": 115,
+                "gold_items": 20,
+                "hidden_items": 9,
+                "over_characters": 0,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 0.5721,
+                "low": 0.321,
+                "high": 0.8082
+              },
+              "hidden_whole": {
+                "value": 0.45,
+                "low": 0.2083,
+                "high": 0.6875
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "date": {
+              "counts": {
+                "gold_characters": 301,
+                "residual_characters": 139,
+                "gold_items": 29,
+                "hidden_items": 16,
+                "over_characters": 0,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 0.4618,
+                "low": 0.1947,
+                "high": 0.732
+              },
+              "hidden_whole": {
+                "value": 0.5517,
+                "low": 0.2632,
+                "high": 0.8182
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "email": {
+              "counts": {
+                "gold_characters": 1441,
+                "residual_characters": 0,
+                "gold_items": 61,
+                "hidden_items": 61,
+                "over_characters": 64,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              },
+              "hidden_whole": {
+                "value": 1.0,
+                "low": 1.0,
+                "high": 1.0
+              },
+              "over_redaction": {
+                "value": 0.9892,
+                "low": 0.0,
+                "high": 3.0944
+              }
+            },
+            "id_number": {
+              "counts": {
+                "gold_characters": 44,
+                "residual_characters": 44,
+                "gold_items": 5,
+                "hidden_items": 0,
+                "over_characters": 0,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 1.0,
+                "low": 1.0,
+                "high": 1.0
+              },
+              "hidden_whole": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              },
+              "over_redaction": {
+                "value": 0.0,
+                "low": 0.0,
+                "high": 0.0
+              }
+            },
+            "person": {
+              "counts": {
+                "gold_characters": 2236,
+                "residual_characters": 117,
+                "gold_items": 219,
+                "hidden_items": 198,
+                "over_characters": 1264,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 0.0523,
+                "low": 0.0311,
+                "high": 0.0814
+              },
+              "hidden_whole": {
+                "value": 0.9041,
+                "low": 0.855,
+                "high": 0.9412
+              },
+              "over_redaction": {
+                "value": 19.5375,
+                "low": 10.2115,
+                "high": 29.1802
+              }
+            },
+            "phone": {
+              "counts": {
+                "gold_characters": 342,
+                "residual_characters": 12,
+                "gold_items": 27,
+                "hidden_items": 26,
+                "over_characters": 48,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 0.0351,
+                "low": 0.0,
+                "high": 0.129
+              },
+              "hidden_whole": {
+                "value": 0.963,
+                "low": 0.8636,
+                "high": 1.0
+              },
+              "over_redaction": {
+                "value": 0.7419,
+                "low": 0.0,
+                "high": 2.0232
+              }
+            },
+            "any": {
+              "counts": {
+                "gold_characters": 5264,
+                "residual_characters": 509,
+                "gold_items": 388,
+                "hidden_items": 322,
+                "over_characters": 1917,
+                "text_characters": 64696
+              },
+              "residual": {
+                "value": 0.0967,
+                "low": 0.0637,
+                "high": 0.1418
+              },
+              "hidden_whole": {
+                "value": 0.8299,
+                "low": 0.7628,
+                "high": 0.8806
+              },
+              "over_redaction": {
+                "value": 29.6309,
+                "low": 19.9411,
+                "high": 39.1152
+              }
+            }
           }
         }
       },
@@ -2846,6 +3748,168 @@
                   "high": 0.538,
                   "p_value": 0.0
                 }
+              }
+            }
+          },
+          "coverage": {
+            "address": {
+              "residual": {
+                "delta": -0.4907,
+                "low": -0.6703,
+                "high": -0.3019,
+                "p_value": 0.0
+              },
+              "hidden_whole": {
+                "delta": 0.1111,
+                "low": 0.0,
+                "high": 0.24,
+                "p_value": 0.094
+              },
+              "over_redaction": {
+                "delta": 5.5799,
+                "low": 2.193,
+                "high": 10.2468,
+                "p_value": 0.0
+              }
+            },
+            "birth_number": {
+              "residual": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "hidden_whole": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "over_redaction": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              }
+            },
+            "date": {
+              "residual": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "hidden_whole": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "over_redaction": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              }
+            },
+            "email": {
+              "residual": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "hidden_whole": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "over_redaction": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              }
+            },
+            "id_number": {
+              "residual": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "hidden_whole": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "over_redaction": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              }
+            },
+            "person": {
+              "residual": {
+                "delta": -0.9477,
+                "low": -0.9689,
+                "high": -0.9186,
+                "p_value": 0.0
+              },
+              "hidden_whole": {
+                "delta": 0.9041,
+                "low": 0.855,
+                "high": 0.9412,
+                "p_value": 0.0
+              },
+              "over_redaction": {
+                "delta": 19.5375,
+                "low": 10.2115,
+                "high": 29.1802,
+                "p_value": 0.0
+              }
+            },
+            "phone": {
+              "residual": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "hidden_whole": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              },
+              "over_redaction": {
+                "delta": 0.0,
+                "low": 0.0,
+                "high": 0.0,
+                "p_value": 1.0
+              }
+            },
+            "any": {
+              "residual": {
+                "delta": -0.4677,
+                "low": -0.5226,
+                "high": -0.412,
+                "p_value": 0.0
+              },
+              "hidden_whole": {
+                "delta": 0.518,
+                "low": 0.4536,
+                "high": 0.5721,
+                "p_value": 0.0
+              },
+              "over_redaction": {
+                "delta": 25.1175,
+                "low": 16.0597,
+                "high": 34.9434,
+                "p_value": 0.0
               }
             }
           }

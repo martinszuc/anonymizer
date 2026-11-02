@@ -70,7 +70,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     redact.add_argument("input", type=Path, help="PDF or image (JPEG, PNG, TIFF) to redact")
     redact.add_argument(
-        "-o", "--output", type=Path, required=True, help="redacted PDF to write (also for an image)"
+        "-o",
+        "--output",
+        type=Path,
+        required=True,
+        help="redacted PDF to write (also for an image), or the text file with --text",
+    )
+    redact.add_argument(
+        "--text",
+        action="store_true",
+        help="write the text with every value replaced by its label ([PERSON]) instead of a "
+        "redacted PDF; keeps nothing of a value's width, and no hidden items",
     )
     redact.add_argument(
         "--session",
@@ -249,6 +259,7 @@ def _dispatch(args: argparse.Namespace, output: Output) -> int:
             force=args.force,
             output=output,
             ocr=ocr,
+            text=args.text,
         )
     if args.command == "inspect":
         return run_inspect(

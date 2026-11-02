@@ -66,6 +66,10 @@ region (the redaction itself failed), or something removed whatever detection
 found that is still there. Only the reviewer can judge the first; the other
 two are a fault of redaction.
 
+A text export (`redact.text`) has only page text, so it is checked by
+layer 1 alone (`find_text_leaks`), on the text read back from the written
+file. Its regions are replaced word by word, which the test suite verifies.
+
 Whitespace is ignored when comparing text: a span that crossed a line break
 may be extracted with different spacing. Entities sharing a text (a name and
 its repeats) are searched for once, so each place it is left is one leak.
@@ -77,7 +81,7 @@ import logging
 import re
 import time
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -251,6 +255,39 @@ def find_leaks(
         for layer, pages, check in checks:
             report(layer.value, 0, pages)
             leaks.extend(_layer(layer, check))
+        outcome["leaks"] = len(leaks)
+    return leaks
+
+
+def find_text_leaks(pages: Sequence[str], document: Document) -> list[Leak]:
+    """Return every redacted text found again in a text export, beyond the copies review kept.
+
+    Args:
+        pages: The export's page texts, read back from the written file.
+        document: The document the export was made from.
+
+    Returns:
+        Page-text leaks (layer 1); an empty list means the text passed.
+
+    Raises:
+        ValueError: If the export does not have one text per page of the document.
+    """
+    if len(pages) != len(document.pages):
+        msg = f"the text export has {len(pages)} pages, the document {len(document.pages)}"
+        raise ValueError(msg)
+    redactable = [entity for entity in document.entities if entity.is_redactable]
+    targets = [target for target in _targets(redactable) if _length(target.text) >= _SHORTEST_WORDS]
+    kept = _kept_texts(document)
+    with step(log, "text leak check", targets=len(targets)) as outcome:
+        leaks = _layer(
+            LeakLayer.PAGE_TEXT,
+            lambda: [
+                Leak(LeakLayer.PAGE_TEXT, f"page {index}", target.text, target.entity_id, index)
+                for index, page_text in enumerate(pages)
+                for target in targets
+                if _copies(target.word, [page_text]) > _copies(target.word, kept.get(index, []))
+            ],
+        )
         outcome["leaks"] = len(leaks)
     return leaks
 

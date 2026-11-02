@@ -516,6 +516,10 @@ In suggested order. Each item names where it plugs in.
     and Linux (GTK or Qt backend) by hand.
 12. **Large documents:** virtualize the page list and the sidebar beyond a
     few hundred pages or entities.
+13. **Export as text** (`redact.export_redacted_text`, the CLI's `redact --text`):
+    the page text with each value replaced by its label, for pasting into a
+    language model; keeps nothing of a value's width. A second button beside the
+    PDF export, through a `WindowApi` method that takes no path.
 
 ## Open issues from manual testing (2026-10-02)
 

@@ -9,6 +9,7 @@ anonymize redact cv.pdf -o cv-redacted.pdf --lang cs      # one step, no review
 anonymize check cv-redacted.pdf --source cv.pdf --session review.json
 anonymize inspect cv.pdf -o cv.html [--session review.json]  # see what was found
 anonymize redact photo.jpg -o photo-redacted.pdf --ocr onnxtr  # a photo or scanned image
+anonymize redact cv.pdf -o cv.txt --session review.json --text  # text with [PERSON] labels
 ```
 
 **Images.** Every command that takes a PDF also takes a JPEG, PNG or TIFF image (told
@@ -74,6 +75,12 @@ and a fingerprint of the file, not the whole text, and only applies to that file
   check re-reads them with the same engine. A review of scanned pages reopens, and
   `check` runs, only with the same `--ocr`. Without it, scanned pages stop the run;
   `--allow-pages-without-text` redacts the rest and leaves them as they are.
+- `--text` writes the page text instead of a PDF, each value replaced by its type
+  (`[PERSON]`, `[BIRTH_NUMBER]`) and the words under a region or inside a form field
+  by `[REDACTED]`, widened to whole words; pages are separated by a form feed. It
+  keeps nothing of a value's width, which a blacked-out PDF does (the gap a removed
+  word leaves is as wide as the word), and no hidden item. It too is written only if
+  no redacted text is found in it again.
 - Existing files are replaced only with `--force`; the output is never the input.
 - Every link, metadata field, attachment, bookmark, annotation and form field is
   removed, as is anything outside the visible page area.

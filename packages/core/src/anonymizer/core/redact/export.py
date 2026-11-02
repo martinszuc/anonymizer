@@ -6,6 +6,10 @@ appears under the name the user asked for. The check can be left out (the
 review window's setting, or a reviewer saving a copy the check refused after
 seeing its findings); the copy is then written as redaction made it. The CLI
 and the review window both export through here.
+
+A text export (`export_redacted_text`, see `redact.text`) follows the same
+rule: the text is written, read back from the file and checked, and renamed
+only when no redacted text is found in it.
 """
 
 from __future__ import annotations
@@ -16,8 +20,9 @@ from pathlib import Path
 
 from anonymizer.core.ingest import OcrEngine
 from anonymizer.core.log import counts, short_fingerprint, step
-from anonymizer.core.redact.leakage import Leak, find_leaks
+from anonymizer.core.redact.leakage import Leak, find_leaks, find_text_leaks
 from anonymizer.core.redact.pdf import redact_pdf
+from anonymizer.core.redact.text import PAGE_SEPARATOR, redact_text
 from anonymizer.core.types import Document, StepProgress
 
 log = logging.getLogger(__name__)
@@ -76,6 +81,53 @@ def export_redacted(
                 "export refused: leak check found %d leak(s), nothing written; by layer: %s",
                 len(leaks),
                 counts(Counter(leak.layer.value for leak in leaks)),
+            )
+            outcome["written"] = False
+            return leaks
+        partial.replace(destination)
+        outcome["written"] = True
+        outcome["leak_check"] = "passed" if check else "off"
+    return []
+
+
+def export_redacted_text(
+    document: Document, destination: Path | str, *, check: bool = True
+) -> list[Leak]:
+    """Write the document's text with each redacted value replaced by its label.
+
+    The text is UTF-8, pages separated by a form feed (see `redact.text`).
+    An existing file at `destination` is replaced when the check passes (or
+    is left out) and left untouched when it fails.
+
+    Args:
+        document: The loaded document with its reviewed entities.
+        destination: Path of the text file.
+        check: Run the leak check on the text read back from the file.
+
+    Returns:
+        The leaks found. Empty means the file was written; otherwise nothing was.
+    """
+    destination = Path(destination)
+    partial = destination.with_name(f".{destination.name}.partial")
+    with step(
+        log,
+        "text export",
+        done_level=logging.INFO,
+        document=short_fingerprint(document.fingerprint),
+    ) as outcome:
+        try:
+            partial.write_text(redact_text(document), encoding="utf-8", newline="")
+            # Read back without newline translation, as the file holds the text.
+            with partial.open(encoding="utf-8", newline="") as stream:
+                written = stream.read()
+            leaks = find_text_leaks(written.split(PAGE_SEPARATOR), document) if check else []
+        except BaseException:
+            partial.unlink(missing_ok=True)
+            raise
+        if leaks:
+            partial.unlink()
+            log.error(
+                "text export refused: leak check found %d leak(s), nothing written", len(leaks)
             )
             outcome["written"] = False
             return leaks

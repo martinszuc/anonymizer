@@ -1427,6 +1427,51 @@ and person residual share; both paired 95 % intervals excluding 0):
 - Outside names, every system shares the rules: on REDACT test birth numbers are found
   at recall 0.067 (19 / 283) by all of them; this is a rule finding, not part of RQ6.
 
+### 2026-11-11 · NameTag 3 multilingual in each of its tagsets (development data)
+
+`experiments/configs/nametag-tagset-dev.toml`, commit `329f7bc` (clean tree), seed
+20261011, 1,000 resamples, CPU (M4 Pro), 23 min; `experiments/results/nametag-tagset-dev.md`.
+Every earlier run used the model's default tagset, `conll`; this one adds `uner` and `onto`
+(system option `tagset`), beside the rules, on the nametag-dev splits. The conll rows equal
+`nametag-dev`. Persons are `PER` (conll, uner) or `PERSON` (onto); no tagset has an address
+type, so addresses, phones and e-mails are the rules' alone and equal in all three.
+
+Person F2 partial / strict, and person residual share:
+
+| corpus | conll | uner | onto |
+|---|---|---|---|
+| CNEC dtest † | 0.905 / 0.842, 0.098 | 0.901 / 0.837, 0.096 | 0.906 / 0.843, 0.098 |
+| UNER-SK dev † | 0.881 / 0.840, 0.111 | 0.917 / 0.877, 0.058 | 0.852 / 0.811, 0.135 |
+| REDACT sample | 0.935 / 0.706, 0.023 | 0.936 / 0.702, 0.023 | 0.937 / 0.702, 0.023 |
+| OpenPII cs dev | 0.948 / 0.831, 0.065 | 0.951 / 0.832, 0.060 | 0.951 / 0.835, 0.058 |
+| OpenPII sk dev | 0.946 / 0.810, 0.070 | 0.947 / 0.810, 0.068 | 0.950 / 0.816, 0.063 |
+
+† the model was trained on this corpus's train split.
+
+Paired against conll (person, partial; 95 % intervals):
+
+| corpus | uner ΔF2 | uner Δresidual | onto ΔF2 | onto Δresidual |
+|---|---|---|---|---|
+| CNEC dtest | −0.004 [−0.014, +0.008] | −0.002 [−0.011, +0.007] | +0.001 [−0.007, +0.009] | +0.000 [−0.007, +0.007] |
+| UNER-SK dev | +0.036 [−0.008, +0.076] | −0.054 [−0.100, −0.012] | −0.029 [−0.061, −0.006] | +0.023 [+0.006, +0.047] |
+| REDACT sample | +0.001 [0.000, +0.003] | 0.000 [0.000, 0.000] | +0.002 [0.000, +0.004] | 0.000 [0.000, 0.000] |
+| OpenPII cs dev | +0.002 [+0.000, +0.005] | −0.005 [−0.007, −0.002] | +0.003 [+0.001, +0.005] | −0.007 [−0.009, −0.004] |
+| OpenPII sk dev | +0.002 [−0.001, +0.004] | −0.002 [−0.004, +0.000] | +0.004 [+0.002, +0.007] | −0.006 [−0.009, −0.004] |
+
+- **conll is not the opponent's best setting.** On no corpus does it have a lower person
+  residual share than both other tagsets. uner halves the residual on UNER-SK dev (0.111
+  to 0.058, interval below 0; F2 +0.036, interval crossing 0), the corpus whose train
+  split the model learnt in the UNER tagset. onto is worse there (residual +0.023) and
+  slightly better on OpenPII.
+- **Elsewhere the tagset hardly matters**: CNEC and REDACT do not separate (REDACT's
+  residual is equal to three digits); on OpenPII uner and onto gain 0.002–0.004 F2 and
+  0.002–0.007 residual, most intervals excluding 0, all small.
+- **What it means for RQ6.** The verdict of 2026-10-29 ran the opponent in conll. On dev,
+  uner would have made it stronger on UNER-SK, with no interval against it elsewhere; no
+  tagset is best on every corpus. The test margins on UNER-SK (Δresidual −0.073, ΔF2 +0.070) are
+  larger than the dev gain of uner (−0.054, +0.036), but whether the verdict holds against
+  NameTag in uner is not measured: that needs the test split read again.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

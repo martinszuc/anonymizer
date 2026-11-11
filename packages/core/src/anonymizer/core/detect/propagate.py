@@ -30,8 +30,11 @@ def propagate_occurrences(
 
     The texts come from every entity review has not rejected, on a page or on
     a surface, so an address found in a link target is also found where it is
-    printed. Occurrences overlapping an existing page-text entity are skipped,
-    and longer texts claim their occurrences first.
+    printed. An occurrence is skipped when an existing page-text entity
+    already covers all of it, or when a rejected one overlaps it; a partial
+    overlap with any other entity keeps both, since dropping the occurrence
+    would leave its remainder readable. Longer texts claim their occurrences
+    first.
 
     Args:
         document: Document whose entities mark the texts to look for.
@@ -53,12 +56,14 @@ def propagate_occurrences(
 
     propagated: list[Entity] = []
     for page in document.pages:
-        taken = [entity.span for entity in document.entities_on_page(page.index)]
+        taken = [
+            (*entity.span, entity.is_redactable) for entity in document.entities_on_page(page.index)
+        ]
         for text in texts:
             for start, end in _occurrences(text, page.text):
-                if any(start < other_end and other_start < end for other_start, other_end in taken):
+                if _is_covered(start, end, taken):
                     continue
-                taken.append((start, end))
+                taken.append((start, end, True))
                 occurrence = _occurrence(page, start, end, types_by_text[text])
                 if log.isEnabledFor(logging.DEBUG):
                     log.debug(
@@ -66,6 +71,22 @@ def propagate_occurrences(
                     )
                 propagated.append(occurrence)
     return sorted(propagated, key=lambda entity: (entity.page_index, entity.span))
+
+
+def _is_covered(start: int, end: int, taken: list[tuple[int, int, bool]]) -> bool:
+    """Whether an occurrence needs no entity of its own.
+
+    Args:
+        start: First offset of the occurrence.
+        end: Offset one past the occurrence.
+        taken: Spans of the entities already on the page, each with whether
+            review left it to be applied.
+    """
+    return any(
+        (other_start <= start and end <= other_end)
+        or (not redactable and start < other_end and other_start < end)
+        for other_start, other_end, redactable in taken
+    )
 
 
 def _occurrences(text: str, page_text: str) -> Iterator[tuple[int, int]]:

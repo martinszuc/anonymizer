@@ -120,3 +120,30 @@ def test_only_the_texts_of_the_given_entities_are_looked_for():
     jan, petr = marked(page, "Jan Novak"), marked(page, "Petr Dvorak")
     document = Document(pages=[page], entities=[jan, petr])
     assert texts(propagate_occurrences(document, [petr])) == [(0, "Petr Dvorak")]
+
+
+def test_partial_overlap_with_a_shorter_entity_keeps_both():
+    page = Page(0, 595, 842, text="Jan Novak signed. Later Jan Novak left.")
+    full_name = marked(page, "Jan Novak")
+    # A detector found only the first name at the second occurrence.
+    partial = Entity(type=EntityType.PERSON, page_index=0, start=24, end=27, text="Jan")
+    document = Document(pages=[page], entities=[full_name, partial])
+    found = propagate_occurrences(document)
+    assert [(entity.start, entity.end) for entity in found] == [(24, 33)]
+
+
+def test_partial_overlap_from_the_left_keeps_the_occurrence():
+    page = Page(0, 595, 842, text="Jan Novak signed. Later Jan Novak left.")
+    full_name = marked(page, "Jan Novak")
+    partial = Entity(type=EntityType.PERSON, page_index=0, start=28, end=33, text="Novak")
+    document = Document(pages=[page], entities=[full_name, partial])
+    assert [(e.start, e.end) for e in propagate_occurrences(document)] == [(24, 33)]
+
+
+def test_rejected_entity_overlapping_an_occurrence_still_blocks_it():
+    page = Page(0, 595, 842, text="Jan Novak signed. Later Jan Novak left.")
+    full_name = marked(page, "Jan Novak")
+    rejected = Entity(type=EntityType.PERSON, page_index=0, start=24, end=27, text="Jan")
+    rejected.review = ReviewState.REJECTED
+    document = Document(pages=[page], entities=[full_name, rejected])
+    assert propagate_occurrences(document) == []

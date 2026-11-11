@@ -1,0 +1,20 @@
+#!/bin/bash
+#PBS -N benchmark
+#PBS -l select=1:ncpus=2:mem=24gb
+#PBS -l walltime=4:00:00
+#PBS -j oe
+# `benchmark run` on a CPU node with the models in the storage's resource root,
+# so trained models are scored without copying them to the Mac. Run on a frontend:
+#
+#   qsub -v "SYSTEMS=rules rules+gliner" -o $LOGS/ scripts/metacentrum/benchmark.pbs
+#
+# SYSTEMS is space-separated, since qsub -v splits its list at commas; it
+# defaults to the benchmark's own list. The results land in
+# results/benchmark/ (results.json and results.md); pull-results.sh fetches them.
+set -euo pipefail
+source "${STORE:-/storage/budejovice1/home/$USER}/anonymizer/scripts/metacentrum/env.sh"
+
+echo "job $PBS_JOBID on $(hostname -f): benchmark ${SYSTEMS:-default systems}"
+cd "$REPO"
+uv run --no-sync python -m benchmark run --out "$RESULTS/benchmark" \
+    --resource-root "$ROOT" ${SYSTEMS:+--systems "${SYSTEMS// /,}"}

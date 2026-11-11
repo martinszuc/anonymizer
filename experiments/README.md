@@ -275,8 +275,8 @@ test sets ("home advantage").
 
 A run writes the standard tables and, as for the name-forms set, recall per
 form, case, declension class and gender, here also per context and
-document kind (`phenomena.py`). No config reads `test` yet: the final
-config adds it with `stage = "final"`.
+document kind (`phenomena.py`). Only `configs/rq6-test-home.toml` reads
+`test`, with `stage = "final"`; its result is `results/rq6-test-home.md`.
 
 Changing a template, a name or a value list changes the documents: bump
 `HELDOUT_VERSION` and the digests pinned in `tests/experiments/test_heldout.py`,
@@ -676,6 +676,6 @@ ANONYMIZER_RESOURCE_ROOT=/path/to/main/checkout uv run pytest -m dataset tests/e
 ## Not yet
 
 Other detectors (a new engine plugs in as another `model` value in
-`systems.py`); results of the token classifier (*The token classifier*); OCR (RQ2 is `python -m benchmark ocr`); examples of
+`systems.py`); OCR (RQ2 is `python -m benchmark ocr`); examples of
 errors in CNEC and UNER, which needs a way to show corpus text without storing it
 (the error analysis keeps examples of the synthetic corpora only).

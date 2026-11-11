@@ -174,9 +174,9 @@ scripts/metacentrum/pull-results.sh
 
 ## The final test
 
-Run once, when the author decides the model is chosen (JOURNAL.md): the main
-sets, then the home-advantage sets with a longer limit, chained like any two
-run configs:
+Run once, when the author decided the model was chosen (JOURNAL.md; done on
+2026-10-29): the main sets, then the home-advantage sets with a longer limit,
+chained like any two run configs:
 
 ```sh
 WALLTIME=12:00:00 scripts/metacentrum/evaluate.sh experiments/configs/rq6-test.toml experiments/configs/rq6-test-home.toml

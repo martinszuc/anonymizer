@@ -37,7 +37,7 @@ only — never as fixtures or training data. Nothing identifying is quoted here.
 ### 2026-09-22 · `resume-real-cs-borndigital.pdf` — real CS CV (Skia / headless Chrome)
 
 - **Same leak, different producer** → this is how PDFs work, not one library's
-  quirk: `tel:+…`, `mailto:…`, site links, plus a metadata title containing the
+  quirk: `tel:+…`, `mailto:…`, site links, plus a metadata title containing
   the submitter's account ID.
 - Metadata values are inline strings here, unlike react-pdf. `ModDate` equals
   `CreationDate`: a scan that de-duplicates equal values drops one of two carriers.
@@ -56,8 +56,9 @@ only — never as fixtures or training data. Nothing identifying is quoted here.
   rest unredacted. The Slovak domestic form with a trunk zero (`0918 446 150`) was
   missed as well. Fixed.
 - **The file name was `<name>-<id>-Zivotopisy.cz.pdf`** — full name plus
-  account ID. The contract stores `source_name` in every exported review JSON, so
-  the file name is itself a PII surface. Open decision below.
+  account ID. The contract then stored the file name in every exported review JSON,
+  so the file name was itself a PII surface. **Resolved:** a session now holds the
+  file's fingerprint, never its name.
 - The person's name mixed `ü` with `č`, which is not standard Czech orthography.
   A good stress case for OCR and NER: do not assume a fixed Czech character set,
   and do not treat an unexpected letter as evidence against a name.
@@ -444,7 +445,9 @@ instead of the pipeline moves precision by 0.002 only.
 - **REDACT's birth numbers are not valid**: 1 of 20 found. Checked independently, 12 of
   the 13 values with a slash fail the mod-11 check (the other 7 are 8–9 digit numbers no
   rule knows). The rule requires the checksum by design, so this measures the corpus's
-  generator, not the detector; REDACT cannot score birth numbers.
+  generator, not the detector; REDACT cannot score birth numbers. (Since
+  2026-11-02 a number with a wrong check digit is also reported when a label
+  precedes it; these counts predate that.)
 - **GLiNER's "street address" over-reaches**: address recall 1.0 with precision 0.62
   (CNEC) and 0.54 (REDACT); street names without a number are flagged.
 
@@ -953,10 +956,13 @@ Person, partial match, F2 (P / R), and the paired difference in F2 against
   0.11 (cs) and 0.12 (sk) against `rules+gliner`. Used alone it would leak addresses.
   The Czech model's addresses are precise (P 0.96–0.97 on OpenPII) but miss more than
   GLiNER's (R 0.75 cs, 0.63 sk, against 0.91 and 0.93).
-- **The union of GLiNER and NameTag multilingual is the best system by F2 on every
+- **The union of GLiNER and NameTag multilingual beats GLiNER alone by F2 on every
   corpus** for persons (+0.023 to +0.174, intervals above 0) and keeps GLiNER's
   addresses: any-type F2 +0.074 CNEC, +0.033 REDACT, +0.010 and +0.011 OpenPII, at a
   precision cost of at most 0.013 for persons.
+  For persons it is not the best system: person F2 (partial) is below NameTag alone on
+  UNER-SK (0.874 against 0.881 multilingual), REDACT (0.904 against 0.935 multilingual)
+  and CNEC (0.920 against 0.950 for the Czech model).
 - **Agreement-only buys precision with recall**: with the multilingual model, person
   precision 0.83–0.995 and recall below GLiNER's on every corpus. Person F2 never
   improves with an interval above 0, with either NameTag model, so for a recall-first
@@ -980,7 +986,8 @@ form than GLiNER; which ones was not inspected.
 **Recommendation.** For the thesis, NameTag 3 multilingual is the opponent: it is the
 stronger existing model on the corpora it was not trained on, and its boundaries set
 the bar for strict match. The own model has to beat it on reserved test data, and,
-for addresses, GLiNER as well (or the union, which is the strongest existing system).
+for addresses, GLiNER as well (or the union, which keeps GLiNER's addresses but is
+below NameTag alone on persons).
 For the tool, keep GLiNER as the shipped default: NameTag's models are licensed for
 non-commercial use only (CC BY-NC-SA 4.0) and the multilingual model finds no
 addresses alone. The union is the better detector where that licence is acceptable;

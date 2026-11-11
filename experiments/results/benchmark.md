@@ -1,96 +1,97 @@
 # Benchmark: anonymizer 0.7.0
 
-Run 2026-11-11T02:00:00+00:00 on Darwin arm64, Python 3.12.14, commit `04a732d`.
-Models: `mdeberta-v3-base-tokenizer@a0484667b223`, `gliner-multi-v2.1@443d26d654e0`, `xlm-roberta-large-tokenizer@c23d21b0620b`, `nametag3-multilingual-260521@hdl:11234/1-`, `robeczech-base-v1.1-tokenizer@a75ff238206b`, `nametag3-czech-cnec2.0-240830@hdl:11234/1-`.
+Run 2026-11-11T11:29:51+00:00 on Linux x86_64, Python 3.12.14, commit `04a732d`.
+Models: `mdeberta-v3-base-tokenizer@a0484667b223`, `gliner-multi-v2.1@443d26d654e0`, `xlm-roberta-large-tokenizer@c23d21b0620b`, `nametag3-multilingual-260521@hdl:11234/1-`, `robeczech-base-v1.1-tokenizer@a75ff238206b`, `nametag3-czech-cnec2.0-240830@hdl:11234/1-`, `xlmr-cs-sk-ce-more@79eb1ba17d02`, `gliner-cs-sk-focal-more@c65dbc7ab2fc`, `xlmr-focal-more@0b7f1749d8a2`.
 
 ## Summary
 
 | system | found | partial | missed | false alarms | per 1,000 words | decoys removed | safe documents | leak check passed | seconds |
 |---|---|---|---|---|---|---|---|---|---|
-| rules | 86/224 | 1 | 137 | 14 | 3.0 | 14 | 8/26 | 26/26 | 0.3 |
-| rules+gliner | 198/224 | 1 | 25 | 44 | 9.4 | 28 | 17/26 | 26/26 | 8.6 |
-| rules+nametag3-multilingual-260521 | 208/224 | 3 | 13 | 17 | 3.6 | 15 | 22/26 | 26/26 | 10.3 |
-| rules+nametag3-czech-cnec2.0-240830 | 209/224 | 1 | 14 | 22 | 4.7 | 20 | 22/26 | 26/26 | 6.0 |
+| rules | 86/224 | 1 | 137 | 14 | 3.0 | 14 | 8/26 | 26/26 | 1.9 |
+| rules+gliner | 198/224 | 1 | 25 | 44 | 9.4 | 28 | 17/26 | 26/26 | 191.3 |
+| rules+nametag3-multilingual-260521 | 208/224 | 3 | 13 | 17 | 3.6 | 15 | 22/26 | 26/26 | 219.8 |
+| rules+nametag3-czech-cnec2.0-240830 | 209/224 | 1 | 14 | 22 | 4.7 | 20 | 22/26 | 26/26 | 96.9 |
+| rules+xlmr-focal-more | 212/224 | 0 | 12 | 26 | 5.6 | 20 | 22/26 | 25/26 | 480.0 |
 
 ## Found per type
 
-| type | rules | rules+gliner | rules+nametag3-multilingual-260521 | rules+nametag3-czech-cnec2.0-240830 |
-|---|---|---|---|---|
-| address | 20/23 | 22/23 | 20/23 | 22/23 |
-| bank_account | 3/3 | 3/3 | 3/3 | 3/3 |
-| birth_number | 7/7 | 7/7 | 7/7 | 7/7 |
-| company_id | 2/2 | 2/2 | 2/2 | 2/2 |
-| credit_card | 1/1 | 1/1 | 1/1 | 1/1 |
-| date | 8/11 | 8/11 | 8/11 | 8/11 |
-| email | 18/18 | 18/18 | 18/18 | 18/18 |
-| iban | 4/4 | 4/4 | 4/4 | 4/4 |
-| id_number | 1/4 | 2/4 | 1/4 | 1/4 |
-| person | 0/128 | 109/128 | 122/128 | 121/128 |
-| phone | 19/20 | 19/20 | 19/20 | 19/20 |
-| url | 3/3 | 3/3 | 3/3 | 3/3 |
+| type | rules | rules+gliner | rules+nametag3-multilingual-260521 | rules+nametag3-czech-cnec2.0-240830 | rules+xlmr-focal-more |
+|---|---|---|---|---|---|
+| address | 20/23 | 22/23 | 20/23 | 22/23 | 23/23 |
+| bank_account | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 |
+| birth_number | 7/7 | 7/7 | 7/7 | 7/7 | 7/7 |
+| company_id | 2/2 | 2/2 | 2/2 | 2/2 | 2/2 |
+| credit_card | 1/1 | 1/1 | 1/1 | 1/1 | 1/1 |
+| date | 8/11 | 8/11 | 8/11 | 8/11 | 8/11 |
+| email | 18/18 | 18/18 | 18/18 | 18/18 | 18/18 |
+| iban | 4/4 | 4/4 | 4/4 | 4/4 | 4/4 |
+| id_number | 1/4 | 2/4 | 1/4 | 1/4 | 1/4 |
+| person | 0/128 | 109/128 | 122/128 | 121/128 | 123/128 |
+| phone | 19/20 | 19/20 | 19/20 | 19/20 | 19/20 |
+| url | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 |
 
 ## Per carrier
 
-| carrier | rules: found / left there | rules+gliner: found / left there | rules+nametag3-multilingual-260521: found / left there | rules+nametag3-czech-cnec2.0-240830: found / left there |
-|---|---|---|---|---|
-| annotation | 0/5 / 0 | 5/5 / 0 | 5/5 / 0 | 5/5 / 0 |
-| bookmark | 0/2 / 0 | 2/2 / 0 | 2/2 / 0 | 2/2 / 0 |
-| embedded_file | 0/4 / 0 | 2/4 / 0 | 2/4 / 0 | 2/4 / 0 |
-| form_field | 4/8 / 0 | 7/8 / 0 | 6/8 / 0 | 7/8 / 0 |
-| link | 7/7 / 0 | 7/7 / 0 | 7/7 / 0 | 7/7 / 0 |
-| metadata | 0/15 / 0 | 14/15 / 0 | 13/15 / 0 | 13/15 / 0 |
-| page | 75/179 / 109 | 160/179 / 23 | 172/179 / 5 | 172/179 / 6 |
-| xmp | 0/4 / 0 | 1/4 / 0 | 1/4 / 0 | 1/4 / 0 |
+| carrier | rules: found / left there | rules+gliner: found / left there | rules+nametag3-multilingual-260521: found / left there | rules+nametag3-czech-cnec2.0-240830: found / left there | rules+xlmr-focal-more: found / left there |
+|---|---|---|---|---|---|
+| annotation | 0/5 / 0 | 5/5 / 0 | 5/5 / 0 | 5/5 / 0 | 5/5 / 0 |
+| bookmark | 0/2 / 0 | 2/2 / 0 | 2/2 / 0 | 2/2 / 0 | 2/2 / 0 |
+| embedded_file | 0/4 / 0 | 2/4 / 0 | 2/4 / 0 | 2/4 / 0 | 2/4 / 0 |
+| form_field | 4/8 / 0 | 7/8 / 0 | 6/8 / 0 | 7/8 / 0 | 7/8 / 0 |
+| link | 7/7 / 0 | 7/7 / 0 | 7/7 / 0 | 7/7 / 0 | 7/7 / 0 |
+| metadata | 0/15 / 0 | 14/15 / 0 | 13/15 / 0 | 13/15 / 0 | 14/15 / 0 |
+| page | 75/179 / 109 | 160/179 / 23 | 172/179 / 5 | 172/179 / 6 | 174/179 / 4 |
+| xmp | 0/4 / 0 | 1/4 / 0 | 1/4 / 0 | 1/4 / 0 | 1/4 / 0 |
 
 ## Per document kind
 
-| kind | documents | rules: found / safe / false alarms | rules+gliner: found / safe / false alarms | rules+nametag3-multilingual-260521: found / safe / false alarms | rules+nametag3-czech-cnec2.0-240830: found / safe / false alarms |
-|---|---|---|---|---|---|
-| authorization | 1 | 4/11 / 0/1 / 1 | 9/11 / 0/1 / 2 | 10/11 / 1/1 / 1 | 10/11 / 1/1 / 1 |
-| contract | 3 | 20/50 / 0/3 / 3 | 47/50 / 2/3 / 3 | 48/50 / 3/3 / 4 | 48/50 / 3/3 / 3 |
-| cv | 3 | 18/33 / 0/3 / 0 | 32/33 / 3/3 / 0 | 31/33 / 3/3 / 0 | 31/33 / 3/3 / 0 |
-| decision | 1 | 4/13 / 0/1 / 0 | 12/13 / 0/1 / 0 | 12/13 / 0/1 / 0 | 12/13 / 0/1 / 0 |
-| email | 3 | 11/33 / 0/3 / 3 | 25/33 / 1/3 / 3 | 31/33 / 2/3 / 3 | 30/33 / 2/3 / 3 |
-| form | 1 | 8/18 / 1/1 / 0 | 16/18 / 1/1 / 0 | 14/18 / 1/1 / 0 | 16/18 / 1/1 / 0 |
-| invoice | 2 | 9/15 / 0/2 / 3 | 14/15 / 1/2 / 3 | 14/15 / 1/2 / 3 | 14/15 / 1/2 / 3 |
-| letter | 2 | 8/20 / 0/2 / 1 | 17/20 / 1/2 / 2 | 17/20 / 1/2 / 1 | 17/20 / 1/2 / 1 |
-| minutes | 2 | 1/19 / 0/2 / 0 | 15/19 / 1/2 / 1 | 19/19 / 2/2 / 0 | 19/19 / 2/2 / 1 |
-| notice | 2 | 0/0 / 2/2 / 0 | 0/0 / 2/2 / 11 | 0/0 / 2/2 / 0 | 0/0 / 2/2 / 4 |
-| policy | 2 | 0/0 / 2/2 / 3 | 0/0 / 2/2 / 13 | 0/0 / 2/2 / 3 | 0/0 / 2/2 / 6 |
-| report | 1 | 3/12 / 0/1 / 0 | 11/12 / 0/1 / 0 | 12/12 / 1/1 / 1 | 12/12 / 1/1 / 0 |
-| rules | 1 | 0/0 / 1/1 / 0 | 0/0 / 1/1 / 6 | 0/0 / 1/1 / 1 | 0/0 / 1/1 / 0 |
-| terms | 2 | 0/0 / 2/2 / 0 | 0/0 / 2/2 / 0 | 0/0 / 2/2 / 0 | 0/0 / 2/2 / 0 |
+| kind | documents | rules: found / safe / false alarms | rules+gliner: found / safe / false alarms | rules+nametag3-multilingual-260521: found / safe / false alarms | rules+nametag3-czech-cnec2.0-240830: found / safe / false alarms | rules+xlmr-focal-more: found / safe / false alarms |
+|---|---|---|---|---|---|---|
+| authorization | 1 | 4/11 / 0/1 / 1 | 9/11 / 0/1 / 2 | 10/11 / 1/1 / 1 | 10/11 / 1/1 / 1 | 10/11 / 1/1 / 1 |
+| contract | 3 | 20/50 / 0/3 / 3 | 47/50 / 2/3 / 3 | 48/50 / 3/3 / 4 | 48/50 / 3/3 / 3 | 49/50 / 3/3 / 3 |
+| cv | 3 | 18/33 / 0/3 / 0 | 32/33 / 3/3 / 0 | 31/33 / 3/3 / 0 | 31/33 / 3/3 / 0 | 31/33 / 3/3 / 1 |
+| decision | 1 | 4/13 / 0/1 / 0 | 12/13 / 0/1 / 0 | 12/13 / 0/1 / 0 | 12/13 / 0/1 / 0 | 12/13 / 0/1 / 0 |
+| email | 3 | 11/33 / 0/3 / 3 | 25/33 / 1/3 / 3 | 31/33 / 2/3 / 3 | 30/33 / 2/3 / 3 | 31/33 / 2/3 / 3 |
+| form | 1 | 8/18 / 1/1 / 0 | 16/18 / 1/1 / 0 | 14/18 / 1/1 / 0 | 16/18 / 1/1 / 0 | 16/18 / 1/1 / 0 |
+| invoice | 2 | 9/15 / 0/2 / 3 | 14/15 / 1/2 / 3 | 14/15 / 1/2 / 3 | 14/15 / 1/2 / 3 | 14/15 / 1/2 / 3 |
+| letter | 2 | 8/20 / 0/2 / 1 | 17/20 / 1/2 / 2 | 17/20 / 1/2 / 1 | 17/20 / 1/2 / 1 | 18/20 / 1/2 / 1 |
+| minutes | 2 | 1/19 / 0/2 / 0 | 15/19 / 1/2 / 1 | 19/19 / 2/2 / 0 | 19/19 / 2/2 / 1 | 19/19 / 2/2 / 1 |
+| notice | 2 | 0/0 / 2/2 / 0 | 0/0 / 2/2 / 11 | 0/0 / 2/2 / 0 | 0/0 / 2/2 / 4 | 0/0 / 2/2 / 6 |
+| policy | 2 | 0/0 / 2/2 / 3 | 0/0 / 2/2 / 13 | 0/0 / 2/2 / 3 | 0/0 / 2/2 / 6 | 0/0 / 2/2 / 4 |
+| report | 1 | 3/12 / 0/1 / 0 | 11/12 / 0/1 / 0 | 12/12 / 1/1 / 1 | 12/12 / 1/1 / 0 | 12/12 / 1/1 / 0 |
+| rules | 1 | 0/0 / 1/1 / 0 | 0/0 / 1/1 / 6 | 0/0 / 1/1 / 1 | 0/0 / 1/1 / 0 | 0/0 / 1/1 / 3 |
+| terms | 2 | 0/0 / 2/2 / 0 | 0/0 / 2/2 / 0 | 0/0 / 2/2 / 0 | 0/0 / 2/2 / 0 | 0/0 / 2/2 / 0 |
 
 ## Per document
 
-| document | language | kind | rules: found / safe / false alarms | rules+gliner: found / safe / false alarms | rules+nametag3-multilingual-260521: found / safe / false alarms | rules+nametag3-czech-cnec2.0-240830: found / safe / false alarms |
-|---|---|---|---|---|---|---|
-| cs-contract | cs | contract | 5/12 / **no** / 0 | 11/12 / **no** / 0 | 12/12 / yes / 0 | 12/12 / yes / 0 |
-| cs-cv | cs | cv | 8/14 / **no** / 0 | 14/14 / yes / 0 | 13/14 / yes / 0 | 13/14 / yes / 0 |
-| cs-decision | cs | decision | 4/13 / **no** / 0 | 12/13 / **no** / 0 | 12/13 / **no** / 0 | 12/13 / **no** / 0 |
-| cs-email | cs | email | 5/15 / **no** / 1 | 11/15 / **no** / 1 | 15/15 / yes / 1 | 15/15 / yes / 1 |
-| cs-employment-contract | cs | contract | 6/18 / **no** / 3 | 16/18 / yes / 3 | 16/18 / yes / 4 | 16/18 / yes / 3 |
-| cs-gym-rules | cs | rules | 0/0 / yes / 0 | 0/0 / yes / 6 | 0/0 / yes / 1 | 0/0 / yes / 0 |
-| cs-invoice | cs | invoice | 4/6 / **no** / 1 | 6/6 / yes / 1 | 6/6 / yes / 1 | 6/6 / yes / 1 |
-| cs-long-report | cs | minutes | 1/3 / **no** / 0 | 3/3 / yes / 0 | 3/3 / yes / 0 | 3/3 / yes / 0 |
-| cs-notice | cs | notice | 0/0 / yes / 0 | 0/0 / yes / 3 | 0/0 / yes / 0 | 0/0 / yes / 2 |
-| cs-owners-minutes | cs | minutes | 0/16 / **no** / 0 | 12/16 / **no** / 1 | 16/16 / yes / 0 | 16/16 / yes / 1 |
-| cs-power-of-attorney | cs | authorization | 4/11 / **no** / 1 | 9/11 / **no** / 2 | 10/11 / yes / 1 | 10/11 / yes / 1 |
-| cs-privacy-notice | cs | policy | 0/0 / yes / 2 | 0/0 / yes / 9 | 0/0 / yes / 2 | 0/0 / yes / 3 |
-| cs-rental-contract | cs | contract | 9/20 / **no** / 0 | 20/20 / yes / 0 | 20/20 / yes / 0 | 20/20 / yes / 0 |
-| cs-school-form | cs | form | 8/18 / yes / 0 | 16/18 / yes / 0 | 14/18 / yes / 0 | 16/18 / yes / 0 |
-| cs-terms | cs | terms | 0/0 / yes / 0 | 0/0 / yes / 0 | 0/0 / yes / 0 | 0/0 / yes / 0 |
-| en-cv | en | cv | 4/7 / **no** / 0 | 7/7 / yes / 0 | 7/7 / yes / 0 | 7/7 / yes / 0 |
-| en-email | en | email | 2/9 / **no** / 1 | 5/9 / **no** / 1 | 7/9 / **no** / 1 | 6/9 / **no** / 1 |
-| en-handbook | en | policy | 0/0 / yes / 1 | 0/0 / yes / 4 | 0/0 / yes / 1 | 0/0 / yes / 3 |
-| en-letter | en | letter | 3/11 / **no** / 1 | 8/11 / **no** / 2 | 8/11 / **no** / 1 | 8/11 / **no** / 1 |
-| sk-cv | sk | cv | 6/12 / **no** / 0 | 11/12 / yes / 0 | 11/12 / yes / 0 | 11/12 / yes / 0 |
-| sk-email | sk | email | 4/9 / **no** / 1 | 9/9 / yes / 1 | 9/9 / yes / 1 | 9/9 / yes / 1 |
-| sk-invoice | sk | invoice | 5/9 / **no** / 2 | 8/9 / **no** / 2 | 8/9 / **no** / 2 | 8/9 / **no** / 2 |
-| sk-letter | sk | letter | 5/9 / **no** / 0 | 9/9 / yes / 0 | 9/9 / yes / 0 | 9/9 / yes / 0 |
-| sk-medical-report | sk | report | 3/12 / **no** / 0 | 11/12 / **no** / 0 | 12/12 / yes / 1 | 12/12 / yes / 0 |
-| sk-terms | sk | terms | 0/0 / yes / 0 | 0/0 / yes / 0 | 0/0 / yes / 0 | 0/0 / yes / 0 |
-| sk-waste-notice | sk | notice | 0/0 / yes / 0 | 0/0 / yes / 8 | 0/0 / yes / 0 | 0/0 / yes / 2 |
+| document | language | kind | rules: found / safe / false alarms | rules+gliner: found / safe / false alarms | rules+nametag3-multilingual-260521: found / safe / false alarms | rules+nametag3-czech-cnec2.0-240830: found / safe / false alarms | rules+xlmr-focal-more: found / safe / false alarms |
+|---|---|---|---|---|---|---|---|
+| cs-contract | cs | contract | 5/12 / **no** / 0 | 11/12 / **no** / 0 | 12/12 / yes / 0 | 12/12 / yes / 0 | 12/12 / yes / 0 |
+| cs-cv | cs | cv | 8/14 / **no** / 0 | 14/14 / yes / 0 | 13/14 / yes / 0 | 13/14 / yes / 0 | 13/14 / yes / 0 |
+| cs-decision | cs | decision | 4/13 / **no** / 0 | 12/13 / **no** / 0 | 12/13 / **no** / 0 | 12/13 / **no** / 0 | 12/13 / **no** / 0 |
+| cs-email | cs | email | 5/15 / **no** / 1 | 11/15 / **no** / 1 | 15/15 / yes / 1 | 15/15 / yes / 1 | 15/15 / yes / 1 |
+| cs-employment-contract | cs | contract | 6/18 / **no** / 3 | 16/18 / yes / 3 | 16/18 / yes / 4 | 16/18 / yes / 3 | 17/18 / yes / 3 |
+| cs-gym-rules | cs | rules | 0/0 / yes / 0 | 0/0 / yes / 6 | 0/0 / yes / 1 | 0/0 / yes / 0 | 0/0 / yes / 3 |
+| cs-invoice | cs | invoice | 4/6 / **no** / 1 | 6/6 / yes / 1 | 6/6 / yes / 1 | 6/6 / yes / 1 | 6/6 / yes / 1 |
+| cs-long-report | cs | minutes | 1/3 / **no** / 0 | 3/3 / yes / 0 | 3/3 / yes / 0 | 3/3 / yes / 0 | 3/3 / yes / 0 |
+| cs-notice | cs | notice | 0/0 / yes / 0 | 0/0 / yes / 3 | 0/0 / yes / 0 | 0/0 / yes / 2 | 0/0 / yes / 1 |
+| cs-owners-minutes | cs | minutes | 0/16 / **no** / 0 | 12/16 / **no** / 1 | 16/16 / yes / 0 | 16/16 / yes / 1 | 16/16 / yes / 1 |
+| cs-power-of-attorney | cs | authorization | 4/11 / **no** / 1 | 9/11 / **no** / 2 | 10/11 / yes / 1 | 10/11 / yes / 1 | 10/11 / yes / 1 |
+| cs-privacy-notice | cs | policy | 0/0 / yes / 2 | 0/0 / yes / 9 | 0/0 / yes / 2 | 0/0 / yes / 3 | 0/0 / yes / 3 |
+| cs-rental-contract | cs | contract | 9/20 / **no** / 0 | 20/20 / yes / 0 | 20/20 / yes / 0 | 20/20 / yes / 0 | 20/20 / yes / 0 |
+| cs-school-form | cs | form | 8/18 / yes / 0 | 16/18 / yes / 0 | 14/18 / yes / 0 | 16/18 / yes / 0 | 16/18 / yes / 0 |
+| cs-terms | cs | terms | 0/0 / yes / 0 | 0/0 / yes / 0 | 0/0 / yes / 0 | 0/0 / yes / 0 | 0/0 / yes / 0 |
+| en-cv | en | cv | 4/7 / **no** / 0 | 7/7 / yes / 0 | 7/7 / yes / 0 | 7/7 / yes / 0 | 7/7 / yes / 0 |
+| en-email | en | email | 2/9 / **no** / 1 | 5/9 / **no** / 1 | 7/9 / **no** / 1 | 6/9 / **no** / 1 | 7/9 / **no** / 1 |
+| en-handbook | en | policy | 0/0 / yes / 1 | 0/0 / yes / 4 | 0/0 / yes / 1 | 0/0 / yes / 3 | 0/0 / yes / 1 |
+| en-letter | en | letter | 3/11 / **no** / 1 | 8/11 / **no** / 2 | 8/11 / **no** / 1 | 8/11 / **no** / 1 | 9/11 / **no** / 1 |
+| sk-cv | sk | cv | 6/12 / **no** / 0 | 11/12 / yes / 0 | 11/12 / yes / 0 | 11/12 / yes / 0 | 11/12 / yes / 1 |
+| sk-email | sk | email | 4/9 / **no** / 1 | 9/9 / yes / 1 | 9/9 / yes / 1 | 9/9 / yes / 1 | 9/9 / yes / 1 |
+| sk-invoice | sk | invoice | 5/9 / **no** / 2 | 8/9 / **no** / 2 | 8/9 / **no** / 2 | 8/9 / **no** / 2 | 8/9 / **no** / 2 |
+| sk-letter | sk | letter | 5/9 / **no** / 0 | 9/9 / yes / 0 | 9/9 / yes / 0 | 9/9 / yes / 0 | 9/9 / yes / 0 |
+| sk-medical-report | sk | report | 3/12 / **no** / 0 | 11/12 / **no** / 0 | 12/12 / yes / 1 | 12/12 / yes / 0 | 12/12 / yes / 0 |
+| sk-terms | sk | terms | 0/0 / yes / 0 | 0/0 / yes / 0 | 0/0 / yes / 0 | 0/0 / yes / 0 | 0/0 / yes / 0 |
+| sk-waste-notice | sk | notice | 0/0 / yes / 0 | 0/0 / yes / 8 | 0/0 / yes / 0 | 0/0 / yes / 2 | 0/0 / yes / 5 |
 
 ## Not found
 
@@ -291,6 +292,18 @@ Models: `mdeberta-v3-base-tokenizer@a0484667b223`, `gliner-multi-v2.1@443d26d654
 | rules+nametag3-czech-cnec2.0-240830 | en-letter | person | xmp | Olivia Carter | missed | no |
 | rules+nametag3-czech-cnec2.0-240830 | sk-cv | person | xmp | Zuzana Kováčová | missed | no |
 | rules+nametag3-czech-cnec2.0-240830 | sk-invoice | id_number | page | 1084572913 | missed | yes |
+| rules+xlmr-focal-more | cs-cv | id_number | metadata | TP-448812 | missed | no |
+| rules+xlmr-focal-more | cs-decision | id_number | page | 4H2 7781 | missed | yes |
+| rules+xlmr-focal-more | cs-employment-contract | person | xmp | Jitka Brabcová | missed | no |
+| rules+xlmr-focal-more | cs-power-of-attorney | person | embedded_file | hruskova | missed | no |
+| rules+xlmr-focal-more | cs-school-form | date | page | 15. 7. 2017 | missed | no |
+| rules+xlmr-focal-more | cs-school-form | date | form_field | 15. 7. 2017 | missed | no |
+| rules+xlmr-focal-more | en-email | phone | page | +44 7700 900461 | missed | yes |
+| rules+xlmr-focal-more | en-email | person | embedded_file | okafor | missed | no |
+| rules+xlmr-focal-more | en-letter | date | page | March 12, 1990 | missed | yes |
+| rules+xlmr-focal-more | en-letter | person | xmp | Olivia Carter | missed | no |
+| rules+xlmr-focal-more | sk-cv | person | xmp | Zuzana Kováčová | missed | no |
+| rules+xlmr-focal-more | sk-invoice | id_number | page | 1084572913 | missed | yes |
 
 ## False alarms
 
@@ -393,3 +406,29 @@ Models: `mdeberta-v3-base-tokenizer@a0484667b223`, `gliner-multi-v2.1@443d26d654
 | rules+nametag3-czech-cnec2.0-240830 | sk-invoice | Agro Dvor Lehota, s. r. o., Poľná 4, 951 36 Lehota |
 | rules+nametag3-czech-cnec2.0-240830 | sk-waste-notice | Hron |
 | rules+nametag3-czech-cnec2.0-240830 | sk-waste-notice | Priemyselnej ulici |
+| rules+xlmr-focal-more | cs-email | recepce@example.org |
+| rules+xlmr-focal-more | cs-employment-contract | 262/2006 |
+| rules+xlmr-focal-more | cs-employment-contract | 69281432 |
+| rules+xlmr-focal-more | cs-employment-contract | Družstevní 1120, 572 01 Polička |
+| rules+xlmr-focal-more | cs-gym-rules | Lukách |
+| rules+xlmr-focal-more | cs-gym-rules | Trenéra |
+| rules+xlmr-focal-more | cs-gym-rules | Údržbář |
+| rules+xlmr-focal-more | cs-invoice | 45862176 |
+| rules+xlmr-focal-more | cs-notice | Masarykově náměstí |
+| rules+xlmr-focal-more | cs-owners-minutes | Na Vyhlídce, Kolín |
+| rules+xlmr-focal-more | cs-power-of-attorney | Českobratrská 2227/7, 702 00 Ostrava |
+| rules+xlmr-focal-more | cs-privacy-notice | Pplk. Sochora 27, 170 00 Praha 7 |
+| rules+xlmr-focal-more | cs-privacy-notice | Uchazeče |
+| rules+xlmr-focal-more | cs-privacy-notice | gdpr@example.com |
+| rules+xlmr-focal-more | en-email | hr@example.net |
+| rules+xlmr-focal-more | en-handbook | people@example.org |
+| rules+xlmr-focal-more | en-letter | Chicago, IL 60680 |
+| rules+xlmr-focal-more | sk-cv | Ing |
+| rules+xlmr-focal-more | sk-email | zakaznicka.podpora@example.com |
+| rules+xlmr-focal-more | sk-invoice | 36512281 |
+| rules+xlmr-focal-more | sk-invoice | Poľná 4, 951 36 Lehota |
+| rules+xlmr-focal-more | sk-waste-notice | Hlavný |
+| rules+xlmr-focal-more | sk-waste-notice | Poplatník |
+| rules+xlmr-focal-more | sk-waste-notice | Poplatníka |
+| rules+xlmr-focal-more | sk-waste-notice | Poplatníkovi |
+| rules+xlmr-focal-more | sk-waste-notice | Priemyselnej ulici |

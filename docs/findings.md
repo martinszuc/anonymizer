@@ -1427,6 +1427,29 @@ and person residual share; both paired 95 % intervals excluding 0):
 - Outside names, every system shares the rules: on REDACT test birth numbers are found
   at recall 0.067 (19 / 283) by all of them; this is a rule finding, not part of RQ6.
 
+### 2026-11-11 · The chosen model on the benchmark
+
+`benchmark run` at 0.7.0 (commit `04a732d`) on a MetaCentrum CPU node
+(`scripts/metacentrum/benchmark.pbs`), all five systems in one run;
+`experiments/results/benchmark.*`. The four systems also run on the Mac the night
+before give the same counts; only the seconds differ.
+
+| system | found | missed | persons found | false alarms | safe documents | leak check |
+|---|---|---|---|---|---|---|
+| rules+gliner | 198/224 | 25 | 109/128 | 44 | 17/26 | 26/26 |
+| rules+nametag Czech | 209/224 | 14 | 121/128 | 22 | 22/26 | 26/26 |
+| rules+nametag multilingual | 208/224 | 13 | 122/128 | 17 | 22/26 | 26/26 |
+| rules+xlmr-focal-more | 212/224 | 12 | 123/128 | 26 | 22/26 | 25/26 |
+
+- The union finds the most, with no partial match and all 23 addresses, at 9 more
+  false alarms than NameTag multilingual.
+- **The failed leak check is on `sk-waste-notice`, which has no personal data.** The
+  union flags the role noun "Poplatník" in three forms; propagation redacts those
+  forms, and the leak check, which matches a stem inside longer words because names
+  inflect, finds it in the two "Poplatníkom" left. The export is refused, nothing
+  leaks. Review would reject "Poplatník". "Poplatník" is not on the `NamesOnly`
+  role list; adding it is a change to measure, not made here.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

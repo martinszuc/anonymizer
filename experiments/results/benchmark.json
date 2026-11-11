@@ -1,6 +1,6 @@
 {
   "schema": 2,
-  "created": "2026-11-11T02:00:00+00:00",
+  "created": "2026-11-11T11:29:51+00:00",
   "tool_version": "0.7.0",
   "git_commit": "04a732d05203906bfc103240ec8cf42a1ef6ece7",
   "models": {
@@ -9,15 +9,18 @@
     "xlm-roberta-large-tokenizer": "c23d21b0620b635a76227c604d44e43a9f0ee389",
     "nametag3-multilingual-260521": "hdl:11234/1-6163",
     "robeczech-base-v1.1-tokenizer": "a75ff238206b941c14d01260990e4c52913bf4d1",
-    "nametag3-czech-cnec2.0-240830": "hdl:11234/1-5677"
+    "nametag3-czech-cnec2.0-240830": "hdl:11234/1-5677",
+    "xlmr-cs-sk-ce-more": "79eb1ba17d0233c8bc5cd4a9cea915b17451b23f12489913b575a32fa009f72d",
+    "gliner-cs-sk-focal-more": "c65dbc7ab2fc293759b08e056e5efe7c158ad3f1cd48ed9253cb21096db20c82",
+    "xlmr-focal-more": "0b7f1749d8a2ed111228995495b357eb32506c94ffe73c2ec05ec8b247544c73"
   },
   "thresholds": {
     "gliner-multi-v2.1": 0.3
   },
   "machine": {
-    "system": "Darwin",
-    "machine": "arm64",
-    "processor": "arm",
+    "system": "Linux",
+    "machine": "x86_64",
+    "processor": "",
     "python": "3.12.14"
   },
   "document_set": {
@@ -28,7 +31,8 @@
     "rules",
     "rules+gliner",
     "rules+nametag3-multilingual-260521",
-    "rules+nametag3-czech-cnec2.0-240830"
+    "rules+nametag3-czech-cnec2.0-240830",
+    "rules+xlmr-focal-more"
   ],
   "documents": {
     "cs-contract": {
@@ -167,7 +171,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.012,
+          "seconds": 0.143,
           "safe": false,
           "counts": {
             "gold": 12,
@@ -305,7 +309,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.167,
+          "seconds": 4.198,
           "safe": false,
           "counts": {
             "gold": 12,
@@ -443,7 +447,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.19,
+          "seconds": 3.663,
           "safe": true,
           "counts": {
             "gold": 12,
@@ -581,7 +585,145 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.112,
+          "seconds": 1.563,
+          "safe": true,
+          "counts": {
+            "gold": 12,
+            "found": 12,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Ondřej Dvořák",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "date",
+              "text": "12. 6. 1988",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "birth_number",
+              "text": "880612/1005",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Masarykova 112, 586 01 Jihlava",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Nádražní 7, 370 01 České Budějovice",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "bank_account",
+              "text": "19-2000145399/0800",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Petra Svobody",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Ondřeji Dvořákovi",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Ondřej Dvořák",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [],
+          "decoys_removed": [],
+          "leak_check_passed": true,
+          "seconds": 19.552,
           "safe": true,
           "counts": {
             "gold": 12,
@@ -757,7 +899,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.009,
+          "seconds": 0.088,
           "safe": false,
           "counts": {
             "gold": 14,
@@ -915,7 +1057,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.294,
+          "seconds": 5.368,
           "safe": true,
           "counts": {
             "gold": 14,
@@ -1073,7 +1215,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.424,
+          "seconds": 5.818,
           "safe": true,
           "counts": {
             "gold": 14,
@@ -1231,7 +1373,165 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.194,
+          "seconds": 2.341,
+          "safe": true,
+          "counts": {
+            "gold": 14,
+            "found": 13,
+            "partial": 0,
+            "missed": 1,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Tereza Procházková",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "date",
+              "text": "14. 3. 1991",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Kounicova 684/12, 602 00 Brno",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "+420 777 123 456",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "tereza.prochazkova@example.com",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Ondřejem Dvořákem",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "603 987 654",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "+420777123456",
+              "carrier": "link",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "tereza.prochazkova@example.com",
+              "carrier": "link",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "url",
+              "text": "https://github.com/tereza-prochazkova-demo",
+              "carrier": "link",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Tereza Procházková",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "id_number",
+              "text": "TP-448812",
+              "carrier": "metadata",
+              "outcome": "missed",
+              "type_correct": false,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Tereza Procházková",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [],
+          "decoys_removed": [],
+          "leak_check_passed": true,
+          "seconds": 11.634,
           "safe": true,
           "counts": {
             "gold": 14,
@@ -1391,7 +1691,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.013,
+          "seconds": 0.078,
           "safe": false,
           "counts": {
             "gold": 13,
@@ -1539,7 +1839,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.411,
+          "seconds": 8.887,
           "safe": false,
           "counts": {
             "gold": 13,
@@ -1687,7 +1987,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.474,
+          "seconds": 8.695,
           "safe": false,
           "counts": {
             "gold": 13,
@@ -1835,7 +2135,155 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.356,
+          "seconds": 5.273,
+          "safe": false,
+          "counts": {
+            "gold": 13,
+            "found": 12,
+            "partial": 0,
+            "missed": 1,
+            "readable_after": 1,
+            "with_fragments": 0,
+            "left_in_carrier": 1
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Alena Doubravová",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "495 707 412",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Vojtěch Sýkora",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "date",
+              "text": "14. 2. 1958",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Gočárova třída 1754/48, 500 02 Hradec Králové",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "id_number",
+              "text": "4H2 7781",
+              "carrier": "page",
+              "outcome": "missed",
+              "type_correct": false,
+              "readable_after": true,
+              "fragments_after": [],
+              "left_in_carrier": true
+            },
+            {
+              "type": "person",
+              "text": "Hana Malinová",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Sýkora",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Vojtěcha Sýkory",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Alena Doubravová",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Vojtěch Sýkora",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Gočárova třída 1754/48, 500 02 Hradec Králové",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Vojtěch Sýkora",
+              "carrier": "bookmark",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [],
+          "decoys_removed": [],
+          "leak_check_passed": true,
+          "seconds": 22.408,
           "safe": false,
           "counts": {
             "gold": 13,
@@ -2023,7 +2471,7 @@
             "recepce@example.org"
           ],
           "leak_check_passed": true,
-          "seconds": 0.011,
+          "seconds": 0.067,
           "safe": false,
           "counts": {
             "gold": 15,
@@ -2201,7 +2649,7 @@
             "recepce@example.org"
           ],
           "leak_check_passed": true,
-          "seconds": 0.313,
+          "seconds": 6.644,
           "safe": false,
           "counts": {
             "gold": 15,
@@ -2373,7 +2821,7 @@
             "recepce@example.org"
           ],
           "leak_check_passed": true,
-          "seconds": 0.374,
+          "seconds": 6.662,
           "safe": true,
           "counts": {
             "gold": 15,
@@ -2545,7 +2993,179 @@
             "recepce@example.org"
           ],
           "leak_check_passed": true,
-          "seconds": 0.2,
+          "seconds": 2.881,
+          "safe": true,
+          "counts": {
+            "gold": 15,
+            "found": 15,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Barbora Čermáková",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "barbora.cermakova@example.com",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Filip Navrátil",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "f.navratil@example.org",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Navrátile",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Roman Bartoš",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "732 905 118",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Lipová 377, 763 15 Slušovice",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Barbora Čermáková",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Filip Navrátil",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Báro",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Bartoš",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Filip",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "barbora.cermakova@example.com",
+              "carrier": "link",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Barbora Čermáková",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [
+            "recepce@example.org"
+          ],
+          "decoys_removed": [
+            "recepce@example.org"
+          ],
+          "leak_check_passed": true,
+          "seconds": 16.068,
           "safe": true,
           "counts": {
             "gold": 15,
@@ -2763,7 +3383,7 @@
             "262/2006 Sb."
           ],
           "leak_check_passed": true,
-          "seconds": 0.016,
+          "seconds": 0.079,
           "safe": false,
           "counts": {
             "gold": 18,
@@ -2969,7 +3589,7 @@
             "262/2006 Sb."
           ],
           "leak_check_passed": true,
-          "seconds": 0.541,
+          "seconds": 12.454,
           "safe": true,
           "counts": {
             "gold": 18,
@@ -3176,7 +3796,7 @@
             "262/2006 Sb."
           ],
           "leak_check_passed": true,
-          "seconds": 0.52,
+          "seconds": 12.447,
           "safe": true,
           "counts": {
             "gold": 18,
@@ -3382,13 +4002,219 @@
             "262/2006 Sb."
           ],
           "leak_check_passed": true,
-          "seconds": 0.324,
+          "seconds": 5.882,
           "safe": true,
           "counts": {
             "gold": 18,
             "found": 16,
             "partial": 0,
             "missed": 2,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Radkem Hájkem",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Petr Kalous",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "date",
+              "text": "23. 4. 1979",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "birth_number",
+              "text": "790423/4129",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Zahradní 418, 569 43 Jevíčko",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Petra Kalouse",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "bank_account",
+              "text": "35-4718203657/0100",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Petru Kalousovi",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Zdeňka Marková",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Jitku Brabcovou",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "461 723 118",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "jitka.brabcova@example.com",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Radek Hájek",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Petr Kalous",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Kalous",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Jitka Brabcová",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Jitka Brabcová",
+              "carrier": "xmp",
+              "outcome": "missed",
+              "type_correct": false,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Petr Kalous",
+              "carrier": "xmp",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [
+            "262/2006",
+            "69281432",
+            "Družstevní 1120, 572 01 Polička"
+          ],
+          "decoys_removed": [
+            "69281432",
+            "Družstevní 1120, 572 01 Polička",
+            "262/2006 Sb."
+          ],
+          "leak_check_passed": true,
+          "seconds": 32.729,
+          "safe": true,
+          "counts": {
+            "gold": 18,
+            "found": 17,
+            "partial": 0,
+            "missed": 1,
             "readable_after": 0,
             "with_fragments": 0,
             "left_in_carrier": 0
@@ -3411,7 +4237,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.014,
+          "seconds": 0.07,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -3439,7 +4265,7 @@
             "Zdravotník oddílu"
           ],
           "leak_check_passed": true,
-          "seconds": 0.322,
+          "seconds": 7.872,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -3460,7 +4286,7 @@
             "Údržbář"
           ],
           "leak_check_passed": true,
-          "seconds": 0.507,
+          "seconds": 15.657,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -3477,7 +4303,32 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.235,
+          "seconds": 3.991,
+          "safe": true,
+          "counts": {
+            "gold": 0,
+            "found": 0,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [],
+          "false_positives": [
+            "Lukách",
+            "Trenéra",
+            "Údržbář"
+          ],
+          "decoys_removed": [
+            "Sportovní hala Na Lukách, Vsetín",
+            "Údržbář",
+            "Trenéra"
+          ],
+          "leak_check_passed": true,
+          "seconds": 20.327,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -3571,7 +4422,7 @@
             "45862176"
           ],
           "leak_check_passed": true,
-          "seconds": 0.008,
+          "seconds": 0.064,
           "safe": false,
           "counts": {
             "gold": 6,
@@ -3653,7 +4504,7 @@
             "45862176"
           ],
           "leak_check_passed": true,
-          "seconds": 0.143,
+          "seconds": 2.396,
           "safe": true,
           "counts": {
             "gold": 6,
@@ -3735,7 +4586,7 @@
             "45862176"
           ],
           "leak_check_passed": true,
-          "seconds": 0.188,
+          "seconds": 2.676,
           "safe": true,
           "counts": {
             "gold": 6,
@@ -3817,7 +4668,89 @@
             "45862176"
           ],
           "leak_check_passed": true,
-          "seconds": 0.086,
+          "seconds": 1.035,
+          "safe": true,
+          "counts": {
+            "gold": 6,
+            "found": 6,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jan Novák",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "company_id",
+              "text": "73120456",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Lidická 1879/48, 602 00 Brno",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "bank_account",
+              "text": "19-2000145399/0800",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Jan Novák",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "+420 603 555 120",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [
+            "45862176"
+          ],
+          "decoys_removed": [
+            "45862176"
+          ],
+          "leak_check_passed": true,
+          "seconds": 4.952,
           "safe": true,
           "counts": {
             "gold": 6,
@@ -3877,7 +4810,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.02,
+          "seconds": 0.082,
           "safe": false,
           "counts": {
             "gold": 3,
@@ -3925,7 +4858,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.477,
+          "seconds": 12.101,
           "safe": true,
           "counts": {
             "gold": 3,
@@ -3973,7 +4906,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.536,
+          "seconds": 15.784,
           "safe": true,
           "counts": {
             "gold": 3,
@@ -4021,7 +4954,55 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.341,
+          "seconds": 4.513,
+          "safe": true,
+          "counts": {
+            "gold": 3,
+            "found": 3,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jana Malá",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Lukáš Černý",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "lukas.cerny@example.com",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [],
+          "decoys_removed": [],
+          "leak_check_passed": true,
+          "seconds": 29.268,
           "safe": true,
           "counts": {
             "gold": 3,
@@ -4050,7 +5031,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.015,
+          "seconds": 0.07,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -4074,7 +5055,7 @@
             "Masarykově náměstí"
           ],
           "leak_check_passed": true,
-          "seconds": 0.355,
+          "seconds": 9.588,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -4091,7 +5072,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.502,
+          "seconds": 15.326,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -4113,7 +5094,28 @@
             "Masarykově náměstí"
           ],
           "leak_check_passed": true,
-          "seconds": 0.255,
+          "seconds": 4.334,
+          "safe": true,
+          "counts": {
+            "gold": 0,
+            "found": 0,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [],
+          "false_positives": [
+            "Masarykově náměstí"
+          ],
+          "decoys_removed": [
+            "Masarykově náměstí"
+          ],
+          "leak_check_passed": true,
+          "seconds": 25.187,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -4303,7 +5305,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.01,
+          "seconds": 0.061,
           "safe": false,
           "counts": {
             "gold": 16,
@@ -4489,7 +5491,7 @@
             "jednotky č. 7"
           ],
           "leak_check_passed": true,
-          "seconds": 0.257,
+          "seconds": 5.442,
           "safe": false,
           "counts": {
             "gold": 16,
@@ -4667,7 +5669,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.27,
+          "seconds": 6.551,
           "safe": true,
           "counts": {
             "gold": 16,
@@ -4849,7 +5851,189 @@
             "Společenství vlastníků jednotek Na Vyhlídce, Kolín"
           ],
           "leak_check_passed": true,
-          "seconds": 0.171,
+          "seconds": 2.75,
+          "safe": true,
+          "counts": {
+            "gold": 16,
+            "found": 16,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Zdeněk Vrána",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Olga Benešová",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Miloš Musil",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Daniela Krejčí",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Pavel Zeman",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Dvořákovi",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Zdeněk Vrána",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Olga Benešová",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Musil",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Krejčí",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Pavel Zeman",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Vránu",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Zemanem",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Olze Benešové",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Olga Benešová",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Zdeněk Vrána",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [
+            "Na Vyhlídce, Kolín"
+          ],
+          "decoys_removed": [
+            "Společenství vlastníků jednotek Na Vyhlídce, Kolín"
+          ],
+          "leak_check_passed": true,
+          "seconds": 14.508,
           "safe": true,
           "counts": {
             "gold": 16,
@@ -4993,7 +6177,7 @@
             "Českobratrská 2227/7, 702 00 Ostrava"
           ],
           "leak_check_passed": true,
-          "seconds": 0.01,
+          "seconds": 0.069,
           "safe": false,
           "counts": {
             "gold": 11,
@@ -5126,7 +6310,7 @@
             "Českobratrská 2227/7, 702 00 Ostrava"
           ],
           "leak_check_passed": true,
-          "seconds": 0.35,
+          "seconds": 7.575,
           "safe": false,
           "counts": {
             "gold": 11,
@@ -5258,7 +6442,7 @@
             "Českobratrská 2227/7, 702 00 Ostrava"
           ],
           "leak_check_passed": true,
-          "seconds": 0.414,
+          "seconds": 6.895,
           "safe": true,
           "counts": {
             "gold": 11,
@@ -5390,7 +6574,139 @@
             "Českobratrská 2227/7, 702 00 Ostrava"
           ],
           "leak_check_passed": true,
-          "seconds": 0.201,
+          "seconds": 3.117,
+          "safe": true,
+          "counts": {
+            "gold": 11,
+            "found": 10,
+            "partial": 0,
+            "missed": 1,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jaroslava Hrušková",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "date",
+              "text": "3. 5. 1971",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "birth_number",
+              "text": "715503/3820",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "id_number",
+              "text": "205418763",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": false,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Nádražní 845/3, 702 00 Ostrava",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Tomáše Vlčka",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Hruškové",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Jaroslava Hrušková",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Tomáš Vlček",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "hruskova",
+              "carrier": "embedded_file",
+              "outcome": "missed",
+              "type_correct": false,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Jaroslava Hrušková",
+              "carrier": "embedded_file",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [
+            "Českobratrská 2227/7, 702 00 Ostrava"
+          ],
+          "decoys_removed": [
+            "Českobratrská 2227/7, 702 00 Ostrava"
+          ],
+          "leak_check_passed": true,
+          "seconds": 18.361,
           "safe": true,
           "counts": {
             "gold": 11,
@@ -5425,7 +6741,7 @@
             "Pplk. Sochora 27, 170 00 Praha 7"
           ],
           "leak_check_passed": true,
-          "seconds": 0.013,
+          "seconds": 0.074,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -5457,7 +6773,7 @@
             "Pplk. Sochora 27, 170 00 Praha 7"
           ],
           "leak_check_passed": true,
-          "seconds": 0.309,
+          "seconds": 7.971,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -5480,7 +6796,7 @@
             "Pplk. Sochora 27, 170 00 Praha 7"
           ],
           "leak_check_passed": true,
-          "seconds": 0.318,
+          "seconds": 8.341,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -5504,7 +6820,31 @@
             "Pplk. Sochora 27, 170 00 Praha 7"
           ],
           "leak_check_passed": true,
-          "seconds": 0.25,
+          "seconds": 4.355,
+          "safe": true,
+          "counts": {
+            "gold": 0,
+            "found": 0,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [],
+          "false_positives": [
+            "Pplk. Sochora 27, 170 00 Praha 7",
+            "Uchazeče",
+            "gdpr@example.com"
+          ],
+          "decoys_removed": [
+            "gdpr@example.com",
+            "Pplk. Sochora 27, 170 00 Praha 7"
+          ],
+          "leak_check_passed": true,
+          "seconds": 20.652,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -5736,7 +7076,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.016,
+          "seconds": 0.071,
           "safe": false,
           "counts": {
             "gold": 20,
@@ -5954,7 +7294,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.381,
+          "seconds": 9.059,
           "safe": true,
           "counts": {
             "gold": 20,
@@ -6172,7 +7512,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.442,
+          "seconds": 9.309,
           "safe": true,
           "counts": {
             "gold": 20,
@@ -6390,7 +7730,225 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.267,
+          "seconds": 4.351,
+          "safe": true,
+          "counts": {
+            "gold": 20,
+            "found": 20,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jiří Holub",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "date",
+              "text": "30. 9. 1964",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Palackého třída 1243/18, 612 00 Brno",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Lenka Šimková",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "date",
+              "text": "8. 11. 1992",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Komenského 56, 674 01 Třebíč",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "+420 731 482 905",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "lenka.simkova@example.org",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Veveří 2581/102, 616 00 Brno",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "iban",
+              "text": "CZ63 0800 0000 0028 4756 1937",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Lence Šimkové",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Jiřího Holuba",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Martin Holub",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "604 218 377",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Martina Holuba",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Jiří Holub",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Lenka Šimková",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Lenka Šimková",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Martin Holub",
+              "carrier": "annotation",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Šimkové",
+              "carrier": "annotation",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [],
+          "decoys_removed": [],
+          "leak_check_passed": true,
+          "seconds": 22.704,
           "safe": true,
           "counts": {
             "gold": 20,
@@ -6600,7 +8158,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.014,
+          "seconds": 0.076,
           "safe": true,
           "counts": {
             "gold": 18,
@@ -6798,7 +8356,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.499,
+          "seconds": 9.057,
           "safe": true,
           "counts": {
             "gold": 18,
@@ -6996,7 +8554,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.698,
+          "seconds": 9.123,
           "safe": true,
           "counts": {
             "gold": 18,
@@ -7194,7 +8752,205 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.313,
+          "seconds": 3.451,
+          "safe": true,
+          "counts": {
+            "gold": 18,
+            "found": 16,
+            "partial": 0,
+            "missed": 2,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Tobiáš Kučera",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Tobiáš Kučera",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Tobiáš Kučera",
+              "carrier": "form_field",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "date",
+              "text": "15. 7. 2017",
+              "carrier": "page",
+              "outcome": "missed",
+              "type_correct": false,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "date",
+              "text": "15. 7. 2017",
+              "carrier": "form_field",
+              "outcome": "missed",
+              "type_correct": false,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "birth_number",
+              "text": "170715/4416",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "birth_number",
+              "text": "170715/4416",
+              "carrier": "form_field",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Bezručova 1680",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Bezručova 1680",
+              "carrier": "form_field",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "756 61 Rožnov pod Radhoštěm",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "756 61 Rožnov pod Radhoštěm",
+              "carrier": "form_field",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Markéta Kučerová",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Markéta Kučerová",
+              "carrier": "form_field",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "+420 739 104 552",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "+420 739 104 552",
+              "carrier": "form_field",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "marketa.kucerova@example.net",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "marketa.kucerova@example.net",
+              "carrier": "form_field",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Ivana Pospíšilová",
+              "carrier": "annotation",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [],
+          "decoys_removed": [],
+          "leak_check_passed": true,
+          "seconds": 18.34,
           "safe": true,
           "counts": {
             "gold": 18,
@@ -7223,7 +8979,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.021,
+          "seconds": 0.082,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -7240,7 +8996,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.51,
+          "seconds": 13.871,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -7257,7 +9013,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.574,
+          "seconds": 17.716,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -7274,7 +9030,24 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.374,
+          "seconds": 6.748,
+          "safe": true,
+          "counts": {
+            "gold": 0,
+            "found": 0,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [],
+          "false_positives": [],
+          "decoys_removed": [],
+          "leak_check_passed": true,
+          "seconds": 37.307,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -7380,7 +9153,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.008,
+          "seconds": 0.062,
           "safe": false,
           "counts": {
             "gold": 7,
@@ -7468,7 +9241,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.192,
+          "seconds": 3.303,
           "safe": true,
           "counts": {
             "gold": 7,
@@ -7556,7 +9329,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.25,
+          "seconds": 3.454,
           "safe": true,
           "counts": {
             "gold": 7,
@@ -7644,7 +9417,95 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.119,
+          "seconds": 1.625,
+          "safe": true,
+          "counts": {
+            "gold": 7,
+            "found": 7,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jordan Ellis",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "742 Evergreen Terrace, Springfield, IL 62704",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "(212) 555-0147",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "jordan.ellis@example.net",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Priya Raman",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "url",
+              "text": "https://www.linkedin.com/in/jordan-ellis-demo",
+              "carrier": "link",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Jordan Ellis",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [],
+          "decoys_removed": [],
+          "leak_check_passed": true,
+          "seconds": 6.821,
           "safe": true,
           "counts": {
             "gold": 7,
@@ -7774,7 +9635,7 @@
             "hr@example.net"
           ],
           "leak_check_passed": true,
-          "seconds": 0.008,
+          "seconds": 0.072,
           "safe": false,
           "counts": {
             "gold": 9,
@@ -7886,7 +9747,7 @@
             "hr@example.net"
           ],
           "leak_check_passed": true,
-          "seconds": 0.286,
+          "seconds": 4.948,
           "safe": false,
           "counts": {
             "gold": 9,
@@ -7998,7 +9859,7 @@
             "hr@example.net"
           ],
           "leak_check_passed": true,
-          "seconds": 0.391,
+          "seconds": 4.599,
           "safe": false,
           "counts": {
             "gold": 9,
@@ -8110,7 +9971,7 @@
             "hr@example.net"
           ],
           "leak_check_passed": true,
-          "seconds": 0.185,
+          "seconds": 2.461,
           "safe": false,
           "counts": {
             "gold": 9,
@@ -8120,6 +9981,118 @@
             "readable_after": 2,
             "with_fragments": 0,
             "left_in_carrier": 2
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Samuel Okafor",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "s.okafor@example.net",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Rachel",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Alan Whitfield",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Megan",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "+44 7700 900461",
+              "carrier": "page",
+              "outcome": "missed",
+              "type_correct": false,
+              "readable_after": true,
+              "fragments_after": [],
+              "left_in_carrier": true
+            },
+            {
+              "type": "person",
+              "text": "Sam",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "s.okafor@example.net",
+              "carrier": "link",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "okafor",
+              "carrier": "embedded_file",
+              "outcome": "missed",
+              "type_correct": false,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [
+            "hr@example.net"
+          ],
+          "decoys_removed": [
+            "hr@example.net"
+          ],
+          "leak_check_passed": true,
+          "seconds": 9.781,
+          "safe": false,
+          "counts": {
+            "gold": 9,
+            "found": 7,
+            "partial": 0,
+            "missed": 2,
+            "readable_after": 1,
+            "with_fragments": 0,
+            "left_in_carrier": 1
           }
         }
       }
@@ -8143,7 +10116,7 @@
             "people@example.org"
           ],
           "leak_check_passed": true,
-          "seconds": 0.012,
+          "seconds": 0.082,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -8170,7 +10143,7 @@
             "people@example.org"
           ],
           "leak_check_passed": true,
-          "seconds": 0.243,
+          "seconds": 5.909,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -8191,7 +10164,7 @@
             "people@example.org"
           ],
           "leak_check_passed": true,
-          "seconds": 0.264,
+          "seconds": 6.131,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -8215,7 +10188,28 @@
             "people@example.org"
           ],
           "leak_check_passed": true,
-          "seconds": 0.241,
+          "seconds": 5.033,
+          "safe": true,
+          "counts": {
+            "gold": 0,
+            "found": 0,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [],
+          "false_positives": [
+            "people@example.org"
+          ],
+          "decoys_removed": [
+            "people@example.org"
+          ],
+          "leak_check_passed": true,
+          "seconds": 15.717,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -8366,7 +10360,7 @@
             "PO Box 7720, Chicago, IL 60680"
           ],
           "leak_check_passed": true,
-          "seconds": 0.011,
+          "seconds": 0.072,
           "safe": false,
           "counts": {
             "gold": 11,
@@ -8499,7 +10493,7 @@
             "PO Box 7720, Chicago, IL 60680"
           ],
           "leak_check_passed": true,
-          "seconds": 0.403,
+          "seconds": 9.096,
           "safe": false,
           "counts": {
             "gold": 11,
@@ -8635,7 +10629,7 @@
             "PO Box 7720, Chicago, IL 60680"
           ],
           "leak_check_passed": true,
-          "seconds": 0.408,
+          "seconds": 8.284,
           "safe": false,
           "counts": {
             "gold": 11,
@@ -8772,7 +10766,7 @@
             "PO Box 7720, Chicago, IL 60680"
           ],
           "leak_check_passed": true,
-          "seconds": 0.259,
+          "seconds": 5.193,
           "safe": false,
           "counts": {
             "gold": 11,
@@ -8782,6 +10776,138 @@
             "readable_after": 1,
             "with_fragments": 1,
             "left_in_carrier": 2
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "58 Maple Avenue, Apt 4B, Madison, WI 53703",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "credit_card",
+              "text": "4528 0391 7264 5015",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "(608) 555-0193",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "olivia.carter@example.com",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "date",
+              "text": "March 12, 1990",
+              "carrier": "page",
+              "outcome": "missed",
+              "type_correct": false,
+              "readable_after": true,
+              "fragments_after": [],
+              "left_in_carrier": true
+            },
+            {
+              "type": "person",
+              "text": "Daniel Carter",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Kevin Doyle",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "xmp",
+              "outcome": "missed",
+              "type_correct": false,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [
+            "Chicago, IL 60680"
+          ],
+          "decoys_removed": [
+            "PO Box 7720, Chicago, IL 60680"
+          ],
+          "leak_check_passed": true,
+          "seconds": 22.937,
+          "safe": false,
+          "counts": {
+            "gold": 11,
+            "found": 9,
+            "partial": 0,
+            "missed": 2,
+            "readable_after": 1,
+            "with_fragments": 0,
+            "left_in_carrier": 1
           }
         }
       }
@@ -8926,7 +11052,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.011,
+          "seconds": 0.07,
           "safe": false,
           "counts": {
             "gold": 12,
@@ -9064,7 +11190,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.462,
+          "seconds": 8.767,
           "safe": true,
           "counts": {
             "gold": 12,
@@ -9202,7 +11328,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.445,
+          "seconds": 9.146,
           "safe": true,
           "counts": {
             "gold": 12,
@@ -9340,7 +11466,147 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.232,
+          "seconds": 4.255,
+          "safe": true,
+          "counts": {
+            "gold": 12,
+            "found": 11,
+            "partial": 0,
+            "missed": 1,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "date",
+              "text": "17. 2. 1985",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Mierová 1453/22, 821 05 Bratislava",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "0918 552 714",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "zuzana.kovacova@example.net",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Gabriele Šoltésovej",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Gabriela Šoltésová",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "+421 905 774 210",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "url",
+              "text": "https://www.linkedin.com/in/zuzana-kovacova-demo",
+              "carrier": "link",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "xmp",
+              "outcome": "missed",
+              "type_correct": false,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [
+            "Ing"
+          ],
+          "decoys_removed": [],
+          "leak_check_passed": true,
+          "seconds": 21.616,
           "safe": true,
           "counts": {
             "gold": 12,
@@ -9467,7 +11733,7 @@
             "zakaznicka.podpora@example.com"
           ],
           "leak_check_passed": true,
-          "seconds": 0.01,
+          "seconds": 0.069,
           "safe": false,
           "counts": {
             "gold": 9,
@@ -9579,7 +11845,7 @@
             "zakaznicka.podpora@example.com"
           ],
           "leak_check_passed": true,
-          "seconds": 0.182,
+          "seconds": 3.514,
           "safe": true,
           "counts": {
             "gold": 9,
@@ -9691,7 +11957,7 @@
             "zakaznicka.podpora@example.com"
           ],
           "leak_check_passed": true,
-          "seconds": 0.239,
+          "seconds": 4.312,
           "safe": true,
           "counts": {
             "gold": 9,
@@ -9803,7 +12069,119 @@
             "zakaznicka.podpora@example.com"
           ],
           "leak_check_passed": true,
-          "seconds": 0.152,
+          "seconds": 2.359,
+          "safe": true,
+          "counts": {
+            "gold": 9,
+            "found": 9,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Michal Gregor",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "michal.gregor@example.org",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Šimon Varga",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "iban",
+              "text": "SK89 1100 0000 0010 7654 3217",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Kollárova 9, 917 01 Trnava",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Lukáčová",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Michal Gregor",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "+421 948 207 663",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Michal Gregor",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [
+            "zakaznicka.podpora@example.com"
+          ],
+          "decoys_removed": [
+            "zakaznicka.podpora@example.com"
+          ],
+          "leak_check_passed": true,
+          "seconds": 7.629,
           "safe": true,
           "counts": {
             "gold": 9,
@@ -9931,7 +12309,7 @@
             "36512281"
           ],
           "leak_check_passed": true,
-          "seconds": 0.011,
+          "seconds": 0.064,
           "safe": false,
           "counts": {
             "gold": 9,
@@ -10045,7 +12423,7 @@
             "36512281"
           ],
           "leak_check_passed": true,
-          "seconds": 0.356,
+          "seconds": 7.036,
           "safe": false,
           "counts": {
             "gold": 9,
@@ -10159,7 +12537,7 @@
             "36512281"
           ],
           "leak_check_passed": true,
-          "seconds": 0.42,
+          "seconds": 6.665,
           "safe": false,
           "counts": {
             "gold": 9,
@@ -10274,7 +12652,121 @@
             "36512281"
           ],
           "leak_check_passed": true,
-          "seconds": 0.202,
+          "seconds": 2.863,
+          "safe": false,
+          "counts": {
+            "gold": 9,
+            "found": 8,
+            "partial": 0,
+            "missed": 1,
+            "readable_after": 1,
+            "with_fragments": 0,
+            "left_in_carrier": 1
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Marek Baláž",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Štúrova 27, 949 01 Nitra",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "company_id",
+              "text": "50726196",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "id_number",
+              "text": "1084572913",
+              "carrier": "page",
+              "outcome": "missed",
+              "type_correct": false,
+              "readable_after": true,
+              "fragments_after": [],
+              "left_in_carrier": true
+            },
+            {
+              "type": "iban",
+              "text": "SK60 0900 0000 0054 3201 9875",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Marek Baláž",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "0905 318 442",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "marek.balaz@example.com",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Marek Baláž",
+              "carrier": "embedded_file",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [
+            "36512281",
+            "Poľná 4, 951 36 Lehota"
+          ],
+          "decoys_removed": [
+            "Poľná 4, 951 36 Lehota",
+            "36512281"
+          ],
+          "leak_check_passed": true,
+          "seconds": 17.535,
           "safe": false,
           "counts": {
             "gold": 9,
@@ -10394,7 +12886,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.009,
+          "seconds": 0.069,
           "safe": false,
           "counts": {
             "gold": 9,
@@ -10502,7 +12994,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.188,
+          "seconds": 3.213,
           "safe": true,
           "counts": {
             "gold": 9,
@@ -10610,7 +13102,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.252,
+          "seconds": 2.937,
           "safe": true,
           "counts": {
             "gold": 9,
@@ -10718,7 +13210,115 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.133,
+          "seconds": 1.764,
+          "safe": true,
+          "counts": {
+            "gold": 9,
+            "found": 9,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Hlavná 45, 040 01 Košice",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "iban",
+              "text": "SK31 1200 0000 1987 4263 7541",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "birth_number",
+              "text": "855215/1234",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "+421 918 123 456",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "email",
+              "text": "maria.horvathova@example.org",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "bookmark",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [],
+          "decoys_removed": [],
+          "leak_check_passed": true,
+          "seconds": 6.206,
           "safe": true,
           "counts": {
             "gold": 9,
@@ -10868,7 +13468,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.011,
+          "seconds": 0.063,
           "safe": false,
           "counts": {
             "gold": 12,
@@ -11008,7 +13608,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.361,
+          "seconds": 7.762,
           "safe": false,
           "counts": {
             "gold": 12,
@@ -11148,7 +13748,7 @@
           ],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.421,
+          "seconds": 6.968,
           "safe": true,
           "counts": {
             "gold": 12,
@@ -11286,7 +13886,145 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.229,
+          "seconds": 3.482,
+          "safe": true,
+          "counts": {
+            "gold": 12,
+            "found": 12,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Ladislav Hudák",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "birth_number",
+              "text": "580214/9265",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "address",
+              "text": "Nám. SNP 14, 058 01 Poprad",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Hudák",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Anna Hudáková",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "phone",
+              "text": "0907 441 236",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Petra Lacka",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Katarína Bieliková",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Juraj Fekete",
+              "carrier": "page",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Katarína Bieliková",
+              "carrier": "metadata",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Katarína Bieliková",
+              "carrier": "annotation",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            },
+            {
+              "type": "person",
+              "text": "Hudákom",
+              "carrier": "annotation",
+              "outcome": "found",
+              "type_correct": true,
+              "readable_after": false,
+              "fragments_after": [],
+              "left_in_carrier": false
+            }
+          ],
+          "false_positives": [],
+          "decoys_removed": [],
+          "leak_check_passed": true,
+          "seconds": 18.453,
           "safe": true,
           "counts": {
             "gold": 12,
@@ -11315,7 +14053,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.015,
+          "seconds": 0.076,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -11332,7 +14070,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.376,
+          "seconds": 9.864,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -11349,7 +14087,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.525,
+          "seconds": 15.653,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -11366,7 +14104,24 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.371,
+          "seconds": 7.741,
+          "safe": true,
+          "counts": {
+            "gold": 0,
+            "found": 0,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [],
+          "false_positives": [],
+          "decoys_removed": [],
+          "leak_check_passed": true,
+          "seconds": 26.08,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -11395,7 +14150,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.011,
+          "seconds": 0.067,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -11425,7 +14180,7 @@
             "Hlavný kontrolór"
           ],
           "leak_check_passed": true,
-          "seconds": 0.243,
+          "seconds": 5.416,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -11442,7 +14197,7 @@
           "false_positives": [],
           "decoys_removed": [],
           "leak_check_passed": true,
-          "seconds": 0.302,
+          "seconds": 6.953,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -11464,7 +14219,32 @@
             "Hron Eko, s. r. o."
           ],
           "leak_check_passed": true,
-          "seconds": 0.212,
+          "seconds": 3.543,
+          "safe": true,
+          "counts": {
+            "gold": 0,
+            "found": 0,
+            "partial": 0,
+            "missed": 0,
+            "readable_after": 0,
+            "with_fragments": 0,
+            "left_in_carrier": 0
+          }
+        },
+        "rules+xlmr-focal-more": {
+          "items": [],
+          "false_positives": [
+            "Hlavný",
+            "Poplatník",
+            "Poplatníka",
+            "Poplatníkovi",
+            "Priemyselnej ulici"
+          ],
+          "decoys_removed": [
+            "Hlavný kontrolór"
+          ],
+          "leak_check_passed": false,
+          "seconds": 13.209,
           "safe": true,
           "counts": {
             "gold": 0,
@@ -11865,7 +14645,7 @@
       "safe_documents": 8,
       "leak_check_passed": 26,
       "documents": 26,
-      "seconds": 0.319
+      "seconds": 1.94
     },
     "rules+gliner": {
       "counts": {
@@ -12252,7 +15032,7 @@
       "safe_documents": 17,
       "leak_check_passed": 26,
       "documents": 26,
-      "seconds": 8.621
+      "seconds": 191.311
     },
     "rules+nametag3-multilingual-260521": {
       "counts": {
@@ -12639,7 +15419,7 @@
       "safe_documents": 22,
       "leak_check_passed": 26,
       "documents": 26,
-      "seconds": 10.348
+      "seconds": 219.765
     },
     "rules+nametag3-czech-cnec2.0-240830": {
       "counts": {
@@ -13026,7 +15806,394 @@
       "safe_documents": 22,
       "leak_check_passed": 26,
       "documents": 26,
-      "seconds": 6.014
+      "seconds": 96.904
+    },
+    "rules+xlmr-focal-more": {
+      "counts": {
+        "gold": 224,
+        "found": 212,
+        "partial": 0,
+        "missed": 12,
+        "readable_after": 4,
+        "with_fragments": 0,
+        "left_in_carrier": 4
+      },
+      "by_type": {
+        "address": {
+          "gold": 23,
+          "found": 23,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "bank_account": {
+          "gold": 3,
+          "found": 3,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "birth_number": {
+          "gold": 7,
+          "found": 7,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "company_id": {
+          "gold": 2,
+          "found": 2,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "credit_card": {
+          "gold": 1,
+          "found": 1,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "date": {
+          "gold": 11,
+          "found": 8,
+          "partial": 0,
+          "missed": 3,
+          "readable_after": 1,
+          "with_fragments": 0,
+          "left_in_carrier": 1
+        },
+        "email": {
+          "gold": 18,
+          "found": 18,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "iban": {
+          "gold": 4,
+          "found": 4,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "id_number": {
+          "gold": 4,
+          "found": 1,
+          "partial": 0,
+          "missed": 3,
+          "readable_after": 2,
+          "with_fragments": 0,
+          "left_in_carrier": 2
+        },
+        "person": {
+          "gold": 128,
+          "found": 123,
+          "partial": 0,
+          "missed": 5,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "phone": {
+          "gold": 20,
+          "found": 19,
+          "partial": 0,
+          "missed": 1,
+          "readable_after": 1,
+          "with_fragments": 0,
+          "left_in_carrier": 1
+        },
+        "url": {
+          "gold": 3,
+          "found": 3,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        }
+      },
+      "by_carrier": {
+        "annotation": {
+          "gold": 5,
+          "found": 5,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "bookmark": {
+          "gold": 2,
+          "found": 2,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "embedded_file": {
+          "gold": 4,
+          "found": 2,
+          "partial": 0,
+          "missed": 2,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "form_field": {
+          "gold": 8,
+          "found": 7,
+          "partial": 0,
+          "missed": 1,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "link": {
+          "gold": 7,
+          "found": 7,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "metadata": {
+          "gold": 15,
+          "found": 14,
+          "partial": 0,
+          "missed": 1,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        },
+        "page": {
+          "gold": 179,
+          "found": 174,
+          "partial": 0,
+          "missed": 5,
+          "readable_after": 4,
+          "with_fragments": 0,
+          "left_in_carrier": 4
+        },
+        "xmp": {
+          "gold": 4,
+          "found": 1,
+          "partial": 0,
+          "missed": 3,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0
+        }
+      },
+      "by_kind": {
+        "authorization": {
+          "gold": 11,
+          "found": 10,
+          "partial": 0,
+          "missed": 1,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0,
+          "documents": 1,
+          "words": 118,
+          "false_positives": 1,
+          "safe_documents": 1
+        },
+        "contract": {
+          "gold": 50,
+          "found": 49,
+          "partial": 0,
+          "missed": 1,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0,
+          "documents": 3,
+          "words": 486,
+          "false_positives": 3,
+          "safe_documents": 3
+        },
+        "cv": {
+          "gold": 33,
+          "found": 31,
+          "partial": 0,
+          "missed": 2,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0,
+          "documents": 3,
+          "words": 196,
+          "false_positives": 1,
+          "safe_documents": 3
+        },
+        "decision": {
+          "gold": 13,
+          "found": 12,
+          "partial": 0,
+          "missed": 1,
+          "readable_after": 1,
+          "with_fragments": 0,
+          "left_in_carrier": 1,
+          "documents": 1,
+          "words": 215,
+          "false_positives": 0,
+          "safe_documents": 0
+        },
+        "email": {
+          "gold": 33,
+          "found": 31,
+          "partial": 0,
+          "missed": 2,
+          "readable_after": 1,
+          "with_fragments": 0,
+          "left_in_carrier": 1,
+          "documents": 3,
+          "words": 285,
+          "false_positives": 3,
+          "safe_documents": 2
+        },
+        "form": {
+          "gold": 18,
+          "found": 16,
+          "partial": 0,
+          "missed": 2,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0,
+          "documents": 1,
+          "words": 104,
+          "false_positives": 0,
+          "safe_documents": 1
+        },
+        "invoice": {
+          "gold": 15,
+          "found": 14,
+          "partial": 0,
+          "missed": 1,
+          "readable_after": 1,
+          "with_fragments": 0,
+          "left_in_carrier": 1,
+          "documents": 2,
+          "words": 152,
+          "false_positives": 3,
+          "safe_documents": 1
+        },
+        "letter": {
+          "gold": 20,
+          "found": 18,
+          "partial": 0,
+          "missed": 2,
+          "readable_after": 1,
+          "with_fragments": 0,
+          "left_in_carrier": 1,
+          "documents": 2,
+          "words": 179,
+          "false_positives": 1,
+          "safe_documents": 1
+        },
+        "minutes": {
+          "gold": 19,
+          "found": 19,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0,
+          "documents": 2,
+          "words": 644,
+          "false_positives": 1,
+          "safe_documents": 2
+        },
+        "notice": {
+          "gold": 0,
+          "found": 0,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0,
+          "documents": 2,
+          "words": 563,
+          "false_positives": 6,
+          "safe_documents": 2
+        },
+        "policy": {
+          "gold": 0,
+          "found": 0,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0,
+          "documents": 2,
+          "words": 479,
+          "false_positives": 4,
+          "safe_documents": 2
+        },
+        "report": {
+          "gold": 12,
+          "found": 12,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0,
+          "documents": 1,
+          "words": 120,
+          "false_positives": 0,
+          "safe_documents": 1
+        },
+        "rules": {
+          "gold": 0,
+          "found": 0,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0,
+          "documents": 1,
+          "words": 303,
+          "false_positives": 3,
+          "safe_documents": 1
+        },
+        "terms": {
+          "gold": 0,
+          "found": 0,
+          "partial": 0,
+          "missed": 0,
+          "readable_after": 0,
+          "with_fragments": 0,
+          "left_in_carrier": 0,
+          "documents": 2,
+          "words": 825,
+          "false_positives": 0,
+          "safe_documents": 2
+        }
+      },
+      "false_positives": 26,
+      "words": 4669,
+      "false_alarms_per_1000_words": 5.57,
+      "decoys_removed": 20,
+      "safe_documents": 22,
+      "leak_check_passed": 25,
+      "documents": 26,
+      "seconds": 479.981
     }
   }
 }

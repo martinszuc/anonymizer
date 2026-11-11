@@ -36,6 +36,8 @@ from pathlib import Path
 from types import TracebackType
 from typing import TextIO
 
+from anonymizer.core.errors import ControlledValueError
+
 ROOT_LOGGER = "anonymizer"
 """Parent of every logger in the project; handlers are attached here."""
 
@@ -113,7 +115,7 @@ def resolve_level(name: str | None = None, *, debug: bool = False) -> int:
         return DEFAULT_LEVEL
     if chosen not in LEVEL_NAMES:
         msg = f"unknown log level {chosen!r}; use one of {', '.join(LEVEL_NAMES)}"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     return logging.getLevelNamesMapping()[chosen.upper()]
 
 

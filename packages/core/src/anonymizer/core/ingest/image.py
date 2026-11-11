@@ -33,6 +33,7 @@ import logging
 from collections.abc import Iterator
 
 import pymupdf
+from anonymizer.core.errors import Controlled
 from PIL import Image, ImageOps, ImageSequence
 
 log = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ _PDF_HEADER = b"%PDF-"
 _PDF_HEADER_WINDOW = 1024
 
 
-class UnsupportedFileError(ValueError):
+class UnsupportedFileError(Controlled, ValueError):
     """The file is neither a PDF nor an image format that is read, or it is damaged."""
 
 

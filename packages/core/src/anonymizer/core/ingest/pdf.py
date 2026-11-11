@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 import pymupdf
+from anonymizer.core.errors import ControlledFileNotFoundError, ControlledValueError
 from anonymizer.core.ingest.image import as_pdf, image_format
 from anonymizer.core.ingest.layout import PlacedWord, assemble
 from anonymizer.core.ingest.normalize import unrotated_rect_to_bbox
@@ -246,13 +247,13 @@ def read_source(path: Path | str) -> bytes:
         The file's content.
 
     Raises:
-        FileNotFoundError: If `path` does not exist. The message names the file
-            only, not the folders above it.
+        FileNotFoundError: If `path` does not exist. The message names neither
+            the file nor its folders.
     """
     source = Path(path)
     if not source.is_file():
-        msg = f"no such file: {source.name}"
-        raise FileNotFoundError(msg)
+        msg = "no such file"
+        raise ControlledFileNotFoundError(msg)
     return source.read_bytes()
 
 
@@ -279,11 +280,11 @@ def read_verified(path: Path | str, document: Document) -> bytes:
     """
     if document.fingerprint is None:
         msg = "document carries no fingerprint; load it from the file with load_document"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     data = read_source(path)
     if fingerprint(data) != document.fingerprint:
         msg = "document was loaded from a different file than the one given"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     return as_pdf(data)
 
 

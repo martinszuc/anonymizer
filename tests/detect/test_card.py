@@ -53,3 +53,23 @@ def test_finds_card_in_running_text():
 
 def test_ignores_an_invoice_number_that_happens_to_be_digits():
     assert list(find_card_numbers("faktura 20260012345678")) == []
+
+
+@pytest.mark.parametrize(
+    ("text", "card"),
+    [
+        ("Card 4111 1111 1111 1111 12/27", "4111 1111 1111 1111"),
+        ("Card 4111111111111111 123", "4111111111111111"),
+        ("Card 4111 1111 1111 1111 123", "4111 1111 1111 1111"),
+        ("Card 4111-1111-1111-1111-123", "4111-1111-1111-1111"),
+        ("Order 12 4111 1111 1111 1111", "4111 1111 1111 1111"),
+    ],
+)
+def test_finds_card_next_to_other_digits(text, card):
+    assert [match.text for match in find_card_numbers(text)] == [card]
+
+
+def test_offsets_of_a_card_trimmed_from_a_longer_run():
+    text = "Card 4111 1111 1111 1111 12/27"
+    (match,) = find_card_numbers(text)
+    assert text[match.start : match.end] == match.text == "4111 1111 1111 1111"

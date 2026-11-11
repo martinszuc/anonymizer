@@ -119,6 +119,7 @@ from experiments.report import UNDEFINED, format_interval
 from experiments.run import check_device, corpus_models, git_state, machine_on, once, scored_types
 from experiments.systems import (
     CACHE_FLOOR,
+    ModelKey,
     NameModel,
     detect,
     model_loader,
@@ -602,7 +603,7 @@ def analyse(
     *,
     resource_root: Path,
     cache_dir: Path,
-    load_model: Callable[[str], Any] | None = None,
+    load_model: Callable[..., Any] | None = None,
     load_splitter: Callable[[str], SentenceSplitter] | None = None,
     progress: Progress = lambda _: None,
     limit: int | None = None,
@@ -674,7 +675,7 @@ def analyse(
 def _analyse_corpus(
     config: RunConfig,
     corpus: Corpus,
-    models: dict[tuple[str, float], NameModel],
+    models: dict[ModelKey, NameModel],
     progress: Progress,
     examples: dict[str, Any] | None,
 ) -> dict[str, Any]:

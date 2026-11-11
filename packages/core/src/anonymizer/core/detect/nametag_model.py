@@ -136,13 +136,17 @@ class Nametag3Tagger:
             The tagger, in inference mode on the CPU.
 
         Raises:
-            ValueError: If the options name an unknown decoding or tagset.
+            ValueError: If the options name an unknown decoding or tagset, or
+                a tagset is given for a model without tagsets.
             ImportError: If the optional `ner` dependencies are not installed.
         """
         options = json.loads((model_dir / "options.json").read_text(encoding="utf-8"))
         decoding = options["decoding"]
         if decoding not in {"classification", "seq2seq"}:
             msg = f"unknown NameTag decoding {decoding!r}"
+            raise ValueError(msg)
+        if tagset is not None and not options.get("tagsets"):
+            msg = f"the NameTag model has no tagsets, so it cannot answer in {tagset!r}"
             raise ValueError(msg)
         nested = decoding == "seq2seq"
         mappings = read_mappings(model_dir / "mappings.pickle")

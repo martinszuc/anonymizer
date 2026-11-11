@@ -27,9 +27,10 @@ gives. A token classifier trained here answers GLiNER's call
 exactly as GLiNER is: its threshold filters decoded spans only, so the same
 floor argument holds. NameTag 3
 (`CachedTagger`) has no threshold; its labels are cached per page of
-sentences. Everything after the model (windows, sentences, word widening,
-the name filter, the rules, merging, propagation, titles) runs for real on
-every run.
+sentences. A system may ask the multilingual NameTag model for another of its
+tagsets (`tagset`); each tagset's labels are cached apart. Everything after
+the model (windows, sentences, word widening, the name filter, the rules,
+merging, propagation, titles) runs for real on every run.
 """
 
 from __future__ import annotations
@@ -72,6 +73,7 @@ from anonymizer.core.detect.nametag import (
     load_nametag_tagger,
     model_directory,
 )
+from anonymizer.core.detect.nametag_model import TAGSETS
 from anonymizer.core.detect.token_classifier import (
     TOKEN_CLASSIFIER_ENGINE,
     load_token_classifier_model,
@@ -99,6 +101,9 @@ ENGINES = (*SPAN_MODEL_ENGINES, NAMETAG_ENGINE)
 
 LANGUAGES = ("dataset", "auto", "none")
 COMBINATIONS = ("union", "agreement")
+
+ModelKey = tuple[str, float, str | None]
+"""A cached name model: catalog id, cache floor and NameTag tagset (`SystemConfig.model_key`)."""
 
 
 @dataclass(frozen=True)
@@ -129,6 +134,9 @@ class SystemConfig:
             (`name_model_threshold`), filled when the system is parsed
             without a threshold; a model missing here runs at GLiNER's
             `DEFAULT_THRESHOLD`.
+        tagset: The tagset the system's NameTag models answer in (`conll`,
+            `uner`, `onto`; a multitagset model only); `None` for the
+            model's default.
     """
 
     name: str
@@ -142,6 +150,7 @@ class SystemConfig:
     language: str = "dataset"
     engines: tuple[str, ...] = ()
     model_thresholds: Mapping[str, float] = field(default_factory=dict)
+    tagset: str | None = None
 
     @property
     def model_names(self) -> tuple[str, ...]:
@@ -178,6 +187,14 @@ class SystemConfig:
             return CACHE_FLOOR
         return cache_floor(self.threshold_of(model_id))
 
+    def tagset_of(self, model_id: str) -> str | None:
+        """Return the tagset a model of the system answers in; `None` for a span model."""
+        return None if model_id in self.span_model_ids else self.tagset
+
+    def model_key(self, model_id: str) -> ModelKey:
+        """Return the cached model a model of the system reads: id, cache floor and tagset."""
+        return model_id, self.cache_floor_of(model_id), self.tagset_of(model_id)
+
     def describe(self) -> dict[str, Any]:
         """Return the options as plain data, for the results file."""
         described: dict[str, Any] = {
@@ -196,6 +213,8 @@ class SystemConfig:
             floors = {model_id: self.cache_floor_of(model_id) for model_id in thresholds}
             if set(floors.values()) != {CACHE_FLOOR}:
                 described |= _per_model("cache_floor", floors)
+        if self.tagset is not None:
+            described["tagset"] = self.tagset
         if self.model_names:
             described["names_only"] = self.names_only
         return described
@@ -218,6 +237,7 @@ _SYSTEM_KEYS = frozenset(
         "names_only",
         "propagate",
         "language",
+        "tagset",
     }
 )
 
@@ -269,6 +289,13 @@ def parse_system(
     model_thresholds = (
         _model_thresholds(name, models, engines, catalog) if threshold is None else {}
     )
+    tagset = None if "tagset" not in table else str(table["tagset"])
+    if tagset is not None and tagset not in TAGSETS:
+        msg = f"system {name!r}: tagset must be one of {sorted(TAGSETS)}"
+        raise ValueError(msg)
+    if tagset is not None and NAMETAG_ENGINE not in engines:
+        msg = f"system {name!r}: a tagset needs a NameTag 3 model"
+        raise ValueError(msg)
     labels = {
         str(label): EntityType(kind)
         for label, kind in dict(table.get("labels", DEFAULT_LABELS)).items()
@@ -285,6 +312,7 @@ def parse_system(
         language=language,
         engines=engines,
         model_thresholds=model_thresholds,
+        tagset=tagset,
     )
 
 
@@ -544,6 +572,7 @@ def cache_path(
     catalog: Catalog | None = None,
     floor: float = CACHE_FLOOR,
     device: str = "cpu",
+    tagset: str | None = None,
 ) -> Path:
     """Return the cache file for a name model on one split of a dataset.
 
@@ -562,11 +591,17 @@ def cache_path(
     not say where the predictions came from. The CPU keeps the plain name, so
     caches written before devices were chosen stay valid. NameTag 3 always
     runs on the CPU and has no device in its path.
+
+    A NameTag model asked for a tagset by name has a file of its own per
+    tagset (`<split>@uner.json`); run in its default tagset it keeps the
+    plain name, so the caches written before tagsets were chosen stay valid.
     """
     model = (catalog or load_catalog())[model_id]
     name = split if floor == CACHE_FLOOR else f"{split}@floor{floor:g}"
     if device != "cpu":
         name += f"@{device}"
+    if tagset is not None:
+        name += f"@{tagset}"
     return (
         cache_dir
         / f"{model.id}@{_safe(model.version)}"
@@ -609,23 +644,29 @@ def span_model_loader(
 
 def model_loader(
     resource_root: Path, catalog: Catalog | None = None, device: str = "cpu"
-) -> Callable[[str], SpanModel | Tagger]:
+) -> Callable[..., SpanModel | Tagger]:
     """Return a function loading a catalog name model of either engine, by id.
 
-    `device` is where a span model runs; NameTag 3 runs on the CPU.
+    `device` is where a span model runs; NameTag 3 runs on the CPU. The
+    function takes a NameTag model's tagset after the id; none is its default.
 
     Raises:
         FileNotFoundError: When called, if the model is not stored under the root.
+        ValueError: When called, if a tagset is given for a span model.
     """
     catalog = catalog or load_catalog()
     load_span_model = span_model_loader(resource_root, catalog, device)
 
-    def load(model_id: str) -> SpanModel | Tagger:
+    def load(model_id: str, tagset: str | None = None) -> SpanModel | Tagger:
         if name_model(model_id, catalog).engine in SPAN_MODEL_ENGINES:
+            if tagset is not None:
+                msg = f"{model_id} is not a NameTag model and has no tagset"
+                raise ValueError(msg)
             return load_span_model(model_id)
         return load_nametag_tagger(
             model_directory(resource_root, model_id, catalog),
             catalog[encoder_resource(catalog, model_id)].directory(resource_root),
+            tagset,
         )
 
     return load
@@ -647,19 +688,25 @@ def splitter_loader(
 def cached_model(
     model_id: str,
     cache: PredictionCache,
-    load_model: Callable[[str], Any],
+    load_model: Callable[..., Any],
     load_splitter: Callable[[str], SentenceSplitter],
     catalog: Catalog | None = None,
     floor: float = CACHE_FLOOR,
+    tagset: str | None = None,
 ) -> NameModel:
     """Wrap a name model, loaded on first need, in the cache of its engine.
 
     `floor` is the threshold a span model is asked at; NameTag has none.
+    `tagset` is the one a NameTag model answers in, passed to `load_model`
+    after the id when given.
     """
     if name_model(model_id, catalog).engine in SPAN_MODEL_ENGINES:
         return CachedSpanModel(functools.partial(load_model, model_id), cache, floor)
+    options = () if tagset is None else (tagset,)
     return CachedTagger(
-        functools.partial(load_model, model_id), functools.partial(load_splitter, model_id), cache
+        functools.partial(load_model, model_id, *options),
+        functools.partial(load_splitter, model_id),
+        cache,
     )
 
 
@@ -677,20 +724,18 @@ def model_versions(
 
 
 def system_models(
-    system: SystemConfig, models: Mapping[tuple[str, float], NameModel]
+    system: SystemConfig, models: Mapping[ModelKey, NameModel]
 ) -> dict[str, NameModel]:
-    """Return the cached name models a system uses, by catalog id, each at its cache floor.
+    """Return the cached name models a system uses, by catalog id, at its cache floor and tagset.
 
     Args:
         system: The system.
-        models: Cached models by catalog id and cache floor (`run.corpus_models`).
+        models: Cached models by catalog id, cache floor and tagset (`run.corpus_models`).
 
     Returns:
         The models `detect` needs for the system.
     """
-    return {
-        model_id: models[model_id, system.cache_floor_of(model_id)] for model_id in system.model_ids
-    }
+    return {model_id: models[system.model_key(model_id)] for model_id in system.model_ids}
 
 
 def build_system_detector(

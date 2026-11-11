@@ -47,10 +47,10 @@ class TestLoadDocument:
         assert from_bytes.to_dict() == load_document(single_page_pdf, language="cs").to_dict()
         assert from_bytes.fingerprint == hashlib.sha256(data).hexdigest()
 
-    def test_missing_file_is_named_without_its_folders(self, tmp_path: Path):
+    def test_missing_file_is_named_neither_by_file_nor_by_folders(self, tmp_path: Path):
         with pytest.raises(FileNotFoundError) as raised:
             load_document(tmp_path / "absent.pdf")
-        assert str(raised.value) == "no such file: absent.pdf"
+        assert str(raised.value) == "no such file"
 
     def test_records_neither_the_path_nor_the_file_name(self, single_page_pdf: Path):
         serialized = load_document(single_page_pdf).to_json()

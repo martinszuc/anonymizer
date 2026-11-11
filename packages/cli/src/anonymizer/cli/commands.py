@@ -12,6 +12,7 @@ from typing import TextIO
 
 from anonymizer.cli import html_report, report
 from anonymizer.core.detect import load_name_model
+from anonymizer.core.errors import Controlled
 from anonymizer.core.ingest import OcrEngine, load_document, pages_needing_ocr
 from anonymizer.core.pipeline import build_detector, resolve_language, run_detection
 from anonymizer.core.redact import export_redacted, export_redacted_text, find_leaks
@@ -23,7 +24,7 @@ EXIT_ERROR = 1
 EXIT_LEAKS = 3
 
 
-class CommandError(Exception):
+class CommandError(Controlled, Exception):
     """A problem with the user's input, reported without a traceback."""
 
 
@@ -203,7 +204,7 @@ def _reviewed_or_detected(
 def _refuse_existing(path: Path, *, force: bool) -> None:
     """Refuse to replace an existing file unless asked to."""
     if path.exists() and not force:
-        msg = f"{path} already exists; use --force to replace it"
+        msg = "the output file already exists; use --force to replace it"
         raise CommandError(msg)
 
 

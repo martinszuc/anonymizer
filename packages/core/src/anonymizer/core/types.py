@@ -38,6 +38,8 @@ from enum import StrEnum
 from typing import Any, Self
 from uuid import uuid4
 
+from anonymizer.core.errors import ControlledKeyError, ControlledValueError
+
 SCHEMA_VERSION = 6
 """Version of the serialized review format. Bump on any incompatible change."""
 
@@ -130,7 +132,7 @@ class BBox:
         """
         if self.x1 < self.x0 or self.y1 < self.y0:
             msg = f"inverted bbox: {self!r}"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
 
     @property
     def width(self) -> float:
@@ -176,7 +178,7 @@ class BBox:
             merged = box if merged is None else merged.union(box)
         if merged is None:
             msg = "enclosing() requires at least one box"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         return merged
 
     def to_list(self) -> list[float]:
@@ -198,7 +200,7 @@ class BBox:
         """
         if len(values) != 4:
             msg = f"expected 4 coordinates, got {len(values)}"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         x0, y0, x1, y1 = values
         return cls(x0, y0, x1, y1)
 
@@ -227,7 +229,7 @@ class Word:
         """
         if self.start < 0 or self.end <= self.start:
             msg = f"invalid word span [{self.start}, {self.end})"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-compatible mapping."""
@@ -490,37 +492,37 @@ class Entity:
             self._check_span()
         if self.page_index is not None and self.page_index < 0:
             msg = f"negative page index: {self.page_index}"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         if self.score is not None and not 0.0 <= self.score <= 1.0:
             msg = f"score out of range: {self.score}"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
 
     def _check_span(self) -> None:
         """Validate a text entity's span and page."""
         if self.start is None or self.end is None or self.text is None:
             msg = f"a {self.type} entity needs a text span"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         if self.start < 0 or self.end <= self.start:
             msg = f"invalid entity span [{self.start}, {self.end})"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         if self.page_index is None and self.surface_id is None:
             msg = "an entity in page text needs a page index"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
 
     def _check_region(self) -> None:
         """Validate a region: a page, one box with an area, and nothing else."""
         if self.start is not None or self.end is not None or self.text is not None:
             msg = "a region has no text span"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         if self.surface_id is not None:
             msg = "a region cannot lie on a surface"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         if self.page_index is None:
             msg = "a region needs a page index"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         if len(self.bboxes) != 1 or self.bboxes[0].width <= 0 or self.bboxes[0].height <= 0:
             msg = "a region needs exactly one box with an area"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
 
     @property
     def is_region(self) -> bool:
@@ -541,7 +543,7 @@ class Entity:
         """
         if self.start is None or self.end is None:
             msg = f"entity {self.entity_id} is a region and has no span"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         return self.start, self.end
 
     @property
@@ -636,7 +638,7 @@ class Document:
             if page.index == index:
                 return page
         msg = f"no page with index {index}"
-        raise KeyError(msg)
+        raise ControlledKeyError(msg)
 
     def surface(self, surface_id: str) -> Surface:
         """Return the surface with the given id.
@@ -654,7 +656,7 @@ class Document:
             if surface.surface_id == surface_id:
                 return surface
         msg = f"no surface with id {surface_id}"
-        raise KeyError(msg)
+        raise ControlledKeyError(msg)
 
     def entity(self, entity_id: str) -> Entity:
         """Return the entity with the given id.
@@ -672,7 +674,7 @@ class Document:
             if entity.entity_id == entity_id:
                 return entity
         msg = f"no entity with id {entity_id}"
-        raise KeyError(msg)
+        raise ControlledKeyError(msg)
 
     def adjust_span(self, entity_id: str, start: int, end: int) -> Entity:
         """Move an entity's span, e.g. after a reviewer resized its box.
@@ -696,7 +698,7 @@ class Document:
         entity = self.entity(entity_id)
         if entity.is_region:
             msg = f"entity {entity_id} is a region and has no span to adjust"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         if entity.surface_id is not None:
             surface = self.surface(entity.surface_id)
             source_text = surface.value
@@ -707,10 +709,10 @@ class Document:
             bboxes = page.bboxes_for_span(start, end)
         else:
             msg = f"entity {entity_id} has neither a page nor a surface"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         if not 0 <= start < end <= len(source_text):
             msg = f"span [{start}, {end}) is empty or outside the text of entity {entity_id}"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         entity.start, entity.end, entity.text = start, end, source_text[start:end]
         entity.bboxes = bboxes
         return entity
@@ -781,22 +783,22 @@ class Document:
         """
         if entity_type is EntityType.REGION:
             msg = "a region is drawn, not selected from the text"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         page = self.page(page_index)
         if not 0 <= start < end <= len(page.text):
             msg = f"span [{start}, {end}) is empty or outside the text of page {page_index}"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         words = list(page.words_in_span(start, end))
         if not words:
             msg = "the selection covers no word"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         start, end = _trimmed(page.text, words[0].start, words[-1].end)
         if any(
             entity.is_redactable and entity.span[0] <= start and end <= entity.span[1]
             for entity in self.entities_on_page(page_index)
         ):
             msg = "this text is already marked for redaction"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         finding = Entity(
             type=entity_type,
             page_index=page_index,
@@ -902,19 +904,19 @@ class Document:
         for entity in self.entities:
             if entity.page_index is not None and entity.page_index not in pages:
                 msg = f"entity {entity.entity_id} refers to missing page {entity.page_index}"
-                raise ValueError(msg)
+                raise ControlledValueError(msg)
             if entity.surface_id is None:
                 continue
             surface = surfaces.get(entity.surface_id)
             if surface is None:
                 msg = f"entity {entity.entity_id} refers to unknown surface {entity.surface_id}"
-                raise ValueError(msg)
+                raise ControlledValueError(msg)
             if entity.page_index != surface.page_index:
                 msg = (
                     f"entity {entity.entity_id} is on page {entity.page_index}, "
                     f"its surface on page {surface.page_index}"
                 )
-                raise ValueError(msg)
+                raise ControlledValueError(msg)
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-compatible mapping."""
@@ -945,7 +947,7 @@ class Document:
         version = data.get("schema_version", SCHEMA_VERSION)
         if version != SCHEMA_VERSION:
             msg = f"unsupported schema version {version}, expected {SCHEMA_VERSION}"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         document = cls(
             pages=[Page.from_dict(page) for page in data.get("pages", [])],
             surfaces=[Surface.from_dict(surface) for surface in data.get("surfaces", [])],

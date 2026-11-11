@@ -12,6 +12,7 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 
+from anonymizer.core.errors import ControlledValueError
 from anonymizer.core.ingest import kraken, onnxtr
 from anonymizer.core.ingest.ocr import OcrEngine
 from anonymizer.core.log import step
@@ -80,6 +81,6 @@ def load_ocr_engine(name: str, root: Path) -> OcrEngine:
     """
     if name not in OCR_ENGINES:
         msg = f"unknown OCR engine {name!r}; choose from {sorted(OCR_ENGINES)}"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     with step(log, "load OCR engine", done_level=logging.INFO, engine=name):
         return OCR_ENGINES[name](root)

@@ -54,6 +54,7 @@ from anonymizer.core.detect.gliner import (
     without_known_warnings,
 )
 from anonymizer.core.detect.nametag_model import max_length
+from anonymizer.core.errors import MissingDependencyError
 from anonymizer.core.log import step
 from anonymizer.core.resources import Catalog, load_catalog
 from anonymizer.core.types import EntityType
@@ -305,7 +306,7 @@ class TokenClassifier:
         """Encode a text's words into inputs (see the module docstring).
 
         Args:
-            text: The text.
+            text: Text to encode.
             words: Its words as character spans (`gliner_tokens`).
 
         Returns:
@@ -400,7 +401,7 @@ def load_token_classifier(model_dir: Path, tokenizer_dir: Path) -> TokenClassifi
             import transformers  # pyright: ignore[reportMissingImports]
         except ImportError as error:
             msg = "name detection needs the optional 'ner' dependencies: uv sync --group ner"
-            raise ImportError(msg) from error
+            raise MissingDependencyError(msg) from error
         tokenizer = transformers.AutoTokenizer.from_pretrained(
             str(tokenizer_dir), local_files_only=True
         )

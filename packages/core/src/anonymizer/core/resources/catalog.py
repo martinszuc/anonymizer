@@ -36,6 +36,8 @@ from importlib import resources
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
+from anonymizer.core.errors import ControlledKeyError, ControlledValueError
+
 CATALOG_SCHEMA = 1
 
 ResourceKind = Literal["model", "dataset"]
@@ -152,7 +154,7 @@ class Catalog:
             return self.resources[resource_id]
         except KeyError:
             msg = f"unknown resource {resource_id!r}"
-            raise KeyError(msg) from None
+            raise ControlledKeyError(msg) from None
 
     def with_requirements(self, resource_id: str) -> list[Resource]:
         """Return a resource preceded by everything it requires, each once.
@@ -170,7 +172,7 @@ class Catalog:
                 return
             if current_id in visiting:
                 msg = f"requirement cycle: {' -> '.join([*visiting, current_id])}"
-                raise ValueError(msg)
+                raise ControlledValueError(msg)
             visiting.append(current_id)
             for required in resource.requires:
                 visit(required)
@@ -230,19 +232,19 @@ def parse_catalog(raw: dict[str, Any], *, base: Catalog | None = None) -> Catalo
     """
     if raw.get("schema") != CATALOG_SCHEMA:
         msg = f"unsupported catalog schema {raw.get('schema')!r}, expected {CATALOG_SCHEMA}"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     catalog: dict[str, Resource] = dict(base.resources) if base is not None else {}
     for entry in raw.get("resource", []):
         resource = _parse_resource(entry, trained=base is not None)
         if resource.id in catalog:
             msg = f"duplicate resource id {resource.id!r}"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         catalog[resource.id] = resource
     for resource in catalog.values():
         for required in resource.requires:
             if required not in catalog:
                 msg = f"{resource.id}: requires unknown resource {required!r}"
-                raise ValueError(msg)
+                raise ControlledValueError(msg)
     parsed = Catalog(catalog)
     for resource_id in catalog:
         parsed.with_requirements(resource_id)
@@ -253,10 +255,10 @@ def _parse_resource(entry: dict[str, Any], *, trained: bool) -> Resource:
     resource_id = entry.get("id", "")
     if not isinstance(resource_id, str) or not _ID_PATTERN.match(resource_id):
         msg = f"invalid resource id {resource_id!r}"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
 
-    def fail(reason: str) -> ValueError:
-        return ValueError(f"{resource_id}: {reason}")
+    def fail(reason: str) -> ControlledValueError:
+        return ControlledValueError(f"{resource_id}: {reason}")
 
     kind = entry.get("kind")
     if kind not in KIND_DIRECTORIES:

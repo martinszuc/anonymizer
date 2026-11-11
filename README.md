@@ -17,7 +17,10 @@ inference; models load from a local cache and the test suite fails on any outbou
   detection (Czech and Slovak identifiers, IBAN, cards, email, phone, URL,
   labelled dates of birth, postal addresses) scoped to the document's
   language, which can be recognised from the text (`--lang auto`, the
-  window's default); blackbox redaction and a leak check on the output.
+  window's default); a birth number whose check digit is wrong is reported
+  when a label precedes it. Blackbox redaction and a leak check on the
+  output; `redact --text` writes the page text with each value replaced by
+  its label instead of a PDF.
 - **Names and addresses:** an optional name model, GLiNER (`--ner`) or another
   catalog name model such as NameTag 3 (`--name-model`); person spans are
   widened over the academic titles beside them.
@@ -39,16 +42,17 @@ inference; models load from a local cache and the test suite fails on any outbou
   from their pixels only, upright by their EXIF orientation, and redacted into
   a PDF. Photos are read as they are taken: no perspective correction or
   dewarping.
-- **Measurement:** detection quality is measured on development data only so
-  far (`experiments/results/`, the benchmark for each release). A
-  Czech/Slovak name model is trained in this repository (`python -m
-  experiments train`, fine-tuned GLiNER): three losses, and three weights of
-  the recall-weighted loss, each trained with three seeds and scored on
-  development data (`experiments/results/rq6-*`). A second family, a token
-  classifier on XLM-RoBERTa large trained from the same examples, can be
-  trained and run by catalog id; it has no results yet. The comparison with
-  existing models on reserved test data has not been run.
-- **Not yet:** Office and text formats, HEIC images, a per-OS bundle of the
+- **Measurement:** each release is scored on the synthetic benchmark;
+  `experiments/results/` holds the public-corpus tables. A Czech/Slovak name
+  model is trained in this repository (`python -m experiments train`): GLiNER
+  fine-tuned with three losses, and three weights of the recall-weighted loss,
+  and a token classifier on XLM-RoBERTa large, each trained with three seeds
+  and scored on development data (`experiments/results/rq6-*`). The union of
+  the two chosen on development data was scored once on the reserved test data
+  against NameTag 3 multilingual (`rq6-test`): ahead on person F2 and residual
+  share on REDACT, CNEC 2.0 and UNER-SK, paired 95 % intervals excluding 0
+  (`docs/findings.md`, 2026-10-29).
+- **Not yet:** Office and plain-text input formats, HEIC images, a per-OS bundle of the
   review window (see *Installing and releases*).
 
 ## Quick start
@@ -122,7 +126,8 @@ document text. See [`docs/logging.md`](docs/logging.md).
 
 For a PDF: a redacted copy in which the detected text is removed from the file,
 not covered, and every link, metadata field, attachment, bookmark, annotation and
-form field is cleared. The CLI writes a copy only if the leak check passes; the
+form field is cleared. With `--text`, the labelled page text instead; hidden items
+are not in it. The CLI writes a copy only if the leak check passes; the
 review window shows what the check found and lets the reviewer save the copy
 anyway, or turn the check off in its settings. A
 `review.json` session file records what was found and each decision; it holds
@@ -202,7 +207,7 @@ committed in `experiments/results/`; corpora and weights are not. See
 | `benchmark/` | Synthetic benchmark documents, scorer, pictures and charts |
 | `experiments/` | Evaluation harness and name-model training: corpus loaders, cached runs, scores with bootstrap intervals, results tables; no data committed |
 | `scripts/` | Model and dataset download (`download.py`), mixed-format sample generator (`make_mixed_sample.py`), review window for development (`dev.py`), the CI window tour (`ui_tour.py`, `tour-linux.sh`, `answer-macos-prompts.sh`) |
-| `docs/` | [`findings.md`](docs/findings.md) (what running the pipeline on real files showed), [`ui.md`](docs/ui.md) (review window handbook), [`logging.md`](docs/logging.md) |
+| `docs/` | [`findings.md`](docs/findings.md) (what running the pipeline on real files showed), [`ui.md`](docs/ui.md) (review window handbook), [`logging.md`](docs/logging.md), [`metacentrum.md`](docs/metacentrum.md) (GPU training jobs) |
 | `tests/` | pytest suite; synthetic PDFs are built by `tests/pdf_builders.py` |
 
 ## Development

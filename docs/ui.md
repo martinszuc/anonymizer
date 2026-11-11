@@ -187,7 +187,7 @@ workflow, which opens the window, performs the basic tasks and photographs
 each step whenever the window or the core changes (see *Window tour*).
 
 Not yet: resizing a box, changing options on an open
-document, mixing OCR engines within one document.
+document, mixing OCR engines within one document, export as text.
 See *Backlog*.
 
 ## Architecture
@@ -396,13 +396,10 @@ npm run build && uv run anonymize-ui some.pdf --lang cs          # real window, 
 uv run anonymize-ui some.pdf --log-level info --log-file run.log # milestones, kept in a file
 ```
 
-`--debug` is the web inspector (right-click → Inspect Element, or F12 where the
-platform has it; it does not open on its own) and debug logging together: every step of
-opening, detecting and exporting, and every word found with its rule or model,
-on stderr. The log holds document text; INFO and above never do, and no file
-exists unless `--log-file` names one. Every page call is logged by `_logged` in
-`app.py` (a refusal is a warning, anything else an error; never the message).
-How to log from a new method: [`docs/logging.md`](logging.md).
+`--debug` is the web inspector and debug logging together; the options and what
+a log may hold are in [`docs/logging.md`](logging.md), which also says how to log
+from a new method. Every page call is logged by `_logged` in `app.py` (a refusal
+is a warning, anything else an error; never the message).
 
 The page can be previewed in a browser with `npm run dev`
 (the demo document appears after *Open Document…*). The demo never goes through
@@ -520,8 +517,8 @@ In suggested order. Each item names where it plugs in.
 8. **OCR quality in review:** show OCR's confidence per word and flag
     low-confidence words (an `@` read as `(m` hides an email from the rules),
     and offer a second engine once RapidOCR or EasyOCR is in the catalog.
-9. **Label mode preview** once labels exist: preview draws `[NAME]`
-    instead of black boxes.
+9. **Label mode preview:** preview draws the label (`[PERSON]`, as in the text
+    export) instead of black boxes.
 10. **Accessibility pass:** boxes are not keyboard-reachable (the list is the
     keyboard path); run a WCAG review of both themes.
 11. **Packaging:** PyInstaller bundle per OS; test Windows (WebView2)

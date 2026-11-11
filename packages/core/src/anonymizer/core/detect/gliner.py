@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Any, Protocol, cast
 
 from anonymizer.core.detect.base import describe, merge_entities
+from anonymizer.core.errors import ControlledFileNotFoundError, MissingDependencyError
 from anonymizer.core.log import fields, step
 from anonymizer.core.resources import Catalog, load_catalog, missing_resources
 from anonymizer.core.types import DetectionSource, Entity, EntityType, Page
@@ -380,8 +381,8 @@ def require_stored(catalog: Catalog, model_id: str, root: Path) -> None:
         if catalog[model_id].trained and model_id in missing
         else f"fetch them with: uv run python scripts/download.py fetch {model_id}"
     )
-    msg = f"model files missing under {root}: {', '.join(missing)}; {remedy}"
-    raise FileNotFoundError(msg)
+    msg = f"model files missing: {', '.join(missing)}; {remedy}"
+    raise ControlledFileNotFoundError(msg)
 
 
 def encoder_resource(catalog: Catalog, model_id: str) -> str:
@@ -425,7 +426,7 @@ def load_gliner(model_dir: Path, encoder_dir: Path) -> SpanModel:
             from gliner import GLiNER  # pyright: ignore[reportMissingImports]
         except ImportError as error:
             msg = "name detection needs the optional 'ner' dependencies: uv sync --group ner"
-            raise ImportError(msg) from error
+            raise MissingDependencyError(msg) from error
         with _local_encoder(encoder_dir):
             model = GLiNER.from_pretrained(str(model_dir), local_files_only=True)
     # gliner types the result as a union of every architecture it can load;

@@ -24,6 +24,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from anonymizer.core.errors import ControlledValueError
 from anonymizer.core.ingest import DEFAULT_OCR_DPI, OcrEngine, load_document
 from anonymizer.core.log import short_fingerprint
 from anonymizer.core.types import SCHEMA_VERSION, Document, Entity
@@ -48,7 +49,7 @@ def session_to_dict(document: Document) -> dict[str, Any]:
     """
     if document.fingerprint is None:
         msg = "document carries no fingerprint; load it from the file with load_document"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     return {
         "format": SESSION_FORMAT,
         "schema_version": SCHEMA_VERSION,
@@ -122,7 +123,7 @@ def apply_session(document: Document, session_path: Path | str) -> Document:
     version = data.get("schema_version")
     if version != SCHEMA_VERSION:
         msg = f"unsupported session version {version}, expected {SCHEMA_VERSION}"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     if document.fingerprint != data.get("fingerprint"):
         log.warning(
             "session refused: it belongs to a different file (session %s, document %s)",
@@ -130,7 +131,7 @@ def apply_session(document: Document, session_path: Path | str) -> Document:
             short_fingerprint(document.fingerprint),
         )
         msg = "session belongs to a different file"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     _check_ocr_engine(data.get("ocr_engine"), document.ocr_engine)
     document.language = data.get("language")
     document.entities = [Entity.from_dict(entity) for entity in data.get("entities", [])]
@@ -164,7 +165,7 @@ def _read_session(session_path: Path | str) -> dict[str, Any]:
     data = json.loads(Path(session_path).read_text(encoding="utf-8"))
     if not isinstance(data, dict) or data.get("format") != SESSION_FORMAT:
         msg = "not a session file"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     return data
 
 
@@ -181,7 +182,7 @@ def _check_ocr_engine(recorded: str | None, used: str | None) -> None:
         )
     else:
         msg = f"the review was made with OCR engine {recorded!r}, not {used!r}"
-    raise ValueError(msg)
+    raise ControlledValueError(msg)
 
 
 def _check_covered_text(document: Document) -> None:
@@ -194,7 +195,7 @@ def _check_covered_text(document: Document) -> None:
             f"{len(stale)} entities no longer cover the text they recorded "
             f"(first: {stale[0]}); the PDF or its extraction changed"
         )
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
 
 
 def _still_covers(document: Document, entity: Entity) -> bool:

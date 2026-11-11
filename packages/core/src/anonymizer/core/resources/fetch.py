@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from anonymizer.core.errors import Controlled
 from anonymizer.core.log import step
 from anonymizer.core.resources.catalog import Catalog, Resource, ResourceFile
 
@@ -41,15 +42,15 @@ Opener = Callable[[str], Any]
 """Opens a URL and returns a context manager yielding a readable response."""
 
 
-class ChecksumError(ValueError):
+class ChecksumError(Controlled, ValueError):
     """A downloaded or stored file does not match the catalog."""
 
 
-class PinRequiredError(ValueError):
+class PinRequiredError(Controlled, ValueError):
     """A file has no SHA-256 in the catalog and pinning was not requested."""
 
 
-class NotDownloadableError(ValueError):
+class NotDownloadableError(Controlled, ValueError):
     """A file of a model trained on this machine is missing; there is nowhere to fetch it from."""
 
 

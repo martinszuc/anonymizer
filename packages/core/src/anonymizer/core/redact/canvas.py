@@ -17,6 +17,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 import pymupdf
+from anonymizer.core.errors import ControlledValueError
 
 # Page dictionary entries the enlargement touches, restored verbatim afterwards.
 _PAGE_GEOMETRY_KEYS = ("MediaBox", "CropBox", "BleedBox", "TrimBox", "ArtBox", "Rotate")
@@ -44,7 +45,7 @@ def full_canvas(page: pymupdf.Page) -> Iterator[pymupdf.Rect]:
     pdf = page.parent
     if pdf is None:
         msg = "page is detached from its document; load it again"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     saved = {key: pdf.xref_get_key(page.xref, key) for key in _PAGE_GEOMETRY_KEYS}
     visible = _visible_area_in_pdf_space(page)
     page.set_rotation(0)

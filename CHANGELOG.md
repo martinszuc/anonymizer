@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.8.0 (2026-11-11)
+
+<!-- Release notes generated using configuration in .github/release.yml at main -->
+
+## What's Changed
+### Software
+* fix(detect): card numbers next to other digits, partial overlaps in propagation by @martinszuc in https://github.com/martinszuc/anonymizer/pull/142
+* refactor: drop docstrings that repeat the function name by @martinszuc in https://github.com/martinszuc/anonymizer/pull/143
+* fix: show only our own exception messages in the CLI and the window by @martinszuc in https://github.com/martinszuc/anonymizer/pull/144
+* fix(detect): birth-number labels as forms write them, hyphen separator by @martinszuc in https://github.com/martinszuc/anonymizer/pull/145
+* docs: status after the final test, text export, labelled birth numbers by @martinszuc in https://github.com/martinszuc/anonymizer/pull/147
+* feat(benchmark): compare redaction methods by what they leave extractable by @martinszuc in https://github.com/martinszuc/anonymizer/pull/146
+* feat(ui): export the labelled text from the review window by @martinszuc in https://github.com/martinszuc/anonymizer/pull/148
+### Experiments
+* feat(experiments): NameTag 3 multilingual in each of its tagsets by @martinszuc in https://github.com/martinszuc/anonymizer/pull/149
+* chore(experiments): benchmark with the chosen model by @martinszuc in https://github.com/martinszuc/anonymizer/pull/150
+
+
+**Full Changelog**: https://github.com/martinszuc/anonymizer/compare/v0.7.0...v0.8.0
+
 ## 0.7.0 (2026-11-02)
 
 <!-- Release notes generated using configuration in .github/release.yml at main -->

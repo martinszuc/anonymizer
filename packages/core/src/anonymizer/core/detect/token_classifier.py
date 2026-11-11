@@ -305,7 +305,7 @@ class TokenClassifier:
         """Encode a text's words into inputs (see the module docstring).
 
         Args:
-            text: The text.
+            text: Text to encode.
             words: Its words as character spans (`gliner_tokens`).
 
         Returns:

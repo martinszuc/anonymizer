@@ -10,6 +10,7 @@ uv run python -m benchmark run --out benchmark-results --systems rules   # no mo
 uv run python -m benchmark run --out benchmark-results --systems rules,rules+<catalog id>
 uv run python -m benchmark history run-a/results.json run-b/results.json --out charts
 uv run python -m benchmark diff baseline/results.json run/results.json   # per type, Markdown
+uv run python -m benchmark leaks --out leaks                             # redaction methods compared
 uv run python -m benchmark backfill v0.4.0 v0.5.0 --out backfill        # earlier code, current documents
 ```
 
@@ -158,6 +159,35 @@ when the two runs are on different document sets, and never fails the job.
 - **safe** — after redaction, no planted item is readable, whole or as a word
   unique to it. The leak check only verifies that *detected* items are gone;
   this is the measure of what was never detected.
+
+## Redaction compared with naive methods
+
+`benchmark leaks --out leaks [--documents cs-cv,cs-email]` answers what this
+tool's redaction removes that a simpler one leaves. Detection is taken out:
+the targets are the planted items themselves (an oracle), so only the method
+of removal differs. Each document is redacted three ways:
+
+- **black rectangle**: drawn over every item's words, the text left under it;
+- **apply_redactions**: PyMuPDF redaction annotations over the same boxes,
+  applied, with nothing else cleared (page text only);
+- **this tool**: `export_redacted`, the entry point of the CLI and the review
+  window. A copy its leak check refuses is written without the check, so the
+  count is of what redaction left and the refusal is reported on its own.
+
+Every copy is saved and read again: page text and surfaces by ingest, text
+outside the visible area by `redact.canvas.off_page_words`, and an item is
+*extractable* when its own carrier still holds it, whole or as a word unique to
+it (the rule of *left there* above). The count does not depend on what a method
+says it removed. The leak check is run on each copy as well and its leaks listed
+by layer, which shows whether it notices the naive copies.
+
+The documents plant nothing in a tagged PDF's structure tree or outside the
+visible area, so the command adds one invented name to each document's
+structure tree and one beyond the page edge before redacting; they appear as
+the carriers `structure` and `off_page` and add two to every document's item
+count. Output: `leaks.json` (every item, per method), `leaks.md`, `leaks.tex`
+(the per-carrier table, booktabs, ready to `\input`) and `pdf/` with the
+originals and the three copies. It runs in seconds and needs no model.
 
 ## Documents
 

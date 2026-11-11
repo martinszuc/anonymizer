@@ -1,6 +1,7 @@
 """Command line: `uv run python -m benchmark run --out results/` (or another command).
 
-The commands: `run`, `ocr`, `ocr-margin`, `ocr-probe`, `history`, `diff`, `backfill`.
+The commands: `run`, `leaks`, `ocr`, `ocr-margin`, `ocr-probe`, `history`, `diff`,
+`backfill`.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from anonymizer.core.resources import load_catalog, resolve_resource_root
 from benchmark.backfill import backfill
 from benchmark.degrade import LEVELS, level_named
 from benchmark.diff import diff_markdown
+from benchmark.leaks import run_leaks
 from benchmark.ocr_margin import MARGINS, margins_markdown, run_margins
 from benchmark.ocr_probe import probe, probe_markdown, write_probe
 from benchmark.ocr_run import ENGINES, ocr_markdown, run_ocr
@@ -36,6 +38,13 @@ def main(argv: list[str] | None = None) -> int:
         help=f"comma-separated systems, rules or rules+<name model> (default: {','.join(SYSTEMS)})",
     )
     _add_resource_root(run_parser)
+    leaks_parser = commands.add_parser(
+        "leaks", help="compare redaction methods by what they leave extractable"
+    )
+    leaks_parser.add_argument("--out", type=Path, required=True, help="directory for results")
+    leaks_parser.add_argument(
+        "--documents", default="", help="comma-separated document names (default: all)"
+    )
     ocr_parser = commands.add_parser("ocr", help="score OCR engines on degraded scans")
     ocr_parser.add_argument("--out", type=Path, required=True, help="directory for results")
     ocr_parser.add_argument(
@@ -94,7 +103,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     _add_resource_root(backfill_parser)
     args = parser.parse_args(argv)
-    if args.command not in ("history", "diff"):
+    if args.command not in ("history", "diff", "leaks"):
         args.resource_root = resolve_resource_root(args.resource_root)
         _check_system(parser, args)
 
@@ -106,6 +115,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "diff":
         print(diff_markdown(_read_json(args.baseline), _read_json(args.current)), end="")
+        return 0
+    if args.command == "leaks":
+        run_leaks(args.out, names=_names(args.documents))
+        print((args.out / "leaks.md").read_text(encoding="utf-8"), end="")
         return 0
     if args.command == "backfill":
         for path in backfill(

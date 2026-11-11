@@ -1,0 +1,6158 @@
+{
+  "schema": 1,
+  "created": "2026-11-11T02:02:47+00:00",
+  "tool_version": "0.7.0",
+  "git_commit": "6b89b0b9b4b022ef6ae2c13e6c7f5104bc94d450",
+  "machine": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "processor": "arm",
+    "python": "3.12.14"
+  },
+  "document_set": {
+    "fingerprint": "3ae0e05688044ffdd33493962c9379e4993141a55c36f0e88ed66b1ad2e94e30",
+    "documents": 26
+  },
+  "methods": [
+    "overlay",
+    "apply_redactions",
+    "tool"
+  ],
+  "injected": [
+    "Bohumil Zahradnik",
+    "Radomir Pekarek"
+  ],
+  "documents": {
+    "cs-contract": {
+      "summary": {
+        "name": "cs-contract",
+        "kind": "contract",
+        "items": 14
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Ondřej Dvořák",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "date",
+              "text": "12. 6. 1988",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "birth_number",
+              "text": "880612/1005",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Masarykova 112, 586 01 Jihlava",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Nádražní 7, 370 01 České Budějovice",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "bank_account",
+              "text": "19-2000145399/0800",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Petra Svobody",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Ondřeji Dvořákovi",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Ondřej Dvořák",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 14,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "page_text": 9,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Ondřej Dvořák",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "12. 6. 1988",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "birth_number",
+              "text": "880612/1005",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Masarykova 112, 586 01 Jihlava",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Nádražní 7, 370 01 České Budějovice",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "bank_account",
+              "text": "19-2000145399/0800",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Petra Svobody",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Ondřeji Dvořákovi",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Ondřej Dvořák",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Ondřej Dvořák",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "12. 6. 1988",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "birth_number",
+              "text": "880612/1005",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Masarykova 112, 586 01 Jihlava",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Nádražní 7, 370 01 České Budějovice",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "bank_account",
+              "text": "19-2000145399/0800",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Petra Svobody",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Ondřeji Dvořákovi",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Ondřej Dvořák",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-cv": {
+      "summary": {
+        "name": "cs-cv",
+        "kind": "cv",
+        "items": 16
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Tereza Procházková",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "date",
+              "text": "14. 3. 1991",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Kounicova 684/12, 602 00 Brno",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "+420 777 123 456",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "tereza.prochazkova@example.com",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Ondřejem Dvořákem",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "603 987 654",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "+420777123456",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "tereza.prochazkova@example.com",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "url",
+              "text": "https://github.com/tereza-prochazkova-demo",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Tereza Procházková",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "id_number",
+              "text": "TP-448812",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Tereza Procházková",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 16,
+          "leak_layers": {
+            "file_bytes": 4,
+            "object": 4,
+            "off_page_text": 2,
+            "page_text": 8,
+            "surface": 8
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Tereza Procházková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "14. 3. 1991",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Kounicova 684/12, 602 00 Brno",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+420 777 123 456",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "tereza.prochazkova@example.com",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Ondřejem Dvořákem",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "603 987 654",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+420777123456",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "tereza.prochazkova@example.com",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "url",
+              "text": "https://github.com/tereza-prochazkova-demo",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Tereza Procházková",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "id_number",
+              "text": "TP-448812",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Tereza Procházková",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 8,
+          "leak_layers": {
+            "file_bytes": 4,
+            "object": 4,
+            "off_page_text": 2,
+            "surface": 8
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Tereza Procházková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "14. 3. 1991",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Kounicova 684/12, 602 00 Brno",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+420 777 123 456",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "tereza.prochazkova@example.com",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Ondřejem Dvořákem",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Kateřina Veselá",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "603 987 654",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+420777123456",
+              "carrier": "link",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "tereza.prochazkova@example.com",
+              "carrier": "link",
+              "left": false
+            },
+            {
+              "type": "url",
+              "text": "https://github.com/tereza-prochazkova-demo",
+              "carrier": "link",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Tereza Procházková",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "id_number",
+              "text": "TP-448812",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Tereza Procházková",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-decision": {
+      "summary": {
+        "name": "cs-decision",
+        "kind": "decision",
+        "items": 15
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Alena Doubravová",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "495 707 412",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Vojtěch Sýkora",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "date",
+              "text": "14. 2. 1958",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Gočárova třída 1754/48, 500 02 Hradec Králové",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "id_number",
+              "text": "4H2 7781",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Hana Malinová",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Sýkora",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Vojtěcha Sýkory",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Alena Doubravová",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Vojtěch Sýkora",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Gočárova třída 1754/48, 500 02 Hradec Králové",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Vojtěch Sýkora",
+              "carrier": "bookmark",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 15,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "page_text": 9,
+            "surface": 6
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Alena Doubravová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "495 707 412",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Vojtěch Sýkora",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "14. 2. 1958",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Gočárova třída 1754/48, 500 02 Hradec Králové",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "id_number",
+              "text": "4H2 7781",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Hana Malinová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Sýkora",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Vojtěcha Sýkory",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Alena Doubravová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Vojtěch Sýkora",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Gočárova třída 1754/48, 500 02 Hradec Králové",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Vojtěch Sýkora",
+              "carrier": "bookmark",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 3,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 6
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Alena Doubravová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "495 707 412",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Vojtěch Sýkora",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "14. 2. 1958",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Gočárova třída 1754/48, 500 02 Hradec Králové",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "id_number",
+              "text": "4H2 7781",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Hana Malinová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Sýkora",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Vojtěcha Sýkory",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Alena Doubravová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Vojtěch Sýkora",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Gočárova třída 1754/48, 500 02 Hradec Králové",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Vojtěch Sýkora",
+              "carrier": "bookmark",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-email": {
+      "summary": {
+        "name": "cs-email",
+        "kind": "email",
+        "items": 17
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Barbora Čermáková",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "barbora.cermakova@example.com",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Filip Navrátil",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "f.navratil@example.org",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Navrátile",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Roman Bartoš",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "732 905 118",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Lipová 377, 763 15 Slušovice",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Barbora Čermáková",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Filip Navrátil",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Báro",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bartoš",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Filip",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "barbora.cermakova@example.com",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Barbora Čermáková",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 17,
+          "leak_layers": {
+            "file_bytes": 2,
+            "object": 2,
+            "off_page_text": 2,
+            "page_text": 11,
+            "surface": 6
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Barbora Čermáková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "barbora.cermakova@example.com",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Filip Navrátil",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "f.navratil@example.org",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Navrátile",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Roman Bartoš",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "732 905 118",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Lipová 377, 763 15 Slušovice",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Barbora Čermáková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Filip Navrátil",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Báro",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bartoš",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Filip",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "barbora.cermakova@example.com",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Barbora Čermáková",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 4,
+          "leak_layers": {
+            "file_bytes": 2,
+            "object": 2,
+            "off_page_text": 2,
+            "surface": 6
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Barbora Čermáková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "barbora.cermakova@example.com",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Filip Navrátil",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "f.navratil@example.org",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Navrátile",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Roman Bartoš",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "732 905 118",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Lipová 377, 763 15 Slušovice",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Barbora Čermáková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Filip Navrátil",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Báro",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bartoš",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Filip",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "barbora.cermakova@example.com",
+              "carrier": "link",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Barbora Čermáková",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-employment-contract": {
+      "summary": {
+        "name": "cs-employment-contract",
+        "kind": "contract",
+        "items": 20
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Radkem Hájkem",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Petr Kalous",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "date",
+              "text": "23. 4. 1979",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "birth_number",
+              "text": "790423/4129",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Zahradní 418, 569 43 Jevíčko",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Petra Kalouse",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "bank_account",
+              "text": "35-4718203657/0100",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Petru Kalousovi",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Zdeňka Marková",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Jitku Brabcovou",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "461 723 118",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "jitka.brabcova@example.com",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radek Hájek",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Petr Kalous",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Kalous",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Jitka Brabcová",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Jitka Brabcová",
+              "carrier": "xmp",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Petr Kalous",
+              "carrier": "xmp",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 20,
+          "leak_layers": {
+            "file_bytes": 3,
+            "object": 3,
+            "off_page_text": 2,
+            "page_text": 14,
+            "surface": 6
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Radkem Hájkem",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Petr Kalous",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "23. 4. 1979",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "birth_number",
+              "text": "790423/4129",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Zahradní 418, 569 43 Jevíčko",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Petra Kalouse",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "bank_account",
+              "text": "35-4718203657/0100",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Petru Kalousovi",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Zdeňka Marková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jitku Brabcovou",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "461 723 118",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "jitka.brabcova@example.com",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radek Hájek",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Petr Kalous",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Kalous",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Jitka Brabcová",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Jitka Brabcová",
+              "carrier": "xmp",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Petr Kalous",
+              "carrier": "xmp",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 6,
+          "leak_layers": {
+            "file_bytes": 3,
+            "object": 3,
+            "off_page_text": 2,
+            "surface": 6
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Radkem Hájkem",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Petr Kalous",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "23. 4. 1979",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "birth_number",
+              "text": "790423/4129",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Zahradní 418, 569 43 Jevíčko",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Petra Kalouse",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "bank_account",
+              "text": "35-4718203657/0100",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Petru Kalousovi",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Zdeňka Marková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jitku Brabcovou",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "461 723 118",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "jitka.brabcova@example.com",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radek Hájek",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Petr Kalous",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Kalous",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jitka Brabcová",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jitka Brabcová",
+              "carrier": "xmp",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Petr Kalous",
+              "carrier": "xmp",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-gym-rules": {
+      "summary": {
+        "name": "cs-gym-rules",
+        "kind": "rules",
+        "items": 2
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-invoice": {
+      "summary": {
+        "name": "cs-invoice",
+        "kind": "invoice",
+        "items": 8
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jan Novák",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "company_id",
+              "text": "73120456",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Lidická 1879/48, 602 00 Brno",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "bank_account",
+              "text": "19-2000145399/0800",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Jan Novák",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "+420 603 555 120",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 8,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "page_text": 5,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jan Novák",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "company_id",
+              "text": "73120456",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Lidická 1879/48, 602 00 Brno",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "bank_account",
+              "text": "19-2000145399/0800",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jan Novák",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+420 603 555 120",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jan Novák",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "company_id",
+              "text": "73120456",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Lidická 1879/48, 602 00 Brno",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "bank_account",
+              "text": "19-2000145399/0800",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jan Novák",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+420 603 555 120",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-long-report": {
+      "summary": {
+        "name": "cs-long-report",
+        "kind": "minutes",
+        "items": 5
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jana Malá",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Lukáš Černý",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "lukas.cerny@example.com",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 5,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "page_text": 3,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jana Malá",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Lukáš Černý",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "lukas.cerny@example.com",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jana Malá",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Lukáš Černý",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "lukas.cerny@example.com",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-notice": {
+      "summary": {
+        "name": "cs-notice",
+        "kind": "notice",
+        "items": 2
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-owners-minutes": {
+      "summary": {
+        "name": "cs-owners-minutes",
+        "kind": "minutes",
+        "items": 18
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Zdeněk Vrána",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Olga Benešová",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Miloš Musil",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Daniela Krejčí",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Pavel Zeman",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Dvořákovi",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Zdeněk Vrána",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Olga Benešová",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Musil",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Krejčí",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Pavel Zeman",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Vránu",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Zemanem",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Olze Benešové",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Olga Benešová",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Zdeněk Vrána",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 18,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "page_text": 11,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Zdeněk Vrána",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Olga Benešová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Miloš Musil",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Daniela Krejčí",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Pavel Zeman",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Dvořákovi",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Zdeněk Vrána",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Olga Benešová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Musil",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Krejčí",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Pavel Zeman",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Vránu",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Zemanem",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Olze Benešové",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Olga Benešová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Zdeněk Vrána",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Zdeněk Vrána",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Olga Benešová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Miloš Musil",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Daniela Krejčí",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Pavel Zeman",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Dvořákovi",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Zdeněk Vrána",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Olga Benešová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Musil",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Krejčí",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Pavel Zeman",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Vránu",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Zemanem",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Olze Benešové",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Olga Benešová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Zdeněk Vrána",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-power-of-attorney": {
+      "summary": {
+        "name": "cs-power-of-attorney",
+        "kind": "authorization",
+        "items": 13
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jaroslava Hrušková",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "date",
+              "text": "3. 5. 1971",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "birth_number",
+              "text": "715503/3820",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "id_number",
+              "text": "205418763",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Nádražní 845/3, 702 00 Ostrava",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Tomáše Vlčka",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Hruškové",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Jaroslava Hrušková",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Tomáš Vlček",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "hruskova",
+              "carrier": "embedded_file",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Jaroslava Hrušková",
+              "carrier": "embedded_file",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 13,
+          "leak_layers": {
+            "file_bytes": 2,
+            "object": 2,
+            "off_page_text": 2,
+            "page_text": 8,
+            "surface": 9
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jaroslava Hrušková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "3. 5. 1971",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "birth_number",
+              "text": "715503/3820",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "id_number",
+              "text": "205418763",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Nádražní 845/3, 702 00 Ostrava",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Tomáše Vlčka",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Hruškové",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jaroslava Hrušková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Tomáš Vlček",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "hruskova",
+              "carrier": "embedded_file",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Jaroslava Hrušková",
+              "carrier": "embedded_file",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 4,
+          "leak_layers": {
+            "file_bytes": 2,
+            "object": 2,
+            "off_page_text": 2,
+            "surface": 9
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jaroslava Hrušková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "3. 5. 1971",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "birth_number",
+              "text": "715503/3820",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "id_number",
+              "text": "205418763",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Nádražní 845/3, 702 00 Ostrava",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Tomáše Vlčka",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Hruškové",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jaroslava Hrušková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Tomáš Vlček",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "hruskova",
+              "carrier": "embedded_file",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jaroslava Hrušková",
+              "carrier": "embedded_file",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-privacy-notice": {
+      "summary": {
+        "name": "cs-privacy-notice",
+        "kind": "policy",
+        "items": 2
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-rental-contract": {
+      "summary": {
+        "name": "cs-rental-contract",
+        "kind": "contract",
+        "items": 22
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jiří Holub",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "date",
+              "text": "30. 9. 1964",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Palackého třída 1243/18, 612 00 Brno",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Lenka Šimková",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "date",
+              "text": "8. 11. 1992",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Komenského 56, 674 01 Třebíč",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "+420 731 482 905",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "lenka.simkova@example.org",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Veveří 2581/102, 616 00 Brno",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "iban",
+              "text": "CZ63 0800 0000 0028 4756 1937",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Lence Šimkové",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Jiřího Holuba",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Martin Holub",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "604 218 377",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Martina Holuba",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Jiří Holub",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Lenka Šimková",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Lenka Šimková",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Martin Holub",
+              "carrier": "annotation",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Šimkové",
+              "carrier": "annotation",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 22,
+          "leak_layers": {
+            "file_bytes": 2,
+            "object": 2,
+            "off_page_text": 2,
+            "page_text": 16,
+            "surface": 6
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jiří Holub",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "30. 9. 1964",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Palackého třída 1243/18, 612 00 Brno",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Lenka Šimková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "8. 11. 1992",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Komenského 56, 674 01 Třebíč",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+420 731 482 905",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "lenka.simkova@example.org",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Veveří 2581/102, 616 00 Brno",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "iban",
+              "text": "CZ63 0800 0000 0028 4756 1937",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Lence Šimkové",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jiřího Holuba",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Martin Holub",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "604 218 377",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Martina Holuba",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jiří Holub",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Lenka Šimková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Lenka Šimková",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Martin Holub",
+              "carrier": "annotation",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Šimkové",
+              "carrier": "annotation",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 5,
+          "leak_layers": {
+            "file_bytes": 2,
+            "object": 2,
+            "off_page_text": 2,
+            "surface": 6
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jiří Holub",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "30. 9. 1964",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Palackého třída 1243/18, 612 00 Brno",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Lenka Šimková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "8. 11. 1992",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Komenského 56, 674 01 Třebíč",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+420 731 482 905",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "lenka.simkova@example.org",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Veveří 2581/102, 616 00 Brno",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "iban",
+              "text": "CZ63 0800 0000 0028 4756 1937",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Lence Šimkové",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jiřího Holuba",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Martin Holub",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "604 218 377",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Martina Holuba",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jiří Holub",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Lenka Šimková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Lenka Šimková",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Martin Holub",
+              "carrier": "annotation",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Šimkové",
+              "carrier": "annotation",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-school-form": {
+      "summary": {
+        "name": "cs-school-form",
+        "kind": "form",
+        "items": 20
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Tobiáš Kučera",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Tobiáš Kučera",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Tobiáš Kučera",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "date",
+              "text": "15. 7. 2017",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "date",
+              "text": "15. 7. 2017",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "birth_number",
+              "text": "170715/4416",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "birth_number",
+              "text": "170715/4416",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Bezručova 1680",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Bezručova 1680",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "756 61 Rožnov pod Radhoštěm",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "756 61 Rožnov pod Radhoštěm",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Markéta Kučerová",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Markéta Kučerová",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "+420 739 104 552",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "+420 739 104 552",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "marketa.kucerova@example.net",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "marketa.kucerova@example.net",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Ivana Pospíšilová",
+              "carrier": "annotation",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 20,
+          "leak_layers": {
+            "file_bytes": 5,
+            "object": 9,
+            "off_page_text": 2,
+            "page_text": 8,
+            "surface": 14
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Tobiáš Kučera",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Tobiáš Kučera",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Tobiáš Kučera",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "date",
+              "text": "15. 7. 2017",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "date",
+              "text": "15. 7. 2017",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "birth_number",
+              "text": "170715/4416",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "birth_number",
+              "text": "170715/4416",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Bezručova 1680",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Bezručova 1680",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "756 61 Rožnov pod Radhoštěm",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "756 61 Rožnov pod Radhoštěm",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Markéta Kučerová",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Markéta Kučerová",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "+420 739 104 552",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "+420 739 104 552",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "marketa.kucerova@example.net",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "marketa.kucerova@example.net",
+              "carrier": "form_field",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Ivana Pospíšilová",
+              "carrier": "annotation",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 20,
+          "leak_layers": {
+            "file_bytes": 5,
+            "object": 9,
+            "off_page_text": 2,
+            "page_text": 8,
+            "surface": 14
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Tobiáš Kučera",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Tobiáš Kučera",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Tobiáš Kučera",
+              "carrier": "form_field",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "15. 7. 2017",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "15. 7. 2017",
+              "carrier": "form_field",
+              "left": false
+            },
+            {
+              "type": "birth_number",
+              "text": "170715/4416",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "birth_number",
+              "text": "170715/4416",
+              "carrier": "form_field",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Bezručova 1680",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Bezručova 1680",
+              "carrier": "form_field",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "756 61 Rožnov pod Radhoštěm",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "756 61 Rožnov pod Radhoštěm",
+              "carrier": "form_field",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Markéta Kučerová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Markéta Kučerová",
+              "carrier": "form_field",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+420 739 104 552",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+420 739 104 552",
+              "carrier": "form_field",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "marketa.kucerova@example.net",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "marketa.kucerova@example.net",
+              "carrier": "form_field",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Ivana Pospíšilová",
+              "carrier": "annotation",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "cs-terms": {
+      "summary": {
+        "name": "cs-terms",
+        "kind": "terms",
+        "items": 2
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "en-cv": {
+      "summary": {
+        "name": "en-cv",
+        "kind": "cv",
+        "items": 9
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jordan Ellis",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "742 Evergreen Terrace, Springfield, IL 62704",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "(212) 555-0147",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "jordan.ellis@example.net",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Priya Raman",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "url",
+              "text": "https://www.linkedin.com/in/jordan-ellis-demo",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Jordan Ellis",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 9,
+          "leak_layers": {
+            "file_bytes": 2,
+            "object": 2,
+            "off_page_text": 2,
+            "page_text": 5,
+            "surface": 5
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jordan Ellis",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "742 Evergreen Terrace, Springfield, IL 62704",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "(212) 555-0147",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "jordan.ellis@example.net",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Priya Raman",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "url",
+              "text": "https://www.linkedin.com/in/jordan-ellis-demo",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Jordan Ellis",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 4,
+          "leak_layers": {
+            "file_bytes": 2,
+            "object": 2,
+            "off_page_text": 2,
+            "surface": 5
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Jordan Ellis",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "742 Evergreen Terrace, Springfield, IL 62704",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "(212) 555-0147",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "jordan.ellis@example.net",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Priya Raman",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "url",
+              "text": "https://www.linkedin.com/in/jordan-ellis-demo",
+              "carrier": "link",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Jordan Ellis",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "en-email": {
+      "summary": {
+        "name": "en-email",
+        "kind": "email",
+        "items": 11
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Samuel Okafor",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "s.okafor@example.net",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Rachel",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Alan Whitfield",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Megan",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "+44 7700 900461",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Sam",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "s.okafor@example.net",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "okafor",
+              "carrier": "embedded_file",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 11,
+          "leak_layers": {
+            "file_bytes": 3,
+            "object": 4,
+            "off_page_text": 2,
+            "page_text": 8,
+            "surface": 10
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Samuel Okafor",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "s.okafor@example.net",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Rachel",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Alan Whitfield",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Megan",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+44 7700 900461",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Sam",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "s.okafor@example.net",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "okafor",
+              "carrier": "embedded_file",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 4,
+          "leak_layers": {
+            "file_bytes": 3,
+            "object": 4,
+            "off_page_text": 2,
+            "surface": 10
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Samuel Okafor",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "s.okafor@example.net",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Rachel",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Alan Whitfield",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Megan",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+44 7700 900461",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Sam",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "s.okafor@example.net",
+              "carrier": "link",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "okafor",
+              "carrier": "embedded_file",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "en-handbook": {
+      "summary": {
+        "name": "en-handbook",
+        "kind": "policy",
+        "items": 2
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "en-letter": {
+      "summary": {
+        "name": "en-letter",
+        "kind": "letter",
+        "items": 13
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "58 Maple Avenue, Apt 4B, Madison, WI 53703",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "credit_card",
+              "text": "4528 0391 7264 5015",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "(608) 555-0193",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "olivia.carter@example.com",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "date",
+              "text": "March 12, 1990",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Daniel Carter",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Kevin Doyle",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "xmp",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 13,
+          "leak_layers": {
+            "file_bytes": 2,
+            "object": 3,
+            "off_page_text": 2,
+            "page_text": 8,
+            "surface": 6
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "58 Maple Avenue, Apt 4B, Madison, WI 53703",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "credit_card",
+              "text": "4528 0391 7264 5015",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "(608) 555-0193",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "olivia.carter@example.com",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "March 12, 1990",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Daniel Carter",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Kevin Doyle",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "xmp",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 4,
+          "leak_layers": {
+            "file_bytes": 2,
+            "object": 3,
+            "off_page_text": 2,
+            "surface": 6
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "58 Maple Avenue, Apt 4B, Madison, WI 53703",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "credit_card",
+              "text": "4528 0391 7264 5015",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "(608) 555-0193",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "olivia.carter@example.com",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "March 12, 1990",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Daniel Carter",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Kevin Doyle",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Olivia Carter",
+              "carrier": "xmp",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "sk-cv": {
+      "summary": {
+        "name": "sk-cv",
+        "kind": "cv",
+        "items": 14
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "date",
+              "text": "17. 2. 1985",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Mierová 1453/22, 821 05 Bratislava",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "0918 552 714",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "zuzana.kovacova@example.net",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Gabriele Šoltésovej",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Gabriela Šoltésová",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "+421 905 774 210",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "url",
+              "text": "https://www.linkedin.com/in/zuzana-kovacova-demo",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "xmp",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 14,
+          "leak_layers": {
+            "file_bytes": 2,
+            "object": 2,
+            "off_page_text": 2,
+            "page_text": 8,
+            "surface": 7
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "17. 2. 1985",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Mierová 1453/22, 821 05 Bratislava",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "0918 552 714",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "zuzana.kovacova@example.net",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Gabriele Šoltésovej",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Gabriela Šoltésová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+421 905 774 210",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "url",
+              "text": "https://www.linkedin.com/in/zuzana-kovacova-demo",
+              "carrier": "link",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "xmp",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 6,
+          "leak_layers": {
+            "file_bytes": 2,
+            "object": 2,
+            "off_page_text": 2,
+            "surface": 7
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "date",
+              "text": "17. 2. 1985",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Mierová 1453/22, 821 05 Bratislava",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "0918 552 714",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "zuzana.kovacova@example.net",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Gabriele Šoltésovej",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Gabriela Šoltésová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+421 905 774 210",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "url",
+              "text": "https://www.linkedin.com/in/zuzana-kovacova-demo",
+              "carrier": "link",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Zuzana Kováčová",
+              "carrier": "xmp",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "sk-email": {
+      "summary": {
+        "name": "sk-email",
+        "kind": "email",
+        "items": 11
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Michal Gregor",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "michal.gregor@example.org",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Šimon Varga",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "iban",
+              "text": "SK89 1100 0000 0010 7654 3217",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Kollárova 9, 917 01 Trnava",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Lukáčová",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Michal Gregor",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "+421 948 207 663",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Michal Gregor",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 11,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "page_text": 7,
+            "surface": 4
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Michal Gregor",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "michal.gregor@example.org",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Šimon Varga",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "iban",
+              "text": "SK89 1100 0000 0010 7654 3217",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Kollárova 9, 917 01 Trnava",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Lukáčová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Michal Gregor",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+421 948 207 663",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Michal Gregor",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 3,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 4
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Michal Gregor",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "michal.gregor@example.org",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Šimon Varga",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "iban",
+              "text": "SK89 1100 0000 0010 7654 3217",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Kollárova 9, 917 01 Trnava",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Lukáčová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Michal Gregor",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+421 948 207 663",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Michal Gregor",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "sk-invoice": {
+      "summary": {
+        "name": "sk-invoice",
+        "kind": "invoice",
+        "items": 11
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Marek Baláž",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Štúrova 27, 949 01 Nitra",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "company_id",
+              "text": "50726196",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "id_number",
+              "text": "1084572913",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "iban",
+              "text": "SK60 0900 0000 0054 3201 9875",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Marek Baláž",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "0905 318 442",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "marek.balaz@example.com",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Marek Baláž",
+              "carrier": "embedded_file",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 11,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "page_text": 7,
+            "surface": 9
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Marek Baláž",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Štúrova 27, 949 01 Nitra",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "company_id",
+              "text": "50726196",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "id_number",
+              "text": "1084572913",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "iban",
+              "text": "SK60 0900 0000 0054 3201 9875",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Marek Baláž",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "0905 318 442",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "marek.balaz@example.com",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Marek Baláž",
+              "carrier": "embedded_file",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 3,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 9
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Marek Baláž",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Štúrova 27, 949 01 Nitra",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "company_id",
+              "text": "50726196",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "id_number",
+              "text": "1084572913",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "iban",
+              "text": "SK60 0900 0000 0054 3201 9875",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Marek Baláž",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "0905 318 442",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "marek.balaz@example.com",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Marek Baláž",
+              "carrier": "embedded_file",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "sk-letter": {
+      "summary": {
+        "name": "sk-letter",
+        "kind": "letter",
+        "items": 11
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Hlavná 45, 040 01 Košice",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "iban",
+              "text": "SK31 1200 0000 1987 4263 7541",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "birth_number",
+              "text": "855215/1234",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "+421 918 123 456",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "email",
+              "text": "maria.horvathova@example.org",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "bookmark",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 11,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "page_text": 6,
+            "surface": 5
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Hlavná 45, 040 01 Košice",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "iban",
+              "text": "SK31 1200 0000 1987 4263 7541",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "birth_number",
+              "text": "855215/1234",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+421 918 123 456",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "maria.horvathova@example.org",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "bookmark",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 4,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 5
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Hlavná 45, 040 01 Košice",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "iban",
+              "text": "SK31 1200 0000 1987 4263 7541",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "birth_number",
+              "text": "855215/1234",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "+421 918 123 456",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "email",
+              "text": "maria.horvathova@example.org",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Mária Horváthová",
+              "carrier": "bookmark",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "sk-medical-report": {
+      "summary": {
+        "name": "sk-medical-report",
+        "kind": "report",
+        "items": 14
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Ladislav Hudák",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "birth_number",
+              "text": "580214/9265",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "address",
+              "text": "Nám. SNP 14, 058 01 Poprad",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Hudák",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Anna Hudáková",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "phone",
+              "text": "0907 441 236",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Petra Lacka",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Katarína Bieliková",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Juraj Fekete",
+              "carrier": "page",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Katarína Bieliková",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Katarína Bieliková",
+              "carrier": "annotation",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Hudákom",
+              "carrier": "annotation",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 14,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "page_text": 9,
+            "surface": 7
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Ladislav Hudák",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "birth_number",
+              "text": "580214/9265",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Nám. SNP 14, 058 01 Poprad",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Hudák",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Anna Hudáková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "0907 441 236",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Petra Lacka",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Katarína Bieliková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Juraj Fekete",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Katarína Bieliková",
+              "carrier": "metadata",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Katarína Bieliková",
+              "carrier": "annotation",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Hudákom",
+              "carrier": "annotation",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 5,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 7
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Ladislav Hudák",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "birth_number",
+              "text": "580214/9265",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "address",
+              "text": "Nám. SNP 14, 058 01 Poprad",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Hudák",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Anna Hudáková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "phone",
+              "text": "0907 441 236",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Petra Lacka",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Katarína Bieliková",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Juraj Fekete",
+              "carrier": "page",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Katarína Bieliková",
+              "carrier": "metadata",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Katarína Bieliková",
+              "carrier": "annotation",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Hudákom",
+              "carrier": "annotation",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "sk-terms": {
+      "summary": {
+        "name": "sk-terms",
+        "kind": "terms",
+        "items": 2
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    },
+    "sk-waste-notice": {
+      "summary": {
+        "name": "sk-waste-notice",
+        "kind": "notice",
+        "items": 2
+      },
+      "unlocated": 0,
+      "methods": {
+        "overlay": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "apply_redactions": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": true
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": true
+            }
+          ],
+          "extractable": 2,
+          "leak_layers": {
+            "file_bytes": 1,
+            "object": 1,
+            "off_page_text": 2,
+            "surface": 3
+          },
+          "refused": false
+        },
+        "tool": {
+          "items": [
+            {
+              "type": "person",
+              "text": "Bohumil Zahradnik",
+              "carrier": "structure",
+              "left": false
+            },
+            {
+              "type": "person",
+              "text": "Radomir Pekarek",
+              "carrier": "off_page",
+              "left": false
+            }
+          ],
+          "extractable": 0,
+          "leak_layers": {},
+          "refused": false
+        }
+      }
+    }
+  },
+  "totals": {
+    "documents": 26,
+    "unlocated": 0,
+    "methods": {
+      "overlay": {
+        "extractable_by_carrier": {
+          "page": 179,
+          "structure": 26,
+          "off_page": 26,
+          "link": 7,
+          "metadata": 15,
+          "bookmark": 2,
+          "xmp": 4,
+          "embedded_file": 4,
+          "annotation": 5,
+          "form_field": 8
+        },
+        "extractable": 276,
+        "clean_documents": 0,
+        "refused": 0,
+        "documents_flagged": 26,
+        "leak_layers": {
+          "file_bytes": 43,
+          "object": 49,
+          "off_page_text": 52,
+          "page_text": 160,
+          "surface": 141
+        }
+      },
+      "apply_redactions": {
+        "extractable_by_carrier": {
+          "structure": 26,
+          "off_page": 26,
+          "link": 7,
+          "metadata": 15,
+          "bookmark": 2,
+          "xmp": 4,
+          "embedded_file": 4,
+          "annotation": 5,
+          "page": 8,
+          "form_field": 8
+        },
+        "extractable": 105,
+        "clean_documents": 0,
+        "refused": 0,
+        "documents_flagged": 26,
+        "leak_layers": {
+          "file_bytes": 43,
+          "object": 49,
+          "off_page_text": 52,
+          "page_text": 8,
+          "surface": 141
+        }
+      },
+      "tool": {
+        "extractable_by_carrier": {},
+        "extractable": 0,
+        "clean_documents": 26,
+        "refused": 0,
+        "documents_flagged": 0,
+        "leak_layers": {}
+      }
+    },
+    "items_by_carrier": {
+      "page": 179,
+      "structure": 26,
+      "off_page": 26,
+      "link": 7,
+      "metadata": 15,
+      "bookmark": 2,
+      "xmp": 4,
+      "embedded_file": 4,
+      "annotation": 5,
+      "form_field": 8
+    },
+    "items": 276
+  }
+}

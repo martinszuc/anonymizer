@@ -95,7 +95,7 @@ def score_detection(
     `locations` places the page items; by default each is found by its words.
     """
     if locations is None:
-        locations = _page_locations(spec, document)
+        locations = page_locations(spec, document)
     results: list[tuple[Outcome, bool]] = []
     for index, item in enumerate(spec.gold):
         entities = _on_carrier(document.entities, item.carrier)
@@ -116,7 +116,7 @@ def false_positives(
     `locations` places the page items, as in `score_detection`.
     """
     if locations is None:
-        locations = _page_locations(spec, document)
+        locations = page_locations(spec, document)
     planted = [location for location in locations.values() if location]
     wrong = (
         " ".join(entity.text.split())
@@ -190,7 +190,7 @@ def outcome_counts(items: tuple[ItemResult, ...] | list[ItemResult]) -> dict[str
     }
 
 
-def _page_locations(spec: DocumentSpec, document: Document) -> dict[int, Location | None]:
+def page_locations(spec: DocumentSpec, document: Document) -> dict[int, Location | None]:
     """Locate each planted page item in the ingested page text.
 
     Items are planted in reading order, so each takes the first occurrence of

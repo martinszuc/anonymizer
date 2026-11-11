@@ -61,8 +61,8 @@ tabular figures, "of N" after it; type and Return, Cmd/Ctrl+G focuses it).
 Right, in `--fill` control groups: undo and redo (disabled with nothing to do;
 the tooltip names the step), zoom (−, fit, +), tools (region tool R, locate L,
 preview eye; pressed = accent fill); then open, settings, keyboard shortcuts as
-plain icons; *Save Review* (secondary); *Export Text…* (secondary, text-file
-icon, Shift+Cmd/Ctrl+E: the labelled text); primary *Export…* (Cmd/Ctrl+E), the
+plain icons; *Export Text* (plain text-file icon, Shift+Cmd/Ctrl+E: the labelled text; an icon so the
+title keeps its room at the minimum width); *Save Review* (secondary); primary *Export…* (Cmd/Ctrl+E), the
 final step. Both exports are disabled while one runs. Controls are 28 px high, 24 px inside a group.
 
 **Sidebar** (300 px, translucent). The **review status** on top (`--fill`,

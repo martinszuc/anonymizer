@@ -199,16 +199,16 @@ export function Toolbar(props: ToolbarProps) {
           title="Keyboard shortcuts (?)"
           onClick={props.onShortcuts}
         />
+        <Button
+          variant="plain"
+          icon={<FileText size={16} />}
+          aria-label="Export Text"
+          disabled={exporting}
+          title={`Export the text with each redacted value replaced by its label (${shortcut("E", { shift: true })})`}
+          onClick={props.onExportText}
+        />
         <Button title={`Save the review to continue later (${shortcut("S")})`} onClick={props.onSave}>
           Save Review
-        </Button>
-        <Button
-          icon={<FileText size={15} />}
-          disabled={exporting}
-          title={`Save the text with each redacted value replaced by its label (${shortcut("E", { shift: true })})`}
-          onClick={props.onExportText}
-        >
-          Export Text…
         </Button>
         <Button
           variant="primary"

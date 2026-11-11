@@ -101,7 +101,7 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
   checking again (`export_unchecked`). The result sheet shows the counts and
   the check's outcome: Passed, Off, or Saved with N warnings, and *Show in
   Finder* (Explorer; the folder on Linux) for the copy just written.
-- **Export Text…** (Shift+Cmd/Ctrl+E, beside *Export…*): save dialog (default
+- **Export Text** (text-file icon, Shift+Cmd/Ctrl+E): save dialog (default
   `<name>-redacted.txt`), written through core's `export_redacted_text`: the
   page text with each value not kept replaced by its label (`[PERSON]`), words
   under a region by `[REDACTED]`, pages separated by a form feed, for pasting
@@ -485,7 +485,7 @@ display (the script in a Linux container), not your desktop.
 | `Document.add_region`, `Document.remove_entity` | drawing and removing a region |
 | `pipeline.add_finding` (`Document.add_span`, `propagate_occurrences(document, marked)`), `pipeline.remove_finding` | adding a missed word with its repeats, and removing it with the repeats only it explained |
 | `redact.export_redacted` | export: temporary file, `redact_pdf`, `find_leaks`, rename only when clean; the CLI's `redact` uses the same function |
-| `redact.export_redacted_text` | *Export Text…*: `redact_text`, read back, `find_text_leaks`, rename only when clean; the CLI's `redact --text` |
+| `redact.export_redacted_text` | *Export Text*: `redact_text`, read back, `find_text_leaks`, rename only when clean; the CLI's `redact --text` |
 | `ingest.OCR_ENGINES`, `load_ocr_engine`, `ocr_engine_installed`, `missing_ocr_files` | the engines offered, each loaded once per session on first use; their states on the home screen without loading them |
 | `ingest.pages_needing_ocr`, `Page.raster_dpi` | the page warning and export consent for scans OCR did not read; the "read by OCR" note |
 | `session.session_ocr_engine` | reopening a review of scans with the engine that read them |
@@ -528,7 +528,7 @@ In suggested order. Each item names where it plugs in.
     and Linux (GTK or Qt backend) by hand.
 12. **Large documents:** virtualize the page list and the sidebar beyond a
     few hundred pages or entities.
-13. **Done:** ~~export as text~~ (*Export Text…*, `export_text_as`).
+13. **Done:** ~~export as text~~ (*Export Text*, `export_text_as`).
 
 ## Open issues from manual testing (2026-10-02)
 

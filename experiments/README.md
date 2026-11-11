@@ -39,8 +39,11 @@ version), and each device has its own cache (*Cache*).
    options only switch what those functions offer: the name model (`none`,
    a catalog GLiNER, NameTag 3 or token classifier model by id, `gliner` being the default
    one, or a list of two combined by `combine = "union"` or `"agreement"`),
-   GLiNER's threshold, labels and distractors, the name filter, propagation,
-   and the language (the corpus's, recognised from the text, or none).
+   GLiNER's threshold, labels and distractors, the tagset the multilingual
+   NameTag model answers in (`tagset = "conll"`, `"uner"` or `"onto"`; its
+   default `conll` when unset, each tagset cached apart), the name filter,
+   propagation, and the language (the corpus's, recognised from the text, or
+   none).
    Without a `threshold` each GLiNER model runs at its catalog entry's, as
    the tools run it, else at 0.3; results record the threshold each model
    ran at. Seeds of one setting must agree on it. Results keep the model

@@ -581,3 +581,74 @@ class TestTokenClassifier:
         assert model_loader(tmp_path, catalog, device)(self.MODEL) is movable
         assert loaded == [self.MODEL]
         assert movable.devices == [device]
+
+
+MULTILINGUAL = "nametag3-multilingual-260521"
+
+
+class TestTagset:
+    def test_a_system_names_the_tagset_of_its_nametag_model(self):
+        system = parse_system("onto", {"model": ["gliner", MULTILINGUAL], "tagset": "onto"})
+        assert system.tagset == "onto"
+        assert system.model_key(MULTILINGUAL) == (MULTILINGUAL, CACHE_FLOOR, "onto")
+        assert system.model_key(GLINER) == (GLINER, CACHE_FLOOR, None)
+        assert system.describe()["tagset"] == "onto"
+        assert "tagset" not in parse_system("conll", {"model": MULTILINGUAL}).describe()
+
+    @pytest.mark.parametrize(
+        ("table", "message"),
+        [
+            ({"model": MULTILINGUAL, "tagset": "cnec"}, "tagset must be one of"),
+            ({"model": "gliner", "tagset": "uner"}, "needs a NameTag 3 model"),
+            ({"tagset": "uner"}, "needs a NameTag 3 model"),
+        ],
+    )
+    def test_invalid(self, table: dict, message: str):
+        with pytest.raises(ValueError, match=message):
+            parse_system("bad", table)
+
+    def test_a_named_tagset_has_a_cache_file_of_its_own(self, tmp_path: Path):
+        version = "hdl:11858/00-097C"
+        default = cache_path(tmp_path, MULTILINGUAL, "cnec-2.0", version, "dtest")
+        uner = cache_path(tmp_path, MULTILINGUAL, "cnec-2.0", version, "dtest", tagset="uner")
+        assert default.name == "dtest.json"
+        assert uner.parent == default.parent
+        assert uner.name == "dtest@uner.json"
+
+    def test_the_cached_tagger_loads_the_model_in_its_tagset(self, tmp_path: Path):
+        loads: list[tuple[str, ...]] = []
+
+        def load(model_id: str, *options: str) -> StandInTagger:
+            loads.append((model_id, *options))
+            return StandInTagger({})
+
+        cached = systems_module.cached_model(
+            MULTILINGUAL,
+            PredictionCache(tmp_path / "c.json"),
+            load,
+            lambda _: StandInSplitter(),
+            tagset="uner",
+        )
+        assert isinstance(cached, CachedTagger)
+        cached.tag([["Ján"]])
+        assert loads == [(MULTILINGUAL, "uner")]
+
+    def test_the_loader_passes_the_tagset_to_nametag(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        loaded: list[str | None] = []
+
+        def load(model_dir: Path, encoder_dir: Path, tagset: str | None = None) -> StandInTagger:
+            loaded.append(tagset)
+            return StandInTagger({})
+
+        monkeypatch.setattr(systems_module, "model_directory", lambda *_: tmp_path)
+        monkeypatch.setattr(systems_module, "load_nametag_tagger", load)
+        loader = model_loader(tmp_path)
+        loader(MULTILINGUAL)
+        loader(MULTILINGUAL, "onto")
+        assert loaded == [None, "onto"]
+
+    def test_the_loader_refuses_a_tagset_for_a_span_model(self, tmp_path: Path):
+        with pytest.raises(ValueError, match="has no tagset"):
+            model_loader(tmp_path)(GLINER, "uner")

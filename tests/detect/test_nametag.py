@@ -8,6 +8,7 @@ PyTorch and is tested on a tiny random encoder when PyTorch is present.
 NameTag 3.
 """
 
+import json
 import os
 import pickle
 import re
@@ -26,6 +27,7 @@ from anonymizer.core.detect.nametag import (
     Token,
     address_runs,
     load_nametag_detector,
+    load_nametag_tagger,
     model_directory,
     tagged_entities,
 )
@@ -209,6 +211,17 @@ class TestDetector:
         )
         assert _found(detector, "Ján Kováč pracuje v Tatra.") == {("person", "Ján Kováč")}
 
+    @pytest.mark.parametrize("place", ["LOC", "GPE", "FAC"])
+    def test_places_of_the_multilingual_tagsets_are_no_addresses(self, place: str):
+        # Synthetic; OntoNotes labels with the tagset suffix already dropped.
+        detector = _detector(
+            {
+                ("Ján", "Kováč"): ["B-PERSON", "I-PERSON"],
+                ("Hlavná", "12"): [f"B-{place}", f"I-{place}"],
+            }
+        )
+        assert _found(detector, "Ján Kováč býva Hlavná 12.") == {("person", "Ján Kováč")}
+
     def test_address_parts_become_one_address_and_a_town_alone_is_dropped(self):
         detector = _detector(
             {
@@ -386,14 +399,25 @@ class TestTagger:
         ]
         assert tagger.tag([]) == []
 
-    def test_a_multitagset_model_drops_the_suffix(self):
+    @pytest.mark.parametrize(
+        ("tagset", "label_id", "label"),
+        [("conll", 2, "B-PER"), ("uner", 3, "B-PER"), ("onto", 4, "B-PERSON")],
+    )
+    def test_a_multitagset_model_drops_the_suffix(self, tagset: str, label_id: int, label: str):
         tokenizer = StandInTokenizer()
         tokenizer.vocabulary = {"Ján": 20}
-        labels = ["<mask>", "O", "B-PER-conll", "B-PER-uner"]
-        tagger = Nametag3Tagger(
-            DOCUMENT_OPTIONS, labels, tokenizer, StandInNetwork({20: [(2, 0.9)]}), tagset="conll"
-        )
-        assert tagger.tag([["Ján"]]) == [[[("B-PER", 0.9)]]]
+        labels = ["<mask>", "O", "B-PER-conll", "B-PER-uner", "B-PERSON-onto", "B-WORK_OF_ART-onto"]
+        network = StandInNetwork({20: [(label_id, 0.9)]})
+        tagger = Nametag3Tagger(DOCUMENT_OPTIONS, labels, tokenizer, network, tagset=tagset)
+        assert tagger.tag([["Ján"]]) == [[[(label, 0.9)]]]
+
+    def test_a_type_with_an_underscore_keeps_it(self):
+        tokenizer = StandInTokenizer()
+        tokenizer.vocabulary = {"Ves": 20}
+        labels = ["<mask>", "O", "B-WORK_OF_ART-onto"]
+        network = StandInNetwork({20: [(2, 0.9)]})
+        tagger = Nametag3Tagger(DOCUMENT_OPTIONS, labels, tokenizer, network, tagset="onto")
+        assert tagger.tag([["Ves"]]) == [[[("B-WORK_OF_ART", 0.9)]]]
 
     def test_windows_are_sent_in_batches(self):
         network = StandInNetwork()
@@ -404,9 +428,11 @@ class TestTagger:
 
 
 def test_tagset_mask():
-    labels = ["<mask>", "O", "B-PER-conll", "B-PER-uner", "I-MISC-conll"]
-    assert tagset_mask(labels, None) == [0.0] * 5
-    assert tagset_mask(labels, "conll") == [-1e9, 0.0, 0.0, -1e9, 0.0]
+    labels = ["<mask>", "O", "B-PER-conll", "B-PER-uner", "I-MISC-conll", "B-PERSON-onto"]
+    assert tagset_mask(labels, None) == [0.0] * 6
+    assert tagset_mask(labels, "conll") == [-1e9, 0.0, 0.0, -1e9, 0.0, -1e9]
+    assert tagset_mask(labels, "uner") == [-1e9, 0.0, -1e9, 0.0, -1e9, -1e9]
+    assert tagset_mask(labels, "onto") == [-1e9, 0.0, -1e9, -1e9, -1e9, 0.0]
 
 
 class Declared:
@@ -468,6 +494,12 @@ class TestLoading:
         unpacked.mkdir(parents=True)
         (unpacked / "options.json").write_text("{}", encoding="utf-8")
         assert model_directory(tmp_path, self.MODEL, catalog) == unpacked
+
+    def test_a_tagset_for_a_model_without_tagsets_is_refused(self, tmp_path: Path):
+        options = {"decoding": "seq2seq", "context_type": "sentence"}
+        (tmp_path / "options.json").write_text(json.dumps(options), encoding="utf-8")
+        with pytest.raises(ValueError, match="no tagsets"):
+            load_nametag_tagger(tmp_path, tmp_path, tagset="uner")
 
 
 class TestNetwork:

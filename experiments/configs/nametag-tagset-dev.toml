@@ -1,0 +1,45 @@
+name = "nametag-tagset-dev"
+description = """
+Fairness check of the RQ6 opponent, development data: NameTag 3 multilingual in each of its
+three tagsets (conll, its default and the one every earlier run used; uner; onto), beside the
+rules. Persons are PER (conll, uner) or PERSON (onto); no tagset has an address type. The
+model was trained on CNEC 2.0 and UNER Slovak-SNK train, so those two corpora favour it;
+REDACT and OpenPII are the fairer comparisons. Same splits, seed and resamples as nametag-dev."""
+stage = "dev"
+seed = 20261011
+resamples = 1000
+compare = [
+  ["rules+nametag-multi", "rules+nametag-multi-uner"],
+  ["rules+nametag-multi", "rules+nametag-multi-onto"],
+]
+
+[[datasets]]
+id = "cnec-2.0"
+split = "dtest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "dev"
+
+[[datasets]]
+id = "redact"
+split = "sample"
+
+[[datasets]]
+id = "openpii-1m-cs"
+split = "dev"
+
+[[datasets]]
+id = "openpii-1m-sk"
+split = "dev"
+
+[systems."rules+nametag-multi"]
+model = "nametag3-multilingual-260521"
+
+[systems."rules+nametag-multi-uner"]
+model = "nametag3-multilingual-260521"
+tagset = "uner"
+
+[systems."rules+nametag-multi-onto"]
+model = "nametag3-multilingual-260521"
+tagset = "onto"

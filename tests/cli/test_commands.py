@@ -3,8 +3,10 @@
 import json
 from pathlib import Path
 
+import pymupdf
 import pytest
 from anonymizer.cli import commands
+from anonymizer.cli import main as cli_main
 from anonymizer.cli.main import main
 from anonymizer.core.detect import GlinerDetector
 from anonymizer.core.ingest import load_document
@@ -268,3 +270,56 @@ class TestErrors:
 
     def test_invalid_arguments_exit_with_two(self):
         assert main(["redact"]) == 2
+
+
+class TestExceptionMessages:
+    """A message from outside this code base can quote a document or a path."""
+
+    CANARY = "CANARY-" + "private-text"
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pymupdf.FileDataError(f"cannot open {CANARY}.pdf"),
+            ValueError(f"line 3: {CANARY}"),
+            OSError(13, "Permission denied", f"/home/{CANARY}/cv.pdf"),
+        ],
+    )
+    def test_a_foreign_failure_is_reported_by_its_class_only(
+        self, error: Exception, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ):
+        def fail(*_args: object) -> int:
+            raise error
+
+        monkeypatch.setattr(cli_main, "_dispatch", fail)
+        assert main(["redact", "in.pdf", "-o", "out.pdf"]) == 1
+        err = capsys.readouterr().err
+        assert self.CANARY not in err
+        assert f"({type(error).__name__})" in err
+
+    def test_a_missing_file_is_reported_without_its_name(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture
+    ):
+        assert main(["redact", str(tmp_path / f"{self.CANARY}.pdf"), "-o", "out.pdf"]) == 1
+        err = capsys.readouterr().err
+        assert "no such file" in err
+        assert self.CANARY not in err
+
+    def test_an_existing_output_is_refused_without_its_name(
+        self, pdf: Path, tmp_path: Path, capsys: pytest.CaptureFixture
+    ):
+        existing = write_pdf(tmp_path / f"{self.CANARY}.pdf", [LINES])
+        assert main(["redact", str(pdf), "-o", str(existing)]) == 1
+        err = capsys.readouterr().err
+        assert "already exists" in err
+        assert self.CANARY not in err
+
+    def test_a_file_that_is_no_document_keeps_the_text_written_for_it(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture
+    ):
+        junk = tmp_path / f"{self.CANARY}.pdf"
+        junk.write_bytes(b"not a document")
+        assert main(["redact", str(junk), "-o", str(tmp_path / "out.pdf")]) == 1
+        err = capsys.readouterr().err
+        assert "unsupported file type" in err
+        assert self.CANARY not in err

@@ -155,7 +155,7 @@ class TestMain:
         self, stand_in: StandInWebview, tmp_path: Path, capsys: pytest.CaptureFixture
     ):
         assert main([str(tmp_path / "absent.pdf")]) == 1
-        assert "no such file: absent.pdf" in capsys.readouterr().err
+        assert "no such file" in capsys.readouterr().err
         assert stand_in.started is None
 
     def test_loads_the_dev_server(self, stand_in: StandInWebview):
@@ -663,8 +663,27 @@ class TestLogging:
         configure_logging(logging.WARNING)
         api = attached(StandInWindow())
         api._review.page_image = None  # type: ignore[method-assign,assignment]
-        with pytest.raises(TypeError):
+        with pytest.raises(ReviewError, match=r"\(TypeError\)"):
             api.page_image(0)
         err = capsys.readouterr().err
         assert "ERROR" in err
         assert "page call page_image failed" in err
+
+    def test_an_unexpected_failure_reaches_the_page_without_its_message(self):
+        canary = "CANARY-" + "private-text"
+        api = attached(StandInWindow())
+
+        def fail(*_args: object) -> None:
+            msg = f"cannot open {canary}.pdf"
+            raise RuntimeError(msg)
+
+        api._review.page_image = fail  # type: ignore[method-assign,assignment]
+        with pytest.raises(ReviewError) as raised:
+            api.page_image(0)
+        assert canary not in str(raised.value)
+        assert "RuntimeError" in str(raised.value)
+
+    def test_an_error_written_here_reaches_the_page_with_its_text(self):
+        api = attached(StandInWindow())
+        with pytest.raises(ReviewError, match="no document is open"):
+            api.set_review("any", "confirmed")

@@ -41,9 +41,12 @@ from anonymizer.cli.commands import (
 )
 from anonymizer.core import __version__
 from anonymizer.core.detect import DEFAULT_NAME_MODEL, name_model, name_models
+from anonymizer.core.errors import error_text
 from anonymizer.core.ingest import OCR_ENGINES, load_ocr_engine
 from anonymizer.core.log import LEVEL_NAMES, configure_logging, resolve_level
 from anonymizer.core.resources import load_catalog, resolve_resource_root
+
+_FAILURE = "the command failed, details withheld"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -225,9 +228,10 @@ def main(argv: list[str] | None = None) -> int:
         ValueError,
         FileNotFoundError,
         ImportError,
+        OSError,
         pymupdf.FileDataError,
     ) as error:
-        print(f"anonymize: error: {error}", file=output.err)
+        print(f"anonymize: error: {error_text(error, _FAILURE)}", file=output.err)
         return EXIT_ERROR
 
 
@@ -288,7 +292,7 @@ def _check_name_model(parser: argparse.ArgumentParser, args: argparse.Namespace)
     try:
         args.name_model = name_model(model_id, load_catalog(root=args.resource_root)).id
     except ValueError as error:
-        parser.error(str(error))
+        parser.error(error_text(error, "the name model cannot be used"))
 
 
 def _name_model(args: argparse.Namespace) -> NameModel | None:

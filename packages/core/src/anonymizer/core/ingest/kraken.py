@@ -60,6 +60,7 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
+from anonymizer.core.errors import ControlledFileNotFoundError, MissingDependencyError
 from anonymizer.core.ingest.ocr import OcrWord, PageImage
 from anonymizer.core.resources import load_catalog, missing_resources
 
@@ -285,10 +286,10 @@ def load_kraken_engine(root: Path) -> KrakenEngine:
     missing = missing_kraken_files(root)
     if missing:
         msg = (
-            f"OCR model files missing under {root}: {', '.join(missing)}; fetch them with: "
+            f"OCR model files missing: {', '.join(missing)}; fetch them with: "
             f"uv run python scripts/download.py fetch {RECOGNITION_RESOURCE}"
         )
-        raise FileNotFoundError(msg)
+        raise ControlledFileNotFoundError(msg)
     catalog = load_catalog()
     segmentation_model = catalog[SEGMENTATION_RESOURCE].directory(root) / _SEGMENTATION_FILE
     recognition_model = catalog[RECOGNITION_RESOURCE].directory(root) / _RECOGNITION_FILE
@@ -303,7 +304,7 @@ def load_kraken_engine(root: Path) -> KrakenEngine:
         )
     except ImportError as error:
         msg = "OCR needs the optional 'ocr-kraken' dependencies: uv sync --group ocr-kraken"
-        raise ImportError(msg) from error
+        raise MissingDependencyError(msg) from error
     cpu = {"accelerator": "cpu", "device": 1}
     return KrakenEngine(
         segmenter=SegmentationTaskModel.load_model(segmentation_model),

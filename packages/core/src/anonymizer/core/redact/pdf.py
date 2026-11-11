@@ -24,6 +24,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import pymupdf
+from anonymizer.core.errors import ControlledValueError
 from anonymizer.core.ingest.normalize import bbox_to_unrotated_rect
 from anonymizer.core.ingest.pdf import read_verified
 from anonymizer.core.log import short_fingerprint, step
@@ -69,7 +70,7 @@ def redact_pdf(
     source, destination = Path(source), Path(destination)
     if source.resolve() == destination.resolve():
         msg = "the redacted copy must not overwrite its source"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     report = progress or (lambda _step, _done, _total: None)
     data = read_verified(source, document)
     text_boxes = _page_text_boxes(document)
@@ -86,7 +87,7 @@ def redact_pdf(
     ):
         if pdf.page_count != len(document.pages):
             msg = f"document has {len(document.pages)} pages, the file {pdf.page_count}"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         report("redacting", 0, pdf.page_count)
         for index in range(pdf.page_count):
             page = pdf.load_page(index)
@@ -124,7 +125,7 @@ def _page_text_boxes(document: Document) -> dict[int, list[list[BBox]]]:
         entity_boxes = entity.bboxes or page.bboxes_for_span(*entity.span)
         if not entity_boxes:
             msg = f"entity {entity.entity_id} has no geometry to redact"
-            raise ValueError(msg)
+            raise ControlledValueError(msg)
         boxes[entity.page_index].append(entity_boxes)
     return boxes
 

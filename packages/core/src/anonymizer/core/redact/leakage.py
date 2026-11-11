@@ -88,6 +88,7 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 import pymupdf
+from anonymizer.core.errors import ControlledValueError
 from anonymizer.core.ingest import OcrEngine, extract_page, extract_surfaces, read_page
 from anonymizer.core.ingest.normalize import bbox_to_unrotated_rect
 from anonymizer.core.ingest.objects import dictionaries_with_key, embedded_file_streams
@@ -217,7 +218,7 @@ def find_leaks(
     scanned = [page for page in document.pages if page.raster_dpi is not None]
     if scanned and ocr is None:
         msg = "OCR read pages of this document; pass its engine to re-read them"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     report = progress or (lambda _step, _done, _total: None)
     redactable = [entity for entity in document.entities if entity.is_redactable]
     targets = _targets(redactable)
@@ -274,7 +275,7 @@ def find_text_leaks(pages: Sequence[str], document: Document) -> list[Leak]:
     """
     if len(pages) != len(document.pages):
         msg = f"the text export has {len(pages)} pages, the document {len(document.pages)}"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     redactable = [entity for entity in document.entities if entity.is_redactable]
     targets = [target for target in _targets(redactable) if _length(target.text) >= _SHORTEST_WORDS]
     kept = _kept_texts(document)

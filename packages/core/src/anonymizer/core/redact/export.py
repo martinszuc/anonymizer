@@ -18,6 +18,7 @@ import logging
 from collections import Counter
 from pathlib import Path
 
+from anonymizer.core.errors import ControlledValueError
 from anonymizer.core.ingest import OcrEngine
 from anonymizer.core.log import counts, short_fingerprint, step
 from anonymizer.core.redact.leakage import Leak, find_leaks, find_text_leaks
@@ -64,7 +65,7 @@ def export_redacted(
     source, destination = Path(source), Path(destination)
     if destination.resolve() == source.resolve():
         msg = "the redacted copy must not overwrite its source"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     partial = destination.with_name(f".{destination.name}.partial")
     with step(
         log, "export", done_level=logging.INFO, document=short_fingerprint(document.fingerprint)

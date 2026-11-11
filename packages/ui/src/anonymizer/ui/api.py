@@ -22,6 +22,7 @@ import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,7 @@ from anonymizer.core.detect import (
 )
 from anonymizer.core.detect.base import describe
 from anonymizer.core.detect.models import name_model_engine
+from anonymizer.core.errors import ControlledValueError, error_text
 from anonymizer.core.ingest import (
     OCR_ENGINE_RESOURCES,
     OCR_ENGINES,
@@ -487,7 +489,8 @@ class ReviewApi:
                 progress=report,
             )
         except (PinRequiredError, NotDownloadableError, ChecksumError, OSError) as error:
-            msg = f"the download failed: {error}"
+            reason = error_text(error, "a file could not be fetched or written")
+            msg = f"the download failed: {reason}"
             raise ReviewError(msg) from error
         progress(feature, total, total)
 
@@ -596,7 +599,8 @@ class ReviewApi:
                 )
             except (ImportError, FileNotFoundError) as error:
                 log.warning("the name model is not available", exc_info=True)
-                msg = f"the name model is not available: {error}"
+                reason = error_text(error, "it could not be loaded")
+                msg = f"the name model is not available: {reason}"
                 raise ReviewError(msg) from error
         return self._models[model_id]
 
@@ -610,7 +614,8 @@ class ReviewApi:
                 self._ocr[name] = load_ocr_engine(name, self._resource_root)
             except (ImportError, FileNotFoundError, ValueError) as error:
                 log.warning("the OCR engine is not available", exc_info=True)
-                msg = f"the OCR engine is not available: {error}"
+                reason = error_text(error, "it could not be loaded")
+                msg = f"the OCR engine is not available: {reason}"
                 raise ReviewError(msg) from error
         return self._ocr[name]
 
@@ -754,7 +759,7 @@ class ReviewApi:
             msg = "the page and the offsets must be whole numbers"
             raise ReviewError(msg)
         with _as_review_error():
-            kind = EntityType(entity_type)
+            kind = _member(EntityType, entity_type)
             added = add_finding(
                 current.document, page_index, start, end, kind, propagate=current.propagate
             )
@@ -777,7 +782,7 @@ class ReviewApi:
         current = self._current()
         with _as_review_error():
             entity = current.document.entity(entity_id)
-            entity.review = ReviewState(state)
+            entity.review = _member(ReviewState, state)
         log.debug("review: %s decided %s", state, describe(entity))
         return _entity_payload(entity)
 
@@ -802,7 +807,7 @@ class ReviewApi:
             msg = "entity ids must be a list of strings"
             raise ReviewError(msg)
         with _as_review_error():
-            review = ReviewState(state)
+            review = _member(ReviewState, state)
             entities = [current.document.entity(entity_id) for entity_id in entity_ids]
         for entity in entities:
             entity.review = review
@@ -1010,9 +1015,16 @@ def _as_review_error() -> Iterator[None]:
     try:
         yield
     except (ValueError, KeyError, OSError, pymupdf.FileDataError) as error:
-        # str() of a KeyError quotes its message.
-        message = error.args[0] if isinstance(error, KeyError) and error.args else str(error)
-        raise ReviewError(message) from error
+        raise ReviewError(error_text(error, "the operation failed")) from error
+
+
+def _member[E: Enum](kind: type[E], value: object) -> E:
+    """Return the member of an enum a value from the page names, or refuse it."""
+    try:
+        return kind(value)
+    except ValueError:
+        msg = f"{value!r} is not a valid {kind.__name__}"
+        raise ControlledValueError(msg) from None
 
 
 def _is_whole(value: object) -> bool:

@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 import webview
+from anonymizer.core.errors import ControlledFileNotFoundError
 from anonymizer.core.resources import Catalog, Resource, ResourceFile
 from anonymizer.ui import api
 from anonymizer.ui.api import ReviewApi, ReviewError
@@ -300,7 +301,7 @@ def test_a_second_name_model_in_the_catalog_is_offered_and_opened(
 
     def load(model_id: str, root: Path, catalog: Catalog) -> object:
         loads.append(model_id)
-        raise FileNotFoundError(model_id)
+        raise ControlledFileNotFoundError(model_id)
 
     monkeypatch.setattr(api, "load_name_model", load)
     pdf = write_pdf(tmp_path / "doc.pdf", [["Text"]])

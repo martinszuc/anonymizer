@@ -32,6 +32,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from anonymizer.core.errors import ControlledFileNotFoundError, MissingDependencyError
 from anonymizer.core.ingest.ocr import OCR_BOX_MARGIN, OcrWord, PageImage
 from anonymizer.core.resources import load_catalog, missing_resources
 
@@ -125,10 +126,10 @@ def load_onnxtr_engine(root: Path) -> OnnxtrEngine:
     missing = missing_onnxtr_files(root)
     if missing:
         msg = (
-            f"OCR model files missing under {root}: {', '.join(missing)}; fetch them with: "
+            f"OCR model files missing: {', '.join(missing)}; fetch them with: "
             f"uv run python scripts/download.py fetch {RECOGNITION_RESOURCE}"
         )
-        raise FileNotFoundError(msg)
+        raise ControlledFileNotFoundError(msg)
     catalog = load_catalog()
     detection = catalog[DETECTION_RESOURCE].directory(root)
     recognition = catalog[RECOGNITION_RESOURCE].directory(root)
@@ -143,7 +144,7 @@ def load_onnxtr_engine(root: Path) -> OnnxtrEngine:
         )
     except ImportError as error:
         msg = "OCR needs the optional 'ocr-onnxtr' dependencies: uv sync --group ocr-onnxtr"
-        raise ImportError(msg) from error
+        raise MissingDependencyError(msg) from error
     vocab = json.loads((recognition / _CONFIG_FILE).read_text(encoding="utf-8"))["vocab"]
     onnxtr_engine.download_from_url = _refuse_download  # pyright: ignore[reportPrivateImportUsage]
     cpu = onnxtr_engine.EngineConfig(providers=[_CPU_PROVIDER])

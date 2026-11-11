@@ -97,7 +97,7 @@ class TestOpenPdf:
         assert len(calls) == 1
 
     def test_missing_file(self, tmp_path: Path):
-        with pytest.raises(ReviewError, match=r"no such file: absent\.pdf"):
+        with pytest.raises(ReviewError, match=r"no such file"):
             ReviewApi().open_pdf(str(tmp_path / "absent.pdf"))
 
     def test_not_a_pdf(self, tmp_path: Path):
@@ -706,3 +706,65 @@ class TestOpenWithModel:
             reviewer.open_pdf(str(pdf), "cs", True, "gliner-multi-v2.1")
         with pytest.raises(ReviewError, match="no document is open"):
             reviewer.document()
+
+
+class TestExceptionMessages:
+    """A message from outside this code base can quote a document or a path."""
+
+    CANARY = "CANARY-" + "private-text"
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pymupdf.FileDataError(f"cannot open {CANARY}.pdf"),
+            ValueError(f"line 3: {CANARY}"),
+            KeyError(CANARY),
+            OSError(13, "Permission denied", f"/home/{CANARY}/cv.pdf"),
+        ],
+    )
+    def test_a_foreign_failure_while_reading_shows_its_class_only(
+        self, pdf: Path, monkeypatch: pytest.MonkeyPatch, error: Exception
+    ):
+        def fail(*_args: object, **_kwargs: object) -> Document:
+            raise error
+
+        monkeypatch.setattr(api, "document_from_bytes", fail)
+        with pytest.raises(ReviewError) as raised:
+            ReviewApi().open_pdf(str(pdf), "cs")
+        assert self.CANARY not in str(raised.value)
+        assert type(error).__name__ in str(raised.value)
+
+    def test_a_missing_file_is_reported_without_its_name(self, tmp_path: Path):
+        with pytest.raises(ReviewError) as raised:
+            ReviewApi().open_pdf(str(tmp_path / f"{self.CANARY}.pdf"), "cs")
+        assert str(raised.value) == "no such file"
+
+    def test_a_model_that_fails_to_load_shows_its_class_only(
+        self, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        def fail(model_id: str, root: Path, catalog: Catalog) -> NameModel:
+            msg = f"missing {self.CANARY}"
+            raise FileNotFoundError(msg)
+
+        monkeypatch.setattr(api, "load_name_model", fail)
+        with pytest.raises(ReviewError) as raised:
+            ReviewApi().open_pdf(str(pdf), "cs", True, "gliner-multi-v2.1")
+        assert self.CANARY not in str(raised.value)
+        assert "FileNotFoundError" in str(raised.value)
+
+    def test_a_failed_download_shows_its_class_only(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        def fail(*_args: object, **_kwargs: object) -> list[str]:
+            raise OSError(5, self.CANARY, f"/home/{self.CANARY}/model.bin")
+
+        monkeypatch.setattr(api, "fetch_with_requirements", fail)
+        with pytest.raises(ReviewError) as raised:
+            ReviewApi(tmp_path).download_models("ocr-onnxtr")
+        assert "the download failed" in str(raised.value)
+        assert self.CANARY not in str(raised.value)
+        assert "OSError" in str(raised.value)
+
+    def test_an_error_written_here_keeps_its_text(self, review: ReviewApi):
+        with pytest.raises(ReviewError, match="no page with index 7"):
+            review.page_image(7)

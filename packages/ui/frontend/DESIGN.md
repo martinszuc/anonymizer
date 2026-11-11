@@ -61,8 +61,9 @@ tabular figures, "of N" after it; type and Return, Cmd/Ctrl+G focuses it).
 Right, in `--fill` control groups: undo and redo (disabled with nothing to do;
 the tooltip names the step), zoom (−, fit, +), tools (region tool R, locate L,
 preview eye; pressed = accent fill); then open, settings, keyboard shortcuts as
-plain icons; *Save Review* (secondary); primary *Export…* (Cmd/Ctrl+E), the
-final step. Controls are 28 px high, 24 px inside a group.
+plain icons; *Save Review* (secondary); *Export Text…* (secondary, text-file
+icon, Shift+Cmd/Ctrl+E: the labelled text); primary *Export…* (Cmd/Ctrl+E), the
+final step. Both exports are disabled while one runs. Controls are 28 px high, 24 px inside a group.
 
 **Sidebar** (300 px, translucent). The **review status** on top (`--fill`,
 `--radius-row`): "4 of 10 decided" (weight 600, tabular) with *Next undecided*
@@ -207,7 +208,9 @@ when the other choice carries a risk. While a sheet is open, window shortcuts ar
 A sheet without actions shows a running task. Used for export: consent for pages
 without a text layer, progress, the leak check's findings, then the result (summary
 rows and "Leak check: Passed", "Off", or "Saved with N warnings" in `--warning`;
-*Show in Finder* beside *Done*).
+*Show in Finder* beside *Done*). A text export uses the same leak and result
+sheets, worded for the text ("Hidden data left out", a scan's text missing);
+it asks no consent and shows no progress sheet.
 
 **Leak findings** (wide `warning` sheet, *Don't Save* default, *Save Anyway*).
 Sections in order: left under a box, hidden content still in the file, redacted

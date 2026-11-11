@@ -405,6 +405,69 @@ class TestExportDialog:
         assert result["pages_without_text"] == [2]
 
 
+class TestTextExportDialog:
+    def test_exports_where_the_reviewer_chose(self, pdf: Path, monkeypatch: pytest.MonkeyPatch):
+        shown: list[Path] = []
+        monkeypatch.setattr(app, "_reveal", shown.append)
+        destination = pdf.with_name("chosen.txt")
+        window = StandInWindow(answers=[(str(pdf),), str(destination)])
+        api = attached(window)
+        api.choose_pdf({"language": "cs"})
+        result = api.export_text_as()
+        assert result is not None
+        assert (result["written"], result["format"]) == (True, "text")
+        assert CONTACT_EMAIL not in destination.read_text(encoding="utf-8")
+        assert window.asked[1]["dialog"] == webview.FileDialog.SAVE
+        assert window.asked[1]["save_filename"] == "cv-redacted.txt"
+        assert window.asked[1]["file_types"] == ("Text files (*.txt)",)
+        api.show_export()
+        assert shown == [destination]
+
+    def test_cancelled_export_writes_nothing(self, pdf: Path):
+        api = attached(StandInWindow(answers=[(str(pdf),), None]))
+        api.choose_pdf({"language": "cs"})
+        assert api.export_text_as() is None
+        assert sorted(path.name for path in pdf.parent.iterdir()) == ["cv.pdf"]
+
+    def test_a_refused_text_is_saved_where_it_was_going_without_a_second_check(
+        self, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        leak = Leak(LeakLayer.PAGE_TEXT, "page 0", CONTACT_EMAIL, "e1", page_index=0)
+        monkeypatch.setattr(export_module, "find_text_leaks", lambda *_: [leak])
+        destination = pdf.with_name("chosen.txt")
+        api = attached(StandInWindow(answers=[(str(pdf),), str(destination)]))
+        api.choose_pdf({"language": "cs"})
+        refused = api.export_text_as()
+        assert refused is not None
+        assert (refused["written"], refused["leak_check"]) == (False, "failed")
+        assert not destination.exists()
+        saved = api.export_unchecked()
+        assert (saved["written"], saved["format"], saved["leak_check"]) == (True, "text", "off")
+        assert destination.exists()
+        assert sorted(path.name for path in pdf.parent.iterdir()) == ["chosen.txt", "cv.pdf"]
+
+    def test_starting_a_text_export_forgets_a_refused_copy(
+        self, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        leak = Leak(LeakLayer.PAGE_TEXT, "page 0", CONTACT_EMAIL, "e1", page_index=0)
+        monkeypatch.setattr(export_module, "find_leaks", lambda *_, **__: [leak])
+        window = StandInWindow(answers=[(str(pdf),), str(pdf.with_name("chosen.pdf")), None])
+        api = attached(window)
+        api.choose_pdf({"language": "cs"})
+        assert api.export_as() is not None
+        assert api.export_text_as() is None
+        with pytest.raises(ReviewError, match="no refused export"):
+            api.export_unchecked()
+
+    def test_a_scan_ocr_has_not_read_needs_no_consent(self, tmp_path: Path):
+        mixed = write_pdf(tmp_path / "mixed.pdf", [LINES, []])
+        api = attached(StandInWindow(answers=[(str(mixed),), str(tmp_path / "out.txt")]))
+        api.choose_pdf({"language": "cs"})
+        result = api.export_text_as()
+        assert result is not None
+        assert (result["written"], result["pages_without_text"]) == (True, [2])
+
+
 def drop_event(*paths: str) -> dict[str, Any]:
     """A drop event as pywebview's handler receives it, with full paths filled in."""
     files = [{"name": Path(path).name, "pywebviewFullPath": path} for path in paths]

@@ -77,16 +77,23 @@ export interface LeakInfo {
 /** The leak check's verdict on an export; `off` when it did not run. */
 export type LeakCheck = "passed" | "failed" | "off";
 
-/** What `ReviewApi.export` did; nothing was written unless `written`. */
+/** What an export writes: the redacted PDF, or the page text with each value replaced by its label. */
+export type ExportFormat = "pdf" | "text";
+
+/** What `ReviewApi.export` or `export_text` did; nothing was written unless `written`. */
 export interface ExportResult {
   written: boolean;
+  format: ExportFormat;
   name: string;
   redacted: number;
   regions: number;
   kept: number;
   not_reviewed: number;
   hidden_removed: number;
-  /** 1-based numbers of scanned pages left unredacted because OCR did not read them. */
+  /**
+   * 1-based numbers of scans OCR did not read: left unredacted in a PDF, missing from a text
+   * export, which has no text for them.
+   */
   pages_without_text: number[];
   leak_check: LeakCheck;
   leaks: LeakInfo[];

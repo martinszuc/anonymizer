@@ -15,6 +15,7 @@ const SECTIONS: { title: string; keys: [string, string][] }[] = [
       ["Continue a saved review", shortcut("O", { shift: true })],
       ["Save the review", shortcut("S")],
       ["Export the redacted copy", shortcut("E")],
+      ["Export the text with labels", shortcut("E", { shift: true })],
       ["Settings", shortcut(",")],
     ],
   },

@@ -101,6 +101,15 @@ photos and scanned images (JPEG, PNG, TIFF), which are read as PDFs with OCR:
   checking again (`export_unchecked`). The result sheet shows the counts and
   the check's outcome: Passed, Off, or Saved with N warnings, and *Show in
   Finder* (Explorer; the folder on Linux) for the copy just written.
+- **Export Text…** (Shift+Cmd/Ctrl+E, beside *Export…*): save dialog (default
+  `<name>-redacted.txt`), written through core's `export_redacted_text`: the
+  page text with each value not kept replaced by its label (`[PERSON]`), words
+  under a region by `[REDACTED]`, pages separated by a form feed, for pasting
+  into a language model. Hidden data never reaches it. A scan OCR did not read
+  needs no consent (its page is only empty; the result sheet says so). The
+  leak check (the page-text layer, on the text read back) follows the same
+  setting, sheet and *Save Anyway* as the PDF export; it is quick, so no
+  progress sheet appears.
 - **Settings** (*Settings…* on the home screen, the toolbar's gear,
   Cmd/Ctrl+,): the leak check on or off (on by default; off, export writes
   the copy as redaction made it, faster and without warnings), and the
@@ -230,8 +239,9 @@ WordInfo     { start, end, text, box: [x0, y0, x1, y1] }          # offsets into
 SurfaceInfo  { id, kind, value, page_index, box | null }
 ```
 
-`ReviewApi.export()` returns `ExportResult { written, name, redacted, regions,
-kept, not_reviewed, hidden_removed, pages_without_text: number[] (1-based scans OCR did not read),
+`ReviewApi.export()` and `export_text()` return `ExportResult { written, format: pdf | text,
+name, redacted, regions, kept, not_reviewed, hidden_removed, pages_without_text: number[]
+(1-based scans OCR did not read: unredacted in a PDF, empty in a text),
 leak_check: passed | failed | off, leaks: { layer, where, page: number | null (1-based), text,
 entity_id: string | null, kind: text | under_box | leftover }[] }`; nothing was
 written unless `written`. `AppStatus` carries `settings: { leak_check, open_options }` and
@@ -266,7 +276,8 @@ Methods the page calls (all return promises in JS):
 | `add_finding(page_index, start, end, type)` | `EntityInfo[]` | a selection by word offsets, widened to whole words (`pipeline.add_finding`); the finding first, then its repeats; refuses a non-integer, a region type, text already marked for redaction |
 | `export_as(allow_pages_without_text)` | `ExportResult \| null` | save dialog; null = cancelled; raises (rejects) when scans OCR did not read remain and consent is false; checks for leaks when the setting says so; steps as `anonymizer:export` |
 | `show_export()` | `None` | opens the file manager at the copy last written (`open -R`, `explorer /select,`, `xdg-open` on its folder); rejects when there is none; the page passes no path |
-| `export_unchecked()` | `ExportResult` | writes the copy the leak check just refused, to the file chosen for it, without checking again; Python keeps that path, so the page passes none; rejects unless the last export of this document was refused |
+| `export_text_as()` | `ExportResult \| null` | save dialog (`*.txt`); null = cancelled; the labelled text (`ReviewApi.export_text`), checked for leaks when the setting says so; asks no consent for unread scans; no progress events |
+| `export_unchecked()` | `ExportResult` | writes the export the leak check just refused (the copy or the text), to the file chosen for it, without checking again; Python keeps that path and kind, so the page passes none; rejects unless the last export of this document was refused |
 | `choose_session()` | `DocumentInfo \| null` | asks for session, then PDF; reads it with the OCR engine the session names |
 | `save_session_as()` | `bool` | false = cancelled |
 | `page_image(index, dpi)` | `data:` PNG URL | dpi clamped to 36..400 in Python |
@@ -474,6 +485,7 @@ display (the script in a Linux container), not your desktop.
 | `Document.add_region`, `Document.remove_entity` | drawing and removing a region |
 | `pipeline.add_finding` (`Document.add_span`, `propagate_occurrences(document, marked)`), `pipeline.remove_finding` | adding a missed word with its repeats, and removing it with the repeats only it explained |
 | `redact.export_redacted` | export: temporary file, `redact_pdf`, `find_leaks`, rename only when clean; the CLI's `redact` uses the same function |
+| `redact.export_redacted_text` | *Export Text…*: `redact_text`, read back, `find_text_leaks`, rename only when clean; the CLI's `redact --text` |
 | `ingest.OCR_ENGINES`, `load_ocr_engine`, `ocr_engine_installed`, `missing_ocr_files` | the engines offered, each loaded once per session on first use; their states on the home screen without loading them |
 | `ingest.pages_needing_ocr`, `Page.raster_dpi` | the page warning and export consent for scans OCR did not read; the "read by OCR" note |
 | `session.session_ocr_engine` | reopening a review of scans with the engine that read them |
@@ -516,10 +528,7 @@ In suggested order. Each item names where it plugs in.
     and Linux (GTK or Qt backend) by hand.
 12. **Large documents:** virtualize the page list and the sidebar beyond a
     few hundred pages or entities.
-13. **Export as text** (`redact.export_redacted_text`, the CLI's `redact --text`):
-    the page text with each value replaced by its label, for pasting into a
-    language model; keeps nothing of a value's width. A second button beside the
-    PDF export, through a `WindowApi` method that takes no path.
+13. **Done:** ~~export as text~~ (*Export Text…*, `export_text_as`).
 
 ## Open issues from manual testing (2026-10-02)
 

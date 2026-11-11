@@ -36,7 +36,12 @@ export interface ReviewBridge {
   save_session_as(): Promise<boolean>;
   /** Null when the reviewer cancelled the save dialog; steps arrive as `anonymizer:export` events. */
   export_as(allowPagesWithoutText: boolean): Promise<ExportResult | null>;
-  /** Writes the copy the leak check just refused, to the file chosen for it, without checking again. */
+  /**
+   * Saves the page text with each redacted value replaced by its label; null when the reviewer
+   * cancelled the save dialog. A scan OCR did not read needs no consent: its page is empty.
+   */
+  export_text_as(): Promise<ExportResult | null>;
+  /** Writes the export the leak check just refused, to the file chosen for it, without checking again. */
   export_unchecked(): Promise<ExportResult>;
   /** Shows the copy last exported in the system's file manager. */
   show_export(): Promise<void>;

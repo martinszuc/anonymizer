@@ -4,14 +4,16 @@ import {
   exportStages,
   exportStatus,
   exportSummary,
+  exportedCopy,
   leakSections,
   pagesLabel,
   plural,
+  unreadPagesNote,
   type ExportPlan,
   type LeakRow,
 } from "../review";
 import { fileManager } from "../platform";
-import type { ExportProgress, ExportResult, LeakInfo } from "../types";
+import type { ExportFormat, ExportProgress, ExportResult, LeakInfo } from "../types";
 import { Button } from "./Button";
 import { Sheet } from "./Sheet";
 import { TaskProgress } from "./TaskProgress";
@@ -111,7 +113,9 @@ export function ExportSheets({
           </>
         }
       >
-        {sheet?.kind === "leaks" && <LeaksBody leaks={sheet.result.leaks} onShow={onShowLeak} />}
+        {sheet?.kind === "leaks" && (
+          <LeaksBody leaks={sheet.result.leaks} format={sheet.result.format} onShow={onShowLeak} />
+        )}
       </Sheet>
       <Sheet
         open={sheet?.kind === "result"}
@@ -134,12 +138,18 @@ export function ExportSheets({
   );
 }
 
-function LeaksBody({ leaks, onShow }: { leaks: LeakInfo[]; onShow: (row: LeakRow) => void }) {
+interface LeaksBodyProps {
+  leaks: LeakInfo[];
+  format: ExportFormat;
+  onShow: (row: LeakRow) => void;
+}
+
+function LeaksBody({ leaks, format, onShow }: LeaksBodyProps) {
   return (
     <>
       <p>
-        The leak check found {plural(leaks.length, "place")} in the redacted copy that may still
-        show personal data. Nothing is saved yet: save it anyway, or go back and look.
+        The leak check found {plural(leaks.length, "place")} in the {exportedCopy(format)} that may
+        still show personal data. Nothing is saved yet: save it anyway, or go back and look.
       </p>
       {leakSections(leaks).map((section) => (
         <section key={section.kind} className="leak-section" aria-label={section.title}>
@@ -178,6 +188,7 @@ function LeakText({ row }: { row: LeakRow }) {
 }
 
 function ResultBody({ result, accepted }: { result: ExportResult; accepted: LeakInfo[] }) {
+  const unread = unreadPagesNote(result);
   return (
     <>
       <p className="sheet-file">{result.name}</p>
@@ -199,13 +210,7 @@ function ResultBody({ result, accepted }: { result: ExportResult; accepted: Leak
           )}
         </div>
       </dl>
-      {result.pages_without_text.length > 0 && (
-        <p className="sheet-note">
-          {pagesLabel(result.pages_without_text)}{" "}
-          {result.pages_without_text.length === 1 ? "is a scan" : "are scans"} OCR did not read, and{" "}
-          {result.pages_without_text.length === 1 ? "was" : "were"} not redacted.
-        </p>
-      )}
+      {unread && <p className="sheet-note">{unread}</p>}
     </>
   );
 }

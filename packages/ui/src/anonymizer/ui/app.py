@@ -19,6 +19,7 @@ import platform
 import subprocess
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +44,7 @@ _SOURCE_TYPES = (
     *_PDF_TYPES,
     f"Images ({';'.join(f'*{suffix}' for suffix in IMAGE_SUFFIXES)})",
 )
+_TEXT_TYPES = ("Text files (*.txt)",)
 _SESSION_TYPES = ("Review sessions (*.json)",)
 
 _NOT_BUILT = """<!doctype html><meta charset="utf-8">
@@ -77,6 +79,15 @@ def _logged[**P, R](call: Callable[P, R]) -> Callable[P, R]:
     return wrapper
 
 
+@dataclass(frozen=True)
+class _ExportRequest:
+    """An export as the reviewer asked for it: where to, and which kind of file."""
+
+    path: str
+    allow_pages_without_text: bool
+    text: bool
+
+
 class WindowApi:
     """The calls the page may make: the review, with paths chosen in native dialogs.
 
@@ -96,9 +107,9 @@ class WindowApi:
         # The last whole percent told to the page per feature, so a download of
         # a gigabyte sends a hundred events rather than a thousand.
         self._told_percent: dict[str, int] = {}
-        # Where the last export the leak check refused was going, and whether it
-        # allowed unread scans: saving it anyway reuses them, so that call takes no path.
-        self._refused_export: tuple[str, bool] | None = None
+        # The last export the leak check refused: saving it anyway writes the same
+        # kind of file to the same place, so that call takes no path.
+        self._refused_export: _ExportRequest | None = None
         # The copy last written, which the page may ask to be shown in the file manager.
         self._written: Path | None = None
 
@@ -234,27 +245,43 @@ class WindowApi:
         if path is None:
             return None
         result = self._review.export(path, allow_pages_without_text, self._export_progress)
-        if result["written"]:
-            self._written = Path(path)
-        else:
-            self._refused_export = (path, bool(allow_pages_without_text))
-        return result
+        return self._exported(
+            result, _ExportRequest(path, bool(allow_pages_without_text), text=False)
+        )
+
+    @_logged
+    def export_text_as(self) -> dict[str, Any] | None:
+        """Ask where to write the labelled text and export it; None if cancelled.
+
+        See `ReviewApi.export_text` for the result. A scan OCR has not read
+        only leaves its page empty, so no consent is asked for.
+        """
+        self._refused_export = None
+        default = f"{Path(self._review.name).stem}-redacted.txt"
+        path = self._ask(webview.FileDialog.SAVE, _TEXT_TYPES, default)
+        if path is None:
+            return None
+        result = self._review.export_text(path)
+        return self._exported(result, _ExportRequest(path, False, text=True))
 
     @_logged
     def export_unchecked(self) -> dict[str, Any]:
-        """Write the copy the leak check refused, where it was going, without checking again.
+        """Write the export the leak check refused, where it was going, without checking again.
 
-        The reviewer has seen the leaks and decided to keep the copy. Redaction
-        makes the same file again; nothing else is left out.
+        The reviewer has seen the leaks and decided to keep the file. The same
+        copy or text is made again; nothing else is left out.
         """
-        if self._refused_export is None:
+        refused, self._refused_export = self._refused_export, None
+        if refused is None:
             msg = "there is no refused export to save"
             raise ReviewError(msg)
-        (path, allow_pages_without_text), self._refused_export = self._refused_export, None
-        result = self._review.export(
-            path, allow_pages_without_text, self._export_progress, check=False
-        )
-        self._written = Path(path)
+        if refused.text:
+            result = self._review.export_text(refused.path, check=False)
+        else:
+            result = self._review.export(
+                refused.path, refused.allow_pages_without_text, self._export_progress, check=False
+            )
+        self._written = Path(refused.path)
         return result
 
     @_logged
@@ -306,6 +333,14 @@ class WindowApi:
     def remove_entity(self, entity_id: str) -> list[str]:
         """Remove an item the reviewer added; see `ReviewApi.remove_entity`."""
         return self._review.remove_entity(entity_id)
+
+    def _exported(self, result: dict[str, Any], request: _ExportRequest) -> dict[str, Any]:
+        """Keep the file just written for `show_export`, or the refused export for saving anyway."""
+        if result["written"]:
+            self._written = Path(request.path)
+        else:
+            self._refused_export = request
+        return result
 
     def _open(self, path: str, options: Any) -> dict[str, Any]:
         self._refused_export = None

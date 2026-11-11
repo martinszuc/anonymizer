@@ -44,6 +44,7 @@ import {
   steppedZoom,
   toggled,
   truncated,
+  type ExportPlan,
   type LeakRow,
   type ListView,
 } from "./review";
@@ -56,6 +57,7 @@ import type {
   DownloadProgress,
   EntityInfo,
   ExportProgress,
+  ExportResult,
   OpenOptions,
   OpenProgress,
   SurfaceInfo,
@@ -392,10 +394,26 @@ export function App() {
   async function runExport(allowPagesWithoutText: boolean) {
     if (!bridge || !document) return;
     const plan = { check: status?.settings.leak_check ?? true, scannedPages: scannedPages(document) };
+    await exportWith(plan, () => bridge.export_as(allowPagesWithoutText));
+  }
+
+  /**
+   * Export the text with each value replaced by its label. No consent for unread scans: their
+   * pages are only empty in the text. Python tells no steps, so no progress sheet appears.
+   */
+  async function exportText() {
+    if (!bridge || !document || exporting) return;
+    await exportWith({ check: status?.settings.leak_check ?? true, scannedPages: 0 }, () =>
+      bridge.export_text_as(),
+    );
+  }
+
+  /** Run an export and show its outcome: nothing when cancelled, the leaks, or the result. */
+  async function exportWith(plan: ExportPlan, call: () => Promise<ExportResult | null>) {
     setExportSheet({ kind: "progress", plan, progress: null });
     setExporting(true);
     try {
-      const result = await bridge.export_as(allowPagesWithoutText);
+      const result = await call();
       if (!result) setExportSheet(null);
       else if (result.written) setExportSheet({ kind: "result", result, accepted: [] });
       else setExportSheet({ kind: "leaks", result });
@@ -644,7 +662,7 @@ export function App() {
       else if (key === "0" && document) setZoom("fit");
       else if (key === "g" && document) pageField.current?.focus();
       else if (key === "y" && document) setPreviewing((value) => !value);
-      else if (key === "e" && document) startExport();
+      else if (key === "e" && document) void (event.shiftKey ? exportText() : startExport());
       else if (key === "z" && document) void (event.shiftKey ? redo() : undo());
       else return;
       event.preventDefault();
@@ -785,6 +803,7 @@ export function App() {
               onSave={save}
               onPreview={() => setPreviewing((value) => !value)}
               onExport={startExport}
+              onExportText={() => void exportText()}
               onSettings={() => setSettingsOpen(true)}
               onDrawTool={() => setDrawTool((value) => !value)}
               onLocate={() => setLocating((value) => !value)}

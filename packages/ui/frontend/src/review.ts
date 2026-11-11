@@ -5,6 +5,7 @@ import type {
   ChoiceStatus,
   DocumentInfo,
   EntityInfo,
+  ExportFormat,
   ExportProgress,
   ExportResult,
   ExportStep,
@@ -533,8 +534,25 @@ export function exportSummary(result: ExportResult): ExportLine[] {
   lines.push({ label: "Redacted", value: `${plural(result.redacted, "item")}${unreviewed}` });
   if (result.regions > 0) lines.push({ label: "Regions", value: plural(result.regions, "region") });
   lines.push({ label: "Kept", value: plural(result.kept, "item") });
-  lines.push({ label: "Hidden data removed", value: plural(result.hidden_removed, "item") });
+  // A text export never holds hidden data: it is left out rather than removed.
+  const hidden = result.format === "text" ? "Hidden data left out" : "Hidden data removed";
+  lines.push({ label: hidden, value: plural(result.hidden_removed, "item") });
   return lines;
+}
+
+/** What became of the scans OCR did not read, under the export's result; null when there are none. */
+export function unreadPagesNote(result: ExportResult): string | null {
+  const pages = result.pages_without_text;
+  if (pages.length === 0) return null;
+  const one = pages.length === 1;
+  const scans = `${pagesLabel(pages)} ${one ? "is a scan" : "are scans"} OCR did not read`;
+  if (result.format === "text") return `${scans}; ${one ? "its" : "their"} text is not in the export.`;
+  return `${scans}, and ${one ? "was" : "were"} not redacted.`;
+}
+
+/** What the leak check looked at, as the warning sheet names it. */
+export function exportedCopy(format: ExportFormat): string {
+  return format === "text" ? "exported text" : "redacted copy";
 }
 
 const LEAK_LAYERS: Record<string, string> = {

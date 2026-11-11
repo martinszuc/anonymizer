@@ -1,7 +1,8 @@
 """Czech and Slovak birth number (rodné číslo) detection.
 
 Format: `YYMMDD/XXX` (issued before 1954, no check digit) or `YYMMDD/XXXX`
-(1954 onwards, last digit is a mod-11 check digit). The separator is optional.
+(1954 onwards, last digit is a mod-11 check digit). The separator (slash or
+hyphen) is optional.
 
 The month field encodes more than the month: `+50` marks a female holder, and
 `+20` (with `+70` for female) marks a number from an exhausted daily series,
@@ -12,7 +13,8 @@ without a birth number, has the same format and check digit with `+40` added
 to the day, so day fields 41-71 are accepted as well.
 
 A ten-digit number with a real date but a wrong check digit is still reported
-when a label (`rodné číslo`, `r. č.`, `RČ`, `EČP`) stands right before it. The
+when a label (`rodné číslo`, `r. č.`, `RČ`, `EČP`) stands before it, closely enough
+for a form field: directly, or after a short parenthetical, a dash or a few words. The
 label is the evidence, as for IČO: a mistyped or misread birth number is still
 the holder's, and missing it leaks it, while a bare digit string with a wrong
 check digit is far more often something else.
@@ -27,16 +29,28 @@ from datetime import date
 from anonymizer.core.detect.base import Match
 from anonymizer.core.types import EntityType
 
-# Optional whitespace is tolerated around the separator because OCR inserts it.
-_PATTERN = re.compile(r"(?<![\d/])(\d{6})\s*/?\s*(\d{3,4})(?![\d/])")
+# Optional whitespace is tolerated around the separator because OCR inserts it;
+# forms also write the number with a hyphen instead of the slash.
+_PATTERN = re.compile(r"(?<![\d/])(\d{6})\s*[/-]?\s*(\d{3,4})(?![\d/]|-\d)")
+_SEPARATORS = re.compile(r"[\s/-]")
 
-# A label ending right before the number; diacritics are optional because OCR drops them.
+# A label ending before the number; diacritics are optional because OCR drops them.
+# Between label and number a form may put a short parenthetical ("(nepovinné)"),
+# a second identifier ("RČ/IČO"), up to three words ("žadatele") that must then be
+# closed by a colon, or a colon, dot or dash. Nothing spans a line break except
+# trailing whitespace, and a comma, semicolon or sentence end inside the gap breaks the link.
+_LABEL = r"(?:rodn\w*[ \t]+[čc]\w*\.?|rod\.[ \t]*[čc]\.?|r\.[ \t]*[čc]\.?|r[čc]|e[čc]p)"
+_PARENTHETICAL = r"\([^()\n]{1,25}\)"
 _LABEL_BEFORE = re.compile(
-    r"(?<!\w)(?:rodn\w*\s+[čc]\w*\.?|rod\.\s*[čc]\.?|r\.\s*[čc]\.?|r[čc]|e[čc]p)\s*[:.]?\s*$",
+    rf"\(?(?<!\w){_LABEL}\)?"
+    rf"(?:/[^\W\d_]+)?"
+    rf"(?:[ \t]*{_PARENTHETICAL})?"
+    rf"(?:(?:[ \t]+[^\W\d_]+){{1,3}}[ \t]*(?:{_PARENTHETICAL}[ \t]*)?:|[ \t]*[:.\-\u2013\u2014])?"
+    r"\s*$",
     re.IGNORECASE,
 )
-# Enough characters before a number to hold the longest label and its punctuation.
-_LABEL_REACH = 30
+# Enough characters before a number to hold the longest label and its gap.
+_LABEL_REACH = 80
 
 _FEMALE_MONTH_OFFSET = 50
 _EXTENDED_MONTH_OFFSET = 20
@@ -83,7 +97,7 @@ def is_valid_birth_number(value: str) -> bool:
     Returns:
         `True` if the value is a structurally valid Czech or Slovak birth number.
     """
-    digits = re.sub(r"[\s/]", "", value)
+    digits = _SEPARATORS.sub("", value)
     if not digits.isdigit() or len(digits) not in {9, 10}:
         return False
     birth_date = _birth_date(digits)
@@ -101,13 +115,14 @@ def is_valid_birth_number(value: str) -> bool:
 
 def _is_dated(value: str) -> bool:
     """Check a ten-digit number's encoded date, leaving its check digit aside."""
-    digits = re.sub(r"[\s/]", "", value)
+    digits = _SEPARATORS.sub("", value)
     return len(digits) == 10 and _birth_date(digits) is not None
 
 
 def _is_labelled(text: str, start: int) -> bool:
     """Tell whether a birth-number label ends right before `start`."""
-    return _LABEL_BEFORE.search(text[max(0, start - _LABEL_REACH) : start]) is not None
+    # `pos` keeps the lookbehind able to see the character before the window.
+    return _LABEL_BEFORE.search(text, max(0, start - _LABEL_REACH), start) is not None
 
 
 def find_birth_numbers(text: str) -> Iterator[Match]:

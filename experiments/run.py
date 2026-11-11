@@ -45,6 +45,7 @@ from experiments.seeds import summarize
 from experiments.systems import (
     CACHE_FLOOR,
     SPAN_MODEL_ENGINES,
+    ModelKey,
     NameModel,
     PredictionCache,
     SystemConfig,
@@ -70,7 +71,7 @@ def run(
     *,
     resource_root: Path,
     cache_dir: Path,
-    load_model: Callable[[str], Any] | None = None,
+    load_model: Callable[..., Any] | None = None,
     load_splitter: Callable[[str], SentenceSplitter] | None = None,
     progress: Progress = lambda _: None,
     limit: int | None = None,
@@ -83,8 +84,9 @@ def run(
         resource_root: Storage root holding `data/` and `models/`; the models
             trained under it can be run as well.
         cache_dir: Where the name models' output is cached.
-        load_model: Returns a name model by catalog id; from the catalog's
-            files under `resource_root` by default.
+        load_model: Returns a name model by catalog id, and a NameTag model
+            in a tagset given after the id; from the catalog's files under
+            `resource_root` by default.
         load_splitter: Returns a NameTag model's sentence splitter by catalog
             id; from the same files by default.
         progress: Told what is running (no corpus text).
@@ -142,14 +144,15 @@ def run(
     }
 
 
-def once[Loaded](load_model: Callable[[str], Loaded]) -> Callable[[str], Loaded]:
-    """Load each model on first use only, however many corpora ask for it."""
-    loaded: dict[str, Loaded] = {}
+def once[Loaded](load_model: Callable[..., Loaded]) -> Callable[..., Loaded]:
+    """Load each model (and tagset) on first use only, however many corpora ask for it."""
+    loaded: dict[tuple[str, ...], Loaded] = {}
 
-    def load(model_id: str) -> Loaded:
-        if model_id not in loaded:
-            loaded[model_id] = load_model(model_id)
-        return loaded[model_id]
+    def load(model_id: str, *options: str) -> Loaded:
+        key = (model_id, *options)
+        if key not in loaded:
+            loaded[key] = load_model(model_id, *options)
+        return loaded[key]
 
     return load
 
@@ -163,30 +166,32 @@ def corpus_models(
     config: RunConfig,
     corpus: Corpus,
     cache_dir: Path,
-    load_model: Callable[[str], Any],
+    load_model: Callable[..., Any],
     load_splitter: Callable[[str], SentenceSplitter],
     catalog: Catalog,
     device: str = "cpu",
-) -> dict[tuple[str, float], NameModel]:
+) -> dict[ModelKey, NameModel]:
     """Return every name model the systems use, wrapped in its cache for this corpus.
 
     The cache file is chosen by model and dataset version, split and, for
-    GLiNER, cache floor and the device it runs on (`systems.cache_path`;
-    `load_model` must load it there), and its entries by the model
-    input, so every command reading the same corpus the same way answers
-    from one cache. Models are keyed by catalog id and the cache floor each
-    system reads them at (`SystemConfig.cache_floor_of`, from the threshold
-    the model runs at in that system, its catalog entry's when the system
-    sets none); NameTag has no floor, so every floor gets its one cached
-    tagger.
+    GLiNER, cache floor and the device it runs on, for NameTag the tagset a
+    system names (`systems.cache_path`; `load_model` must load it there),
+    and its entries by the model input, so every command reading the same
+    corpus the same way answers from one cache. Models are keyed by catalog
+    id, the cache floor each system reads them at
+    (`SystemConfig.cache_floor_of`, from the threshold the model runs at in
+    that system, its catalog entry's when the system sets none) and the
+    tagset (`SystemConfig.model_key`); NameTag has no floor, so every floor
+    gets its one cached tagger per tagset.
     """
-    models: dict[tuple[str, float], NameModel] = {}
-    opened: dict[tuple[str, float], NameModel] = {}
+    models: dict[ModelKey, NameModel] = {}
+    opened: dict[ModelKey, NameModel] = {}
     for system in config.systems:
         for model_id in system.model_ids:
             gliner = name_model(model_id, catalog).engine in SPAN_MODEL_ENGINES
             floor = system.cache_floor_of(model_id) if gliner else CACHE_FLOOR
-            if (model_id, floor) not in opened:
+            tagset = None if gliner else system.tagset_of(model_id)
+            if (model_id, floor, tagset) not in opened:
                 path = cache_path(
                     cache_dir,
                     model_id,
@@ -196,18 +201,25 @@ def corpus_models(
                     catalog,
                     floor,
                     device if gliner else "cpu",
+                    tagset,
                 )
-                opened[model_id, floor] = cached_model(
-                    model_id, PredictionCache(path), load_model, load_splitter, catalog, floor
+                opened[model_id, floor, tagset] = cached_model(
+                    model_id,
+                    PredictionCache(path),
+                    load_model,
+                    load_splitter,
+                    catalog,
+                    floor,
+                    tagset,
                 )
-            models[model_id, system.cache_floor_of(model_id)] = opened[model_id, floor]
+            models[system.model_key(model_id)] = opened[model_id, floor, tagset]
     return models
 
 
 def _run_corpus(
     config: RunConfig,
     corpus: Corpus,
-    models: dict[tuple[str, float], NameModel],
+    models: dict[ModelKey, NameModel],
     progress: Progress,
 ) -> dict[str, Any]:
     types = scored_types(config, corpus)

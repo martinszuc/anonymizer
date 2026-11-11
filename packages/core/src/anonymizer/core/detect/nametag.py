@@ -39,6 +39,11 @@ Entity types, CNEC 2.0 (Czech model) and CoNLL / UNER / OntoNotes
              run with no container, street, number or postcode is a place
              ("born in Brno"), not an address, and is dropped.
 
+The multilingual model's tagsets name persons `PER` (CoNLL, UNER) or
+`PERSON` (OntoNotes). None has an address type: their places (`LOC`, and
+OntoNotes' `GPE` and `FAC`) are towns, countries and buildings, and are
+dropped like the Czech model's town alone.
+
 Telephone numbers (`at`) and e-mail addresses (`me`) are left to the rules,
 which check their format. Spans are widened to whole words and a span with
 fewer than two letters or digits is dropped, as for GLiNER.
@@ -405,24 +410,27 @@ def load_nametag_detector(
     return NametagDetector(tagger, splitter, name=model_id)
 
 
-def load_nametag_tagger(model_dir: Path, encoder_dir: Path) -> Tagger:
+def load_nametag_tagger(model_dir: Path, encoder_dir: Path, tagset: str | None = None) -> Tagger:
     """Load a NameTag 3 model's network from local files only.
 
     Args:
         model_dir: The unpacked model (`options.json`, `mappings.pickle`,
             `checkpoint.weights.h5`).
         encoder_dir: The encoder's config and tokenizer.
+        tagset: For a multitagset model, the tagset to answer in (`conll`,
+            `uner`, `onto`); the model's default when omitted.
 
     Returns:
         The tagger.
 
     Raises:
+        ValueError: If the tagset is unknown, or given for a model without tagsets.
         ImportError: If the optional `ner` dependencies are not installed.
     """
     from anonymizer.core.detect.nametag_model import Nametag3Tagger
 
     try:
-        return Nametag3Tagger.load(model_dir, encoder_dir)
+        return Nametag3Tagger.load(model_dir, encoder_dir, tagset)
     except ImportError as error:
         msg = "NameTag 3 needs the optional 'ner' dependencies: uv sync --group ner"
         raise MissingDependencyError(msg) from error

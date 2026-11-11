@@ -534,6 +534,48 @@ def test_a_gpu_run_has_a_cache_of_its_own_and_records_the_card(resource_root: Pa
     assert gliner.calls == 2
 
 
+def test_each_nametag_tagset_is_loaded_and_cached_apart(resource_root: Path, tmp_path: Path):
+    multilingual = "nametag3-multilingual-260521"
+    config = {
+        **CONFIG,
+        "datasets": [{"id": "cnec-2.0", "split": "dtest"}],
+        "compare": [],
+        "systems": {
+            "conll": {"model": multilingual},
+            "onto": {"model": multilingual, "tagset": "onto"},
+        },
+    }
+    loads: list[tuple[str, ...]] = []
+
+    def load(model_id: str, *options: str) -> StandInTagger:
+        loads.append((model_id, *options))
+        found = {("Jan", "Novák"): ("PERSON", 0.9)} if options == ("onto",) else {}
+        return StandInTagger(found)
+
+    def results() -> dict[str, Any]:
+        return run(
+            parse_config(config),
+            resource_root=resource_root,
+            cache_dir=tmp_path / "cache",
+            load_model=load,
+            load_splitter=lambda _: StandInSplitter(),
+        )
+
+    first = results()
+    assert loads == [(multilingual,), (multilingual, "onto")]
+    assert first["systems"]["onto"]["tagset"] == "onto"
+    assert "tagset" not in first["systems"]["conll"]
+    files = sorted(path.name for path in (tmp_path / "cache").rglob("*.json"))
+    assert files == ["dtest.json", "dtest@onto.json"]
+    systems = first["corpora"]["cnec-2.0/dtest"]["systems"]
+    assert systems["onto"]["scores"]["partial"]["person"]["counts"]["gold_matched"] > 0
+    assert systems["conll"]["scores"]["partial"]["person"]["counts"]["gold_matched"] == 0
+
+    again = results()["corpora"]["cnec-2.0/dtest"]["systems"]
+    assert again["onto"]["cache"]["misses"] == 0
+    assert len(loads) == 2
+
+
 def test_a_device_torch_cannot_reach_is_refused_before_any_data_is_read(
     resource_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

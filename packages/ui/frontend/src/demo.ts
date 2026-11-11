@@ -9,6 +9,7 @@ import type {
   ChoiceStatus,
   DocumentInfo,
   EntityInfo,
+  ExportFormat,
   ExportProgress,
   ExportResult,
   LeakInfo,
@@ -415,11 +416,13 @@ function exportResult(
   unreadable: number[],
   leakCheck: ExportResult["leak_check"],
   leaks: LeakInfo[],
+  format: ExportFormat = "pdf",
 ): ExportResult {
   const applied = document.entities.filter((entity) => entity.review !== "rejected");
   return {
     written: leaks.length === 0,
-    name: "demo-cv-redacted.pdf",
+    format,
+    name: format === "pdf" ? "demo-cv-redacted.pdf" : "demo-cv-redacted.txt",
     redacted: applied.filter((entity) => !entity.is_region).length,
     regions: applied.filter((entity) => entity.is_region).length,
     kept: document.entities.length - applied.length,
@@ -452,7 +455,7 @@ export function demoBridge(): ReviewBridge {
   // OCR engines stay loaded for the session, as in Python.
   const loadedEngines = new Set<string>();
   // The last export the leak check refused, which the reviewer may save anyway.
-  let refused = false;
+  let refused: ExportFormat | null = null;
   const open = async (options?: OpenOptions) => {
     const engine = options?.use_ocr ? options.ocr_engine : null;
     if (engine && !loadedEngines.has(engine)) {
@@ -556,14 +559,29 @@ export function demoBridge(): ReviewBridge {
       await demoExport(current, leakCheck);
       // Keeping a finding stands in for a review that leaves something behind.
       const leaks = leakCheck && current.entities.some((entity) => entity.review === "rejected") ? demoLeaks(current) : [];
-      refused = leaks.length > 0;
+      refused = leaks.length > 0 ? "pdf" : null;
       return exportResult(current, unreadable, leakCheck ? (refused ? "failed" : "passed") : "off", leaks);
+    },
+    export_text_as: async (): Promise<ExportResult | null> => {
+      await pause();
+      if (!current) throw new Error("no document is open");
+      const unreadable = current.pages
+        .filter((page) => !page.has_text_layer && page.raster_dpi === null)
+        .map((page) => page.index + 1);
+      // The text export checks the page text only, so only a text found again is reported.
+      const leaks =
+        leakCheck && current.entities.some((entity) => entity.review === "rejected")
+          ? demoLeaks(current).filter((leak) => leak.layer === "page_text")
+          : [];
+      refused = leaks.length > 0 ? "text" : null;
+      return exportResult(current, unreadable, leakCheck ? (refused ? "failed" : "passed") : "off", leaks, "text");
     },
     export_unchecked: async (): Promise<ExportResult> => {
       if (!current || !refused) throw new Error("there is no refused export to save");
-      refused = false;
-      await demoExport(current, false);
-      return exportResult(current, [], "off", []);
+      const format = refused;
+      refused = null;
+      if (format === "pdf") await demoExport(current, false);
+      return exportResult(current, [], "off", [], format);
     },
     add_region: async (pageIndex, x0, y0, x1, y1) => {
       if (!current) throw new Error("no document is open");

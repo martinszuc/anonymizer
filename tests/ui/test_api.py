@@ -237,6 +237,7 @@ class TestExport:
 
         assert result == {
             "written": True,
+            "format": "pdf",
             "name": "cv-redacted.pdf",
             "redacted": 1,
             "regions": 0,
@@ -287,6 +288,102 @@ class TestExport:
         )
         assert told[:4] == ["redacting", "redacting", "clearing", "saving"]
         assert told[4:] == [layer.value for layer in LeakLayer if layer is not LeakLayer.OCR]
+
+
+class TestTextExport:
+    def test_writes_labels_for_the_decisions_and_reports_them(self, review: ReviewApi, pdf: Path):
+        phone = entity_of_type(review.document(), "phone")
+        review.set_review(phone["id"], "rejected")
+        destination = pdf.with_name("cv-redacted.txt")
+        # An earlier export is replaced: the save dialog has confirmed it.
+        destination.write_text("earlier export", encoding="utf-8")
+
+        result = review.export_text(str(destination))
+
+        assert result == {
+            "written": True,
+            "format": "text",
+            "name": "cv-redacted.txt",
+            "redacted": 1,
+            "regions": 0,
+            "kept": 1,
+            "not_reviewed": 1,
+            "hidden_removed": 0,
+            "pages_without_text": [],
+            "leak_check": "passed",
+            "leaks": [],
+        }
+        written = destination.read_text(encoding="utf-8")
+        assert [line for line in written.splitlines() if line] == [
+            "Jan Novak",
+            "e-mail [EMAIL]",
+            f"tel. {PHONE}",  # kept in review
+            "KEEP this line",
+        ]
+
+    def test_a_leak_writes_nothing_and_is_reported(
+        self, review: ReviewApi, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        leak = Leak(LeakLayer.PAGE_TEXT, "page 0", CONTACT_EMAIL, "e1", page_index=0)
+        monkeypatch.setattr(export_module, "find_text_leaks", lambda *_: [leak])
+        destination = pdf.with_name("cv-redacted.txt")
+        destination.write_text("earlier export", encoding="utf-8")
+        result = review.export_text(str(destination))
+        assert (result["written"], result["leak_check"]) == (False, "failed")
+        assert result["leaks"] == [
+            {
+                "layer": "page_text",
+                "where": "page 0",
+                "page": 1,
+                "text": CONTACT_EMAIL,
+                "entity_id": "e1",
+                "kind": "text",
+            }
+        ]
+        assert destination.read_text(encoding="utf-8") == "earlier export"
+
+    def test_follows_the_leak_check_setting(
+        self, review: ReviewApi, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        def no_check(*_: object) -> list[Leak]:
+            raise AssertionError("the check was run")
+
+        monkeypatch.setattr(export_module, "find_text_leaks", no_check)
+        review.set_leak_check(False)
+        destination = pdf.with_name("cv-redacted.txt")
+        result = review.export_text(str(destination))
+        assert (result["written"], result["leak_check"]) == (True, "off")
+        assert CONTACT_EMAIL not in destination.read_text(encoding="utf-8")
+
+    def test_may_leave_the_check_out_while_it_is_on(
+        self, review: ReviewApi, pdf: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        leak = Leak(LeakLayer.PAGE_TEXT, "page 0", CONTACT_EMAIL, "e1", page_index=0)
+        monkeypatch.setattr(export_module, "find_text_leaks", lambda *_: [leak])
+        result = review.export_text(str(pdf.with_name("cv-redacted.txt")), check=False)
+        assert (result["written"], result["leak_check"]) == (True, "off")
+
+    def test_a_scan_ocr_has_not_read_needs_no_consent(self, tmp_path: Path):
+        reviewer = ReviewApi()
+        reviewer.open_pdf(str(write_pdf(tmp_path / "mixed.pdf", [LINES, []])), "cs")
+        destination = tmp_path / "out.txt"
+        result = reviewer.export_text(str(destination))
+        assert (result["written"], result["pages_without_text"]) == (True, [2])
+        assert destination.read_text(encoding="utf-8").split("\f")[1] == ""
+
+    def test_refuses_to_overwrite_the_original(self, review: ReviewApi, pdf: Path):
+        original = pdf.read_bytes()
+        with pytest.raises(ReviewError, match="must not overwrite its source"):
+            review.export_text(str(pdf))
+        assert pdf.read_bytes() == original
+
+    def test_reports_a_file_it_cannot_write(self, review: ReviewApi, tmp_path: Path):
+        with pytest.raises(ReviewError):
+            review.export_text(str(tmp_path / "absent" / "out.txt"))
+
+    def test_needs_an_open_document(self, tmp_path: Path):
+        with pytest.raises(ReviewError, match="no document is open"):
+            ReviewApi().export_text(str(tmp_path / "out.txt"))
 
 
 OPTIONS = {

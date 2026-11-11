@@ -27,7 +27,8 @@ inference; models load from a local cache and the test suite fails on any outbou
 - **Review:** through session files, or in the review window: a home screen
   with the detection options, models downloaded from the window and checked
   against their checksums, open or drop a PDF or an image, toggle each item,
-  add a missed word by selecting it, draw regions, save the session, export.
+  add a missed word by selecting it, draw regions, save the session, export
+  the redacted PDF or its labelled text.
 - **Scanned pages:** read through an OCR engine interface; redaction
   overwrites the pixels under each box and removes the page's text layer, and
   the leak check re-reads the redacted page with the same engine. Two engines,

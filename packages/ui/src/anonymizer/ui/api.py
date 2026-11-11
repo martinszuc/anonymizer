@@ -60,7 +60,7 @@ from anonymizer.core.pipeline import (
     resolve_language,
     run_detection,
 )
-from anonymizer.core.redact import Leak, export_redacted
+from anonymizer.core.redact import Leak, export_redacted, export_redacted_text
 from anonymizer.core.resources import (
     Catalog,
     ChecksumError,
@@ -905,10 +905,11 @@ class ReviewApi:
                 when the reviewer saves a copy the check refused.
 
         Returns:
-            What the export did: whether the copy was written, the counts of
-            redacted, kept and not reviewed items and of hidden items removed,
-            the pages left unredacted, the leak check's outcome (`passed`,
-            `failed` or `off`) and the leaks that stopped it.
+            What the export did: whether the copy was written, its `format`
+            (`pdf`), the counts of redacted, kept and not reviewed items and
+            of hidden items removed, the pages left unredacted, the leak
+            check's outcome (`passed`, `failed` or `off`) and the leaks that
+            stopped it.
 
         Raises:
             ReviewError: If pages have no text layer and that was not allowed,
@@ -937,7 +938,56 @@ class ReviewApi:
                 current.source, current.document, path, ocr=ocr, check=checked, progress=progress
             )
         return _export_payload(
-            Path(path).name, current.document, leaks, unreadable, checked=checked
+            Path(path).name,
+            current.document,
+            leaks,
+            unreadable,
+            checked=checked,
+            export_format="pdf",
+        )
+
+    def export_text(self, path: str, check: bool | None = None) -> dict[str, Any]:
+        """Write the page text with each redacted value replaced by its label.
+
+        Undecided items are replaced as well, rejected ones kept, and words
+        under a region replaced (`export_redacted_text`); the file is kept
+        only if the leak check passes. Hidden data never reaches it. A scan
+        OCR has not read has no text, so its page is empty in the export and
+        needs no consent.
+
+        Args:
+            path: Where to write the text; the window's save dialog has
+                already confirmed replacing an existing file.
+            check: Run the leak check; the setting (`set_leak_check`) decides
+                when omitted. False writes the text whatever it holds.
+
+        Returns:
+            What the export did, as `export` describes it, with `format`
+            `text`; `pages_without_text` lists the scans whose text is missing.
+
+        Raises:
+            ReviewError: If the path is the original or cannot be written.
+        """
+        current = self._current()
+        checked = self._leak_check if check is None else check
+        unreadable = [index + 1 for index in pages_needing_ocr(current.document)]
+        log.info(
+            "text export requested: unread_scan_pages=%d leak_check=%s",
+            len(unreadable),
+            "on" if checked else "off",
+        )
+        if Path(path).resolve() == current.source.resolve():
+            msg = "the text export must not overwrite its source"
+            raise ReviewError(msg)
+        with _as_review_error():
+            leaks = export_redacted_text(current.document, path, check=checked)
+        return _export_payload(
+            Path(path).name,
+            current.document,
+            leaks,
+            unreadable,
+            checked=checked,
+            export_format="text",
         )
 
     def _engine_that_read(self, document: Document) -> OcrEngine | None:
@@ -1065,7 +1115,13 @@ def _entity_payload(entity: Entity) -> dict[str, Any]:
 
 
 def _export_payload(
-    name: str, document: Document, leaks: list[Leak], unreadable: list[int], *, checked: bool
+    name: str,
+    document: Document,
+    leaks: list[Leak],
+    unreadable: list[int],
+    *,
+    checked: bool,
+    export_format: str,
 ) -> dict[str, Any]:
     # A finding in hidden data goes with it, whatever its review says: export
     # clears every hidden item.
@@ -1076,6 +1132,7 @@ def _export_payload(
     ]
     return {
         "written": not leaks,
+        "format": export_format,
         "name": name,
         "redacted": sum(not entity.is_region for entity in applied),
         "regions": sum(entity.is_region for entity in applied),

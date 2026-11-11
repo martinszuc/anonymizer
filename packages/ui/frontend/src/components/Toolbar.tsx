@@ -5,6 +5,7 @@ import {
   Eye,
   EyeOff,
   FileOutput,
+  FileText,
   FolderOpen,
   Keyboard,
   LocateFixed,
@@ -46,6 +47,8 @@ interface ToolbarProps {
   onSave: () => void;
   onPreview: () => void;
   onExport: () => void;
+  /** Save the page text with each redacted value replaced by its label. */
+  onExportText: () => void;
   onSettings: () => void;
   onShortcuts: () => void;
   onDrawTool: () => void;
@@ -195,6 +198,14 @@ export function Toolbar(props: ToolbarProps) {
           aria-label="Keyboard shortcuts"
           title="Keyboard shortcuts (?)"
           onClick={props.onShortcuts}
+        />
+        <Button
+          variant="plain"
+          icon={<FileText size={16} />}
+          aria-label="Export Text"
+          disabled={exporting}
+          title={`Export the text with each redacted value replaced by its label (${shortcut("E", { shift: true })})`}
+          onClick={props.onExportText}
         />
         <Button title={`Save the review to continue later (${shortcut("S")})`} onClick={props.onSave}>
           Save Review

@@ -4,6 +4,7 @@ import {
   covers,
   dragBox,
   exportSummary,
+  exportedCopy,
   groupByType,
   groupDecision,
   groupOccurrences,
@@ -44,6 +45,7 @@ import {
   steppedZoom,
   summarize,
   toggled,
+  unreadPagesNote,
 } from "./review";
 import type { DocumentInfo, EntityInfo, LeakInfo, ModelState, NamesStatus, OcrStatus } from "./types";
 
@@ -237,6 +239,7 @@ describe("steppedZoom", () => {
 describe("export helpers", () => {
   const result = {
     written: true,
+    format: "pdf" as const,
     name: "cv-redacted.pdf",
     redacted: 12,
     regions: 0,
@@ -289,6 +292,31 @@ describe("export helpers", () => {
   it("mentions regions only when there are some", () => {
     const labels = exportSummary({ ...result, regions: 1, not_reviewed: 0 }).map((line) => line.value);
     expect(labels).toEqual(["12 items", "1 region", "1 item", "6 items"]);
+  });
+
+  it("says hidden data is left out of a text export", () => {
+    const text = { ...result, format: "text" as const, name: "cv-redacted.txt" };
+    expect(exportSummary(text).at(-1)).toEqual({ label: "Hidden data left out", value: "6 items" });
+  });
+
+  it("says what became of scans OCR did not read, by format", () => {
+    expect(unreadPagesNote(result)).toBeNull();
+    const unread = { ...result, pages_without_text: [2] };
+    expect(unreadPagesNote(unread)).toBe("Page 2 is a scan OCR did not read, and was not redacted.");
+    expect(unreadPagesNote({ ...unread, pages_without_text: [2, 4] })).toBe(
+      "Pages 2 and 4 are scans OCR did not read, and were not redacted.",
+    );
+    expect(unreadPagesNote({ ...unread, format: "text" })).toBe(
+      "Page 2 is a scan OCR did not read; its text is not in the export.",
+    );
+    expect(unreadPagesNote({ ...unread, format: "text", pages_without_text: [2, 4] })).toBe(
+      "Pages 2 and 4 are scans OCR did not read; their text is not in the export.",
+    );
+  });
+
+  it("names what the leak check looked at", () => {
+    expect(exportedCopy("pdf")).toBe("redacted copy");
+    expect(exportedCopy("text")).toBe("exported text");
   });
 
   it("names leak layers", () => {

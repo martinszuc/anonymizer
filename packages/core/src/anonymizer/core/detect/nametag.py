@@ -39,6 +39,11 @@ Entity types, CNEC 2.0 (Czech model) and CoNLL / UNER / OntoNotes
              run with no container, street, number or postcode is a place
              ("born in Brno"), not an address, and is dropped.
 
+The multilingual model's tagsets name persons `PER` (CoNLL, UNER) or
+`PERSON` (OntoNotes). None has an address type: their places (`LOC`, and
+OntoNotes' `GPE` and `FAC`) are towns, countries and buildings, and are
+dropped like the Czech model's town alone.
+
 Telephone numbers (`at`) and e-mail addresses (`me`) are left to the rules,
 which check their format. Spans are widened to whole words and a span with
 fewer than two letters or digits is dropped, as for GLiNER.
@@ -61,6 +66,7 @@ from typing import Any, Protocol
 
 from anonymizer.core.detect.base import describe, merge_entities
 from anonymizer.core.detect.gliner import encoder_resource, widen_to_words
+from anonymizer.core.errors import ControlledFileNotFoundError, MissingDependencyError
 from anonymizer.core.log import step
 from anonymizer.core.resources import Catalog, load_catalog, missing_resources
 from anonymizer.core.types import DetectionSource, Entity, EntityType, Page
@@ -317,7 +323,7 @@ class UDPipeSplitter:
             self._udpipe: Any = importlib.import_module("ufal.udpipe")
         except ImportError as error:
             msg = "NameTag 3 needs the optional 'ner' dependencies: uv sync --group ner"
-            raise ImportError(msg) from error
+            raise MissingDependencyError(msg) from error
         self._model = self._udpipe.Model.load(str(path))
         if self._model is None:
             msg = f"cannot load the UDPipe tokenizer {path.name}"
@@ -366,7 +372,7 @@ def model_directory(root: Path, model_id: str, catalog: Catalog) -> Path:
     found = sorted(catalog[model_id].directory(root).rglob("options.json"))
     if len(found) != 1:
         msg = f"{model_id}: expected one unpacked model, found {len(found)}"
-        raise FileNotFoundError(msg)
+        raise ControlledFileNotFoundError(msg)
     return found[0].parent
 
 
@@ -391,10 +397,10 @@ def load_nametag_detector(
     missing = missing_resources(catalog, model_id, root)
     if missing:
         msg = (
-            f"model files missing under {root}: {', '.join(missing)}; "
+            f"model files missing: {', '.join(missing)}; "
             f"fetch them with: uv run python scripts/download.py fetch {model_id}"
         )
-        raise FileNotFoundError(msg)
+        raise ControlledFileNotFoundError(msg)
     directory = model_directory(root, model_id, catalog)
     with step(log, "load name model", done_level=logging.INFO, model=model_id):
         tagger = load_nametag_tagger(
@@ -404,24 +410,27 @@ def load_nametag_detector(
     return NametagDetector(tagger, splitter, name=model_id)
 
 
-def load_nametag_tagger(model_dir: Path, encoder_dir: Path) -> Tagger:
+def load_nametag_tagger(model_dir: Path, encoder_dir: Path, tagset: str | None = None) -> Tagger:
     """Load a NameTag 3 model's network from local files only.
 
     Args:
         model_dir: The unpacked model (`options.json`, `mappings.pickle`,
             `checkpoint.weights.h5`).
         encoder_dir: The encoder's config and tokenizer.
+        tagset: For a multitagset model, the tagset to answer in (`conll`,
+            `uner`, `onto`); the model's default when omitted.
 
     Returns:
         The tagger.
 
     Raises:
+        ValueError: If the tagset is unknown, or given for a model without tagsets.
         ImportError: If the optional `ner` dependencies are not installed.
     """
     from anonymizer.core.detect.nametag_model import Nametag3Tagger
 
     try:
-        return Nametag3Tagger.load(model_dir, encoder_dir)
+        return Nametag3Tagger.load(model_dir, encoder_dir, tagset)
     except ImportError as error:
         msg = "NameTag 3 needs the optional 'ner' dependencies: uv sync --group ner"
-        raise ImportError(msg) from error
+        raise MissingDependencyError(msg) from error

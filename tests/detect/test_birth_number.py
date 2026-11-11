@@ -41,7 +41,15 @@ def test_rejects_invalid_numbers(value):
 
 @pytest.mark.parametrize(
     "variant",
-    ["900101/0007", "9001010007", "900101 / 0007", "900101/ 0007", "900101 0007"],
+    [
+        "900101/0007",
+        "9001010007",
+        "900101 / 0007",
+        "900101/ 0007",
+        "900101 0007",
+        "900101-0007",
+        "900101 - 0007",
+    ],
 )
 def test_accepts_separator_variants(variant):
     assert is_valid_birth_number(variant)
@@ -83,6 +91,23 @@ def test_finds_several_numbers():
         ("RČ 900101/0008", "900101/0008"),
         ("rč.900101/0008", "900101/0008"),
         ("EČP 900141/1233", "900141/1233"),
+        # label forms with something between the label and the number
+        ("(RČ): 900101/0008", "900101/0008"),
+        ("rodné číslo (r. č.) 900101/0008", "900101/0008"),
+        ("Rodné číslo - 900101/0008", "900101/0008"),
+        ("Rodné číslo \u2013 900101/0008", "900101/0008"),  # en dash
+        ("RČ/IČO: 900101/0008", "900101/0008"),
+        ("rodné číslo žadatele: 900101/0008", "900101/0008"),
+        ("Rodné číslo zákonného zástupce žadatele: 900101/0008", "900101/0008"),
+        ("Rodné číslo (nepovinné): 900101/0008", "900101/0008"),
+        ("Rodné číslo (nepovinné) 900101/0008", "900101/0008"),
+        ("Rodné číslo žadatele (otec): 900101/0008", "900101/0008"),
+        ("Rodné číslo:\t900101/0008", "900101/0008"),
+        ("Rodné číslo:\n900101/0008", "900101/0008"),
+        # hyphen instead of the slash
+        ("Rodné číslo: 900101-0008", "900101-0008"),
+        ("Rodné číslo - 900101 - 0008", "900101 - 0008"),
+        ("RČ (nepovinné): 900101-0008", "900101-0008"),
     ],
 )
 def test_finds_a_labelled_number_with_a_wrong_check_digit(text, value):
@@ -100,6 +125,18 @@ def test_finds_a_labelled_number_with_a_wrong_check_digit(text, value):
         "r. č. 901301/0008",  # month 13
         "r. č. 900132/0008",  # day 32
         "r. č. 900101008",  # nine digits but a post-1954 year
+        # the label is too far, or another sentence or line intervenes
+        "rodné číslo uvedeno níže faktura č. 900101/0008",
+        "Rodné číslo žadatele uvedeno v příloze: 900101/0008",  # four words
+        "Rodné číslo je v příloze. Faktura 900101/0008",
+        "Rodné číslo (viz příloha číslo 3, strana 2) 900101/0008",  # parenthetical too long
+        "Rodné číslo: viz příloha, faktura 900101/0008",
+        "Rodné číslo\nPoznámka k faktuře: 900101/0008",  # label closed by its line
+        "rodné číslo žadatele; faktura: 900101/0008",
+        "Rodné číslo - viz níže - 900101/0008",  # two separators around words
+        "Marc: 900101/0008",
+        "Parc/IČO: 900101/0008",  # the label letters end another word
+        "Rodné číslo: 900101-0008-1",  # part of a longer hyphenated code
     ],
 )
 def test_a_label_does_not_rescue_other_candidates(text):

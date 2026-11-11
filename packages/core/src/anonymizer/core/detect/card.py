@@ -82,6 +82,23 @@ def is_valid_card_number(value: str) -> bool:
     return _matches_issuer(digits) and passes_luhn(digits)
 
 
+def _longest_valid_window(candidate: str) -> tuple[int, int] | None:
+    """Offsets of the longest group-aligned stretch of a candidate that is a card number.
+
+    The pattern matches greedily, so a candidate can absorb digits that belong
+    to the text around the card, such as an expiry date or a security code
+    after it, or a number before it. Groups are dropped from either end
+    instead of rejecting the whole candidate.
+    """
+    groups = [(group.start(), group.end()) for group in re.finditer(r"\d+", candidate)]
+    for width in range(len(groups), 0, -1):
+        for first in range(len(groups) - width + 1):
+            start, end = groups[first][0], groups[first + width - 1][1]
+            if is_valid_card_number(candidate[start:end]):
+                return start, end
+    return None
+
+
 def find_card_numbers(text: str) -> Iterator[Match]:
     """Yield the payment card numbers in a text.
 
@@ -92,5 +109,13 @@ def find_card_numbers(text: str) -> Iterator[Match]:
         One match per valid card number, in order of appearance.
     """
     for found in _PATTERN.finditer(text):
-        if is_valid_card_number(found[1]):
-            yield Match.from_regex(found, EntityType.CREDIT_CARD, group=1)
+        window = _longest_valid_window(found[1])
+        if window is None:
+            continue
+        offset = found.start(1)
+        yield Match(
+            EntityType.CREDIT_CARD,
+            offset + window[0],
+            offset + window[1],
+            found[1][window[0] : window[1]],
+        )

@@ -162,7 +162,7 @@ class TestNothingPrivateBelowDebug:
         with pytest.raises(ValueError, match="different file"):
             export_redacted(other, document, tmp_path / "out.pdf")
         assert "export: failed" in stream.getvalue()
-        assert "error=ValueError" in stream.getvalue()
+        assert "error=ControlledValueError" in stream.getvalue()
         assert "different file" not in stream.getvalue()
 
 

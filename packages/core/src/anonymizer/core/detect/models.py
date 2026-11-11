@@ -43,6 +43,7 @@ from anonymizer.core.detect.token_classifier import (
     TOKEN_CLASSIFIER_ENGINE,
     load_token_classifier_detector,
 )
+from anonymizer.core.errors import ControlledValueError
 from anonymizer.core.resources import (
     UNION_ENGINE,
     Catalog,
@@ -153,7 +154,7 @@ def name_model(model_id: str, catalog: Catalog | None = None) -> Resource:
     resolved = NAME_MODEL_ALIASES.get(model_id, model_id)
     if resolved not in models:
         msg = f"unknown name model {model_id!r}; choose from {sorted(models)}"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     return models[resolved]
 
 
@@ -190,7 +191,7 @@ def name_model_threshold(
     chosen = threshold if threshold is not None else resource.threshold
     if chosen is not None and engine.default_threshold is None:
         msg = f"name model {resource.id!r} runs on {resource.engine}, which has no threshold"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     return chosen if chosen is not None else engine.default_threshold
 
 
@@ -211,11 +212,11 @@ def union_members(model_id: str, catalog: Catalog | None = None) -> tuple[str, .
     resource = name_model(model_id, catalog)
     if resource.engine != UNION_ENGINE:
         msg = f"name model {resource.id!r} is not a union"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     members = tuple(name_model(member, catalog).id for member in resource.requires)
     if any(name_model(member, catalog).engine == UNION_ENGINE for member in members):
         msg = f"union {resource.id!r} has a union among its members"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     return members
 
 
@@ -329,5 +330,5 @@ def system_model(system: str, catalog: Catalog | None = None) -> str | None:
     prefix, plus, model_id = system.partition("+")
     if prefix != "rules" or not plus:
         msg = f"unknown system {system!r}; choose rules or rules+<name model>"
-        raise ValueError(msg)
+        raise ControlledValueError(msg)
     return name_model(model_id, catalog).id

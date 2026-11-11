@@ -37,7 +37,7 @@ only — never as fixtures or training data. Nothing identifying is quoted here.
 ### 2026-09-22 · `resume-real-cs-borndigital.pdf` — real CS CV (Skia / headless Chrome)
 
 - **Same leak, different producer** → this is how PDFs work, not one library's
-  quirk: `tel:+…`, `mailto:…`, site links, plus a metadata title containing the
+  quirk: `tel:+…`, `mailto:…`, site links, plus a metadata title containing
   the submitter's account ID.
 - Metadata values are inline strings here, unlike react-pdf. `ModDate` equals
   `CreationDate`: a scan that de-duplicates equal values drops one of two carriers.
@@ -56,8 +56,9 @@ only — never as fixtures or training data. Nothing identifying is quoted here.
   rest unredacted. The Slovak domestic form with a trunk zero (`0918 446 150`) was
   missed as well. Fixed.
 - **The file name was `<name>-<id>-Zivotopisy.cz.pdf`** — full name plus
-  account ID. The contract stores `source_name` in every exported review JSON, so
-  the file name is itself a PII surface. Open decision below.
+  account ID. The contract then stored the file name in every exported review JSON,
+  so the file name was itself a PII surface. **Resolved:** a session now holds the
+  file's fingerprint, never its name.
 - The person's name mixed `ü` with `č`, which is not standard Czech orthography.
   A good stress case for OCR and NER: do not assume a fixed Czech character set,
   and do not treat an unexpected letter as evidence against a name.
@@ -444,7 +445,9 @@ instead of the pipeline moves precision by 0.002 only.
 - **REDACT's birth numbers are not valid**: 1 of 20 found. Checked independently, 12 of
   the 13 values with a slash fail the mod-11 check (the other 7 are 8–9 digit numbers no
   rule knows). The rule requires the checksum by design, so this measures the corpus's
-  generator, not the detector; REDACT cannot score birth numbers.
+  generator, not the detector; REDACT cannot score birth numbers. (Since
+  2026-11-02 a number with a wrong check digit is also reported when a label
+  precedes it; these counts predate that.)
 - **GLiNER's "street address" over-reaches**: address recall 1.0 with precision 0.62
   (CNEC) and 0.54 (REDACT); street names without a number are flagged.
 
@@ -953,10 +956,13 @@ Person, partial match, F2 (P / R), and the paired difference in F2 against
   0.11 (cs) and 0.12 (sk) against `rules+gliner`. Used alone it would leak addresses.
   The Czech model's addresses are precise (P 0.96–0.97 on OpenPII) but miss more than
   GLiNER's (R 0.75 cs, 0.63 sk, against 0.91 and 0.93).
-- **The union of GLiNER and NameTag multilingual is the best system by F2 on every
+- **The union of GLiNER and NameTag multilingual beats GLiNER alone by F2 on every
   corpus** for persons (+0.023 to +0.174, intervals above 0) and keeps GLiNER's
   addresses: any-type F2 +0.074 CNEC, +0.033 REDACT, +0.010 and +0.011 OpenPII, at a
   precision cost of at most 0.013 for persons.
+  For persons it is not the best system: person F2 (partial) is below NameTag alone on
+  UNER-SK (0.874 against 0.881 multilingual), REDACT (0.904 against 0.935 multilingual)
+  and CNEC (0.920 against 0.950 for the Czech model).
 - **Agreement-only buys precision with recall**: with the multilingual model, person
   precision 0.83–0.995 and recall below GLiNER's on every corpus. Person F2 never
   improves with an interval above 0, with either NameTag model, so for a recall-first
@@ -980,7 +986,8 @@ form than GLiNER; which ones was not inspected.
 **Recommendation.** For the thesis, NameTag 3 multilingual is the opponent: it is the
 stronger existing model on the corpora it was not trained on, and its boundaries set
 the bar for strict match. The own model has to beat it on reserved test data, and,
-for addresses, GLiNER as well (or the union, which is the strongest existing system).
+for addresses, GLiNER as well (or the union, which keeps GLiNER's addresses but is
+below NameTag alone on persons).
 For the tool, keep GLiNER as the shipped default: NameTag's models are licensed for
 non-commercial use only (CC BY-NC-SA 4.0) and the multilingual model finds no
 addresses alone. The union is the better detector where that licence is acceptable;
@@ -1426,6 +1433,51 @@ and person residual share; both paired 95 % intervals excluding 0):
   held-out cs, 0.999 held-out sk; NameTag 3 multilingual 0.944, 0.944, 0.984, 0.985.
 - Outside names, every system shares the rules: on REDACT test birth numbers are found
   at recall 0.067 (19 / 283) by all of them; this is a rule finding, not part of RQ6.
+
+### 2026-11-11 · NameTag 3 multilingual in each of its tagsets (development data)
+
+`experiments/configs/nametag-tagset-dev.toml`, commit `329f7bc` (clean tree), seed
+20261011, 1,000 resamples, CPU (M4 Pro), 23 min; `experiments/results/nametag-tagset-dev.md`.
+Every earlier run used the model's default tagset, `conll`; this one adds `uner` and `onto`
+(system option `tagset`), beside the rules, on the nametag-dev splits. The conll rows equal
+`nametag-dev`. Persons are `PER` (conll, uner) or `PERSON` (onto); no tagset has an address
+type, so addresses, phones and e-mails are the rules' alone and equal in all three.
+
+Person F2 partial / strict, and person residual share:
+
+| corpus | conll | uner | onto |
+|---|---|---|---|
+| CNEC dtest † | 0.905 / 0.842, 0.098 | 0.901 / 0.837, 0.096 | 0.906 / 0.843, 0.098 |
+| UNER-SK dev † | 0.881 / 0.840, 0.111 | 0.917 / 0.877, 0.058 | 0.852 / 0.811, 0.135 |
+| REDACT sample | 0.935 / 0.706, 0.023 | 0.936 / 0.702, 0.023 | 0.937 / 0.702, 0.023 |
+| OpenPII cs dev | 0.948 / 0.831, 0.065 | 0.951 / 0.832, 0.060 | 0.951 / 0.835, 0.058 |
+| OpenPII sk dev | 0.946 / 0.810, 0.070 | 0.947 / 0.810, 0.068 | 0.950 / 0.816, 0.063 |
+
+† the model was trained on this corpus's train split.
+
+Paired against conll (person, partial; 95 % intervals):
+
+| corpus | uner ΔF2 | uner Δresidual | onto ΔF2 | onto Δresidual |
+|---|---|---|---|---|
+| CNEC dtest | −0.004 [−0.014, +0.008] | −0.002 [−0.011, +0.007] | +0.001 [−0.007, +0.009] | +0.000 [−0.007, +0.007] |
+| UNER-SK dev | +0.036 [−0.008, +0.076] | −0.054 [−0.100, −0.012] | −0.029 [−0.061, −0.006] | +0.023 [+0.006, +0.047] |
+| REDACT sample | +0.001 [0.000, +0.003] | 0.000 [0.000, 0.000] | +0.002 [0.000, +0.004] | 0.000 [0.000, 0.000] |
+| OpenPII cs dev | +0.002 [+0.000, +0.005] | −0.005 [−0.007, −0.002] | +0.003 [+0.001, +0.005] | −0.007 [−0.009, −0.004] |
+| OpenPII sk dev | +0.002 [−0.001, +0.004] | −0.002 [−0.004, +0.000] | +0.004 [+0.002, +0.007] | −0.006 [−0.009, −0.004] |
+
+- **conll is not the opponent's best setting.** On no corpus does it have a lower person
+  residual share than both other tagsets. uner halves the residual on UNER-SK dev (0.111
+  to 0.058, interval below 0; F2 +0.036, interval crossing 0), the corpus whose train
+  split the model learnt in the UNER tagset. onto is worse there (residual +0.023) and
+  slightly better on OpenPII.
+- **Elsewhere the tagset hardly matters**: CNEC and REDACT do not separate (REDACT's
+  residual is equal to three digits); on OpenPII uner and onto gain 0.002–0.004 F2 and
+  0.002–0.007 residual, most intervals excluding 0, all small.
+- **What it means for RQ6.** The verdict of 2026-10-29 ran the opponent in conll. On dev,
+  uner would have made it stronger on UNER-SK, with no interval against it elsewhere; no
+  tagset is best on every corpus. The test margins on UNER-SK (Δresidual −0.073, ΔF2 +0.070) are
+  larger than the dev gain of uner (−0.054, +0.036), but whether the verdict holds against
+  NameTag in uner is not measured: that needs the test split read again.
 
 ### 2026-11-11 · The chosen model on the benchmark
 

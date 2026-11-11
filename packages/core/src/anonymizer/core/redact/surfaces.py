@@ -69,7 +69,6 @@ def _clear_metadata(pdf: pymupdf.Document) -> None:
 
 
 def _clear_xmp(pdf: pymupdf.Document) -> None:
-    """Delete the document's XMP stream."""
     pdf.del_xml_metadata()
 
 
@@ -142,7 +141,6 @@ def _clear_annotations(page: pymupdf.Page) -> None:
 
 
 def _clear_thumbnail(pdf: pymupdf.Document, page: pymupdf.Page) -> None:
-    """Remove the page's thumbnail image."""
     pdf.xref_set_key(page.xref, "Thumb", "null")
 
 

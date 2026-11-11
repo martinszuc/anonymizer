@@ -24,6 +24,7 @@ from typing import Any
 
 import webview
 from anonymizer.core.detect import DEFAULT_NAME_MODEL, name_models
+from anonymizer.core.errors import error_text
 from anonymizer.core.ingest import IMAGE_SUFFIXES, OCR_ENGINES, SOURCE_SUFFIXES
 from anonymizer.core.language import AUTO
 from anonymizer.core.log import LEVEL_NAMES, configure_logging, resolve_level, step
@@ -56,9 +57,11 @@ def _logged[**P, R](call: Callable[P, R]) -> Callable[P, R]:
     """Log a page call: its start and end at DEBUG, and why it failed.
 
     A request the window refused (`ReviewError`) is a warning; anything else
-    is an error. The exception's message is never written (see `core.log`);
-    only its type and the frames it passed through. Arguments are not
-    logged: they are paths and ids the call's own module reports.
+    is an error and reaches the page as a `ReviewError` that carries the message
+    only of this code base's own errors (`core.errors`). The exception's message
+    is never written (see `core.log`); only its type and the frames it passed
+    through. Arguments are not logged: they are paths and ids the call's own
+    module reports.
     """
 
     @functools.wraps(call)
@@ -70,9 +73,10 @@ def _logged[**P, R](call: Callable[P, R]) -> Callable[P, R]:
         except ReviewError:
             log.warning("page call %s was refused", name, exc_info=True)
             raise
-        except Exception:
+        except Exception as error:
             log.exception("page call %s failed", name)
-            raise
+            # pywebview hands the page the message of whatever is raised here.
+            raise ReviewError(error_text(error, "the operation failed")) from error
 
     return wrapper
 

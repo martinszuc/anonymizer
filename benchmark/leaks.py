@@ -143,7 +143,7 @@ def run_leaks(
         "totals": totals(scores),
     }
     (output / "leaks.json").write_text(
-        json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(results, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     (output / "leaks.md").write_text(markdown(results), encoding="utf-8")
     (output / "leaks.tex").write_text(latex(results), encoding="utf-8")

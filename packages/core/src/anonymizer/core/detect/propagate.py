@@ -79,7 +79,6 @@ def _occurrences(text: str, page_text: str) -> Iterator[tuple[int, int]]:
 
 
 def _occurrence(page: Page, start: int, end: int, entity_type: EntityType) -> Entity:
-    """Build a propagated entity for one occurrence."""
     return Entity(
         type=entity_type,
         page_index=page.index,

@@ -615,7 +615,6 @@ export function App() {
       ?.scrollIntoView({ block: "center", behavior: "smooth" });
   }
 
-  /** Bring a page to the top of the canvas. */
   function goToPage(index: number) {
     canvasRef.current?.querySelector(`[data-page-index="${index}"]`)?.scrollIntoView({ block: "start" });
   }
@@ -679,7 +678,6 @@ export function App() {
     }
   }
 
-  /** Redo the last edit undone. */
   async function redo() {
     const edit = historyRef.current.undone.at(-1);
     if (!edit || stepping.current) return;

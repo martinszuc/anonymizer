@@ -1688,3 +1688,16 @@ F2 and residual share of the control move by at most 0.001.
   final model's F2 is higher and its residual lower than the opponent in uner on all three
   sets (UNER-SK: 0.972 vs 0.926, 0.020 vs 0.072). Not a paired test; the gap on REDACT
   (+0.015 F2) is of the size whose paired interval in `rq6-test` was [+0.001, +0.024].
+
+On the home-advantage sets (`experiments/configs/rq6-test-home-posthoc-uner.toml`, commit
+`fad0369`, same seed; `experiments/results/rq6-test-home-posthoc-uner.md`) the conll control
+equals `rq6-test-home` to three digits, and uner changes little:
+
+| test set | conll F2 / residual | uner F2 / residual | ΔF2 | Δresidual | final model |
+|---|---|---|---|---|---|
+| OpenPII cs ‡ | 0.944 / 0.070 | 0.946 / 0.067 | +0.003 [+0.001, +0.005] | −0.003 [−0.006, −0.001] | 0.997 / 0.001 |
+| OpenPII sk ‡ | 0.944 / 0.072 | 0.946 / 0.068 | +0.002 [−0.001, +0.004] | −0.004 [−0.007, −0.001] | 0.997 / 0.002 |
+| held-out cs | 0.984 / 0.026 | 0.981 / 0.028 | −0.002 [−0.005, −0.000] | +0.001 [−0.001, +0.003] | 0.997 / 0.000 |
+| held-out sk | 0.985 / 0.028 | 0.986 / 0.025 | +0.001 [+0.000, +0.003] | −0.002 [−0.005, +0.000] | 0.999 / 0.001 |
+
+‡ only the own model was trained on OpenPII.

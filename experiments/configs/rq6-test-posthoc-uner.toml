@@ -33,4 +33,3 @@ model = "nametag3-multilingual-260521"
 [systems."rules+nametag-multi-uner"]
 model = "nametag3-multilingual-260521"
 tagset = "uner"
-

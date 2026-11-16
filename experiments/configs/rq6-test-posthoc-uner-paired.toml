@@ -1,0 +1,34 @@
+name = "rq6-test-posthoc-uner-paired"
+description = """
+POST HOC addendum to rq6-test, run after the final test (29 Oct) and reported apart from it;
+the final table and its verdict stay as they are. Pairs the final model with the opponent
+in its uner tagset on the same documents, at one commit, so the comparison gets a paired
+bootstrap instead of the point estimates of rq6-test-posthoc-uner. The final model's weights
+were copied from MetaCentrum on 16 Nov and run on the M4 Pro. No choice depends on it: the
+final model was fixed on 22 Oct."""
+stage = "final"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+nametag-multi-uner", "rules+xlmr|focal-more"],
+]
+
+[[datasets]]
+id = "redact"
+split = "test"
+
+[[datasets]]
+id = "cnec-2.0"
+split = "etest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "test"
+
+[systems."rules+nametag-multi-uner"]
+model = "nametag3-multilingual-260521"
+tagset = "uner"
+
+[systems."rules+xlmr|focal-more"]
+model = ["xlmr-cs-sk-ce-more", "gliner-cs-sk-focal-more"]
+combine = "union"

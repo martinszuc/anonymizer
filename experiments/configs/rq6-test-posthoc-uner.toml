@@ -4,8 +4,8 @@ POST HOC addendum to rq6-test, run after the final test (29 Oct) and reported ap
 the final table and its verdict stay as they are. On development data NameTag 3 multilingual
 scored better on UNER-SK in its uner tagset than in conll, the tagset of every earlier run
 (nametag-tagset-dev, repo PR #149). This run re-scores the opponent in uner on the same main
-test sets, beside conll as a control (its scores must equal the rq6-test row; NameTag ran on
-the CPU there too). The final model is not re-run: its test scores are those of rq6-test, so
+test sets, beside conll as a control (at this commit; it differs from the rq6-test row where
+rules changed after 29 Oct: propagation 046a10a, birth-number labels 74af0fd, c25b6c0). The final model is not re-run: its test scores are those of rq6-test, so
 the two are compared by point estimate, not paired. Run on the M4 Pro CPU. No choice depends
 on it: the final model was fixed on 22 Oct."""
 stage = "final"

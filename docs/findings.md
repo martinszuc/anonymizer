@@ -1532,7 +1532,13 @@ documents. "Safe" counts documents with no item readable after redaction.
   at 5° skew (CER 11.4 %). It is 4–5× slower than OnnxTR.
 - **The leak check refuses some skewed exports even with perfect reading:** 24/26 at
   3° and 22/26 at 5° for both models; at 5° one item is partly readable after.
-  Measured, not yet examined.
+  All refusals are the OCR layer's *word under a box* for an ordinary word ("se",
+  "is", "Správce") on the line next to a long value (an email, a bank account): the
+  axis-aligned box over the tilted value covers half or more of that neighbour's box.
+  Checked with rules only, which give the same failing documents. Over-redaction, not
+  a leak; the export is refused. The half-box rule from 2026-10-01 handles short
+  values, not long ones at 3–5°. Tight per-line boxes or a rotation-aware overlap
+  would fix it; not changed here.
 - OnnxTR at noise σ 50 leaves ink outside 904 of 4,669 word boxes (otherwise
   4–37), with one item partly readable after.
 

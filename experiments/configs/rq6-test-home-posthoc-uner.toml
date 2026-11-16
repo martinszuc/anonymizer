@@ -1,0 +1,37 @@
+name = "rq6-test-home-posthoc-uner"
+description = """
+POST HOC addendum to rq6-test-home, run after the final test (29 Oct) and reported apart from
+it; the final tables stay as they are. NameTag 3 multilingual in its conll tagset (control, at
+this commit; rules changed after 29 Oct) and in uner, which scored better on UNER-SK dev
+(nametag-tagset-dev), on the home-advantage test sets. The final model is not re-run: its
+scores are those of rq6-test-home, compared by point estimate. Run on the M4 Pro CPU. No
+choice depends on it: the final model was fixed on 22 Oct."""
+stage = "final"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+nametag-multi", "rules+nametag-multi-uner"],
+]
+
+[[datasets]]
+id = "openpii-1m-cs"
+split = "test"
+
+[[datasets]]
+id = "openpii-1m-sk"
+split = "test"
+
+[[datasets]]
+id = "heldout-cs"
+split = "test"
+
+[[datasets]]
+id = "heldout-sk"
+split = "test"
+
+[systems."rules+nametag-multi"]
+model = "nametag3-multilingual-260521"
+
+[systems."rules+nametag-multi-uner"]
+model = "nametag3-multilingual-260521"
+tagset = "uner"

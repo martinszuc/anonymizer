@@ -1502,6 +1502,40 @@ before give the same counts; only the seconds differ.
   leaks. Review would reject "Poplatník". "Poplatník" is not on the `NamesOnly`
   role list; adding it is a change to measure, not made here.
 
+### 2026-11-16 · OCR with a name model on the scanned benchmark (synthetic)
+
+`python -m benchmark ocr` at 0.7.0 (commit `e945e0e`) on the Mac, 26 documents,
+179 on-page items, 16 levels; `experiments/results/ocr-benchmark-gliner.*`
+(oracle, OnnxTR, Kraken) and `ocr-benchmark-nametag.*` (oracle, OnnxTR;
+`rules+nametag3-multilingual-260521`). The earlier entries ran rules only on six
+documents. "Safe" counts documents with no item readable after redaction.
+
+| clean level | CER | found | false alarms | readable after | safe | leak check | s/page |
+|---|---|---|---|---|---|---|---|
+| gliner, oracle | 0.0 % | 165/179 | 45 | 13 | 17/26 | 26/26 | 0.03 |
+| gliner, OnnxTR | 1.9 % | 156/179 | 51 | 18 | 15/26 | 23/26 | 1.69 |
+| gliner, Kraken | 0.8 % | 156/179 | 41 | 21 | 12/26 | 22/26 | 8.08 |
+| nametag, oracle | 0.0 % | 171/179 | 23 | 8 | 21/26 | 26/26 | 0.03 |
+| nametag, OnnxTR | 1.9 % | 162/179 | 25 | 17 | 16/26 | 26/26 | 1.58 |
+
+- **OCR costs nine found items with either name model** on clean scans (165 → 156,
+  171 → 162) and two (GLiNER) or five (NameTag) safe documents. The detector's
+  lead survives OCR: NameTag with OnnxTR finds 154–169 across levels, GLiNER with
+  a perfect reader 165, at half its false alarms.
+- **OnnxTR barely moves across degradations.** Found stays 156–163 (GLiNER) and
+  162–169 (NameTag) except at 100 DPI (148, 154). Its CER stays 1.4–2.0 % except
+  the 1° skew outlier, now 7.8 %.
+- **Kraken reads clean text better but redacts worse.** Its CER is lower (0.8 % vs
+  1.9 %) and it boxes more words, yet more items stay readable (21 vs 18) and
+  fewer documents are safe (12 vs 15). The cause is not examined here. It breaks
+  down at blur radius 3 (diacritics error 36.4 %, found 144, leak check 20/26) and
+  at 5° skew (CER 11.4 %). It is 4–5× slower than OnnxTR.
+- **The leak check refuses some skewed exports even with perfect reading:** 24/26 at
+  3° and 22/26 at 5° for both models; at 5° one item is partly readable after.
+  Measured, not yet examined.
+- OnnxTR at noise σ 50 leaves ink outside 904 of 4,669 word boxes (otherwise
+  4–37), with one item partly readable after.
+
 ### Toolchain findings: redaction
 
 - **Redaction annotations take unrotated coordinates.** Giving them the rotated

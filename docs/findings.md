@@ -1659,3 +1659,45 @@ handwriting-font scan, typed text beside a scanned stamp.
 - Handwriting here is a font, so it says nothing about recognition quality.
 
 ---
+
+### 2026-11-16 · Post hoc: the opponent in the uner tagset on the test sets
+
+`experiments/configs/rq6-test-posthoc-uner.toml`, commit `2fc56b1` (clean tree), stage
+final, seed 20261010, 1,000 resamples, CPU (M4 Pro); `experiments/results/rq6-test-posthoc-uner.md`.
+A post hoc addendum, reported apart from `rq6-test`: NameTag 3 multilingual in conll (control)
+and uner on the three main test sets. The final model was not re-run (its XLM-R member is
+not on the Mac); its scores are the `rq6-test` rows, compared by point estimate only.
+
+The conll control equals `rq6-test` on CNEC etest but not exactly on REDACT (person partial
+found 2278 vs 2277, strict 1809 vs 1774) and UNER-SK (strict 424 vs 422): rules changed
+after 29 Oct (propagation 046a10a; birth-number labels 74af0fd, c25b6c0). Person partial
+F2 and residual share of the control move by at most 0.001.
+
+| test set | conll F2 / residual | uner F2 / residual | uner − conll ΔF2 | Δresidual | final model (`rq6-test`) |
+|---|---|---|---|---|---|
+| REDACT test | 0.904 / 0.052 | 0.900 / 0.055 | −0.004 [−0.013, +0.002] | +0.003 [+0.000, +0.007] | 0.915 / 0.036 |
+| CNEC etest † | 0.885 / 0.110 | 0.886 / 0.101 | +0.001 [−0.010, +0.015] | −0.009 [−0.029, +0.004] | 0.945 / 0.021 |
+| UNER-SK test † | 0.902 / 0.093 | 0.926 / 0.072 | +0.025 [+0.001, +0.047] | −0.021 [−0.043, +0.001] | 0.972 / 0.020 |
+
+† the opponent was trained on this corpus's train split.
+
+- **uner helps the opponent on UNER-SK only**, as on dev: F2 +0.025 (interval above 0),
+  residual −0.021 (interval just crossing 0). On REDACT it is slightly worse (residual
+  +0.003), on CNEC no different.
+- **The verdict's direction holds against the stronger setting by point estimate**: the
+  final model's F2 is higher and its residual lower than the opponent in uner on all three
+  sets (UNER-SK: 0.972 vs 0.926, 0.020 vs 0.072). Not a paired test; the gap on REDACT
+  (+0.015 F2) is of the size whose paired interval in `rq6-test` was [+0.001, +0.024].
+
+On the home-advantage sets (`experiments/configs/rq6-test-home-posthoc-uner.toml`, commit
+`fad0369`, same seed; `experiments/results/rq6-test-home-posthoc-uner.md`) the conll control
+equals `rq6-test-home` to three digits, and uner changes little:
+
+| test set | conll F2 / residual | uner F2 / residual | ΔF2 | Δresidual | final model |
+|---|---|---|---|---|---|
+| OpenPII cs ‡ | 0.944 / 0.070 | 0.946 / 0.067 | +0.003 [+0.001, +0.005] | −0.003 [−0.006, −0.001] | 0.997 / 0.001 |
+| OpenPII sk ‡ | 0.944 / 0.072 | 0.946 / 0.068 | +0.002 [−0.001, +0.004] | −0.004 [−0.007, −0.001] | 0.997 / 0.002 |
+| held-out cs | 0.984 / 0.026 | 0.981 / 0.028 | −0.002 [−0.005, −0.000] | +0.001 [−0.001, +0.003] | 0.997 / 0.000 |
+| held-out sk | 0.985 / 0.028 | 0.986 / 0.025 | +0.001 [+0.000, +0.003] | −0.002 [−0.005, +0.000] | 0.999 / 0.001 |
+
+‡ only the own model was trained on OpenPII.

@@ -1507,8 +1507,9 @@ before give the same counts; only the seconds differ.
 `python -m benchmark ocr` at 0.7.0 (commit `e945e0e`) on the Mac, 26 documents,
 179 on-page items, 16 levels; `experiments/results/ocr-benchmark-gliner.*`
 (oracle, OnnxTR, Kraken), `ocr-benchmark-nametag.*` (oracle, OnnxTR) and
-`ocr-benchmark-nametag-kraken.*`, the last two with `rules+nametag3-multilingual-260521`. The earlier entries ran rules only on six
-documents. "Safe" counts documents with no item readable after redaction.
+`ocr-benchmark-nametag-kraken.*`, the last two with `rules+nametag3-multilingual-260521`;
+`ocr-benchmark-final.*` (oracle, OnnxTR; commit `bc40128`, 2026-11-18) with the final
+model `rules+xlmr-focal-more`. The earlier entries ran rules only on six documents. "Safe" counts documents with no item readable after redaction.
 
 | clean level | CER | found | false alarms | readable after | safe | leak check | s/page |
 |---|---|---|---|---|---|---|---|
@@ -1518,11 +1519,24 @@ documents. "Safe" counts documents with no item readable after redaction.
 | nametag, oracle | 0.0 % | 171/179 | 23 | 8 | 21/26 | 26/26 | 0.03 |
 | nametag, OnnxTR | 1.9 % | 162/179 | 25 | 17 | 16/26 | 26/26 | 1.58 |
 | nametag, Kraken | 0.8 % | 162/179 | 17 | 16 | 15/26 | 26/26 | 6.77 |
+| final, oracle | 0.0 % | 174/179 | 32 | 5 | 21/26 | 25/26 | 0.03 |
+| final, OnnxTR | 1.9 % | 170/179 | 40 | 9 | 18/26 | 24/26 | 1.64 |
 
 - **OCR costs nine found items with either name model** on clean scans (165 → 156,
   171 → 162) and two (GLiNER) or five (NameTag) safe documents. The detector's
   lead survives OCR: NameTag with OnnxTR finds 154–169 across levels, GLiNER with
   a perfect reader 165, at half its false alarms.
+- **The final model finds the most and leaves the least readable**, with a perfect
+  reader (174 found, 5 readable after) and with OnnxTR (170, 9), against NameTag's
+  171/8 and 162/17. OCR costs it four items instead of nine. With OnnxTR it finds
+  168–175 across levels. It raises more false alarms than NameTag (32 and 40 against
+  23 and 25 on clean scans).
+- **Its one refusal on clean scans is a role noun, not a leak.** `sk-waste-notice`
+  (no personal data) fails at every level with both readers: the model tags
+  "Poplatník" as a person, which `NamesOnly` keeps because "poplatník" is on the
+  Czech role list but not the Slovak one, and the OCR layer then reads another
+  occurrence of the redacted word. The document still counts as safe. Not changed
+  after the final test.
 - **OnnxTR barely moves across degradations.** Found stays 156–163 (GLiNER) and
   162–169 (NameTag) except at 100 DPI (148, 154). Its CER stays 1.4–2.0 % except
   the 1° skew outlier, now 7.8 %.

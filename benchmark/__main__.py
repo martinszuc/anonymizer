@@ -1,7 +1,7 @@
 """Command line: `uv run python -m benchmark run --out results/` (or another command).
 
 The commands: `run`, `leaks`, `ocr`, `ocr-margin`, `ocr-probe`, `photos`, `history`,
-`diff`, `backfill`, `photo-train`.
+`diff`, `backfill`, `photo-train`, `photo-noisy`.
 """
 
 from __future__ import annotations
@@ -124,9 +124,22 @@ def main(argv: list[str] | None = None) -> int:
         "--count", type=int, default=0, help="synthetic documents per language"
     )
     photo_parser.add_argument("--seed", help="seed of the synthetic split")
+    noisy_parser = commands.add_parser(
+        "photo-noisy",
+        help="photograph invented documents in code, read them by OCR, write training text",
+    )
+    noisy_parser.add_argument(
+        "--out", type=Path, help="output directory (default: data/photo-noisy/v<N> of the root)"
+    )
+    noisy_parser.add_argument(
+        "--count", type=int, default=150, help="documents per language (default 150)"
+    )
+    _add_resource_root(noisy_parser)
     args = parser.parse_args(argv)
     if args.command == "photos":
         return _photos(parser, args)
+    if args.command == "photo-noisy":
+        return _photo_noisy(parser, args)
     if args.command not in ("history", "diff", "leaks", "photo-train"):
         args.resource_root = resolve_resource_root(args.resource_root)
         _check_system(parser, args)
@@ -337,6 +350,32 @@ def _pair(parser: argparse.ArgumentParser, listed: str) -> tuple[str, str]:
     if not colon or not baseline or not candidate:
         parser.error(f"expected baseline:candidate, got {listed!r}")
     return baseline, candidate
+
+
+def _photo_noisy(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    from anonymizer.core.ingest import load_ocr_engine
+
+    from benchmark.photo_noisy import build
+    from experiments.datasets import PHOTO_NOISY_DIRECTORY
+
+    if args.count < 1:
+        parser.error("--count must be at least 1")
+    resource_root = resolve_resource_root(args.resource_root)
+    out = args.out or resource_root / PHOTO_NOISY_DIRECTORY
+    engine = load_ocr_engine("onnxtr", resource_root)
+    stats = build(
+        out,
+        count=args.count,
+        engine=engine,
+        progress=lambda done, total: print(f"documents {done}/{total}", flush=True),
+    )
+    print(
+        f"pages {stats['pages']}, items read {stats['items_read']}, "
+        f"not read {stats['items_not_read']}, OCR {stats['ocr_seconds']} s, "
+        f"examples {stats['examples']}"
+    )
+    print(f"wrote {out}")
+    return 0
 
 
 def _check_system(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:

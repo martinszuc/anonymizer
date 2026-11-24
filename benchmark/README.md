@@ -307,3 +307,21 @@ and, for `print`, `rq8-train-print.pdf` and `manifest-train.md`. The
 templates share no word 5-gram with these documents or the held-out set, and
 the names no word with their people (`tests/benchmark/test_photo_train.py`).
 `benchmark run` does not read them.
+
+### Code-degraded photo text
+
+```sh
+uv run python -m benchmark photo-noisy --count 150 --resource-root ~/school/anonymizer
+```
+
+`benchmark/photo_noisy.py` renders `count` synthetic documents per language
+(seed `photo-noisy/v1`), turns each page into a simulated phone photo
+(`photo_sim`, one of three seeded profiles: flat, dim, angle), reads it
+through the tool's image ingest with OnnxTR and places the gold items in what
+was read (`align.locate`; items not read are dropped and counted). Output, by
+default under `<root>/data/photo-noisy/v1/`: `<language>-<split>.jsonl` (one
+page per record, `train` and a `dev` of about 15 % of the documents),
+`build.json` (counts, OCR time, each page's degradation; no text) and the
+rendered documents in `source/`. `experiments` reads them as
+`photo-noisy-cs` and `photo-noisy-sk`, post hoc training data for the photo
+fine-tune (`experiments/photo-rules.md`).

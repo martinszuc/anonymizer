@@ -245,3 +245,22 @@ text: ingest never reads them, and redaction drops attachments whole.
 adds N words of neutral text. Use invented names, `example.com/.org/.net`
 addresses, and checksum-bearing values computed independently of the
 validators under test.
+
+## Photo training documents
+
+```sh
+uv run python -m benchmark photo-train --out photo-train                  # the print split
+uv run python -m benchmark photo-train --out synthetic --split synthetic --count 200
+```
+
+`benchmark/photo_train/` writes invented Czech and Slovak documents for a
+fine-tune on phone photos, whose test set is the printed and photographed
+Czech and Slovak documents of this benchmark. The `print` split (32
+one-page documents, committed in `photo_train/documents/`) is printed and
+photographed; the `synthetic` split is any number of further documents per
+language from the same templates with another seed, for degrading in code.
+Output: `pdf/<doc>.pdf`, `gold.json` (each document's pages and gold items)
+and, for `print`, `rq8-train-print.pdf` and `manifest-train.md`. The
+templates share no word 5-gram with these documents or the held-out set, and
+the names no word with their people (`tests/benchmark/test_photo_train.py`).
+`benchmark run` does not read them.

@@ -403,11 +403,15 @@ class TestConfig:
         with pytest.raises(ValueError, match="device must be one of"):
             with_device(parse_train_config(CONFIG), "rocm")
 
-    def test_the_shipped_configs_are_valid(self):
+    def test_the_shipped_configs_are_valid(self, tmp_path: Path):
         configs = sorted(CONFIGS.rglob("train-*.toml"))
         assert configs
+        # A post hoc config fine-tunes a model trained here, listed only under
+        # its storage root: a stand-in entry gives it a base.
+        register(tmp_path, trained_entry(id="gliner-cs-sk-focal-more"))
+        catalog = load_catalog(root=tmp_path)
         for path in configs:
-            assert load_train_config(path).name == path.stem
+            assert load_train_config(path, catalog).name == path.stem
         # A sweep's configs differ from their twin only where the sweep says.
         recipe = sorted((CONFIGS / "recipe").glob("train-recipe-*.toml"))
         assert len(recipe) == 11

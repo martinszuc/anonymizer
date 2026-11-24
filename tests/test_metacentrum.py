@@ -2,11 +2,12 @@
 
 import importlib.util
 import json
+import tomllib
 from pathlib import Path
 from types import ModuleType
 
 import pytest
-from anonymizer.core.resources import trained_catalog_path
+from anonymizer.core.resources import load_catalog, trained_catalog_path
 
 from experiments.datasets import DATASETS
 from experiments.train import load_train_config
@@ -132,10 +133,25 @@ def test_a_job_copies_the_configs_base_and_its_tokenizer(
     assert bases.main([]) == 2
 
 
+def _metacentrum_configs() -> list[Path]:
+    """Training configs a job may run: those whose base is in the shipped catalog.
+
+    A post hoc config fine-tunes a model trained here (its base is listed only
+    under the local storage root); it trains on this machine, never on MetaCentrum.
+    """
+    shipped = set(load_catalog().resources)
+    configs = sorted((REPOSITORY / "experiments" / "configs").rglob("train-*.toml"))
+    return [
+        path
+        for path in configs
+        if tomllib.loads(path.read_text(encoding="utf-8"))["base"] in shipped
+    ]
+
+
 def test_push_data_copies_every_base_a_shipped_config_names(bases: ModuleType):
     script = (SCRIPTS / "push-data.sh").read_text(encoding="utf-8")
     pushed = set(script.split("MODELS=(", 1)[1].split(")", 1)[0].split())
-    configs = (REPOSITORY / "experiments" / "configs").rglob("train-*.toml")
+    configs = _metacentrum_configs()
     needed = {model for path in configs for model in bases.base_models(path)}
     assert needed <= pushed
 
@@ -144,7 +160,7 @@ def test_push_data_copies_every_corpus_a_shipped_config_reads():
     script = (SCRIPTS / "push-data.sh").read_text(encoding="utf-8")
     pushed = set(script.split("DATASETS=(", 1)[1].split(")", 1)[0].split())
     needed: set[str] = set()
-    for path in (REPOSITORY / "experiments" / "configs").rglob("train-*.toml"):
+    for path in _metacentrum_configs():
         config = load_train_config(path)
         for dataset in [corpus.id for corpus in config.corpora] + [
             reference.id for reference in config.evaluate

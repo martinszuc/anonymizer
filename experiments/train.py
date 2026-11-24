@@ -540,7 +540,6 @@ def training_examples(
     Returns:
         The examples, and the version of every dataset read, by catalog id.
     """
-    catalog = load_catalog()
     examples: list[Example] = []
     versions: dict[str, str] = {}
     trained = {reference.id for reference in config.corpora}
@@ -558,7 +557,7 @@ def training_examples(
         conversion.add_drawn(corpus.key, drawn, reference.repeat)
         # Repeats sit next to each other here; the trainer's seeded shuffle spreads them.
         examples += drawn * reference.repeat
-        versions[spec.catalog_id] = catalog[spec.catalog_id].version
+        versions[spec.catalog_id] = corpus.version
     return examples, versions
 
 
@@ -812,12 +811,13 @@ def store_model(
     shutil.rmtree(staging / "saved")
     shutil.rmtree(target, ignore_errors=True)
     staging.replace(target)
+    specs = [DATASETS[reference.id] for reference in config.corpora]
+    # A dataset generated in code has no catalog entry: it holds invented text only.
     corpora = [
         catalog[resource_id]
-        for resource_id in dict.fromkeys(
-            DATASETS[reference.id].catalog_id for reference in config.corpora
-        )
+        for resource_id in dict.fromkeys(spec.catalog_id for spec in specs if not spec.generated)
     ]
+    generated = list(dict.fromkeys(spec.catalog_id for spec in specs if spec.generated))
     entry = {
         "id": config.model,
         "name": (
@@ -834,11 +834,13 @@ def store_model(
         "licence": "LicenseRef-Trained-Locally",
         "languages": sorted({DATASETS[reference.id].language for reference in config.corpora}),
         "requires": list(base.requires),
-        "real_personal_data": any(corpus.real_personal_data for corpus in corpora),
+        "real_personal_data": base.real_personal_data
+        or any(corpus.real_personal_data for corpus in corpora),
         "notes": (
             f"Trained from {base.id} ({base.licence}) on "
             + ", ".join(
-                f"{corpus.id}@{data_versions[corpus.id]} ({corpus.licence})" for corpus in corpora
+                [f"{corpus.id}@{data_versions[corpus.id]} ({corpus.licence})" for corpus in corpora]
+                + [f"{dataset}@{data_versions[dataset]} (generated here)" for dataset in generated]
             )
             + ". Local use only: never committed or published."
         ),

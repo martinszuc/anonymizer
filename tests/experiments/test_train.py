@@ -22,7 +22,13 @@ from anonymizer.core.types import Entity, EntityType
 
 from experiments import run as run_module
 from experiments.__main__ import main
-from experiments.datasets import DATASETS, load_corpus, make_page
+from experiments.datasets import (
+    DATASETS,
+    PHOTO_NOISY_DIRECTORY,
+    PHOTO_NOISY_VERSION,
+    load_corpus,
+    make_page,
+)
 from experiments.examples import (
     MAX_SPAN_TOKENS,
     Conversion,
@@ -596,6 +602,33 @@ def test_a_repeated_corpus_trains_each_example_that_often(training_root: Path):
     assert repeated_conversion.drawn == plain_conversion.drawn
     assert repeated_conversion.to_dict()["repeated"] == {"uner-sk-snk/train": 3}
     assert plain_conversion.to_dict()["repeated"] == {}
+
+
+def test_a_dataset_generated_in_code_is_trained_on_without_a_catalog_entry(
+    training_root: Path, tmp_path: Path
+):
+    built = training_root / PHOTO_NOISY_DIRECTORY
+    built.mkdir(parents=True)
+    record = {
+        "document": "cs-s00001-lease/1",
+        "text": "Nájemce Vojtěch Lhoták podepsal.",
+        "spans": [{"type": "person", "start": 8, "end": 22}],
+    }
+    (built / "cs-train.jsonl").write_text(json.dumps(record, ensure_ascii=False) + "\n")
+    raw = _changed("corpora", [{"id": "photo-noisy-cs", "split": "train"}, CONFIG["corpora"][0]])
+    recorder = Recorder()
+    results = train(
+        parse_train_config(raw),
+        resource_root=training_root,
+        cache_dir=tmp_path / "cache",
+        fit=recorder.fit,
+        load=recorder.load,
+    )
+    assert results["examples"]["drawn"]["photo-noisy-cs/train"] == 1
+    assert results["datasets"]["photo-noisy-cs"] == PHOTO_NOISY_VERSION
+    entry = load_catalog(root=training_root)["gliner-cs-test"]
+    assert f"photo-noisy-cs@{PHOTO_NOISY_VERSION} (generated here)" in entry.notes
+    assert entry.real_personal_data  # CNEC
 
 
 def test_one_seed_draws_the_same_examples_in_the_same_order(training_root: Path):

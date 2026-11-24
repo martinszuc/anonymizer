@@ -1,7 +1,7 @@
 """Command line: `uv run python -m benchmark run --out results/` (or another command).
 
 The commands: `run`, `leaks`, `ocr`, `ocr-margin`, `ocr-probe`, `history`, `diff`,
-`backfill`.
+`backfill`, `photo-train`.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from benchmark.leaks import run_leaks
 from benchmark.ocr_margin import MARGINS, margins_markdown, run_margins
 from benchmark.ocr_probe import probe, probe_markdown, write_probe
 from benchmark.ocr_run import ENGINES, ocr_markdown, run_ocr
+from benchmark.photo_train import SPLITS, render_split
 from benchmark.report import markdown
 from benchmark.run import SYSTEMS, run
 
@@ -102,8 +103,19 @@ def main(argv: list[str] | None = None) -> int:
         "--systems", default="rules", help="comma-separated systems (default: rules)"
     )
     _add_resource_root(backfill_parser)
+    photo_parser = commands.add_parser(
+        "photo-train", help="render the invented documents for the phone-photo fine-tune"
+    )
+    photo_parser.add_argument("--out", type=Path, required=True, help="directory for the PDFs")
+    photo_parser.add_argument(
+        "--split", choices=SPLITS, default="print", help="print (fixed) or synthetic"
+    )
+    photo_parser.add_argument(
+        "--count", type=int, default=0, help="synthetic documents per language"
+    )
+    photo_parser.add_argument("--seed", help="seed of the synthetic split")
     args = parser.parse_args(argv)
-    if args.command not in ("history", "diff", "leaks"):
+    if args.command not in ("history", "diff", "leaks", "photo-train"):
         args.resource_root = resolve_resource_root(args.resource_root)
         _check_system(parser, args)
 
@@ -115,6 +127,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "diff":
         print(diff_markdown(_read_json(args.baseline), _read_json(args.current)), end="")
+        return 0
+    if args.command == "photo-train":
+        try:
+            gold = render_split(args.out, split=args.split, count=args.count, seed=args.seed)
+        except ValueError as error:
+            parser.error(str(error))
+        print(f"wrote {gold}")
         return 0
     if args.command == "leaks":
         run_leaks(args.out, names=_names(args.documents))

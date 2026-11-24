@@ -29,9 +29,11 @@ from benchmark.photo_files import (
     plan_set,
     read_manifest,
 )
+from benchmark.photo_run import photos_markdown, score_photos
 from benchmark.photo_train import SPLITS, render_split
 from benchmark.report import markdown
 from benchmark.run import SYSTEMS, run
+from benchmark.spec import DOCUMENTS
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -124,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     photo_parser.add_argument("--seed", help="seed of the synthetic split")
     args = parser.parse_args(argv)
     if args.command == "photos":
-        return _photos(args)
+        return _photos(parser, args)
     if args.command not in ("history", "diff", "leaks", "photo-train"):
         args.resource_root = resolve_resource_root(args.resource_root)
         _check_system(parser, args)
@@ -218,6 +220,41 @@ def _add_photos(commands: Any) -> None:
     rename_parser.add_argument(
         "--dry-run", action="store_true", help="print the planned names, rename nothing"
     )
+    score_parser = actions.add_parser(
+        "score", help="read, detect, redact and score every photo, and the born-digital text"
+    )
+    _add_photo_set(score_parser)
+    score_parser.add_argument("--out", type=Path, required=True, help="directory for results")
+    score_parser.add_argument(
+        "--run", help="name the results photos-<run>.json and .md (default: photos.json)"
+    )
+    score_parser.add_argument(
+        "--set", default="test", help="which photo set: test or train (default: %(default)s)"
+    )
+    score_parser.add_argument(
+        "--documents",
+        type=Path,
+        default=DOCUMENTS,
+        help="directory of the documents' files (default: the benchmark's)",
+    )
+    score_parser.add_argument(
+        "--engines", default="onnxtr", help="comma-separated OCR engines (default: %(default)s)"
+    )
+    score_parser.add_argument(
+        "--systems", default="rules", help="comma-separated systems, as for run"
+    )
+    score_parser.add_argument(
+        "--compare",
+        default="",
+        help="comma-separated baseline:candidate pairs of systems to compare",
+    )
+    score_parser.add_argument(
+        "--primary", help="baseline:candidate, the comparison the rules give one sentence"
+    )
+    score_parser.add_argument(
+        "--redacted", type=Path, help="keep the redacted copies here (default: discarded)"
+    )
+    _add_resource_root(score_parser)
 
 
 def _add_photo_set(parser: argparse.ArgumentParser) -> None:
@@ -240,8 +277,10 @@ def _add_photo_set(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _photos(args: argparse.Namespace) -> int:
-    """Run `photos rename`; a refused photo set prints why and exits with 1."""
+def _photos(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    """Run `photos rename` or `photos score`; a refused photo set prints why and exits with 1."""
+    if args.action == "score":
+        return _score_photos(parser, args)
     try:
         manifest = read_manifest(args.manifest)
         plans = plan_set(args.photos, manifest, _names(args.conditions))
@@ -259,6 +298,45 @@ def _photos(args: argparse.Namespace) -> int:
     moved = sum(apply_renames(plan) for plan in plans.values())
     print(f"renamed {moved} photos")
     return 0
+
+
+def _score_photos(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    resource_root = resolve_resource_root(args.resource_root)
+    systems = _names(args.systems)
+    catalog = load_catalog(root=resource_root)
+    try:
+        for system in systems:
+            system_model(system, catalog)
+    except ValueError as error:
+        parser.error(str(error))
+    try:
+        results = score_photos(
+            args.photos,
+            args.manifest,
+            args.out,
+            documents=args.documents,
+            conditions=_names(args.conditions),
+            engines=_names(args.engines),
+            systems=systems,
+            compare=tuple(_pair(parser, pair) for pair in _names(args.compare)),
+            primary=_pair(parser, args.primary) if args.primary else None,
+            resource_root=resource_root,
+            set_name=args.set,
+            run_name=args.run,
+            redacted=args.redacted,
+        )
+    except (ValueError, OSError) as error:
+        print(f"refused, nothing scored:\n{error}", file=sys.stderr)
+        return 1
+    print(photos_markdown(results), end="")
+    return 0
+
+
+def _pair(parser: argparse.ArgumentParser, listed: str) -> tuple[str, str]:
+    baseline, colon, candidate = listed.partition(":")
+    if not colon or not baseline or not candidate:
+        parser.error(f"expected baseline:candidate, got {listed!r}")
+    return baseline, candidate
 
 
 def _check_system(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:

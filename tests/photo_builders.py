@@ -87,7 +87,8 @@ def simulated_photo(
         trim: Pixels cut off the right and bottom edge, which are blank
             paper, to give every photo of a test its own size.
         orientation: EXIF orientation the photo is stored with.
-        misread: Words the reader reads otherwise, by their printed text.
+        misread: Words the reader reads otherwise, by their printed text; an
+            empty reading drops the word.
 
     Returns:
         The photo and its words.
@@ -118,6 +119,8 @@ def simulated_photo(
             min(xs) * to_points, min(ys) * to_points, max(xs) * to_points, max(ys) * to_points
         )
         text = (misread or {}).get(word.text, word.text)
+        if not text:
+            continue
         words.append(ScriptedWord(text, box, word.block, word.line))
     jpeg = jpeg_with_capture_time(photo, captured, orientation=orientation)
     return SimulatedPhoto(jpeg, photo.size, words)

@@ -119,7 +119,7 @@ def photo_files(folder: Path) -> list[Path]:
             that is not hidden and not a JPEG by name and content.
     """
     if not folder.is_dir():
-        msg = f"{folder}: no such folder"
+        msg = f"{folder.name}: no such folder"
         raise PhotoSetError(msg)
     photos: list[Path] = []
     problems: list[str] = []

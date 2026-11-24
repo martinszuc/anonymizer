@@ -73,6 +73,49 @@ run on a document holding personal data. With `--truth`, a JSON list of each
 page's text (`scripts/make_mixed_sample.py --truth` writes one for the mixed
 sample), it adds the character error rate.
 
+## Phone photos
+
+```sh
+uv run python -m benchmark photos rename --dry-run      # print the planned names only
+uv run python -m benchmark photos rename                # name them by capture time
+uv run python -m benchmark photos score --out experiments/results --run existing \
+  --engines onnxtr,kraken --resource-root . \
+  --systems rules,rules+gliner,rules+nametag3-multilingual-260521,rules+xlmr-focal-more,rules+xlmr-cs-sk-ce-more,rules+gliner-cs-sk-focal-more \
+  --compare rules+nametag3-multilingual-260521:rules+xlmr-focal-more,rules+xlmr-focal-more:rules+xlmr-cs-sk-ce-more,rules+xlmr-focal-more:rules+gliner-cs-sk-focal-more
+```
+
+The scoring rules are fixed in `experiments/photo-rules.md`; this command
+implements them. Photos of the printed documents sit in
+`outputs/rq8-photos/photos/<condition>/` (`flat`, `dim`, `angle`,
+`--conditions`), taken in the print order of `--manifest`
+(`outputs/rq8-photos/print/manifest.md`). A training set takes the same
+commands with `--photos`, `--manifest`, `--documents` (its `*.toml` files)
+and `--set train`.
+
+`rename` sorts each folder's JPEGs by EXIF capture time (`DateTimeOriginal`
+and `SubSecTimeOriginal`) and names them `<document>[.p<page>].<condition>.jpg`.
+It renames nothing, and exits with 1, when a folder's count differs from the
+manifest's pages, a photo has no capture time, two share one, or a file is a
+HEIC or not a JPEG; a folder already named passes unchanged. Nothing is
+deleted.
+
+`score` reads each photo through the tool's image ingest with each OCR engine,
+runs every system (`run --systems` names; the union is its catalog entry
+`rules+xlmr-focal-more`), writes the redacted copy with `export_redacted` and
+scores the copy's leak check. Planted items are located in the OCR text by
+character alignment with the page's generated text (`align.py`): an item
+whose characters were all deleted is *not read*, missed for every system and
+leaves its document unsafe. A *digital* row scores the same systems on the
+born-digital text. Per engine, condition and system: CER, diacritics, not
+read, found / partial / missed, person recall, F2 (partial) and residual share
+with a paired bootstrap over documents (1000, seed 20261010), safe documents,
+leak check, false alarms. `--compare baseline:candidate` adds paired
+differences labelled win, loss or tie by the rule of `experiments/verdict.py`;
+`--primary` gives one pair the rules' sentence (OnnxTR). A condition whose
+photos do not match the manifest is skipped and reported; an engine that fails
+is reported and left out. Output: `photos[-<run>].json` (with each photo's
+SHA-256) and `.md`. `photo_sim.py` simulates photos in code for the tests.
+
 ## Output
 
 | Path | What |

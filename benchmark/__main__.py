@@ -1,7 +1,7 @@
 """Command line: `uv run python -m benchmark run --out results/` (or another command).
 
-The commands: `run`, `leaks`, `ocr`, `ocr-margin`, `ocr-probe`, `history`, `diff`,
-`backfill`, `photo-train`.
+The commands: `run`, `leaks`, `ocr`, `ocr-margin`, `ocr-probe`, `photos`, `history`,
+`diff`, `backfill`, `photo-train`.
 """
 
 from __future__ import annotations
@@ -22,6 +22,13 @@ from benchmark.leaks import run_leaks
 from benchmark.ocr_margin import MARGINS, margins_markdown, run_margins
 from benchmark.ocr_probe import probe, probe_markdown, write_probe
 from benchmark.ocr_run import ENGINES, ocr_markdown, run_ocr
+from benchmark.photo_files import (
+    CONDITIONS,
+    PhotoSetError,
+    apply_renames,
+    plan_set,
+    read_manifest,
+)
 from benchmark.photo_train import SPLITS, render_split
 from benchmark.report import markdown
 from benchmark.run import SYSTEMS, run
@@ -86,6 +93,7 @@ def main(argv: list[str] | None = None) -> int:
         "--truth", type=Path, help="JSON list of each page's expected text, null to skip a page"
     )
     _add_resource_root(probe_parser)
+    _add_photos(commands)
     history_parser = commands.add_parser("history", help="draw charts from several runs")
     history_parser.add_argument("results", type=Path, nargs="+", help="results.json files")
     history_parser.add_argument("--out", type=Path, required=True, help="directory for charts")
@@ -115,6 +123,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     photo_parser.add_argument("--seed", help="seed of the synthetic split")
     args = parser.parse_args(argv)
+    if args.command == "photos":
+        return _photos(args)
     if args.command not in ("history", "diff", "leaks", "photo-train"):
         args.resource_root = resolve_resource_root(args.resource_root)
         _check_system(parser, args)
@@ -193,6 +203,61 @@ def main(argv: list[str] | None = None) -> int:
     report = markdown(results)
     (args.out / "results.md").write_text(report, encoding="utf-8")
     print(report)
+    return 0
+
+
+def _add_photos(commands: Any) -> None:
+    photos_parser = commands.add_parser(
+        "photos", help="phone photos of printed documents (experiments/photo-rules.md)"
+    )
+    actions = photos_parser.add_subparsers(dest="action", required=True)
+    rename_parser = actions.add_parser(
+        "rename", help="name each photo by capture time and the manifest's print order"
+    )
+    _add_photo_set(rename_parser)
+    rename_parser.add_argument(
+        "--dry-run", action="store_true", help="print the planned names, rename nothing"
+    )
+
+
+def _add_photo_set(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--photos",
+        type=Path,
+        default=Path("outputs/rq8-photos/photos"),
+        help="folder holding one folder per condition (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=Path("outputs/rq8-photos/print/manifest.md"),
+        help="print order, a table | # | document | pages | (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--conditions",
+        default=",".join(CONDITIONS),
+        help="comma-separated condition folders (default: %(default)s)",
+    )
+
+
+def _photos(args: argparse.Namespace) -> int:
+    """Run `photos rename`; a refused photo set prints why and exits with 1."""
+    try:
+        manifest = read_manifest(args.manifest)
+        plans = plan_set(args.photos, manifest, _names(args.conditions))
+    except (PhotoSetError, OSError) as error:
+        print(f"refused, nothing renamed:\n{error}", file=sys.stderr)
+        return 1
+    for condition, plan in plans.items():
+        for rename in plan:
+            mark = "=" if rename.source == rename.target else "->"
+            names = f"{rename.source.name} {mark} {rename.target.name}"
+            print(f"{condition}: {names}  ({rename.captured})")
+    if args.dry_run:
+        print("dry run: nothing renamed")
+        return 0
+    moved = sum(apply_renames(plan) for plan in plans.values())
+    print(f"renamed {moved} photos")
     return 0
 
 

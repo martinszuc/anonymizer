@@ -109,6 +109,16 @@ like the name-forms set, the final test's own synthetic set)
              `dev` (dev) and `test` (test), with different names and
              templates; no train split, so training never reads it.
 
+Code-degraded photo text (`photo-noisy-cs`, `photo-noisy-sk`; built by
+`python -m benchmark photo-noisy` into `<root>/data/photo-noisy/v1/`, no
+catalog entry: the version is the builder's), post hoc for the photo fine-tune
+    person, address, email, phone, birth_number, date (of birth),
+             bank_account, iban: every item the photo-training generator
+             plants and OCR read, placed in the OCR text of a simulated phone
+             photo (`benchmark/photo_noisy.py`). One page per document.
+             Splits: `train` (train) and `dev` (dev), disjoint documents; no
+             test split (photos are tested on the printed benchmark).
+
 Spans of one type nested in another of the same type are reduced to the
 outermost (REDACT marks a full name and its first name), so a detector is not
 asked to find a name twice.
@@ -283,6 +293,10 @@ class DatasetSpec:
         check_overlap: Its train split may repeat text of a dev or test
             split, so a training config reading it must drop such text
             (`drop_overlap` in `train.py`).
+        built: Its files are written by a command of this repository on the
+            machine that uses them (`photo-noisy`), so they may be absent;
+            the overlap guard reads its held-out splits only for a config
+            that trains on it.
     """
 
     id: str
@@ -294,6 +308,7 @@ class DatasetSpec:
     unscored: frozenset[EntityType] = frozenset()
     generated: str | None = None
     check_overlap: bool = False
+    built: bool = False
 
     @property
     def catalog_id(self) -> str:
@@ -960,6 +975,60 @@ def heldout_reader(language: str) -> Callable[[Path, str, TextForm], list[list[S
     return read
 
 
+# --- Code-degraded photo text ---------------------------------------------
+
+PHOTO_NOISY_VERSION = "1"
+"""Version of `benchmark/photo_noisy.py`'s output; a change to it builds `v2`."""
+
+PHOTO_NOISY_DIRECTORY = Path("data") / "photo-noisy" / f"v{PHOTO_NOISY_VERSION}"
+"""Where the build writes, under the storage root."""
+
+PHOTO_NOISY_TYPES = frozenset(
+    {
+        EntityType.PERSON,
+        EntityType.ADDRESS,
+        EntityType.EMAIL,
+        EntityType.PHONE,
+        EntityType.BIRTH_NUMBER,
+        EntityType.DATE,
+        EntityType.BANK_ACCOUNT,
+        EntityType.IBAN,
+    }
+)
+"""Every type the photo-training generator plants (`benchmark/photo_train`)."""
+
+
+def parse_photo_noisy(lines: Iterable[str]) -> list[list[Sentence]]:
+    """Turn JSONL records of OCR text and placed spans into one-record documents."""
+    documents: list[list[Sentence]] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        spans = tuple(
+            SourceSpan(EntityType(span["type"]), span["start"], span["end"])
+            for span in record["spans"]
+        )
+        documents.append([Sentence(record["text"], spans)])
+    return documents
+
+
+def photo_noisy_reader(language: str) -> Callable[[Path, str, TextForm], list[list[Sentence]]]:
+    """Return the reader of one language's built records (it receives the storage root)."""
+
+    def read(directory: Path, split: str, form: TextForm) -> list[list[Sentence]]:  # noqa: ARG001
+        path = directory / PHOTO_NOISY_DIRECTORY / f"{language}-{split}.jsonl"
+        if not path.is_file():
+            msg = (
+                f"photo-noisy-{language} is not built under {directory}; run "
+                f"`python -m benchmark photo-noisy --resource-root {directory} --count 150`"
+            )
+            raise FileNotFoundError(msg)
+        return parse_photo_noisy(path.read_text(encoding="utf-8").splitlines())
+
+    return read
+
+
 # --- Registry and assembly --------------------------------------------------
 
 DATASETS: dict[str, DatasetSpec] = {
@@ -1043,6 +1112,18 @@ DATASETS: dict[str, DatasetSpec] = {
             splits={"dev": Role.DEV, "test": Role.TEST},
             read=heldout_reader(language),
             generated=heldout.HELDOUT_VERSION,
+        )
+        for language in ("cs", "sk")
+    },
+    **{
+        f"photo-noisy-{language}": DatasetSpec(
+            id=f"photo-noisy-{language}",
+            language=language,
+            types=PHOTO_NOISY_TYPES,
+            splits={"train": Role.TRAIN, "dev": Role.DEV},
+            read=photo_noisy_reader(language),
+            generated=PHOTO_NOISY_VERSION,
+            built=True,
         )
         for language in ("cs", "sk")
     },

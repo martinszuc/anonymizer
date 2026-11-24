@@ -543,7 +543,8 @@ def training_examples(
     catalog = load_catalog()
     examples: list[Example] = []
     versions: dict[str, str] = {}
-    held = held_texts(resource_root) if config.drop_overlap else None
+    trained = {reference.id for reference in config.corpora}
+    held = held_texts(resource_root, trained=trained) if config.drop_overlap else None
     if held is not None:
         conversion.overlap_checked = dict(sorted(held.sentences.items()))
     for reference in config.corpora:

@@ -56,6 +56,13 @@ def test_a_dataset_not_stored_fails_the_check_instead_of_passing_it(tmp_path: Pa
         held_texts(tmp_path, {"cnec-2.0": DATASETS["cnec-2.0"]})
 
 
+def test_a_dataset_built_here_is_held_out_only_for_a_config_training_on_it(tmp_path: Path):
+    datasets = {"photo-noisy-cs": DATASETS["photo-noisy-cs"]}
+    assert held_texts(tmp_path, datasets).sentences == {}
+    with pytest.raises(FileNotFoundError, match="photo-noisy"):
+        held_texts(tmp_path, datasets, trained={"photo-noisy-cs"})
+
+
 def test_held_out_sentences_are_left_out_of_a_split_and_counted(resource_root: Path):
     plain = resource_root / "data/cnec-2.0/Czech_Named_Entity_Corpus_2.0/cnec2.0/data/plain"
     (plain / "named_ent_train.txt").write_text("\n".join(CNEC_LINES) + "\n", encoding="utf-8")

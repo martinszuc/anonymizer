@@ -802,7 +802,9 @@ class TestOverlap:
         monkeypatch.setattr(
             train_module,
             "held_texts",
-            lambda root: overlap.held_texts(root, {"cnec-2.0": DATASETS["cnec-2.0"]}),
+            lambda root, trained=(): overlap.held_texts(
+                root, {"cnec-2.0": DATASETS["cnec-2.0"]}, trained=trained
+            ),
         )
         conversion = Conversion()
         checked = parse_train_config({**CONFIG, "drop_overlap": True})

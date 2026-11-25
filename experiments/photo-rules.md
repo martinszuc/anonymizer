@@ -28,6 +28,30 @@ reported apart from that table and never changes its verdict.
 - Ground truth of a photo is the generator's text of its page (the born-digital text
   layer) with the planted items marked inline; it is never read off the photo.
 
+## Handwritten items
+
+Some printed lines are blank: a label and a ruled line (`handwritten` blocks). Before
+photographing, Martin writes on each exactly the text the fill-in sheet gives for that
+document and line (`print/fill-in.pdf`, training set `print/fill-in-train.pdf`; the sheet
+is never photographed). Items in that text carry the carrier `handwritten`.
+
+- Their ground truth is the fill-in sheet's text, never what is read off the photo. A
+  line written differently from the sheet is rewritten on a fresh print before the
+  photo, not corrected in the ground truth.
+- They are **scored apart**. The rows of the sections below score printed items only:
+  the ground truth is the text layer, which has no handwriting, so whatever OCR reads
+  from it counts as inserted characters in CER, and a detection overlapping a located
+  handwritten span is neither credited nor a false alarm. *Documents left safe* there
+  means safe on printed items; a document is reported as safe overall only if its
+  handwritten items are found whole too.
+- **Handwritten row**, per condition, with **kraken** as the engine: the ground truth
+  is the page text with each handwritten text inserted after its label (one space),
+  located by the alignment below. Reported per system as counts, without intervals or
+  a verdict (the test set has few such items): handwritten items not read, found,
+  partial and missed, and the CER of the handwritten texts' located spans. If kraken
+  fails on the photos, the row is reported as not available.
+- The digital row has no handwritten items.
+
 ## Systems
 
 Thresholds are each model's catalog threshold or its engine default

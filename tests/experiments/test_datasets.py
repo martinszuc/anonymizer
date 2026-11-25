@@ -9,6 +9,8 @@ from anonymizer.core.types import Entity, EntityType
 from experiments.datasets import (
     DATASETS,
     OPENPII_LANGUAGES,
+    PHOTO_NOISY_DIRECTORY,
+    PHOTO_NOISY_VERSION,
     REDACT_FILES,
     SENTENCES_PER_PAGE,
     WIKIGOLDSK_FILES,
@@ -459,3 +461,46 @@ def test_a_limit_keeps_the_first_documents_and_counts_only_those(resource_root: 
     assert [doc.name for doc in first.documents] == [doc.name for doc in whole.documents[:2]]
     assert first.sentences == 2
     assert sum(first.gold_counts().values()) < sum(whole.gold_counts().values())
+
+
+def _write_photo_noisy(root: Path, name: str, records: list[dict[str, object]]) -> None:
+    folder = root / PHOTO_NOISY_DIRECTORY
+    folder.mkdir(parents=True, exist_ok=True)
+    lines = [json.dumps(record, ensure_ascii=False) for record in records]
+    (folder / name).write_text("\n".join(lines) + "\n\n", encoding="utf-8")
+
+
+def test_photo_noisy_reads_each_record_as_a_document_with_its_spans(tmp_path: Path):
+    text = "Kupující: Žofie Králová\nNar. 3. 4. 1990"
+    _write_photo_noisy(
+        tmp_path,
+        "cs-train.jsonl",
+        [
+            {
+                "document": "cs-s00001-lease/1",
+                "text": text,
+                "spans": [
+                    {"type": "person", "start": 10, "end": 23},
+                    {"type": "date", "start": 29, "end": 40},
+                ],
+            },
+            {"document": "cs-s00002-lease/1", "text": "Nic nepřečteno", "spans": []},
+        ],
+    )
+    corpus = load_corpus("photo-noisy-cs", "train", tmp_path)
+    assert corpus.role is Role.TRAIN
+    assert corpus.version == PHOTO_NOISY_VERSION
+    assert len(corpus.documents) == 2
+    first = corpus.documents[0]
+    texts = [first.document.pages[0].text[e.start : e.end] for e in first.gold]
+    assert texts == ["Žofie Králová", "3. 4. 1990"]
+    assert [e.type for e in first.gold] == [EntityType.PERSON, EntityType.DATE]
+    assert DATASETS["photo-noisy-sk"].splits == {"train": Role.TRAIN, "dev": Role.DEV}
+
+
+def test_photo_noisy_not_built_names_the_build_command(tmp_path: Path):
+    _write_photo_noisy(tmp_path, "cs-train.jsonl", [])
+    with pytest.raises(FileNotFoundError, match="python -m benchmark photo-noisy"):
+        load_corpus("photo-noisy-cs", "dev", tmp_path)
+    with pytest.raises(FileNotFoundError, match="photo-noisy-sk"):
+        load_corpus("photo-noisy-sk", "train", tmp_path)

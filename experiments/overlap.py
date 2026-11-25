@@ -24,7 +24,7 @@ from __future__ import annotations
 import hashlib
 import unicodedata
 from collections import Counter
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -59,13 +59,19 @@ def held_texts(
     resource_root: Path,
     datasets: Mapping[str, DatasetSpec] = DATASETS,
     read: Callable[[str, str, Path, TextForm], list[list[Sentence]]] = read_sentences,
+    trained: Collection[str] = (),
 ) -> HeldTexts:
     """Read the text of every dev and test split of the datasets.
+
+    A dataset built on this machine (`DatasetSpec.built`) is read only when it
+    is among `trained`: its text is invented here, so no other corpus can
+    repeat it, and a machine that never built it can still train.
 
     Args:
         resource_root: Storage root holding `data/`.
         datasets: The datasets whose dev and test splits are held out.
         read: Reads a split as sentences (`datasets.read_sentences`).
+        trained: Datasets the caller trains on.
 
     Returns:
         The texts' keys and the splits holding each.
@@ -77,6 +83,8 @@ def held_texts(
     held = HeldTexts()
     found: dict[bytes, list[str]] = {}
     for dataset, spec in datasets.items():
+        if spec.built and dataset not in trained:
+            continue
         for split, role in spec.splits.items():
             if role is Role.TRAIN:
                 continue

@@ -1,0 +1,78 @@
+name = "train-photo-posthoc-sim"
+description = """
+POST HOC (RQ3, phone photos): after the final test of 2026-10-29, reported apart from it
+and never changing its verdict; rules in experiments/photo-rules.md. Fine-tunes the final
+union's GLiNER member gliner-cs-sk-focal-more on code-degraded photos only: invented
+documents of benchmark/photo_train (synthetic split, own seed) photographed in code and
+read by OnnxTR (photo-noisy-cs/sk, python -m benchmark photo-noisy), each example twice,
+with replay of the real corpora and OpenPII against forgetting. Same loss and learning
+rates as focal-more, 600 steps of 16. The real training photos come on 25 Nov or later;
+the model is then retrained with them (another config). Tuned and checked on dev splits
+only (photo-noisy dev = documents held out from training); never on a test split or a
+test photo."""
+model = "gliner-cs-sk-photo-sim"
+base = "gliner-cs-sk-focal-more"
+seed = 20261010
+device = "mps"
+drop_overlap = true
+
+[training]
+steps = 600
+batch_size = 16
+learning_rate = 1e-5
+head_learning_rate = 5e-5
+weight_decay = 0.01
+warmup_ratio = 0.1
+loss = "focal"
+focal_alpha = 0.75
+focal_gamma = 2.0
+logging_steps = 25
+
+[[corpora]]
+id = "photo-noisy-cs"
+split = "train"
+repeat = 2
+
+[[corpora]]
+id = "photo-noisy-sk"
+split = "train"
+repeat = 2
+
+[[corpora]]
+id = "cnec-2.0"
+split = "train"
+examples = 1500
+
+[[corpora]]
+id = "uner-sk-snk"
+split = "train"
+examples = 1500
+
+[[corpora]]
+id = "wikigoldsk"
+split = "train"
+examples = 1500
+
+[[corpora]]
+id = "slavicner-cs"
+split = "train"
+examples = 1500
+
+[[corpora]]
+id = "openpii-1m-cs"
+split = "train"
+examples = 1000
+
+[[corpora]]
+id = "openpii-1m-sk"
+split = "train"
+examples = 1000
+
+[evaluate]
+datasets = [
+    { id = "photo-noisy-cs", split = "dev" },
+    { id = "photo-noisy-sk", split = "dev" },
+    { id = "cnec-2.0", split = "dtest" },
+    { id = "uner-sk-snk", split = "dev" },
+    { id = "redact", split = "sample" },
+]

@@ -1,0 +1,29 @@
+# Phone-photo test document: benchmark/documents/cs-power-of-attorney.toml laid out as printed.
+# Same planted items; some moved into a table, boxes or a line written by hand.
+language = "cs"
+kind = "authorization"
+footer = "Plná moc · ověřovací kniha 2026/0418 · strana 1 z 1"
+lines = [
+  "Plná moc",
+  "Zmocnitelka: [[person:Jaroslava Hrušková]], nar. [[date:3. 5. 1971]], r. č. [[birth_number:715503/3820]], číslo OP [[id_number:205418763]], bytem [[address:Nádražní 845/3, 702 00 Ostrava]]",
+  "tímto zmocňuje",
+  "Zmocněnce: Mgr. [[person:Tomáše Vlčka]], advokáta se sídlem Českobratrská 2227/7, 702 00 Ostrava,",
+  "aby ji zastupoval ve všech úkonech souvisejících s prodejem pozemku parc. č. 1532/4 v katastrálním území Poruba, zejména aby jejím jménem podepsal kupní smlouvu, podal návrh na vklad do katastru nemovitostí a převzal kupní cenu. Zmocněnec je oprávněn udělit substituční plnou moc jinému advokátovi.",
+  "Paní [[person:Hruškové]] bude zmocněnec o každém úkonu informovat písemně na adresu jejího bydliště.",
+  "[[person:Jaroslava Hrušková]]",
+  "Plnou moc přijímám. Mgr. [[person:Tomáš Vlček]]",
+  "Podpis zmocnitelky ověřen pod pořadovým číslem 2026/0418 na Úřadu městského obvodu Poruba.",
+]
+decoys = ["Českobratrská 2227/7, 702 00 Ostrava", "parc. č. 1532/4", "2026/0418", "Úřadu městského obvodu Poruba", "2. 9. 2026"]
+
+[[blocks]]
+type = "handwritten"
+after = 6
+label = "V Ostravě dne"
+text = "2. 9. 2026"
+
+[[blocks]]
+type = "signature"
+after = 6
+label = "Podpis zmocnitelky:"
+seed = "cs-power-of-attorney/principal"

@@ -1,0 +1,39 @@
+# Phone-photo test document: benchmark/documents/cs-invoice.toml laid out as printed.
+# Same planted items; some moved into a table, boxes or a line written by hand.
+language = "cs"
+kind = "invoice"
+footer = "Faktura č. 2026001234 · strana 1 z 1 · fyzická osoba zapsaná v živnostenském rejstříku"
+lines = [
+  "Faktura – daňový doklad č. 2026001234",
+  "Dodavatel: [[person:Jan Novák]], IČO [[company_id:73120456]], [[address:Lidická 1879/48, 602 00 Brno]]",
+  "Bankovní spojení: [[bank_account:19-2000145399/0800]], variabilní symbol 2026001234",
+  "Odběratel: Stavby Morava a.s., IČO 45862176, Brno",
+  "Vystavil: [[person:Jan Novák]], tel. [[phone:+420 603 555 120]]",
+]
+decoys = ["2026001234", "Stavby Morava a.s.", "45862176", "18 000 Kč"]
+
+[letterhead]
+organisation = "[[person:Jan Novák]] – daňové poradenství"
+address = ["[[address:Lidická 1879/48, 602 00 Brno]]", "IČO [[company_id:73120456]]"]
+logo = "JN"
+
+[[blocks]]
+type = "table"
+after = 4
+columns = ["Položka", "Množství", "Cena"]
+widths = [3, 1, 1]
+rows = [
+  ["Konzultace", "12 hodin", "18 000 Kč"],
+]
+
+[[blocks]]
+type = "handwritten"
+after = 5
+label = "Datum převzetí:"
+text = "5. 10. 2026"
+
+[[blocks]]
+type = "signature"
+after = 5
+label = "Převzal:"
+seed = "cs-invoice/buyer"

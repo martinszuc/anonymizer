@@ -1,0 +1,44 @@
+# Phone-photo test document: benchmark/documents/cs-contract.toml laid out as printed.
+# Same planted items; some moved into a table, boxes or a line written by hand.
+language = "cs"
+kind = "contract"
+footer = "Evidenční číslo smlouvy KS-2026/117 · vyhotovení pro kupující"
+lines = [
+  "Kupní smlouva",
+  "Prodávající prodává kupující osobní automobil. Kupní cenu uhradí [[person:Kateřina Veselá]] převodem na účet [[bank_account:19-2000145399/0800]].",
+  "Předání vozidla proběhne za přítomnosti svědka, pana [[person:Petra Svobody]].",
+  "[[person:Ondřeji Dvořákovi]] bude kupní cena vyplacena do 14 dnů od podpisu.",
+  "Smlouvu podepsali [[person:Ondřej Dvořák]] a [[person:Kateřina Veselá]].",
+]
+decoys = ["osobní automobil", "14 dnů"]
+
+[[blocks]]
+type = "boxes"
+after = 1
+per_row = 2
+fields = [
+  ["Prodávající – jméno a příjmení", "[[person:Ondřej Dvořák]]"],
+  ["Datum narození", "[[date:12. 6. 1988]]"],
+  ["Rodné číslo", "[[birth_number:880612/1005]]"],
+  ["Bydliště", "[[address:Masarykova 112, 586 01 Jihlava]]"],
+  ["Kupující – jméno a příjmení", "[[person:Kateřina Veselá]]"],
+  ["Bydliště", "[[address:Nádražní 7, 370 01 České Budějovice]]"],
+]
+
+[[blocks]]
+type = "handwritten"
+after = 5
+label = "Vozidlo převzala:"
+text = "[[person:Kateřina Veselá]]"
+
+[[blocks]]
+type = "signature"
+after = 5
+label = "Prodávající:"
+seed = "cs-contract/seller"
+
+[[blocks]]
+type = "signature"
+after = 5
+label = "Kupující:"
+seed = "cs-contract/buyer"

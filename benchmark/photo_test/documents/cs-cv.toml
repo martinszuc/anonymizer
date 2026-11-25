@@ -1,0 +1,37 @@
+# Phone-photo test document: benchmark/documents/cs-cv.toml laid out as printed.
+# Same planted items; some moved into a table, boxes or a line written by hand.
+language = "cs"
+kind = "cv"
+lines = [
+  "[[person:Tereza Procházková]]",
+  "Pracovní zkušenosti",
+  "Vzdělání: Vysoké učení technické v Brně, obor Informatika.",
+  "Reference poskytne Ing. [[person:Kateřina Veselá]], tel. [[phone:603 987 654]].",
+]
+decoys = ["Stavby Morava a.s.", "Analytička dat", "Vysoké učení technické v Brně"]
+
+[[blocks]]
+type = "boxes"
+after = 1
+per_row = 2
+fields = [
+  ["Datum narození", "[[date:14. 3. 1991]]"],
+  ["Telefon", "[[phone:+420 777 123 456]]"],
+  ["Adresa", "[[address:Kounicova 684/12, 602 00 Brno]]"],
+  ["E-mail", "[[email:tereza.prochazkova@example.com]]"],
+]
+
+[[blocks]]
+type = "table"
+after = 2
+columns = ["Období", "Pozice a náplň práce"]
+widths = [1, 4]
+rows = [
+  ["2019–2024", "Analytička dat, Stavby Morava a.s., Brno. Zpracování měsíčních reportů a spolupráce s vedoucím týmu [[person:Ondřejem Dvořákem]]."],
+]
+
+[[blocks]]
+type = "handwritten"
+after = 4
+label = "Aktualizováno dne:"
+text = "2. 10. 2026"

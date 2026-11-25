@@ -1,0 +1,19 @@
+# Phone-photo test document: benchmark/documents/sk-letter.toml laid out as printed.
+# Same planted items; some moved into a table, boxes or a line written by hand.
+language = "sk"
+kind = "letter"
+lines = [
+  "[[person:Mária Horváthová]]",
+  "[[address:Hlavná 45, 040 01 Košice]]",
+  "Vec: Žiadosť o zmenu bankového spojenia",
+  "Vážení, týmto žiadam o zmenu účtu na [[iban:SK31 1200 0000 1987 4263 7541]]. Moje rodné číslo je [[birth_number:855215/1234]].",
+  "V prípade otázok ma kontaktujte na čísle [[phone:+421 918 123 456]] alebo na adrese [[email:maria.horvathova@example.org]].",
+  "S pozdravom",
+]
+decoys = ["Žiadosť o zmenu bankového spojenia"]
+
+[[blocks]]
+type = "handwritten"
+after = 6
+label = "Podpis:"
+text = "[[person:Mária Horváthová]]"

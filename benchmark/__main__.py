@@ -1,7 +1,7 @@
 """Command line: `uv run python -m benchmark run --out results/` (or another command).
 
 The commands: `run`, `leaks`, `ocr`, `ocr-margin`, `ocr-probe`, `photos`, `history`,
-`diff`, `backfill`, `photo-train`, `photo-noisy`.
+`diff`, `backfill`, `photo-test`, `photo-train`, `photo-noisy`.
 """
 
 from __future__ import annotations
@@ -30,10 +30,11 @@ from benchmark.photo_files import (
     read_manifest,
 )
 from benchmark.photo_run import photos_markdown, score_photos
+from benchmark.photo_test import DOCUMENTS as PHOTO_TEST_DOCUMENTS
+from benchmark.photo_test import render_print
 from benchmark.photo_train import SPLITS, render_split
 from benchmark.report import markdown
 from benchmark.run import SYSTEMS, run
-from benchmark.spec import DOCUMENTS
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -113,6 +114,10 @@ def main(argv: list[str] | None = None) -> int:
         "--systems", default="rules", help="comma-separated systems (default: rules)"
     )
     _add_resource_root(backfill_parser)
+    test_parser = commands.add_parser(
+        "photo-test", help="render the phone-photo test documents, print pack and fill-in sheet"
+    )
+    test_parser.add_argument("--out", type=Path, required=True, help="directory for the PDFs")
     photo_parser = commands.add_parser(
         "photo-train", help="render the invented documents for the phone-photo fine-tune"
     )
@@ -140,6 +145,9 @@ def main(argv: list[str] | None = None) -> int:
         return _photos(parser, args)
     if args.command == "photo-noisy":
         return _photo_noisy(parser, args)
+    if args.command == "photo-test":
+        print(f"wrote {render_print(args.out)}")
+        return 0
     if args.command not in ("history", "diff", "leaks", "photo-train"):
         args.resource_root = resolve_resource_root(args.resource_root)
         _check_system(parser, args)
@@ -247,8 +255,8 @@ def _add_photos(commands: Any) -> None:
     score_parser.add_argument(
         "--documents",
         type=Path,
-        default=DOCUMENTS,
-        help="directory of the documents' files (default: the benchmark's)",
+        default=PHOTO_TEST_DOCUMENTS,
+        help="directory of the documents' files (default: the photo test documents)",
     )
     score_parser.add_argument(
         "--engines", default="onnxtr", help="comma-separated OCR engines (default: %(default)s)"

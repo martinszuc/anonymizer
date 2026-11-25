@@ -76,6 +76,7 @@ sample), it adds the character error rate.
 ## Phone photos
 
 ```sh
+uv run python -m benchmark photo-test --out print                      # what is printed
 uv run python -m benchmark photos rename --dry-run      # print the planned names only
 uv run python -m benchmark photos rename                # name them by capture time
 uv run python -m benchmark photos score --out experiments/results --run existing \
@@ -84,8 +85,15 @@ uv run python -m benchmark photos score --out experiments/results --run existing
   --compare rules+nametag3-multilingual-260521:rules+xlmr-focal-more,rules+xlmr-focal-more:rules+xlmr-cs-sk-ce-more,rules+xlmr-focal-more:rules+gliner-cs-sk-focal-more
 ```
 
-The scoring rules are fixed in `experiments/photo-rules.md`; this command
-implements them. Photos of the printed documents sit in
+The scoring rules are fixed in `experiments/photo-rules.md`; `photos score`
+implements them. The printed documents are `benchmark/photo_test/documents/`:
+each Czech and Slovak benchmark document, with the same planted items, laid
+out like real paperwork (letterhead, footer with a reference id, tables, form
+fields in boxes, a stamp, signatures, lines filled in by hand). `photo-test`
+writes `rq8-print.pdf`, `manifest.md`, `gold.json` and `fill-in.pdf`, which
+lists per document and line the exact text to write by hand; that text is the
+ground truth of those items (carrier `handwritten`), which `photos score`
+leaves out. Photos of the printed documents sit in
 `outputs/rq8-photos/photos/<condition>/` (`flat`, `dim`, `angle`,
 `--conditions`), taken in the print order of `--manifest`
 (`outputs/rq8-photos/print/manifest.md`). A training set takes the same
@@ -289,6 +297,33 @@ adds N words of neutral text. Use invented names, `example.com/.org/.net`
 addresses, and checksum-bearing values computed independently of the
 validators under test.
 
+Layout, for printed documents only (`benchmark/layout.py`; a document
+without these fields renders exactly as before, which
+`tests/benchmark/test_layout.py` checks against recorded digests):
+
+```toml
+footer = "Č. j. VK-2026/0418 · strana 1 z 1"     # every page, above the bottom margin
+
+[letterhead]                                      # top of the first page
+organisation = "Vodárny Kraví hora s.r.o."
+address = ["Vodárenská 7", "602 00 Brno"]
+logo = "VK"                                       # letters in the drawn logo box
+
+[[blocks]]                                        # placed after `after` lines
+type = "table"                                    # also: boxes, handwritten, stamp, signature
+after = 2
+columns = ["Položka", "Cena"]
+rows = [["Konzultace pro [[person:Jana Nováka]]", "900 Kč"]]
+widths = [3, 1]                                   # optional shares of the text width
+```
+
+`boxes` takes `fields` (label, value pairs) and `per_row`; `handwritten` a
+printed `label` and the `text` written on its blank line (items in it get the
+carrier `handwritten`); `signature` a `label` and a `seed` for the scribble;
+`stamp` the `lines` inside the ring. A stamp is a picture and a signature is
+vector strokes, so neither is on the text layer. Gold items are collected in
+reading order: letterhead, lines and blocks as placed, footer.
+
 ## Photo training documents
 
 ```sh
@@ -302,8 +337,10 @@ Czech and Slovak documents of this benchmark. The `print` split (32
 one-page documents, committed in `photo_train/documents/`) is printed and
 photographed; the `synthetic` split is any number of further documents per
 language from the same templates with another seed, for degrading in code.
+The print split has the same kinds of layout as the photo test documents.
 Output: `pdf/<doc>.pdf`, `gold.json` (each document's pages and gold items)
-and, for `print`, `rq8-train-print.pdf` and `manifest-train.md`. The
+and, for `print`, `rq8-train-print.pdf`, `manifest-train.md` and
+`fill-in-train.pdf`. The
 templates share no word 5-gram with these documents or the held-out set, and
 the names no word with their people (`tests/benchmark/test_photo_train.py`).
 `benchmark run` does not read them.

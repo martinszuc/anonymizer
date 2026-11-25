@@ -1390,10 +1390,11 @@ intervals excluding 0), config seed:
 
 - **The rule fixed on 2026-10-22 picks the union** of the XLM-R token classifier and
   GLiNER focal loss, both with the added corpora: four candidates tie on two wins each,
-  and the union has the highest mean F2, 0.0007 above GLiNER focal alone (0.0003 over
-  all three seeds). It also has the lowest residual share on every set (CNEC 0.025,
-  UNER-SK 0.004, REDACT 0.009, against NameTag 3 multilingual's 0.098, 0.111, 0.023) and
-  wins WikiGoldSK dev, which the rule does not count.
+  and the union has the highest mean F2, 0.0006 above GLiNER focal alone (0.0003 over
+  all three seeds). Its residual share is the lowest on CNEC (0.025) and UNER-SK (0.004),
+  against NameTag 3 multilingual's 0.098 and 0.111; on REDACT GLiNER focal alone is lower
+  (0.008 against the union's 0.009 and NameTag's 0.023). It wins WikiGoldSK dev, which the
+  rule does not count.
 - **Why XLM-R needs GLiNER on REDACT**: on every seed XLM-R misses record #35 (the
   support chat whose agent name is written 13 times inside `Agent_<surname>` tokens;
   91 of its 126 residual characters) and 13–15 one-word names; GLiNER focal (more) misses

@@ -16,7 +16,8 @@ passes two steps:
 
 Role nouns that are also common surnames (Starosta, Žák, Kupec, Svědek,
 Soudce; Child, Nurse, Judge, Clerk) are left off the lists: dropping a real
-name leaks it, while a role left in costs one click in review.
+name leaks it, while a role left in costs one click in review. The Slovak list
+follows the Czech one, except where `SLOVAK_LEFT_OUT` says why not.
 
 The same model tags the labels of a form's address fields as addresses: "Post
 Code", "Contact Address", "Telephone Number", the column and row headers next
@@ -82,6 +83,7 @@ _SK_AGENT = (
 )  # žiadateľ
 _SK_CA = ("ca", "cu", "covi", "com", "covia", "cov", "coch", "cami")  # zástupca
 _SK_HARD_NOUN = ("", "a", "ovi", "om", "i", "ov", "och", "mi", "ka", "ky", "ke", "ku", "kou")
+_SK_A_NOUN = ("a", "u", "ovi", "om", "ovia", "ov", "och", "ami")  # predseda
 _SK_STRANA = ("a", "y", "e", "u", "ou", "", "ám", "ách", "ami")
 
 CZECH_ROLE_WORDS = frozenset(
@@ -179,12 +181,30 @@ CZECH_ROLE_WORDS = frozenset(
 
 SLOVAK_ROLE_WORDS = frozenset(
     _inflect(
-        ("kupujúci", "predávajúci", "vedúci", "prenajímajúci", "objednávajúci", "nadobúdajúci"),
+        (
+            "kupujúci",
+            "predávajúci",
+            "vedúci",
+            "prenajímajúci",
+            "objednávajúci",
+            "prevádzajúci",
+            "nadobúdajúci",
+            "poverujúci",
+        ),
         1,
         _SK_SOFT_ADJECTIVE,
     )
     | _inflect(
-        ("zákonný", "oprávnený", "povinný", "maloletý", "plnoletý", "zmluvný", "poverený"),
+        (
+            "zákonný",
+            "oprávnený",
+            "povinný",
+            "maloletý",
+            "plnoletý",
+            "zmluvný",
+            "poverený",
+            "zodpovedný",
+        ),
         1,
         _SK_HARD_ADJECTIVE,
     )
@@ -208,14 +228,28 @@ SLOVAK_ROLE_WORDS = frozenset(
             "nadobúdateľ",
             "zriaďovateľ",
             "poisťovateľ",
+            "vydavateľ",
+            "navrhovateľ",
+            "zadávateľ",
+            "usporiadateľ",
             "riaditeľ",
             "učiteľ",
+            "splnomocniteľ",
         ),
         0,
         _SK_AGENT,
     )
     | _inflect(
-        ("zástupca", "platca", "príjemca", "dopravca", "správca", "nájomca", "predajca"),
+        (
+            "zástupca",
+            "platca",
+            "príjemca",
+            "dopravca",
+            "správca",
+            "nájomca",
+            "predajca",
+            "prevodca",
+        ),
         2,
         _SK_CA,
     )
@@ -224,20 +258,35 @@ SLOVAK_ROLE_WORDS = frozenset(
             "referent",
             "účastník",
             "dlžník",
+            "nájomník",
             "pacient",
             "klient",
             "študent",
             "občan",
+            "poplatník",
+            "primátor",
+            "organizátor",
             "notár",
+            "matrikár",
             "advokát",
+            "exekútor",
         ),
         0,
         _SK_HARD_NOUN,
     )
+    # Nouns in -ík take -íci in the nominative plural, which no ending above gives.
+    | _inflect(("účastník", "dlžník", "nájomník", "poplatník"), 1, ("ci",))
+    | _inflect(("predseda", "podpredseda"), 1, _SK_A_NOUN)
     | _inflect(("strana",), 1, _SK_STRANA)
     | {"zamestnanec", "zamestnanca", "zamestnancovi", "zamestnancom", "zamestnanci", "zamestnancov"}
 )
 """Slovak role nouns and the adjectives used with them, in every case."""
+
+SLOVAK_LEFT_OUT = {
+    "hejtman": "no Slovak office of that name",
+    "lékař": "Lekár reads as a trade surname, like Mlynár or Bednár",
+}
+"""Czech role nouns with no Slovak counterpart on the list, and why."""
 
 ENGLISH_ROLE_WORDS = frozenset(
     {

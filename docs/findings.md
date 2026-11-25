@@ -1759,3 +1759,20 @@ equals `rq6-test-home` to three digits, and uner changes little:
 | held-out sk | 0.985 / 0.028 | 0.986 / 0.025 | +0.001 [+0.000, +0.003] | −0.002 [−0.005, +0.000] | 0.999 / 0.001 |
 
 ‡ only the own model was trained on OpenPII.
+
+### 2026-11-25 · Slovak role nouns level with the Czech list
+
+The union's one refused export on the benchmark (`sk-waste-notice`, "Poplatník" tagged as a
+person) came from a gap: about a sixth of the Czech role nouns had no Slovak entry. With the
+Slovak list filled (this change), measured on MetaCentrum CPU nodes from two worktrees (before
+6f653ea, after 6b42320), benchmark of 26 documents:
+
+| system | found | false alarms before → after | leak check before → after |
+|---|---|---|---|
+| rules+gliner | 198/224 | 44 → 40 | 26/26 → 26/26 |
+| rules+nametag3-multilingual | 208/224 | 17 → 17 | 26/26 → 26/26 |
+| rules+xlmr-focal-more | 212/224 | 26 → 23 | 25/26 → 26/26 |
+
+No found item changes. On the gold side, across UNER-SK and WikiGoldSK train and dev (4,744
+person spans), the new list cuts no span the old one left whole. The final test (`rq6-test`)
+ran before this change and is not re-scored.

@@ -1,0 +1,13 @@
+# Phone-photo test document: benchmark/documents/cs-long-report.toml laid out as printed.
+# Same planted items; some moved into a table, boxes or a line written by hand.
+language = "cs"
+kind = "minutes"
+footer = "Zápis č. 14/2026 · strana 1 z 1"
+lines = [
+  "Zápis z jednání",
+  "Přítomni: [[person:Jana Malá]]",
+  "{{filler:420}}",
+  "Zápis vyhotovil [[person:Lukáš Černý]], [[email:lukas.cerny@example.com]].",
+  "{{filler:60}}",
+]
+decoys = []

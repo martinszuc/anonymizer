@@ -4,13 +4,7 @@ language = "sk"
 kind = "cv"
 lines = [
   "Životopis",
-  "Meno a priezvisko: [[person:Terézia Hudcová]]",
-  "Dátum narodenia: [[date:20. 6. 2001]]",
-  "Adresa: [[address:Za Humnami 949/15, 048 01 Rožňava]]",
-  "Kontakt: [[phone:+421 958 534 535]], [[email:terezia.hudcova@example.com]]",
   "Pracovné skúsenosti",
-  "Súčasné zamestnanie: účtovníčka v spoločnosti Pekáreň Kysuce s. r. o.; vediem mzdovú agendu pre šesťdesiat zamestnancov.",
-  "Predtým šesť rokov: asistentka hlavnej účtovníčky v spoločnosti Okná Záhorie s. r. o., kde ma zaúčala [[person:Božena Pavlovičová]].",
   "Vzdelanie",
   "Obchodná akadémia, odbor ekonomika podniku, maturita",
   "Jazyky: nemčina B1, angličtina A2",
@@ -18,3 +12,25 @@ lines = [
   "Záujmy: turistika, šach, dobrovoľníctvo v miestnej knižnici",
 ]
 decoys = ["Pekáreň Kysuce s. r. o.", "Okná Záhorie s. r. o."]
+
+[[blocks]]
+type = "boxes"
+after = 1
+per_row = 2
+fields = [
+  ["Meno a priezvisko", "[[person:Terézia Hudcová]]"],
+  ["Dátum narodenia", "[[date:20. 6. 2001]]"],
+  ["Adresa", "[[address:Za Humnami 949/15, 048 01 Rožňava]]"],
+  ["Telefón", "[[phone:+421 958 534 535]]"],
+  ["E-mail", "[[email:terezia.hudcova@example.com]]"],
+]
+
+[[blocks]]
+type = "table"
+after = 2
+columns = ["Obdobie práce", "Zamestnávateľ a činnosť"]
+rows = [
+  ["súčasnosť", "účtovníčka v spoločnosti Pekáreň Kysuce s. r. o.; vediem mzdovú agendu pre šesťdesiat zamestnancov"],
+  ["šesť rokov predtým", "asistentka hlavnej účtovníčky v spoločnosti Okná Záhorie s. r. o., kde ma zaúčala [[person:Božena Pavlovičová]]"],
+]
+widths = [1.2, 4.0]

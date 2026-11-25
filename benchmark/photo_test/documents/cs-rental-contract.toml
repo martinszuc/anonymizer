@@ -1,0 +1,52 @@
+# Phone-photo test document: benchmark/documents/cs-rental-contract.toml laid out as printed.
+# Same planted items; some moved into a table, boxes or a line written by hand.
+language = "cs"
+kind = "contract"
+footer = "Nájemní smlouva NS-14/2026 · vyhotovení pro nájemce · strana 1 z 1"
+lines = [
+  "Smlouva o nájmu bytu",
+  "1. Předmět nájmu",
+  "Pronajímatel přenechává nájemkyni do užívání byt č. 14 o velikosti 2+1 ve třetím podlaží domu [[address:Veveří 2581/102, 616 00 Brno]], jehož je výlučným vlastníkem. Byt se předává vybavený kuchyňskou linkou, sporákem a vestavěnými skříněmi.",
+  "2. Doba nájmu a nájemné",
+  "Nájem se sjednává na dobu určitou od 1. 12. 2026 do 30. 11. 2027. Nájemné činí 14 500 Kč měsíčně a zálohy na služby 3 200 Kč měsíčně. Nájemné a zálohy hradí nájemkyně převodem na účet pronajímatele [[iban:CZ63 0800 0000 0028 4756 1937]] vždy do pátého dne měsíce.",
+  "3. Jistota",
+  "Nájemce složí při podpisu smlouvy jistotu ve výši dvou měsíčních nájmů. Pronajímatel ji vrátí [[person:Lence Šimkové]] do třiceti dnů po skončení nájmu, sníženou o případné dluhy na nájemném.",
+  "4. Správa bytu",
+  "Za [[person:Jiřího Holuba]] jedná ve věcech správy bytu jeho syn [[person:Martin Holub]], tel. [[phone:604 218 377]]. Při předání bytu byly za účasti [[person:Martina Holuba]] a nájemkyně odečteny stavy měřidel a sepsán předávací protokol.",
+  "Pronajímatel: [[person:Jiří Holub]]",
+  "Nájemce: [[person:Lenka Šimková]]",
+]
+decoys = ["byt č. 14", "14 500 Kč", "1. 12. 2026", "30. 11. 2027", "15. 11. 2026"]
+
+[[blocks]]
+type = "boxes"
+after = 1
+per_row = 2
+fields = [
+  ["Pronajímatel", "[[person:Jiří Holub]]"],
+  ["Datum narození", "[[date:30. 9. 1964]]"],
+  ["Bydliště", "[[address:Palackého třída 1243/18, 612 00 Brno]]"],
+  ["Nájemce", "[[person:Lenka Šimková]]"],
+  ["Datum narození", "[[date:8. 11. 1992]]"],
+  ["Trvalé bydliště", "[[address:Komenského 56, 674 01 Třebíč]]"],
+  ["Telefon", "[[phone:+420 731 482 905]]"],
+  ["E-mail", "[[email:lenka.simkova@example.org]]"],
+]
+
+[[blocks]]
+type = "handwritten"
+after = 9
+label = "V Brně dne"
+text = "15. 11. 2026"
+
+[[blocks]]
+type = "signature"
+after = 9
+label = "Podpis:"
+seed = "cs-rental-contract/landlord"
+
+[[blocks]]
+type = "signature"
+after = 10
+label = "Podpis:"
+seed = "cs-rental-contract/tenant"

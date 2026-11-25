@@ -1,0 +1,34 @@
+# Phone-photo test document: benchmark/documents/sk-medical-report.toml laid out as printed.
+# Same planted items; some moved into a table, boxes or a line written by hand.
+language = "sk"
+kind = "report"
+footer = "Prepúšťacia správa č. 2026/4471 · strana 1 z 1"
+lines = [
+  "Nemocnica Poprad, a. s.",
+  "Interné oddelenie",
+  "Prepúšťacia správa",
+  "Zdravotná poisťovňa: Všeobecná zdravotná poisťovňa, číslo poistenca je totožné s rodným číslom.",
+  "Hospitalizovaný od 14. 9. 2026 do 21. 9. 2026.",
+  "Anamnéza: Pacient [[person:Hudák]] bol prijatý pre bolesti na hrudníku trvajúce od rána. Rodinná anamnéza: otec liečený pre hypertenziu. Pacienta priviezla manželka [[person:Anna Hudáková]], kontakt [[phone:0907 441 236]].",
+  "Priebeh hospitalizácie: Po stabilizácii bolo vykonané koronarografické vyšetrenie, ktoré nepotvrdilo akútny koronárny syndróm. Pacient bol poučený o režimových opatreniach a o užívaní liekov.",
+  "Odporúčanie: kontrola u všeobecného lekára MUDr. [[person:Petra Lacka]] do 7 dní, v kardiologickej ambulancii o 3 mesiace.",
+  "Ošetrujúci lekár: MUDr. [[person:Katarína Bieliková]]",
+  "Primár oddelenia: MUDr. [[person:Juraj Fekete]], PhD.",
+]
+decoys = ["Nemocnica Poprad, a. s.", "Všeobecná zdravotná poisťovňa", "Interné oddelenie", "14. 9. 2026"]
+
+[[blocks]]
+type = "boxes"
+after = 3
+per_row = 3
+fields = [
+  ["Pacient", "[[person:Ladislav Hudák]]"],
+  ["Rodné číslo", "[[birth_number:580214/9265]]"],
+  ["Bydlisko", "[[address:Nám. SNP 14, 058 01 Poprad]]"],
+]
+
+[[blocks]]
+type = "signature"
+after = 9
+label = "Podpis lekára:"
+seed = "sk-medical-report/doctor"

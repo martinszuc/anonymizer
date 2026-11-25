@@ -1,7 +1,8 @@
 """Invented Czech and Slovak documents for fine-tuning on phone photos (RQ3 post hoc).
 
 The 22 Czech and Slovak benchmark documents (`benchmark/documents/cs-*`,
-`sk-*`), printed and photographed, are the photo test set. Fine-tuning on
+`sk-*`), laid out as printed in `benchmark/photo_test/` and photographed, are
+the photo test set. Fine-tuning on
 photos needs photos of other documents: this package writes them. Two splits,
 from the same templates:
 

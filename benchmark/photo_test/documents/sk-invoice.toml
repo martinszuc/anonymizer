@@ -1,0 +1,45 @@
+# Phone-photo test document: benchmark/documents/sk-invoice.toml laid out as printed.
+# Same planted items; some moved into a table, boxes or a line written by hand.
+language = "sk"
+kind = "invoice"
+footer = "Faktúra č. 2026031 · strana 1 z 1"
+lines = [
+  "Faktúra č. 2026031",
+  "Dodávateľ: [[person:Marek Baláž]] – Elektroinštalácie, [[address:Štúrova 27, 949 01 Nitra]]",
+  "IČO: [[company_id:50726196]], DIČ: [[id_number:1084572913]], nie je platiteľ DPH",
+  "Bankové spojenie: [[iban:SK60 0900 0000 0054 3201 9875]]",
+  "Odberateľ: Agro Dvor Lehota, s. r. o., Poľná 4, 951 36 Lehota, IČO: 36512281",
+  "Dátum vystavenia: 30. 9. 2026, dátum dodania: 25. 9. 2026, dátum splatnosti: 14. 10. 2026",
+  "Variabilný symbol: 2026031",
+  "Vystavil: [[person:Marek Baláž]], tel. [[phone:0905 318 442]], [[email:marek.balaz@example.com]]",
+  "Podnikateľ je zapísaný v živnostenskom registri Okresného úradu Nitra, číslo živnostenského registra 430-41187.",
+]
+decoys = ["Agro Dvor Lehota, s. r. o.", "Poľná 4, 951 36 Lehota", "36512281", "2026031", "Okresného úradu Nitra", "430-41187"]
+
+[letterhead]
+organisation = "[[person:Marek Baláž]] – Elektroinštalácie"
+address = ["[[address:Štúrova 27, 949 01 Nitra]]", "IČO: [[company_id:50726196]]"]
+logo = "MB"
+
+[[blocks]]
+type = "table"
+after = 7
+columns = ["Položka", "Množstvo", "Suma"]
+widths = [4, 1, 1.4]
+rows = [
+  ["Výmena rozvádzača a revízia elektroinštalácie v hospodárskej budove", "1 ks", "1 840,00 EUR"],
+  ["Materiál podľa priloženého súpisu", "", "612,40 EUR"],
+  ["Spolu na úhradu", "", "2 452,40 EUR"],
+]
+
+[[blocks]]
+type = "handwritten"
+after = 9
+label = "Dátum prevzatia:"
+text = "2. 10. 2026"
+
+[[blocks]]
+type = "signature"
+after = 9
+label = "Prevzal:"
+seed = "sk-invoice/buyer"

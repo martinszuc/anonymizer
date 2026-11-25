@@ -1,0 +1,43 @@
+# Phone-photo test document: benchmark/documents/cs-school-form.toml laid out as printed.
+# Same planted items; some moved into a table, boxes or a line written by hand.
+language = "cs"
+kind = "form"
+footer = "Evidenční číslo přihlášky 2026/087 · vyplní škola"
+lines = [
+  "Základní umělecká škola Rožnov pod Radhoštěm",
+  "Přihláška ke studiu ve školním roce 2026/2027",
+  "Obor: hudební, nástroj: klavír. Přihlášku vyplní zákonný zástupce uchazeče a odevzdá ji v kanceláři školy nejpozději do 15. června. Talentová zkouška se koná ve škole, termín sdělí škola e-mailem.",
+  "Prohlašuji, že údaje uvedené v přihlášce jsou pravdivé, a souhlasím se zpracováním osobních údajů uchazeče pro účely přijímacího řízení a vedení školní matriky.",
+]
+decoys = ["Základní umělecká škola Rožnov pod Radhoštěm", "2026/2027", "15. června"]
+
+[[blocks]]
+type = "boxes"
+after = 2
+per_row = 2
+fields = [
+  ["Jméno a příjmení uchazeče", "[[person:Tobiáš Kučera]]"],
+  ["Datum narození", "[[date:15. 7. 2017]]"],
+  ["Rodné číslo", "[[birth_number:170715/4416]]"],
+  ["Ulice a číslo domu", "[[address:Bezručova 1680]]"],
+  ["PSČ a obec", "[[address:756 61 Rožnov pod Radhoštěm]]"],
+  ["E-mail", "[[email:marketa.kucerova@example.net]]"],
+]
+
+[[blocks]]
+type = "handwritten"
+after = 4
+label = "Zákonný zástupce:"
+text = "[[person:Markéta Kučerová]]"
+
+[[blocks]]
+type = "handwritten"
+after = 4
+label = "Telefon:"
+text = "[[phone:+420 739 104 552]]"
+
+[[blocks]]
+type = "signature"
+after = 4
+label = "Podpis zákonného zástupce:"
+seed = "cs-school-form/parent"

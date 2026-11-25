@@ -5,7 +5,6 @@ kind = "letter"
 lines = [
   "[[person:Kryštof Toman]], [[address:Rybářská 1468, 664 34 Kuřim]]",
   "[[person:Bohdana Linhartová]], [[address:Na Kopci 259/28, 301 00 Plzeň]]",
-  "Zábřeh, 2. 6. 2026",
   "Věc: vrácení kauce za byt",
   "Vážená paní [[person:Linhartová]],",
   "obracím se na Vás kvůli kauci 24 000 Kč, kterou jsem Vám složil při podpisu nájemní smlouvy. Byt jsem Vám předal poslední den nájmu vymalovaný a uklizený.",
@@ -16,3 +15,15 @@ lines = [
   "[[person:Kryštof Toman]], tel. [[phone:746 036 191]]",
 ]
 decoys = []
+
+[[blocks]]
+type = "handwritten"
+after = 2
+label = "Místo a datum:"
+text = "Zábřeh, 2. 6. 2026"
+
+[[blocks]]
+type = "signature"
+after = 9
+label = "Podpis:"
+seed = "cs-p14-deposit/1"

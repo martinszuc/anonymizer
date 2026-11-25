@@ -10,21 +10,47 @@ reported apart from that table and never changes its verdict.
 ## Photo sets
 
 - **Test set:** the 22 Czech and Slovak benchmark documents, 23 pages (`cs-terms` has
-  two), printed from `outputs/rq8-photos/print/rq8-print.pdf` in the order of
-  `print/manifest.md`, each page photographed once under each of three conditions:
+  two), laid out as printed in `benchmark/photo_test/documents/` (letterhead, footer,
+  tables, boxes, stamps, signatures, lines filled in by hand; the same planted items as
+  each benchmark document's page) and printed from `outputs/rq8-photos/print/rq8-print.pdf`
+  (`python -m benchmark photo-test`) in the order of `print/manifest.md`, each page photographed once under each of three conditions:
   `flat`, `dim`, `angle` (`outputs/rq8-photos/PROTOCOL.md`). Exactly **69 photos** in
   `outputs/rq8-photos/photos/<condition>/`, 23 per condition. A condition with a
   missing or extra photo is not scored. Six of the 22 documents plant nothing
   (`cs-gym-rules`, `cs-notice`, `cs-privacy-notice`, `cs-terms`, `sk-terms`,
   `sk-waste-notice`); they count for false alarms.
-- **Training set:** invented documents of `benchmark/photo_train/` (split `print`),
-  printed from `print/rq8-train-print.pdf` (`print/manifest-train.md`) and photographed
+- **Training set:** invented documents of `benchmark/photo_train/` (split `print`, laid
+  out with the same kinds of element as the test set), printed from `print/rq8-train-print.pdf` (`print/manifest-train.md`) and photographed
   under the same three conditions into `outputs/rq8-photos/photos-train/<condition>/`.
   Training photos are never scored as test data, and no test photo is used in training,
   tuning or choosing a checkpoint. The two sets are photographed in separate sessions and
   never stored together.
 - Ground truth of a photo is the generator's text of its page (the born-digital text
   layer) with the planted items marked inline; it is never read off the photo.
+
+## Handwritten items
+
+Some printed lines are blank: a label and a ruled line (`handwritten` blocks). Before
+photographing, Martin writes on each exactly the text the fill-in sheet gives for that
+document and line (`print/fill-in.pdf`, training set `print/fill-in-train.pdf`; the sheet
+is never photographed). Items in that text carry the carrier `handwritten`.
+
+- Their ground truth is the fill-in sheet's text, never what is read off the photo. A
+  line written differently from the sheet is rewritten on a fresh print before the
+  photo, not corrected in the ground truth.
+- They are **scored apart**. The rows of the sections below score printed items only:
+  the ground truth is the text layer, which has no handwriting, so whatever OCR reads
+  from it counts as inserted characters in CER, and a detection overlapping a located
+  handwritten span is neither credited nor a false alarm. *Documents left safe* there
+  means safe on printed items; a document is reported as safe overall only if its
+  handwritten items are found whole too.
+- **Handwritten row**, per condition, with **kraken** as the engine: the ground truth
+  is the page text with each handwritten text inserted after its label (one space),
+  located by the alignment below. Reported per system as counts, without intervals or
+  a verdict (the test set has few such items): handwritten items not read, found,
+  partial and missed, and the CER of the handwritten texts' located spans. If kraken
+  fails on the photos, the row is reported as not available.
+- The digital row has no handwritten items.
 
 ## Systems
 
@@ -71,6 +97,18 @@ scans, so items are placed by text alignment:
   aligned to an OCR character (all deleted) is **not read**.
 - An item not read is missed for every system and leaves its document unsafe: it is
   printed on the photo and stays in the redacted copy.
+- **Reading order of tables and boxes (a limitation, reported as is).** The ground
+  truth runs row by row and cell by cell, as the text layer is written; a box's small
+  label comes before its value. OCR may read a row's cells in another order, two
+  boxes side by side as one line, or a wrapped cell's second line after the next cell.
+  The alignment is over the whole page, so such an item can align only in part or not
+  at all and is then partial or not read although it was printed. Neither the ground
+  truth nor the OCR text is reordered to repair this, and no item is matched cell by
+  cell; the counts are what the tool would do with the photo.
+- The stamp and the signatures are pictures and strokes, not text: they are not in the
+  ground truth, whatever OCR reads from them counts as inserted characters, and a
+  detection on them is a false alarm. The letterhead and footer are printed text and
+  are part of the ground truth.
 
 ## Scores, per engine and condition (and the digital row)
 

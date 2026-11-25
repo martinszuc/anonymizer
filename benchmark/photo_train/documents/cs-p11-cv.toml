@@ -5,12 +5,7 @@ kind = "cv"
 lines = [
   "Životopis",
   "[[person:Bohdana Vybíralová]]",
-  "Narození: [[date:10. 4. 1956]]",
-  "Bydliště: [[address:Lesní 1376, 269 01 Rakovník]]",
-  "Kontakt: [[phone:+420 686 473 076]], [[email:bvybiralova@example.net]]",
   "Praxe",
-  "Nyní: vedoucí skladu ve firmě Stavby Haná s.r.o.. Řídím tým osmi skladníků, plánuji směny a odpovídám za čtvrtletní inventury.",
-  "Předtím sedm let: skladníce ve firmě Lesní školka Brdy s.r.o., kde mě zaučoval [[person:Arnošt Linhart]]; s panem [[person:Linhartem]] jsem zaváděla čtečky čárových kódů.",
   "Vzdělání",
   "Střední průmyslová škola strojní, obor logistika, ukončeno maturitou",
   "Dovednosti",
@@ -20,3 +15,30 @@ lines = [
   "Uvedené údaje smí firma použít jen pro toto výběrové řízení.",
 ]
 decoys = ["Stavby Haná s.r.o.", "Lesní školka Brdy s.r.o."]
+
+[[blocks]]
+type = "boxes"
+after = 2
+per_row = 2
+fields = [
+  ["Narození", "[[date:10. 4. 1956]]"],
+  ["Telefon", "[[phone:+420 686 473 076]]"],
+  ["Bydliště", "[[address:Lesní 1376, 269 01 Rakovník]]"],
+  ["E-mail", "[[email:bvybiralova@example.net]]"],
+]
+
+[[blocks]]
+type = "table"
+after = 3
+columns = ["Kdy", "Kde a co"]
+rows = [
+  ["nyní", "vedoucí skladu ve firmě Stavby Haná s.r.o.; řídím tým osmi skladníků, plánuji směny a odpovídám za čtvrtletní inventury"],
+  ["předtím sedm let", "skladníce ve firmě Lesní školka Brdy s.r.o., kde mě zaučoval [[person:Arnošt Linhart]]; s panem [[person:Linhartem]] jsem zaváděla čtečky čárových kódů"],
+]
+widths = [1.0, 4.0]
+
+[[blocks]]
+type = "handwritten"
+after = 10
+label = "Životopis sepsán dne:"
+text = "26. 10. 2026"

@@ -59,6 +59,7 @@ from benchmark.photo_files import (
     named_photos,
     read_manifest,
 )
+from benchmark.photo_test import DOCUMENTS
 from benchmark.render import render
 from benchmark.run import (
     DetectorFactory,
@@ -76,7 +77,7 @@ from benchmark.score import (
     score_detection,
     words_pattern,
 )
-from benchmark.spec import DOCUMENTS, DocumentSpec, GoldItem, document_set, load_documents
+from benchmark.spec import DocumentSpec, GoldItem, document_set, load_documents
 from experiments.metrics import (
     PARTIAL,
     Counts,

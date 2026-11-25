@@ -1,0 +1,25 @@
+# Phone-photo test document: benchmark/documents/cs-privacy-notice.toml laid out as printed.
+# Same planted items; some moved into a table, boxes or a line written by hand.
+language = "cs"
+kind = "policy"
+footer = "Verze 2026/1 · platí od 1. července 2026"
+lines = [
+  "Informace o zpracování osobních údajů",
+  "1. Kdo je Správcem",
+  "Správcem osobních údajů je společnost Pekárna Zlatý klas a.s., zapsaná v obchodním rejstříku vedeném Krajským soudem v Hradci Králové. Správce jmenoval Pověřence pro ochranu osobních údajů, kterého lze kontaktovat na adrese gdpr@example.com nebo písemně na adrese sídla Správce s označením obálky „Pověřenec“.",
+  "2. Jaké údaje zpracováváme",
+  "Zpracováváme identifikační a kontaktní údaje Zákazníků, kteří si objednávají dorty a cukrovinky na zakázku, údaje Zaměstnanců a Uchazečů o zaměstnání a údaje kontaktních osob Dodavatelů. Kamerový systém v prodejnách zaznamenává obraz bez zvuku; záznamy se uchovávají sedm dní.",
+  "3. Proč a jak dlouho",
+  "Údaje Zákazníka zpracováváme po dobu plnění objednávky a dále po dobu, po kterou trvá promlčecí lhůta. Údaje Uchazeče o zaměstnání uchováváme do skončení výběrového řízení, se souhlasem Uchazeče nejvýše jeden rok. Účetní doklady archivujeme deset let podle zákona o účetnictví.",
+  "4. Komu údaje předáváme",
+  "Příjemci údajů jsou Zpracovatelé, kteří pro Správce zajišťují mzdové účetnictví, provoz e-shopu a rozvoz objednávek. Každý Zpracovatel je vázán smlouvou o zpracování a mlčenlivostí. Údaje nepředáváme do zemí mimo Evropskou unii.",
+  "5. Vaše práva",
+  "Subjekt údajů má právo na přístup ke svým údajům, na jejich opravu, výmaz a omezení zpracování, právo vznést námitku a právo na přenositelnost údajů. Má-li Subjekt údajů za to, že zpracování porušuje předpisy, může podat stížnost u Úřadu pro ochranu osobních údajů, Pplk. Sochora 27, 170 00 Praha 7.",
+  "Tato informace platí od 1. července 2026.",
+]
+decoys = ["Pekárna Zlatý klas a.s.", "gdpr@example.com", "Pověřence pro ochranu osobních údajů", "Krajským soudem v Hradci Králové", "Subjekt údajů", "Úřadu pro ochranu osobních údajů", "Pplk. Sochora 27, 170 00 Praha 7"]
+
+[letterhead]
+organisation = "Pekárna Zlatý klas a.s."
+address = ["Mlýnská 412, 503 41 Hradec Králové", "IČO 25817634"]
+logo = "ZK"

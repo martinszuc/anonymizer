@@ -19,13 +19,39 @@ Syntax (a slot is replaced by its value; a person slot is marked as gold):
 Persons A to E are of either gender, alternating over the instances; M and N
 are men, V and W women. Slovak has no vocative. Degrees ("MUDr.") and labels
 stay outside the slot, so a gold span is the name alone.
+
+The print split is laid out like the photo test documents (`Layout`): the
+same kinds of letterhead, footer, table, boxes, stamp, signature and lines
+filled in by hand, in words of its own. The synthetic split ignores layout.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
+from benchmark.spec import Block, Boxes, Handwritten, Signature, Stamp, Table
+
 KINDS = ("contract", "cv", "invoice", "form", "letter", "medical", "school")
+
+
+@dataclass(frozen=True, slots=True)
+class Layout:
+    """How the print split lays a template out.
+
+    Attributes:
+        letterhead: Organisation in the letterhead (template syntax), empty
+            for none; its address and IČO are drawn by the generator.
+        footer: Footer text (template syntax).
+        replaced: Lines left out because a block below holds their values.
+        blocks: Blocks whose `after` counts the template's lines (before any is
+            left out) and whose text is in template syntax. A signature's seed
+            is set per document.
+    """
+
+    letterhead: str = ""
+    footer: str = ""
+    replaced: tuple[int, ...] = ()
+    blocks: tuple[Block, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +66,7 @@ class Template:
         families: Groups of person letters sharing a surname ("AC").
         children: Letters of people born 2010 to 2019.
         elders: Letters of people born 1954 to 1962.
+        layout: Layout of the print split.
     """
 
     name: str
@@ -49,6 +76,7 @@ class Template:
     families: tuple[str, ...] = ()
     children: str = ""
     elders: str = ""
+    layout: Layout = Layout()
 
 
 TEMPLATES: dict[str, tuple[Template, ...]] = {
@@ -77,6 +105,28 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
                 "Za {B?vydlužitele|vydlužitelku}: {B.full.nom}",
             ),
             decoys=("§ 2390 zákona č. 89/2012 Sb.",),
+            layout=Layout(
+                footer="Evidence zápůjček {doc.ref}, výtisk pro {A?zapůjčitele|zapůjčitelku}",
+                replaced=(2, 3, 8),
+                blocks=(
+                    Boxes(
+                        2,
+                        (
+                            ("{A?Zapůjčitel|Zapůjčitelka}", "{A.full.nom}"),
+                            ("Datum narození", "{A.born}"),
+                            ("Rodné číslo", "{A.rc}"),
+                            ("Adresa pobytu", "{A.addr}"),
+                            ("{B?Vydlužitel|Vydlužitelka}", "{B.full.nom}"),
+                            ("Rodné číslo", "{B.rc}"),
+                            ("Adresa pobytu", "{B.addr}"),
+                            ("Mobil", "{B.phone}"),
+                        ),
+                    ),
+                    Handwritten(9, "Místo a datum podpisu:", "{doc.place}, {doc.issued}"),
+                    Signature(10, "Vlastnoruční podpis:", ""),
+                    Signature(11, "Vlastnoruční podpis:", ""),
+                ),
+            ),
         ),
         Template(
             "garage",
@@ -101,6 +151,26 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
                 "Podpisy: {A.initial.nom}, {B.initial.nom}",
             ),
             families=("BC",),
+            layout=Layout(
+                footer="Nájem garáže, spis {doc.ref}",
+                replaced=(1, 2, 9),
+                blocks=(
+                    Boxes(
+                        1,
+                        (
+                            ("{A?Pronajímatel|Pronajímatelka}", "{A.full.nom}"),
+                            ("IBAN pro nájemné", "{A.iban}"),
+                            ("Adresa", "{A.addr}"),
+                            ("{B?Nájemce|Nájemkyně}", "{B.full.nom}"),
+                            ("{B?Narozen|Narozena}", "{B.born}"),
+                            ("Adresa", "{B.addr}"),
+                            ("E-mail", "{B.email}"),
+                        ),
+                    ),
+                    Handwritten(10, "Za pronajímatele podepsal:", "{A.initial.nom}"),
+                    Handwritten(10, "Klíče převzal:", "{B.initial.nom}"),
+                ),
+            ),
         ),
         Template(
             "cv",
@@ -125,6 +195,39 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
                 "Na požádání je ochotna sdělit vedoucí provozu {V.full.nom}, telefon {V.phone}.",
                 "Uvedené údaje smí firma použít jen pro toto výběrové řízení.",
             ),
+            layout=Layout(
+                replaced=(2, 3, 4, 6, 7),
+                blocks=(
+                    Boxes(
+                        2,
+                        (
+                            ("Narození", "{A.born}"),
+                            ("Telefon", "{A.phone}"),
+                            ("Bydliště", "{A.addr}"),
+                            ("E-mail", "{A.email}"),
+                        ),
+                    ),
+                    Table(
+                        6,
+                        ("Kdy", "Kde a co"),
+                        (
+                            (
+                                "nyní",
+                                "vedoucí skladu ve firmě {doc.company}; řídím tým osmi"
+                                " skladníků, plánuji směny a odpovídám za čtvrtletní inventury",
+                            ),
+                            (
+                                "předtím sedm let",
+                                "skladní{A?k|ce} ve firmě {doc.company2}, kde mě zaučoval"
+                                " {M.full.nom}; s {M.titled.ins} jsem zaváděl{A?|a} čtečky"
+                                " čárových kódů",
+                            ),
+                        ),
+                        (1.0, 4.0),
+                    ),
+                    Handwritten(15, "Životopis sepsán dne:", "{doc.issued}"),
+                ),
+            ),
         ),
         Template(
             "invoice",
@@ -145,6 +248,28 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
                 "Na čerpadlo poskytujeme záruku 24 měsíců. Reklamace řeší {V.titled.nom},"
                 " e-mail {V.email}.",
             ),
+            layout=Layout(
+                letterhead="{doc.company}",
+                footer="Doklad {doc.ref}, servisní středisko, list 1/1",
+                replaced=(4, 5, 7),
+                blocks=(
+                    Table(
+                        4,
+                        ("Předmět plnění", "Částka s DPH"),
+                        (
+                            (
+                                "oprava plynového kotle a výměna oběhového čerpadla v rodinném"
+                                " domě {A.titled.gen}",
+                                "{doc.amount}",
+                            ),
+                        ),
+                        (3.0, 1.0),
+                    ),
+                    Handwritten(8, "Fakturu převzal{A?|a}:", "{A.initial.nom}, telefon {A.phone}"),
+                    Signature(10, "Za dodavatele:", ""),
+                    Stamp(10, ("{doc.company}",)),
+                ),
+            ),
         ),
         Template(
             "parking",
@@ -164,6 +289,24 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
             ),
             decoys=("§ 23 zákona č. 13/1997 Sb.",),
             families=("AB",),
+            layout=Layout(
+                footer="Číslo jednací {doc.ref}",
+                replaced=(2, 3, 4, 5, 7),
+                blocks=(
+                    Boxes(
+                        2,
+                        (
+                            ("Příjmení a jméno žadatele", "{A.rev}"),
+                            ("Narozen{A?|a}", "{A.born}"),
+                            ("Rodné číslo", "{A.rc}"),
+                            ("Kontaktní telefon", "{A.phone}"),
+                            ("Adresa trvalého pobytu", "{A.addr}"),
+                        ),
+                    ),
+                    Handwritten(8, "Kartu za žadatele vyzvedne:", "{C.full.nom}"),
+                    Signature(9, "Podpis žadatele:", ""),
+                ),
+            ),
         ),
         Template(
             "deposit",
@@ -186,6 +329,13 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
                 "{A.full.nom}, tel. {A.phone}",
             ),
             families=("BM",),
+            layout=Layout(
+                replaced=(2,),
+                blocks=(
+                    Handwritten(2, "Místo a datum:", "{doc.place}, {doc.issued}"),
+                    Signature(10, "Podpis:", ""),
+                ),
+            ),
         ),
         Template(
             "discharge",
@@ -208,6 +358,25 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
                 "Zprávu převzal{A?|a}: {A.initial.nom}",
             ),
             families=("AB",),
+            layout=Layout(
+                footer="Číslo hospitalizace {doc.ref}",
+                replaced=(2, 3, 10),
+                blocks=(
+                    Boxes(
+                        2,
+                        (
+                            ("{A?Pacient|Pacientka}", "{A.rev}"),
+                            ("Narozen{A?|a}", "{A.born}"),
+                            ("RČ", "{A.rc}"),
+                            ("Bydliště", "{A.addr}"),
+                            ("Telefon", "{A.phone}"),
+                        ),
+                        3,
+                    ),
+                    Signature(10, "Razítko a podpis lékaře:", ""),
+                    Handwritten(11, "Zprávu převzal{A?|a}:", "{A.initial.nom}"),
+                ),
+            ),
         ),
         Template(
             "camp",
@@ -229,6 +398,25 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
             families=("AC",),
             children="C",
             elders="B",
+            layout=Layout(
+                footer="Přihláška na tábor číslo {doc.ref}",
+                replaced=(2, 3, 4, 9),
+                blocks=(
+                    Boxes(
+                        2,
+                        (
+                            ("Dítě", "{C.full.nom}"),
+                            ("Datum narození", "{C.born}"),
+                            ("Rodné číslo dítěte", "{C.rc}"),
+                            ("Zákonný zástupce", "{A.full.nom}"),
+                            ("Adresa zástupce", "{A.addr}"),
+                            ("Telefon", "{A.phone}"),
+                            ("E-mail", "{A.email}"),
+                        ),
+                    ),
+                    Handwritten(10, "Podepsal{A?|a} zákonný zástupce:", "{A.initial.nom}"),
+                ),
+            ),
         ),
     ),
     "sk": (
@@ -255,6 +443,28 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
                 "Podpis {B?dlžníka|dlžníčky}: {B.full.nom}",
             ),
             decoys=("§ 657 Občianskeho zákonníka č. 40/1964 Zb.",),
+            layout=Layout(
+                footer="Zmluva číslo {doc.ref}, rovnopis pre {A?veriteľa|veriteľku}",
+                replaced=(2, 3, 8),
+                blocks=(
+                    Boxes(
+                        2,
+                        (
+                            ("{A?Veriteľ|Veriteľka}", "{A.full.nom}"),
+                            ("Dátum narodenia", "{A.born}"),
+                            ("Rodné číslo", "{A.rc}"),
+                            ("Bydlisko", "{A.addr}"),
+                            ("{B?Dlžník|Dlžníčka}", "{B.full.nom}"),
+                            ("RČ", "{B.rc}"),
+                            ("Bydlisko", "{B.addr}"),
+                            ("Telefón", "{B.phone}"),
+                        ),
+                    ),
+                    Handwritten(9, "Miesto a dátum podpisu:", "{doc.place}, {doc.issued}"),
+                    Signature(10, "Vlastnoručný podpis:", ""),
+                    Signature(11, "Vlastnoručný podpis:", ""),
+                ),
+            ),
         ),
         Template(
             "garden",
@@ -279,6 +489,16 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
             ),
             decoys=("Záhradkárska osada Pod Hájom",),
             families=("BC",),
+            layout=Layout(
+                letterhead="Záhradkárska osada Pod Hájom",
+                footer="Nájomná zmluva k parcele, evidencia {doc.ref}",
+                replaced=(9,),
+                blocks=(
+                    Handwritten(10, "Za prenajímateľa:", "{A.initial.nom}"),
+                    Handwritten(10, "{B?Nájomca|Nájomkyňa}:", "{B.initial.nom}"),
+                    Stamp(10, ("Záhradkárska osada", "Pod Hájom")),
+                ),
+            ),
         ),
         Template(
             "cv",
@@ -301,6 +521,38 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
                 " tel. {M.phone}.",
                 "Záujmy: turistika, šach, dobrovoľníctvo v miestnej knižnici",
             ),
+            layout=Layout(
+                replaced=(1, 2, 3, 4, 6, 7),
+                blocks=(
+                    Boxes(
+                        1,
+                        (
+                            ("Meno a priezvisko", "{A.full.nom}"),
+                            ("Dátum narodenia", "{A.born}"),
+                            ("Adresa", "{A.addr}"),
+                            ("Telefón", "{A.phone}"),
+                            ("E-mail", "{A.email}"),
+                        ),
+                    ),
+                    Table(
+                        6,
+                        ("Obdobie práce", "Zamestnávateľ a činnosť"),
+                        (
+                            (
+                                "súčasnosť",
+                                "účtovní{A?k|čka} v spoločnosti {doc.company}; vediem mzdovú"
+                                " agendu pre šesťdesiat zamestnancov",
+                            ),
+                            (
+                                "šesť rokov predtým",
+                                "asistent{A?|ka} hlavnej účtovníčky v spoločnosti"
+                                " {doc.company2}, kde ma zaúčala {V.full.nom}",
+                            ),
+                        ),
+                        (1.2, 4.0),
+                    ),
+                ),
+            ),
         ),
         Template(
             "invoice",
@@ -319,6 +571,22 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
                 "Dodávateľ nie je platiteľom dane podľa zákona č. 222/2004 Z. z.",
             ),
             decoys=("zákona č. 222/2004 Z. z.",),
+            layout=Layout(
+                letterhead="{doc.company}",
+                footer="Doklad {doc.ref}, list 1/1",
+                replaced=(4, 6),
+                blocks=(
+                    Table(
+                        4,
+                        ("Popis prác", "Suma"),
+                        (("výmena troch okien v byte {A.titled.gen}", "{doc.amount}"),),
+                        (3.0, 1.0),
+                    ),
+                    Handwritten(7, "Faktúru prevzal{A?|a}:", "{A.initial.nom}, tel. {A.phone}"),
+                    Signature(10, "Za dodávateľa:", ""),
+                    Stamp(10, ("{doc.company}",)),
+                ),
+            ),
         ),
         Template(
             "fishing",
@@ -337,6 +605,24 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
                 "Prijala: {V.full.nom}, tajomníčka organizácie, číslo žiadosti {doc.ref}",
             ),
             decoys=("zákona č. 18/2018 Z. z.",),
+            layout=Layout(
+                footer="Evidencia žiadostí {doc.ref}",
+                replaced=(2, 3, 4, 5, 8),
+                blocks=(
+                    Boxes(
+                        2,
+                        (
+                            ("Priezvisko a meno žiadateľa", "{A.rev}"),
+                            ("Dátum narodenia", "{A.born}"),
+                            ("Rodné číslo", "{A.rc}"),
+                            ("Telefón", "{A.phone}"),
+                            ("Trvalé bydlisko", "{A.addr}"),
+                        ),
+                    ),
+                    Handwritten(9, "Povolenie prevezme:", "{B.full.nom}"),
+                    Signature(9, "Podpis žiadateľa:", ""),
+                ),
+            ),
         ),
         Template(
             "trees",
@@ -358,6 +644,13 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
                 "{A.full.nom}",
             ),
             families=("AC",),
+            layout=Layout(
+                replaced=(2,),
+                blocks=(
+                    Handwritten(2, "Miesto a dátum:", "{doc.place}, {doc.issued}"),
+                    Signature(10, "Podpis:", ""),
+                ),
+            ),
         ),
         Template(
             "knee",
@@ -381,6 +674,24 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
             ),
             decoys=("Poliklinika Sever",),
             families=("AB",),
+            layout=Layout(
+                footer="Číslo vyšetrenia {doc.ref}",
+                replaced=(2, 3),
+                blocks=(
+                    Boxes(
+                        2,
+                        (
+                            ("{A?Pacient|Pacientka}", "{A.full.nom}"),
+                            ("Rodné číslo", "{A.rc}"),
+                            ("Dátum narodenia", "{A.born}"),
+                            ("Adresa", "{A.addr}"),
+                            ("Telefón", "{A.phone}"),
+                        ),
+                        3,
+                    ),
+                    Signature(11, "Podpis a pečiatka lekára:", ""),
+                ),
+            ),
         ),
         Template(
             "leave",
@@ -401,6 +712,14 @@ TEMPLATES: dict[str, tuple[Template, ...]] = {
             ),
             families=("AC",),
             children="C",
+            layout=Layout(
+                footer="Evidenčné číslo žiadosti {doc.ref}",
+                replaced=(9, 10),
+                blocks=(
+                    Handwritten(10, "Podpis zákonného zástupcu:", "{A.initial.nom}"),
+                    Handwritten(11, "Rodné číslo žiaka pre evidenciu:", "{C.rc}"),
+                ),
+            ),
         ),
     ),
 }

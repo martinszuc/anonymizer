@@ -5,7 +5,6 @@ kind = "letter"
 lines = [
   "[[person:Klaudia Ferencová]], [[address:Gaštanová 1326, 977 01 Brezno]]",
   "Mestský úrad Lučenec, k rukám pána [[person:Kováčika]]",
-  "Lučenec, 26. 2. 2026",
   "Vec: orezanie stromov pri ceste",
   "Vážený pán [[person:Kováčik]],",
   "obraciam sa na Vás so žiadosťou o orezanie dvoch líp, ktoré rastú pred domom môjho suseda [[person:Tibora Hrušovského]]. Ich konáre už zasahujú do elektrického vedenia.",
@@ -16,3 +15,15 @@ lines = [
   "[[person:Klaudia Ferencová]]",
 ]
 decoys = []
+
+[[blocks]]
+type = "handwritten"
+after = 2
+label = "Miesto a dátum:"
+text = "Lučenec, 26. 2. 2026"
+
+[[blocks]]
+type = "signature"
+after = 9
+label = "Podpis:"
+seed = "sk-p06-trees/1"

@@ -19,13 +19,9 @@ from xml.sax.saxutils import escape
 
 import pymupdf
 
+from benchmark.layout import FONT_SIZE, MARGIN, PAGE, LayoutWriter, PageWriter
 from benchmark.spec import DocumentSpec
 
-PAGE = pymupdf.paper_rect("a4")
-MARGIN = 56.0
-FONT_SIZE = 11
-LEADING = 15.0
-PARAGRAPH_GAP = 6.0
 FIXED_DATE = "D:20260101000000Z"
 # PyMuPDF creates its widget type constants at runtime.
 TEXT_FIELD: int = pymupdf.PDF_WIDGET_TYPE_TEXT  # pyright: ignore[reportAttributeAccessIssue]
@@ -62,9 +58,13 @@ def render(spec: DocumentSpec, destination: Path) -> Path:
     """
     font = pymupdf.Font("helv")
     pdf = pymupdf.open()
-    writer = _PageWriter(pdf, font)
-    for line in spec.lines:
-        writer.paragraph(line)
+    if spec.laid_out:
+        writer = LayoutWriter(pdf, font, spec)
+        writer.body()
+    else:
+        writer = PageWriter(pdf, font)
+        for line in spec.lines:
+            writer.paragraph(line)
     for anchor, target in spec.links:
         page, rect = writer.paragraph(anchor)
         page.insert_link({"kind": pymupdf.LINK_URI, "from": rect, "uri": target})
@@ -152,66 +152,3 @@ def _xmp_packet(name: str, properties: dict[str, str]) -> str:
         "</rdf:Description></rdf:RDF></x:xmpmeta>"
         '<?xpacket end="w"?>'
     )
-
-
-class _PageWriter:
-    """Writes wrapped paragraphs top to bottom, adding pages as needed."""
-
-    def __init__(self, pdf: pymupdf.Document, font: pymupdf.Font) -> None:
-        self.pdf = pdf
-        self.font = font
-        self.width = PAGE.width - 2 * MARGIN
-        self.page: pymupdf.Page | None = None
-        self.writer: pymupdf.TextWriter | None = None
-        self.y = 0.0
-
-    def paragraph(self, text: str) -> tuple[pymupdf.Page, pymupdf.Rect]:
-        """Write one paragraph; return its page and the box of its first line."""
-        first: tuple[pymupdf.Page, pymupdf.Rect] | None = None
-        for line in self._wrap(text):
-            page, writer = self._line_slot()
-            baseline = pymupdf.Point(MARGIN, self.y + FONT_SIZE)
-            writer.append(baseline, line, font=self.font, fontsize=FONT_SIZE)
-            box = pymupdf.Rect(
-                MARGIN,
-                self.y,
-                MARGIN + self._width_of(line),
-                self.y + LEADING,
-            )
-            first = first or (page, box)
-            self.y += LEADING
-        self.y += PARAGRAPH_GAP
-        if first is None:
-            msg = "empty paragraph"
-            raise ValueError(msg)
-        return first
-
-    def finish(self) -> None:
-        """Flush the text of the last page."""
-        if self.page is not None and self.writer is not None:
-            self.writer.write_text(self.page)
-
-    def _line_slot(self) -> tuple[pymupdf.Page, pymupdf.TextWriter]:
-        if self.page is None or self.writer is None or self.y + LEADING > PAGE.height - MARGIN:
-            self.finish()
-            self.page = self.pdf.new_page(width=PAGE.width, height=PAGE.height)
-            self.writer = pymupdf.TextWriter(self.page.rect)
-            self.y = MARGIN
-        return self.page, self.writer
-
-    def _width_of(self, text: str) -> float:
-        return self.font.text_length(text, fontsize=FONT_SIZE)
-
-    def _wrap(self, text: str) -> list[str]:
-        lines: list[str] = []
-        current = ""
-        for word in text.split():
-            candidate = f"{current} {word}" if current else word
-            if current and self._width_of(candidate) > self.width:
-                lines.append(current)
-                current = word
-            else:
-                current = candidate
-        if current:
-            lines.append(current)
-        return lines

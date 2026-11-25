@@ -20,7 +20,16 @@ its document unsafe. Scores per engine, condition and system:
 - person recall and F2 (partial match) and person residual share
   (`experiments.metrics`), not-read persons counted as gold that nothing
   covers (they sit on a page of their own that no detection touches);
-- documents safe (every item read and found whole) and leak check passed.
+- documents safe (every printed item read and found whole) and leak check passed.
+
+Handwritten items are scored apart. Their ground truth is the page text with
+each handwritten text inserted after its label (`_handwriting`); in the
+printed rows a detection overlapping a located handwritten text and no printed
+item is left out, neither credited nor a false alarm. The handwritten row,
+read with kraken only, counts per condition and system the handwritten items
+not read, found, partial and missed, the CER of the handwritten texts' located
+spans, and the documents safe overall (printed and handwritten items found
+whole). Without a kraken run the row is not available.
 
 Intervals: paired bootstrap over documents (a document's photos pool), with
 the seed and resample count the rules fix. `compare` pairs systems as
@@ -38,6 +47,7 @@ import dataclasses
 import datetime
 import hashlib
 import json
+import re
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
@@ -48,8 +58,9 @@ from anonymizer.core.ingest import OcrEngine, load_document, load_ocr_engine
 from anonymizer.core.pipeline import run_detection
 from anonymizer.core.redact import export_redacted
 from anonymizer.core.types import Document, Entity, EntityType
+from rapidfuzz.distance import Levenshtein
 
-from benchmark.align import locate
+from benchmark.align import Span, locate, spaced
 from benchmark.ocr_run import ocr_model_versions
 from benchmark.ocr_score import text_errors
 from benchmark.photo_files import (
@@ -77,7 +88,7 @@ from benchmark.score import (
     score_detection,
     words_pattern,
 )
-from benchmark.spec import DocumentSpec, GoldItem, document_set, load_documents
+from benchmark.spec import DocumentSpec, GoldItem, Handwritten, document_set, load_documents
 from experiments.metrics import (
     PARTIAL,
     Counts,
@@ -93,11 +104,12 @@ from experiments.metrics import (
 )
 from experiments.verdict import set_outcome
 
-PHOTOS_SCHEMA = 1
+PHOTOS_SCHEMA = 2
 SEED = 20261010
 RESAMPLES = 1000
 DIGITAL = "digital"
 PRIMARY_ENGINE = "onnxtr"
+HANDWRITING_ENGINE = "kraken"
 PERSON = EntityType.PERSON
 
 EngineLoader = Callable[[str, Path], OcrEngine]
@@ -159,6 +171,42 @@ class _Scored:
         }
 
 
+@dataclasses.dataclass
+class _HandScored:
+    """One document's handwritten items under one system, summed over its photos."""
+
+    gold: int = 0
+    not_read: int = 0
+    found: int = 0
+    partial: int = 0
+    missed: int = 0
+
+    def __add__(self, other: _HandScored) -> _HandScored:
+        return _HandScored(*(getattr(self, key) + getattr(other, key) for key in _HAND_KEYS))
+
+    def to_dict(self) -> dict[str, int]:
+        return {key: getattr(self, key) for key in _HAND_KEYS}
+
+
+_HAND_KEYS = ("gold", "not_read", "found", "partial", "missed")
+
+
+@dataclasses.dataclass(frozen=True)
+class _Handwriting:
+    """A page's text with its handwritten texts inserted after their labels.
+
+    Attributes:
+        text: The page text with the handwriting in it.
+        fields: Each handwritten text's span in `text`.
+        items: Index into `_Truth.handwritten` and span in `text` of each
+            handwritten item on the page.
+    """
+
+    text: str
+    fields: tuple[Span, ...] = ()
+    items: tuple[tuple[int, Span], ...] = ()
+
+
 @dataclasses.dataclass(frozen=True)
 class _Truth:
     """A document's ground truth: its born-digital PDF, page texts and page items."""
@@ -169,6 +217,8 @@ class _Truth:
     sizes: list[tuple[float, float]]
     items: tuple[GoldItem, ...]
     locations: list[Location | None]
+    handwritten: tuple[GoldItem, ...] = ()
+    handwriting: tuple[_Handwriting, ...] = ()
 
 
 def score_photos(
@@ -257,6 +307,7 @@ def score_photos(
             # The rules report an engine that fails on photos and score the others.
             except Exception as error:
                 failed[engine_name] = type(error).__name__
+    handwritten = _handwritten_rows(runs, failed)
     results: dict[str, Any] = {
         "schema": PHOTOS_SCHEMA,
         "created": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
@@ -283,6 +334,7 @@ def score_photos(
         },
         "digital": rows[DIGITAL],
         "runs": runs,
+        "handwritten": handwritten,
         "engine_comparisons": _engine_comparisons(runs, resample_count),
         "primary": _primary(primary, rows[DIGITAL], runs.get(PRIMARY_ENGINE)),
     }
@@ -329,15 +381,72 @@ def _truths(manifest: list[ManifestEntry], documents: Path, pdf_folder: Path) ->
             spec, gold=tuple(item for item in spec.gold if item.carrier == "page")
         )
         located = page_locations(on_page, document)
+        pages = [page.text for page in document.pages]
+        handwritten = tuple(item for item in spec.gold if item.carrier == "handwritten")
         truths[spec.name] = _Truth(
             spec=on_page,
             pdf=pdf,
-            pages=[page.text for page in document.pages],
+            pages=pages,
             sizes=[(page.width, page.height) for page in document.pages],
             items=on_page.gold,
             locations=[located.get(index) for index in range(len(on_page.gold))],
+            handwritten=handwritten,
+            handwriting=_handwriting(spec, pages, handwritten),
         )
     return truths
+
+
+def _handwriting(
+    spec: DocumentSpec, pages: list[str], items: tuple[GoldItem, ...]
+) -> tuple[_Handwriting, ...]:
+    """Insert each handwritten text after its label, one space between, and place its items.
+
+    Raises:
+        PhotoSetError: If a label is not a line of the pages after the
+            previous one, or a handwritten item is in no handwritten text.
+    """
+    texts = list(pages)
+    fields: list[list[Span]] = [[] for _ in pages]
+    placed: list[list[tuple[int, Span]]] = [[] for _ in pages]
+    cursor = (0, 0)
+    item_index = 0
+    for block in spec.blocks:
+        if not isinstance(block, Handwritten):
+            continue
+        page_index, label_end = _label_end(texts, block.label, cursor, spec.name)
+        page = texts[page_index]
+        start = label_end + 1
+        texts[page_index] = f"{page[:label_end]} {block.text}{page[label_end:]}"
+        fields[page_index].append((start, start + len(block.text)))
+        # Items are collected in reading order, so a line's items come next and in order.
+        offset = 0
+        while item_index < len(items):
+            text = items[item_index].text
+            found = block.text.find(text, offset)
+            if found < 0:
+                break
+            placed[page_index].append((item_index, (start + found, start + found + len(text))))
+            offset = found + len(text)
+            item_index += 1
+        cursor = (page_index, start + len(block.text))
+    if item_index < len(items):
+        msg = f"{spec.name}: a handwritten item is in no handwritten text"
+        raise PhotoSetError(msg)
+    return tuple(
+        _Handwriting(text, tuple(spans), tuple(on_page))
+        for text, spans, on_page in zip(texts, fields, placed, strict=True)
+    )
+
+
+def _label_end(texts: list[str], label: str, cursor: tuple[int, int], name: str) -> tuple[int, int]:
+    """Return the page and end offset of `label` printed as a line of its own, after `cursor`."""
+    line = re.compile(rf"^{re.escape(label)}[ \t]*$", re.MULTILINE)
+    for page_index in range(cursor[0], len(texts)):
+        match = line.search(texts[page_index], cursor[1] if page_index == cursor[0] else 0)
+        if match:
+            return page_index, match.start() + len(label)
+    msg = f"{name}: the label {label!r} of a handwritten line is not on its pages"
+    raise PhotoSetError(msg)
 
 
 def _digital(truth: _Truth, factories: Mapping[str, DetectorFactory], keep: Path) -> dict[str, Any]:
@@ -366,8 +475,12 @@ def _condition(
     remaining = iter(paths)
     by_document = {name: [next(remaining) for _ in truth.pages] for name, truth in truths.items()}
     documents: dict[str, dict[str, Any]] = {}
+    reads_handwriting = engine_name == HANDWRITING_ENGINE
+    hands: dict[str, dict[str, Any]] = {}
     for name, truth in truths.items():
         scored = {system: _Scored() for system in factories}
+        hand_scored = {system: _HandScored() for system in factories}
+        hand_text = TextTally()
         text = TextTally()
         for page_index, photo in enumerate(by_document[name]):
             document = load_document(photo, language=truth.spec.language, ocr=engine)
@@ -394,25 +507,141 @@ def _condition(
             for span in spans:
                 found = next(positions) if span else None
                 placed.append(None if found is None else (0, *found))
+            hand = truth.handwriting[page_index]
+            field_spans, item_spans = _locate_handwriting(hand, page_text)
+            written = [(0, *span) for span in field_spans if span]
+            if reads_handwriting:
+                hand_text += _handwriting_errors(hand, field_spans, page_text)
+            hand_items = tuple(truth.handwritten[index] for index, _ in hand.items)
             for system, factory in factories.items():
                 run_detection(document, factory(truth.spec.language))
-                result = _score(document, tuple(items), placed)
+                result = _score(document, tuple(items), placed, written)
                 destination = keep / f"{photo.stem}.{engine_name}.{_safe(system)}.pdf"
                 passed = not export_redacted(photo, document, destination, ocr=engine)
                 result.leak_check_passed = passed
                 scored[system] = _merge(scored[system], result)
+                if reads_handwriting:
+                    hand_scored[system] += _score_handwriting(document, hand_items, item_spans)
         documents[name] = {
             "photos": [photo.name for photo in by_document[name]],
             "text": text,
             "systems": scored,
         }
-    return _row(documents, "text", compare, resample_count)
+        hands[name] = {"text": hand_text, "systems": hand_scored, "printed": scored}
+    row = _row(documents, "text", compare, resample_count)
+    if reads_handwriting:
+        row["handwritten"] = _hand_row(hands)
+    return row
+
+
+def _locate_handwriting(
+    hand: _Handwriting, page_text: str
+) -> tuple[list[Span | None], list[Span | None]]:
+    """Locate a page's handwritten texts and items in what OCR read of it."""
+    if not hand.fields:
+        return [], []
+    located = locate(hand.text, [*hand.fields, *(span for _, span in hand.items)], page_text)
+    return located[: len(hand.fields)], located[len(hand.fields) :]
+
+
+def _handwriting_errors(
+    hand: _Handwriting, located: list[Span | None], page_text: str
+) -> TextTally:
+    """Edit distance of each handwritten text to its located span; a text not read is all errors."""
+    characters = errors = 0
+    for (start, end), span in zip(hand.fields, located, strict=True):
+        truth = spaced(hand.text[start:end]).text
+        read = spaced(page_text[span[0] : span[1]]).text if span else ""
+        characters += len(truth)
+        errors += Levenshtein.distance(truth, read)
+    return TextTally(characters=characters, character_errors=errors)
+
+
+def _score_handwriting(
+    document: Document, items: tuple[GoldItem, ...], located: list[Span | None]
+) -> _HandScored:
+    """Score handwritten items at their located spans, as page items are scored."""
+    as_printed = tuple(dataclasses.replace(item, carrier="page") for item in items)
+    spec = DocumentSpec(name="", language="", kind="", lines=(), gold=as_printed)
+    placed = {index: None if span is None else (0, *span) for index, span in enumerate(located)}
+    outcomes = [outcome for outcome, _ in score_detection(spec, document, placed)]
+    return _HandScored(
+        gold=len(items),
+        not_read=sum(span is None for span in located),
+        found=outcomes.count("found"),
+        partial=outcomes.count("partial"),
+        missed=outcomes.count("missed"),
+    )
+
+
+def _hand_row(hands: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Pool one condition's handwritten items: counts per system, CER, documents safe overall."""
+    systems = list(next(iter(hands.values()))["systems"])
+    pooled = total([hand["text"] for hand in hands.values()])
+
+    def safe_overall(hand: dict[str, Any], system: str) -> bool:
+        written: _HandScored = hand["systems"][system]
+        return hand["printed"][system].safe and written.found == written.gold
+
+    return {
+        "character_error_rate": _rounded(pooled.metric("cer")),
+        "characters": pooled.characters,
+        "documents": {
+            name: {
+                system: hand["systems"][system].to_dict()
+                | {"safe_overall": safe_overall(hand, system)}
+                for system in systems
+            }
+            for name, hand in hands.items()
+        },
+        "totals": {
+            system: _HandScored(
+                *(
+                    sum(getattr(hand["systems"][system], key) for hand in hands.values())
+                    for key in _HAND_KEYS
+                )
+            ).to_dict()
+            | {
+                "safe_overall": sum(safe_overall(hand, system) for hand in hands.values()),
+                "documents": len(hands),
+            }
+            for system in systems
+        },
+    }
+
+
+def _handwritten_rows(runs: dict[str, dict[str, Any]], failed: dict[str, str]) -> dict[str, Any]:
+    """Move kraken's handwritten rows out of its runs; without them the row is not available."""
+    rows = {
+        condition: row.pop("handwritten")
+        for condition, row in runs.get(HANDWRITING_ENGINE, {}).items()
+    }
+    if rows:
+        return {"engine": HANDWRITING_ENGINE, "available": True, "conditions": rows}
+    reason = "failed" if HANDWRITING_ENGINE in failed else "not run"
+    return {"engine": HANDWRITING_ENGINE, "available": False, "reason": reason, "conditions": {}}
 
 
 def _score(
-    document: Document, items: Sequence[GoldItem], locations: Sequence[Location | None]
+    document: Document,
+    items: Sequence[GoldItem],
+    locations: Sequence[Location | None],
+    handwriting: Sequence[Location] = (),
 ) -> _Scored:
-    """Score one read document against items placed in its pages (`None`: not read)."""
+    """Score one read document against items placed in its pages (`None`: not read).
+
+    A detection overlapping `handwriting` and no placed item is left out: the
+    handwritten row scores it.
+    """
+    planted = [location for location in locations if location]
+    document = dataclasses.replace(
+        document,
+        entities=[
+            entity
+            for entity in document.entities
+            if not _touches(entity, handwriting) or _touches(entity, planted)
+        ],
+    )
     spec = DocumentSpec(name="", language="", kind="", lines=(), gold=tuple(items))
     placed = dict(enumerate(locations))
     outcomes = score_detection(spec, document, placed)
@@ -446,6 +675,14 @@ def _score(
         counts=document_counts(document.entities, gold, [PERSON])[PARTIAL, str(PERSON)],
         coverage=document_coverage(document.entities, gold, [PERSON], pages)[str(PERSON)],
         false_positives=set(false_positives(spec, document, placed)),
+    )
+
+
+def _touches(entity: Entity, locations: Sequence[Location]) -> bool:
+    start, end = entity.span
+    return any(
+        entity.page_index == page_index and start < stop and begin < end
+        for page_index, begin, stop in locations
     )
 
 
@@ -637,7 +874,7 @@ def photos_markdown(results: dict[str, Any]) -> str:
         "person recall",
         "person F2",
         "person residual",
-        "safe",
+        "safe (printed)",
         "leak check passed",
         "false alarms",
     ]
@@ -671,6 +908,7 @@ def photos_markdown(results: dict[str, Any]) -> str:
                     ]
                 )
             )
+    lines += _handwritten_markdown(results["handwritten"])
     comparisons = [
         (label, comparison) for label, _, row in rows for comparison in row["comparisons"]
     ]
@@ -715,6 +953,40 @@ def photos_markdown(results: dict[str, Any]) -> str:
     photo_count = sum(len(photos) for photos in results["photos"].values())
     lines += ["", f"{photo_count} photos, SHA-256 of each in the JSON file."]
     return "\n".join(lines) + "\n"
+
+
+def _handwritten_markdown(handwritten: dict[str, Any]) -> list[str]:
+    lines = ["", f"## Handwritten items ({handwritten['engine']}, counts only)", ""]
+    if not handwritten["available"]:
+        return [*lines, f"Not available ({handwritten['engine']} {handwritten['reason']})."]
+    header = [
+        "condition",
+        "system",
+        "CER",
+        "not read",
+        "found",
+        "partial",
+        "missed",
+        "safe overall",
+    ]
+    lines += [_cells(header), _cells(["---"] * len(header))]
+    for condition, row in handwritten["conditions"].items():
+        for system, counts in row["totals"].items():
+            lines.append(
+                _cells(
+                    [
+                        condition,
+                        system,
+                        _percent(row["character_error_rate"]),
+                        str(counts["not_read"]),
+                        f"{counts['found']}/{counts['gold']}",
+                        str(counts["partial"]),
+                        str(counts["missed"]),
+                        f"{counts['safe_overall']}/{counts['documents']}",
+                    ]
+                )
+            )
+    return lines
 
 
 def _cells(cells: list[str]) -> str:

@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.8.0 (2026-11-25)
+
+<!-- Release notes generated using configuration in .github/release.yml at main -->
+
+## What's Changed
+### Software
+* fix(detect): card numbers next to other digits, partial overlaps in propagation by @martinszuc in https://github.com/martinszuc/anonymizer/pull/142
+* refactor: drop docstrings that repeat the function name by @martinszuc in https://github.com/martinszuc/anonymizer/pull/143
+* fix: show only our own exception messages in the CLI and the window by @martinszuc in https://github.com/martinszuc/anonymizer/pull/144
+* fix(detect): birth-number labels as forms write them, hyphen separator by @martinszuc in https://github.com/martinszuc/anonymizer/pull/145
+* docs: status after the final test, text export, labelled birth numbers by @martinszuc in https://github.com/martinszuc/anonymizer/pull/147
+* feat(benchmark): compare redaction methods by what they leave extractable by @martinszuc in https://github.com/martinszuc/anonymizer/pull/146
+* feat(ui): export the labelled text from the review window by @martinszuc in https://github.com/martinszuc/anonymizer/pull/148
+* docs: IČO check passes 1 in 10; union residual not lowest on REDACT by @martinszuc in https://github.com/martinszuc/anonymizer/pull/159
+* fix(detect): Slovak role nouns level with the Czech list by @martinszuc in https://github.com/martinszuc/anonymizer/pull/160
+* feat(benchmark): invented training documents for the phone-photo fine-tune by @martinszuc in https://github.com/martinszuc/anonymizer/pull/155
+* feat(benchmark): phone-photo benchmark command by @martinszuc in https://github.com/martinszuc/anonymizer/pull/156
+* feat(benchmark): realistic layouts for the phone-photo documents by @martinszuc in https://github.com/martinszuc/anonymizer/pull/161
+* feat(benchmark): score handwritten photo items apart by @martinszuc in https://github.com/martinszuc/anonymizer/pull/162
+### Experiments
+* feat(experiments): NameTag 3 multilingual in each of its tagsets by @martinszuc in https://github.com/martinszuc/anonymizer/pull/149
+* chore(experiments): benchmark with the chosen model by @martinszuc in https://github.com/martinszuc/anonymizer/pull/150
+* feat(experiments): post hoc re-score of NameTag 3 multilingual in the uner tagset on test by @martinszuc in https://github.com/martinszuc/anonymizer/pull/152
+* chore(experiments): scanned benchmark with GLiNER and NameTag behind OCR by @martinszuc in https://github.com/martinszuc/anonymizer/pull/153
+* chore(experiments): scanned benchmark results for the final model by @martinszuc in https://github.com/martinszuc/anonymizer/pull/154
+* chore(experiments): post hoc test of the union's other two seeds by @martinszuc in https://github.com/martinszuc/anonymizer/pull/158
+* feat(experiments): code-degraded photo training set and a post hoc photo fine-tune (config) by @martinszuc in https://github.com/martinszuc/anonymizer/pull/157
+* chore(experiments): the union's other two seeds on the test sets by @martinszuc in https://github.com/martinszuc/anonymizer/pull/163
+
+
+**Full Changelog**: https://github.com/martinszuc/anonymizer/compare/v0.7.0...v0.8.0
+
 ## 0.7.0 (2026-11-02)
 
 <!-- Release notes generated using configuration in .github/release.yml at main -->

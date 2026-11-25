@@ -1,0 +1,47 @@
+name = "rq6-test-seeds-posthoc"
+description = """
+POST HOC addendum to rq6-test, decided by the author on 2026-11-25 after the final test and
+reported apart from it; the final table and its verdict stay as they are. It reads the main
+test splits a second time and counts as a second final run. The final model was the config
+seed of the union (decision of 2026-10-14). On REDACT dev that seed (0.930) and seed 2 (0.931)
+scored below NameTag 3 multilingual (0.935) and seed 1 above it (0.948), and the REDACT test
+win was narrow, so this run scores the union's other two seeds beside the config seed and the
+opponent, all at this commit: the rules changed after 29 Oct (propagation 046a10a,
+birth-number labels 74af0fd, c25b6c0), so the config-seed row is the control here, not the
+rq6-test row. Members of each seed as in rq6-candidates-dev. Scored on fobos (NVIDIA L40S),
+where the models were trained. No choice depends on it."""
+stage = "final"
+seed = 20261010
+resamples = 1000
+compare = [
+    ["rules+nametag-multi", "rules+xlmr|focal-more"],
+    ["rules+nametag-multi", "rules+xlmr|focal-more-s1"],
+    ["rules+nametag-multi", "rules+xlmr|focal-more-s2"],
+]
+
+[[datasets]]
+id = "redact"
+split = "test"
+
+[[datasets]]
+id = "cnec-2.0"
+split = "etest"
+
+[[datasets]]
+id = "uner-sk-snk"
+split = "test"
+
+[systems."rules+nametag-multi"]
+model = "nametag3-multilingual-260521"
+
+[systems."rules+xlmr|focal-more"]
+model = ["xlmr-cs-sk-ce-more", "gliner-cs-sk-focal-more"]
+combine = "union"
+
+[systems."rules+xlmr|focal-more-s1"]
+model = ["xlmr-cs-sk-ce-more-s1", "gliner-cs-sk-focal-more-s1"]
+combine = "union"
+
+[systems."rules+xlmr|focal-more-s2"]
+model = ["xlmr-cs-sk-ce-more-s2", "gliner-cs-sk-focal-more-s2"]
+combine = "union"

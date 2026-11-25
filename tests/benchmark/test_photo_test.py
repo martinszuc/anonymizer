@@ -85,7 +85,7 @@ def test_the_print_pack_lists_what_to_write_by_hand(tmp_path, capsys):
     with pymupdf.open(tmp_path / "rq8-print.pdf") as pack:
         assert pack.page_count == 23
     with pymupdf.open(tmp_path / "fill-in.pdf") as sheet:
-        listed = " ".join(" ".join(page.get_text().split()) for page in sheet)
+        listed = " ".join(" ".join(str(page.get_text()).split()) for page in sheet)
     for spec in load_documents(DOCUMENTS):
         for block in spec.blocks:
             if isinstance(block, Handwritten):

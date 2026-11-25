@@ -1,9 +1,9 @@
 """Czech and Slovak company identifier (IČO) detection.
 
 An IČO is eight digits whose last digit is a weighted mod-11 check digit. That
-check alone accepts roughly one in eleven eight-digit numbers, which on an
-invoice full of order and variable-symbol numbers is far too weak, so a match
-additionally requires a nearby `IČO` / `IČ` label.
+check alone accepts one in ten eight-digit numbers (every remainder maps to one
+check digit), which on an invoice full of order and variable-symbol numbers is
+far too weak, so a match additionally requires a nearby `IČO` / `IČ` label.
 
 A sole trader's IČO identifies a natural person, which is why this is treated as
 personal data rather than public company metadata.

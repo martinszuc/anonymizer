@@ -12,6 +12,7 @@ from anonymizer.core.detect import (
 from anonymizer.core.detect.roles import (
     CZECH_ROLE_WORDS,
     ENGLISH_ROLE_WORDS,
+    SLOVAK_LEFT_OUT,
     SLOVAK_ROLE_WORDS,
 )
 from anonymizer.core.pipeline import build_detector, run_detection
@@ -72,10 +73,98 @@ def test_czech_roles_and_lowercase_spans_are_dropped(span: str):
 
 
 @pytest.mark.parametrize(
-    "span", ["Kupujúci", "Predávajúcemu", "Spotrebiteľ", "Žiadateľovi", "Zákonný zástupca"]
+    "span",
+    [
+        "Kupujúci",
+        "Predávajúcemu",
+        "Spotrebiteľ",
+        "Žiadateľovi",
+        "Zákonný zástupca",
+        "Poplatníkom",
+        "Poplatníci",
+        "Predseda predstavenstva",
+        "Podpredsedovi",
+        "Primátorom mesta",
+        "Exekútora",
+        "Matrikárka",
+        "Zodpovedný zástupca",
+        "Splnomocniteľ",
+        "Usporiadateľovi",
+        "Prevádzajúci",
+        "Prevodcu",
+        "Nájomníkovi",
+    ],
 )
 def test_slovak_roles_are_dropped(span: str):
     assert _cut(span, "sk") is None
+
+
+@pytest.mark.parametrize(
+    ("span", "expected"),
+    [
+        ("Poplatník Ján Kováč", "Poplatník Ján Kováč"),
+        ("Predseda Jozef Mlynár", "Predseda Jozef Mlynár"),
+        ("pán Peter Lekár", "Peter Lekár"),
+        ("Lekár", "Lekár"),
+        ("Starosta obce", "Starosta"),
+    ],
+)
+def test_slovak_names_are_kept(span: str, expected: str):
+    assert _cut(span, "sk") == expected
+
+
+# The Slovak counterpart of each Czech role noun, None where there is none.
+SLOVAK_FOR_CZECH = {
+    **{"kupující": "kupujúci", "prodávající": "predávajúci", "vedoucí": "vedúci"},
+    **{"pronajímající": "prenajímajúci", "objednávající": "objednávajúci"},
+    **{"převádějící": "prevádzajúci", "nabývající": "nadobúdajúci", "smluvní": "zmluvný"},
+    **{"pověřující": "poverujúci", "zákonný": "zákonný", "oprávněný": "oprávnený"},
+    **{"povinný": "povinný", "nezletilý": "maloletý", "zletilý": "plnoletý"},
+    **{"pověřený": "poverený", "odpovědný": "zodpovedný", "žadatel": "žiadateľ"},
+    **{"spotřebitel": "spotrebiteľ", "zhotovitel": "zhotoviteľ", "objednatel": "objednávateľ"},
+    **{"pronajímatel": "prenajímateľ", "zaměstnavatel": "zamestnávateľ"},
+    **{"dodavatel": "dodávateľ", "odběratel": "odberateľ", "poskytovatel": "poskytovateľ"},
+    **{"provozovatel": "prevádzkovateľ", "uživatel": "užívateľ", "zpracovatel": "spracovateľ"},
+    **{"věřitel": "veriteľ", "ručitel": "ručiteľ", "jednatel": "konateľ"},
+    **{"nabyvatel": "nadobúdateľ", "zřizovatel": "zriaďovateľ", "pojistitel": "poisťovateľ"},
+    **{"vydavatel": "vydavateľ", "navrhovatel": "navrhovateľ", "zadavatel": "zadávateľ"},
+    **{"pořadatel": "usporiadateľ", "ředitel": "riaditeľ", "učitel": "učiteľ"},
+    **{"zmocnitel": "splnomocniteľ", "zástupce": "zástupca", "plátce": "platca"},
+    **{"příjemce": "príjemca", "dopravce": "dopravca", "správce": "správca"},
+    **{"nájemce": "nájomca", "prodejce": "predajca", "převodce": "prevodca"},
+    **{"referent": "referent", "účastník": "účastník", "dlužník": "dlžník"},
+    **{"nájemník": "nájomník", "pacient": "pacient", "klient": "klient"},
+    **{"student": "študent", "občan": "občan", "poplatník": "poplatník"},
+    **{"primátor": "primátor", "hejtman": None, "advokát": "advokát", "exekutor": "exekútor"},
+    **{"matrikář": "matrikár", "notář": "notár", "lékař": None},
+    # Slovak says "zástupca starostu"; the lowercase genitive is trimmed.
+    **{"místostarosta": "zástupca", "předseda": "predseda", "místopředseda": "podpredseda"},
+    **{"strana": "strana", "zaměstnanec": "zamestnanec", "matrikářka": "matrikárka"},
+}
+
+
+def test_every_czech_role_has_a_slovak_entry_or_a_reason():
+    assert all(czech in CZECH_ROLE_WORDS for czech in SLOVAK_FOR_CZECH)
+    # A Czech role added without a line above leaves words no listed stem starts.
+    stems = tuple(czech[:-2] for czech in SLOVAK_FOR_CZECH)
+    assert {word for word in CZECH_ROLE_WORDS if not word.startswith(stems)} == set()
+    missing = {
+        czech
+        for czech, slovak in SLOVAK_FOR_CZECH.items()
+        if slovak not in SLOVAK_ROLE_WORDS and czech not in SLOVAK_LEFT_OUT
+    }
+    assert missing == set()
+    assert {czech for czech, slovak in SLOVAK_FOR_CZECH.items() if slovak is None} == set(
+        SLOVAK_LEFT_OUT
+    )
+    assert "lekár" not in SLOVAK_ROLE_WORDS
+
+
+def test_slovak_role_in_running_text_is_dropped_and_the_name_kept():
+    text = "Poplatníkom je Ján Kováč. Poplatníkovi sa vyrubuje poplatok."
+    model = StandInModel({"Poplatníkom": "person", "Ján Kováč": "person", "Poplatníkovi": "person"})
+    entities = NamesOnly(GlinerDetector(model), "sk").detect(_page(text))
+    assert [entity.text for entity in entities] == ["Ján Kováč"]
 
 
 @pytest.mark.parametrize(

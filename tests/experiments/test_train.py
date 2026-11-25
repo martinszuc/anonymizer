@@ -618,7 +618,9 @@ def test_a_dataset_generated_in_code_is_trained_on_without_a_catalog_entry(
         "text": "Nájemce Vojtěch Lhoták podepsal.",
         "spans": [{"type": "person", "start": 8, "end": 22}],
     }
-    (built / "cs-train.jsonl").write_text(json.dumps(record, ensure_ascii=False) + "\n")
+    (built / "cs-train.jsonl").write_text(
+        json.dumps(record, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     raw = _changed("corpora", [{"id": "photo-noisy-cs", "split": "train"}, CONFIG["corpora"][0]])
     recorder = Recorder()
     results = train(

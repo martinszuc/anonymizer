@@ -6,6 +6,14 @@ annotations, attachments and XMP properties. Every personal item is written
 where it occurs as `[[type:text]]`, so its text, type and carrier come from the
 markup and are never typed twice. `{{filler:N}}` expands to N words of neutral text, for
 documents that must be long (the model reads at most 384 tokens at once).
+
+Layout is optional and used by the phone-photo documents only: a letterhead
+and footer, and blocks placed after a number of lines (a table, labelled
+boxes, a blank line filled in by hand, a stamp, a signature). A document
+without them renders as it always has. Gold items are collected in reading
+order (letterhead, lines and blocks as placed, footer), which is the order the
+scorer locates them in. Text written by hand is not on the printed page: its
+items have the carrier `handwritten`.
 """
 
 from __future__ import annotations
@@ -13,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import re
 import tomllib
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from itertools import cycle, islice
 from pathlib import Path
@@ -24,6 +33,8 @@ DOCUMENTS = Path(__file__).parent / "documents"
 
 _ITEM = re.compile(r"\[\[([a-z_]+):([^\[\]]+)\]\]")
 _FILLER = re.compile(r"\{\{filler:(\d+)\}\}")
+
+_Plain = Callable[[str, str], str]
 
 # Neutral text for {{filler:N}}: no names, numbers or places.
 _FILLER_TEXT = (
@@ -50,6 +61,99 @@ class GoldItem:
 
 
 @dataclass(frozen=True)
+class Letterhead:
+    """The organisation printed at the top of the first page.
+
+    Attributes:
+        organisation: Its name.
+        address: Lines of its address block.
+        logo: Letters drawn in the logo box.
+    """
+
+    organisation: str
+    address: tuple[str, ...]
+    logo: str
+
+
+@dataclass(frozen=True)
+class Table:
+    """A ruled table; every cell is one string, wrapped inside its column.
+
+    Attributes:
+        after: Lines printed before it.
+        columns: Header cells.
+        rows: Body cells, as many per row as there are columns.
+        widths: Share of the text width per column (equal when empty).
+    """
+
+    after: int
+    columns: tuple[str, ...]
+    rows: tuple[tuple[str, ...], ...]
+    widths: tuple[float, ...] = ()
+
+
+@dataclass(frozen=True)
+class Boxes:
+    """Form fields printed as boxes: a small label above each value.
+
+    Attributes:
+        after: Lines printed before them.
+        fields: (label, value) pairs, filled row by row.
+        per_row: Boxes in a row.
+    """
+
+    after: int
+    fields: tuple[tuple[str, str], ...]
+    per_row: int = 2
+
+
+@dataclass(frozen=True)
+class Handwritten:
+    """A printed label and a blank line; `text` is written there by hand.
+
+    Attributes:
+        after: Lines printed before it.
+        label: Printed before the blank line.
+        text: What is written on the line (never printed).
+    """
+
+    after: int
+    label: str
+    text: str
+
+
+@dataclass(frozen=True)
+class Stamp:
+    """A round stamp drawn as a picture over the text above its place.
+
+    Attributes:
+        after: Lines printed before it.
+        lines: Text inside the ring.
+    """
+
+    after: int
+    lines: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class Signature:
+    """A signature line with a scribble drawn in vector strokes.
+
+    Attributes:
+        after: Lines printed before it.
+        label: Printed before the line.
+        seed: Seeds the shape of the scribble.
+    """
+
+    after: int
+    label: str
+    seed: str
+
+
+Block = Table | Boxes | Handwritten | Stamp | Signature
+
+
+@dataclass(frozen=True)
 class DocumentSpec:
     """One benchmark document.
 
@@ -67,6 +171,9 @@ class DocumentSpec:
         xmp: Dublin Core properties written to the XMP packet.
         gold: Every planted item.
         decoys: Strings that look personal but are not (must stay readable).
+        letterhead: Organisation at the top of the first page.
+        footer: Text at the foot of every page.
+        blocks: Layout blocks, in the order they are placed.
     """
 
     name: str
@@ -82,6 +189,14 @@ class DocumentSpec:
     xmp: dict[str, str] = field(default_factory=dict)
     gold: tuple[GoldItem, ...] = ()
     decoys: tuple[str, ...] = ()
+    letterhead: Letterhead | None = None
+    footer: str = ""
+    blocks: tuple[Block, ...] = ()
+
+    @property
+    def laid_out(self) -> bool:
+        """Whether any layout field is set."""
+        return self.letterhead is not None or bool(self.footer or self.blocks)
 
 
 def load_documents(directory: Path = DOCUMENTS) -> list[DocumentSpec]:
@@ -122,7 +237,24 @@ def load_document_spec(path: Path) -> DocumentSpec:
         return _strip_markup(_expand_filler(text), carrier, gold)
 
     try:
-        lines = tuple(plain(line, "page") for line in raw["lines"])
+        letterhead = _letterhead(raw.get("letterhead"), plain)
+        raw_lines = raw["lines"]
+        raw_blocks = raw.get("blocks", [])
+        lines_list: list[str] = []
+        blocks_list: list[Block] = []
+        # Lines and blocks are read in the order they are placed, so the gold
+        # items stay in reading order.
+        pending = sorted(range(len(raw_blocks)), key=lambda index: raw_blocks[index]["after"])
+        for position in range(len(raw_lines) + 1):
+            while pending and raw_blocks[pending[0]]["after"] == position:
+                blocks_list.append(_block(raw_blocks[pending.pop(0)], plain))
+            if position < len(raw_lines):
+                lines_list.append(plain(raw_lines[position], "page"))
+        if pending:
+            msg = f"a block is placed after line {raw_blocks[pending[0]]['after']}, past the end"
+            raise ValueError(msg)
+        lines = tuple(lines_list)
+        footer = plain(raw.get("footer", ""), "page")
         links = tuple(
             (plain(link["anchor"], "page"), plain(link["target"], "link"))
             for link in raw.get("links", [])
@@ -161,10 +293,57 @@ def load_document_spec(path: Path) -> DocumentSpec:
             xmp=xmp,
             gold=tuple(gold),
             decoys=tuple(raw.get("decoys", [])),
+            letterhead=letterhead,
+            footer=footer,
+            blocks=tuple(blocks_list),
         )
     except (KeyError, TypeError) as error:
         msg = f"{path.name}: malformed document ({error})"
         raise ValueError(msg) from error
+
+
+def _letterhead(raw: dict[str, Any] | None, plain: _Plain) -> Letterhead | None:
+    if raw is None:
+        return None
+    return Letterhead(
+        organisation=plain(raw["organisation"], "page"),
+        address=tuple(plain(line, "page") for line in raw["address"]),
+        logo=raw["logo"],
+    )
+
+
+def _block(raw: dict[str, Any], plain: _Plain) -> Block:
+    """Read one layout block; its gold items are collected in reading order.
+
+    Raises:
+        ValueError: For an unknown block type or a table row of the wrong length.
+    """
+    after = raw["after"]
+    kind = raw["type"]
+    if kind == "table":
+        columns = tuple(plain(cell, "page") for cell in raw["columns"])
+        rows = tuple(tuple(plain(cell, "page") for cell in row) for row in raw["rows"])
+        widths = tuple(float(width) for width in raw.get("widths", []))
+        if any(len(row) != len(columns) for row in rows) or (
+            widths and len(widths) != len(columns)
+        ):
+            msg = "a table row or its widths do not match its columns"
+            raise ValueError(msg)
+        return Table(after, columns, rows, widths)
+    if kind == "boxes":
+        fields = tuple(
+            (plain(label, "page"), plain(value, "page")) for label, value in raw["fields"]
+        )
+        return Boxes(after, fields, raw.get("per_row", 2))
+    if kind == "handwritten":
+        return Handwritten(after, plain(raw["label"], "page"), plain(raw["text"], "handwritten"))
+    if kind == "stamp":
+        # A stamp is a picture: its text is not on the text layer.
+        return Stamp(after, tuple(raw["lines"]))
+    if kind == "signature":
+        return Signature(after, plain(raw["label"], "page"), raw["seed"])
+    msg = f"unknown block type {kind!r}"
+    raise ValueError(msg)
 
 
 def _field_value(text: str, gold: list[GoldItem]) -> str:
@@ -199,12 +378,35 @@ def _expand_filler(text: str) -> str:
 
 
 def visible_text(spec: DocumentSpec) -> list[str]:
-    """Return every string drawn on the pages, in the order it is written."""
+    """Return every string drawn on the pages, in the order it is written.
+
+    Text written by hand is left out: it is not printed.
+    """
+    head = [spec.letterhead.organisation, *spec.letterhead.address] if spec.letterhead else []
+    placed: list[str] = []
+    blocks = list(spec.blocks)
+    for position in range(len(spec.lines) + 1):
+        while blocks and blocks[0].after == position:
+            placed += _block_text(blocks.pop(0))
+        if position < len(spec.lines):
+            placed.append(spec.lines[position])
     return [
-        *spec.lines,
+        *head,
+        *placed,
+        *([spec.footer] if spec.footer else []),
         *(anchor for anchor, _ in spec.links),
         *(text for pair in spec.fields for text in pair),
     ]
+
+
+def _block_text(block: Block) -> list[str]:
+    if isinstance(block, Table):
+        return [*block.columns, *(cell for row in block.rows for cell in row)]
+    if isinstance(block, Boxes):
+        return [text for pair in block.fields for text in pair]
+    if isinstance(block, Handwritten | Signature):
+        return [block.label]
+    return []
 
 
 def spec_summary(spec: DocumentSpec) -> dict[str, Any]:

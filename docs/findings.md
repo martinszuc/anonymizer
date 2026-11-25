@@ -1776,3 +1776,34 @@ Slovak list filled (this change), measured on MetaCentrum CPU nodes from two wor
 No found item changes. On the gold side, across UNER-SK and WikiGoldSK train and dev (4,744
 person spans), the new list cuts no span the old one left whole. The final test (`rq6-test`)
 ran before this change and is not re-scored.
+
+### 2026-11-25 · Post hoc: the union's other two seeds on the test sets
+
+`experiments/configs/rq6-test-seeds-posthoc.toml`, commit `2a7f633` (clean tree), stage
+final, seed 20261010, 1,000 resamples, fobos (NVIDIA L40S), job 25937926, 7 min 43 s;
+`experiments/results/rq6-test-seeds-posthoc.md`. A post hoc addendum and a second read of the
+main test splits, decided by the author on 2026-11-25; `rq6-test` and its verdict stay. On
+REDACT dev the config seed and seed 2 sat below NameTag 3 multilingual and seed 1 above it.
+
+The config seed is the control: at this commit it gives the `rq6-test` verdict again (REDACT
+ΔF2 +0.011 [+0.000, +0.024] against +0.012 [+0.001, +0.024] on 29 Oct; the rules changed in
+between). Person, partial match, each seed against NameTag 3 multilingual, verdict by
+`experiments verdict`:
+
+| seed | REDACT ΔF2 / Δresidual | CNEC etest † | UNER-SK test † | outcome |
+|---|---|---|---|---|
+| config | +0.011 [+0.000, +0.024] / −0.017 [−0.026, −0.009] | +0.060 / −0.089 | +0.070 / −0.073 | win, win, win |
+| 1 | +0.010 [−0.001, +0.024] / −0.014 [−0.023, −0.006] | +0.063 / −0.089 | +0.065 / −0.068 | tie, win, win |
+| 2 | +0.016 [+0.005, +0.029] / −0.018 [−0.027, −0.010] | +0.055 / −0.086 | +0.071 / −0.073 | win, win, win |
+
+† the opponent was trained on this corpus's train split. CNEC and UNER-SK intervals lie
+well above (F2) and below (residual) zero for every seed.
+
+- **CNEC and UNER-SK are won by every seed.** Person F2 0.940–0.948 on CNEC and 0.967–0.972
+  on UNER-SK against NameTag's 0.885 and 0.902.
+- **REDACT is won by two seeds of three.** Seed 1's F2 interval reaches −0.001, so the rule
+  calls it a tie; its residual is still lower. The REDACT result is narrow on every seed
+  (point estimates +0.010 to +0.016), and the seed that led on REDACT dev (0.948) is the one
+  that ties on test.
+- **Precision stays below NameTag's on every seed and set** (REDACT −0.032 to −0.040, CNEC
+  −0.086 to −0.106, UNER-SK −0.020 to −0.025).

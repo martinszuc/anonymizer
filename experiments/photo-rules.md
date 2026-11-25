@@ -10,15 +10,17 @@ reported apart from that table and never changes its verdict.
 ## Photo sets
 
 - **Test set:** the 22 Czech and Slovak benchmark documents, 23 pages (`cs-terms` has
-  two), printed from `outputs/rq8-photos/print/rq8-print.pdf` in the order of
-  `print/manifest.md`, each page photographed once under each of three conditions:
+  two), laid out as printed in `benchmark/photo_test/documents/` (letterhead, footer,
+  tables, boxes, stamps, signatures, lines filled in by hand; the same planted items as
+  each benchmark document's page) and printed from `outputs/rq8-photos/print/rq8-print.pdf`
+  (`python -m benchmark photo-test`) in the order of `print/manifest.md`, each page photographed once under each of three conditions:
   `flat`, `dim`, `angle` (`outputs/rq8-photos/PROTOCOL.md`). Exactly **69 photos** in
   `outputs/rq8-photos/photos/<condition>/`, 23 per condition. A condition with a
   missing or extra photo is not scored. Six of the 22 documents plant nothing
   (`cs-gym-rules`, `cs-notice`, `cs-privacy-notice`, `cs-terms`, `sk-terms`,
   `sk-waste-notice`); they count for false alarms.
-- **Training set:** invented documents of `benchmark/photo_train/` (split `print`),
-  printed from `print/rq8-train-print.pdf` (`print/manifest-train.md`) and photographed
+- **Training set:** invented documents of `benchmark/photo_train/` (split `print`, laid
+  out with the same kinds of element as the test set), printed from `print/rq8-train-print.pdf` (`print/manifest-train.md`) and photographed
   under the same three conditions into `outputs/rq8-photos/photos-train/<condition>/`.
   Training photos are never scored as test data, and no test photo is used in training,
   tuning or choosing a checkpoint. The two sets are photographed in separate sessions and

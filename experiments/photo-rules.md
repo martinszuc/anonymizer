@@ -97,6 +97,18 @@ scans, so items are placed by text alignment:
   aligned to an OCR character (all deleted) is **not read**.
 - An item not read is missed for every system and leaves its document unsafe: it is
   printed on the photo and stays in the redacted copy.
+- **Reading order of tables and boxes (a limitation, reported as is).** The ground
+  truth runs row by row and cell by cell, as the text layer is written; a box's small
+  label comes before its value. OCR may read a row's cells in another order, two
+  boxes side by side as one line, or a wrapped cell's second line after the next cell.
+  The alignment is over the whole page, so such an item can align only in part or not
+  at all and is then partial or not read although it was printed. Neither the ground
+  truth nor the OCR text is reordered to repair this, and no item is matched cell by
+  cell; the counts are what the tool would do with the photo.
+- The stamp and the signatures are pictures and strokes, not text: they are not in the
+  ground truth, whatever OCR reads from them counts as inserted characters, and a
+  detection on them is a false alarm. The letterhead and footer are printed text and
+  are part of the ground truth.
 
 ## Scores, per engine and condition (and the digital row)
 

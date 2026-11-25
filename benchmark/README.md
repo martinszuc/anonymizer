@@ -93,7 +93,8 @@ fields in boxes, a stamp, signatures, lines filled in by hand). `photo-test`
 writes `rq8-print.pdf`, `manifest.md`, `gold.json` and `fill-in.pdf`, which
 lists per document and line the exact text to write by hand; that text is the
 ground truth of those items (carrier `handwritten`), which `photos score`
-leaves out. Photos of the printed documents sit in
+scores apart: in their own rows, read with kraken only (counts, no
+intervals), and never as false alarms of the printed rows. Photos of the printed documents sit in
 `outputs/rq8-photos/photos/<condition>/` (`flat`, `dim`, `angle`,
 `--conditions`), taken in the print order of `--manifest`
 (`outputs/rq8-photos/print/manifest.md`). A training set takes the same

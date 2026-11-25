@@ -358,13 +358,14 @@ def _stamp_picture(stamp: Stamp, font: pymupdf.Font) -> pymupdf.Pixmap:
     shape.finish(color=STAMP_INK, width=0.8, stroke_opacity=0.85)
     shape.commit()
     room = 1.75 * (STAMP_RADIUS - 9)
-    if max(font.text_length(line, fontsize=STAMP_SIZE) for line in stamp.lines) > room:
-        msg = f"a stamp line is too wide: {stamp.lines}"
+    lines = [part for line in stamp.lines for part in wrap(line, font, STAMP_SIZE, room)]
+    if max(font.text_length(line, fontsize=STAMP_SIZE) for line in lines) > room:
+        msg = f"a stamp word is too wide: {stamp.lines}"
         raise ValueError(msg)
     leading = STAMP_SIZE * 1.25
     text = pymupdf.TextWriter(page.rect, color=STAMP_INK)
-    top = STAMP_RADIUS - leading * (len(stamp.lines) - 1) / 2 + STAMP_SIZE / 3
-    for number, line in enumerate(stamp.lines):
+    top = STAMP_RADIUS - leading * (len(lines) - 1) / 2 + STAMP_SIZE / 3
+    for number, line in enumerate(lines):
         width = font.text_length(line, fontsize=STAMP_SIZE)
         text.append(
             pymupdf.Point(STAMP_RADIUS - width / 2, top + number * leading),

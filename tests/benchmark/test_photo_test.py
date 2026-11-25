@@ -1,4 +1,4 @@
-"""The phone-photo test documents: the benchmark's Czech and Slovak documents, laid out as printed."""
+"""Phone-photo test documents: the Czech and Slovak benchmark documents, laid out as printed."""
 
 import json
 from collections import Counter

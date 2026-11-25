@@ -5,7 +5,6 @@ kind = "letter"
 lines = [
   "[[person:Bohdana Burešová]], [[address:Lesní 466, 682 01 Vyškov]]",
   "[[person:Otakar Kovařík]], [[address:Habrová 111, 460 01 Liberec]]",
-  "Plzeň, 12. 10. 2026",
   "Věc: vrácení kauce za byt",
   "Vážený pane [[person:Kovaříku]],",
   "obracím se na Vás kvůli kauci 24 000 Kč, kterou jsem Vám složila při podpisu nájemní smlouvy. Byt jsem Vám předala poslední den nájmu vymalovaný a uklizený.",
@@ -16,3 +15,15 @@ lines = [
   "[[person:Bohdana Burešová]], tel. [[phone:+420 743 089 722]]",
 ]
 decoys = []
+
+[[blocks]]
+type = "handwritten"
+after = 2
+label = "Místo a datum:"
+text = "Plzeň, 12. 10. 2026"
+
+[[blocks]]
+type = "signature"
+after = 9
+label = "Podpis:"
+seed = "cs-p06-deposit/1"

@@ -20,10 +20,21 @@ from anonymizer.core.types import EntityType
 from benchmark.__main__ import main
 from benchmark.photo_train import DOCUMENTS, generate, render_split, write
 from benchmark.photo_train.generate import PRINT_PER_LANGUAGE
-from benchmark.photo_train.templates import KINDS, TEMPLATES
+from benchmark.photo_train.templates import KINDS, TEMPLATES, Template
 from benchmark.photo_train.values import NAMES, NamePool
 from benchmark.render import render
-from benchmark.spec import DocumentSpec, document_set, load_document_spec, load_documents
+from benchmark.spec import (
+    Boxes,
+    DocumentSpec,
+    Handwritten,
+    Signature,
+    Stamp,
+    Table,
+    document_set,
+    load_document_spec,
+    load_documents,
+    visible_text,
+)
 from experiments import heldout, name_forms
 from experiments.declension import feminine_surname
 
@@ -63,6 +74,18 @@ def test_the_print_split_covers_every_kind_in_both_languages(print_specs):
         kinds = {spec.kind for spec in print_specs if spec.language == language}
         assert kinds == set(KINDS)
         assert len(TEMPLATES[language]) * 2 == PRINT_PER_LANGUAGE
+
+
+def test_the_print_split_has_the_layouts_of_the_photo_test_documents(print_specs, synthetic_specs):
+    kinds = {type(block) for spec in print_specs for block in spec.blocks}
+    assert kinds == {Table, Boxes, Handwritten, Signature, Stamp}
+    assert sum(spec.letterhead is not None for spec in print_specs) >= 4
+    assert sum(bool(spec.footer) for spec in print_specs) >= 20
+    handwritten = {
+        item.type for spec in print_specs for item in spec.gold if item.carrier != "page"
+    }
+    assert handwritten >= {EntityType.PERSON, EntityType.PHONE, EntityType.BIRTH_NUMBER}
+    assert not any(spec.laid_out for spec in synthetic_specs)
 
 
 def test_every_print_document_fits_one_page(print_specs, tmp_path):
@@ -111,12 +134,12 @@ def test_every_gold_item_is_a_whole_valid_value(print_specs, synthetic_specs):
     for spec in [*print_specs, *synthetic_specs]:
         assert spec.gold
         for item in spec.gold:
-            assert item.carrier == "page"
+            assert item.carrier in ("page", "handwritten")
             assert item.text == item.text.strip() and item.text
             _check_value(item.type, item.text, spec.language)
             counts[item.type] += 1
         for decoy in spec.decoys:
-            assert any(decoy in line for line in spec.lines), decoy
+            assert any(decoy in line for line in visible_text(spec)), decoy
             if re.fullmatch(r"\d{8}", decoy):
                 assert is_valid_company_id(decoy), decoy
     assert set(counts) == {
@@ -169,14 +192,20 @@ def test_items_stand_apart_from_the_words_around_them():
 
 
 def test_birth_numbers_encode_the_gender_of_a_full_name(print_specs):
-    """A woman's month is raised by 50; her birth number follows her name in the same line."""
-    pattern = re.compile(r"\[\[person:[^\]]+?(ová|á)\]\][^\[]*\[\[birth_number:(\d{2})(\d{2})")
+    """A woman's month is raised by 50; her birth number follows her full name, dates between."""
     matched = 0
-    for path in DOCUMENTS.glob("*.toml"):
-        for line in tomllib.loads(path.read_text(encoding="utf-8"))["lines"]:
-            for found in pattern.finditer(line):
-                assert int(found.group(3)) > 50, line
-                matched += 1
+    for spec in print_specs:
+        person = ""
+        for item in spec.gold:
+            if item.type is EntityType.PERSON:
+                person = "" if "." in item.text else item.text
+            elif item.type is EntityType.BIRTH_NUMBER:
+                if person.endswith("á"):
+                    assert int(item.text[2:4]) > 50, (spec.name, person, item.text)
+                    matched += 1
+                person = ""
+            elif item.type is not EntityType.DATE:
+                person = ""
     assert matched
 
 
@@ -290,11 +319,28 @@ def test_the_scan_sees_the_benchmark_and_the_held_out_set():
     assert not any("[[person:" in text and "Photo training" in text for text in texts)
 
 
+def _layout_texts(template: Template) -> list[str]:
+    layout = template.layout
+    texts = [layout.letterhead, layout.footer]
+    for block in layout.blocks:
+        if isinstance(block, Table):
+            texts += [*block.columns, *(cell for row in block.rows for cell in row)]
+        elif isinstance(block, Boxes):
+            texts += [text for pair in block.fields for text in pair]
+        elif isinstance(block, Handwritten):
+            texts += [block.label, block.text]
+        elif isinstance(block, Signature):
+            texts.append(block.label)
+        elif isinstance(block, Stamp):
+            texts += list(block.lines)
+    return texts
+
+
 @pytest.mark.parametrize("language", ["cs", "sk"])
 def test_no_template_shares_a_phrase_with_the_test_data(language: str):
     other = set().union(*(_grams(line) for text in _other_texts() for line in text.split("\n")))
     for template in TEMPLATES[language]:
-        for line in template.lines:
+        for line in [*template.lines, *_layout_texts(template)]:
             shared = _grams(line) & other
             assert not shared, (template.name, sorted(shared)[:3])
 

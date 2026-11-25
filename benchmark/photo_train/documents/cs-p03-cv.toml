@@ -5,12 +5,7 @@ kind = "cv"
 lines = [
   "Životopis",
   "[[person:Přemysl Pešek]]",
-  "Narození: [[date:12. 3. 1976]]",
-  "Bydliště: [[address:Na Kopci 1663, 664 34 Kuřim]]",
-  "Kontakt: [[phone:+420 790 528 696]], [[email:ppesek@example.org]]",
   "Praxe",
-  "Nyní: vedoucí skladu ve firmě Strojírny Litavka a.s.. Řídím tým osmi skladníků, plánuji směny a odpovídám za čtvrtletní inventury.",
-  "Předtím sedm let: skladník ve firmě Okna Polabí s.r.o., kde mě zaučoval [[person:Rostislav Šebesta]]; s panem [[person:Šebestou]] jsem zaváděl čtečky čárových kódů.",
   "Vzdělání",
   "Střední průmyslová škola strojní, obor logistika, ukončeno maturitou",
   "Dovednosti",
@@ -20,3 +15,30 @@ lines = [
   "Uvedené údaje smí firma použít jen pro toto výběrové řízení.",
 ]
 decoys = ["Strojírny Litavka a.s.", "Okna Polabí s.r.o."]
+
+[[blocks]]
+type = "boxes"
+after = 2
+per_row = 2
+fields = [
+  ["Narození", "[[date:12. 3. 1976]]"],
+  ["Telefon", "[[phone:+420 790 528 696]]"],
+  ["Bydliště", "[[address:Na Kopci 1663, 664 34 Kuřim]]"],
+  ["E-mail", "[[email:ppesek@example.org]]"],
+]
+
+[[blocks]]
+type = "table"
+after = 3
+columns = ["Kdy", "Kde a co"]
+rows = [
+  ["nyní", "vedoucí skladu ve firmě Strojírny Litavka a.s.; řídím tým osmi skladníků, plánuji směny a odpovídám za čtvrtletní inventury"],
+  ["předtím sedm let", "skladník ve firmě Okna Polabí s.r.o., kde mě zaučoval [[person:Rostislav Šebesta]]; s panem [[person:Šebestou]] jsem zaváděl čtečky čárových kódů"],
+]
+widths = [1.0, 4.0]
+
+[[blocks]]
+type = "handwritten"
+after = 10
+label = "Životopis sepsán dne:"
+text = "2. 6. 2026"

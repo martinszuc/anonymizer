@@ -4,13 +4,7 @@ language = "sk"
 kind = "cv"
 lines = [
   "Životopis",
-  "Meno a priezvisko: [[person:Ondrej Mikuš]]",
-  "Dátum narodenia: [[date:28. 5. 1970]]",
-  "Adresa: [[address:Brezová 110, 955 01 Topoľčany]]",
-  "Kontakt: [[phone:+421 945 509 604]], [[email:mikus.o@example.net]]",
   "Pracovné skúsenosti",
-  "Súčasné zamestnanie: účtovník v spoločnosti Stavby Ponitrie s. r. o.; vediem mzdovú agendu pre šesťdesiat zamestnancov.",
-  "Predtým šesť rokov: asistent hlavnej účtovníčky v spoločnosti Kúrenie Gemer s. r. o., kde ma zaúčala [[person:Sabína Juhásová]].",
   "Vzdelanie",
   "Obchodná akadémia, odbor ekonomika podniku, maturita",
   "Jazyky: nemčina B1, angličtina A2",
@@ -18,3 +12,25 @@ lines = [
   "Záujmy: turistika, šach, dobrovoľníctvo v miestnej knižnici",
 ]
 decoys = ["Stavby Ponitrie s. r. o.", "Kúrenie Gemer s. r. o."]
+
+[[blocks]]
+type = "boxes"
+after = 1
+per_row = 2
+fields = [
+  ["Meno a priezvisko", "[[person:Ondrej Mikuš]]"],
+  ["Dátum narodenia", "[[date:28. 5. 1970]]"],
+  ["Adresa", "[[address:Brezová 110, 955 01 Topoľčany]]"],
+  ["Telefón", "[[phone:+421 945 509 604]]"],
+  ["E-mail", "[[email:mikus.o@example.net]]"],
+]
+
+[[blocks]]
+type = "table"
+after = 2
+columns = ["Obdobie práce", "Zamestnávateľ a činnosť"]
+rows = [
+  ["súčasnosť", "účtovník v spoločnosti Stavby Ponitrie s. r. o.; vediem mzdovú agendu pre šesťdesiat zamestnancov"],
+  ["šesť rokov predtým", "asistent hlavnej účtovníčky v spoločnosti Kúrenie Gemer s. r. o., kde ma zaúčala [[person:Sabína Juhásová]]"],
+]
+widths = [1.2, 4.0]

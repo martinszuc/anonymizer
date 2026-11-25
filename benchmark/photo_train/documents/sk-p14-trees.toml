@@ -5,7 +5,6 @@ kind = "letter"
 lines = [
   "[[person:Vojtech Hudec]], [[address:Vinohradnícka 492/14, 977 01 Brezno]]",
   "Mestský úrad Skalica, k rukám pani [[person:Ferencovej]]",
-  "Skalica, 10. 8. 2026",
   "Vec: orezanie stromov pri ceste",
   "Vážená pani [[person:Ferencová]],",
   "obraciam sa na Vás so žiadosťou o orezanie dvoch líp, ktoré rastú pred domom môjho suseda [[person:Imricha Mikuša]]. Ich konáre už zasahujú do elektrického vedenia.",
@@ -16,3 +15,15 @@ lines = [
   "[[person:Vojtech Hudec]]",
 ]
 decoys = []
+
+[[blocks]]
+type = "handwritten"
+after = 2
+label = "Miesto a dátum:"
+text = "Skalica, 10. 8. 2026"
+
+[[blocks]]
+type = "signature"
+after = 9
+label = "Podpis:"
+seed = "sk-p14-trees/1"
